@@ -1,0 +1,78 @@
+import { BasesView, QueryController, TFile } from "obsidian";
+import type SamayaPlugin from "../main";
+import { DndScope } from "../dnd";
+import { Task, createTask, patchTask, placeInDay, readTask, sortTasks } from "../model";
+import { addDays, fmtDur, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
+import { bindCardDrop, bindZone, renderTaskCard } from "./common";
+
+export const WEEK_VIEW_TYPE = "samaya-week";
+
+export class WeeklyBoardView extends BasesView {
+  readonly type = WEEK_VIEW_TYPE;
+  private root: HTMLElement;
+  private weekStart = startOfWeek(today());
+  private scope = new DndScope();
+  private pending = false;
+  private timer = 0;
+
+  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
+    super(controller);
+    this.root = parentEl.createDiv("samaya-week");
+    this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
+  }
+  onunload() { window.clearTimeout(this.timer); this.scope.dispose(); }
+  onDataUpdated(): void { this.schedule(); }
+  private schedule() {
+    if (this.scope.active) { this.pending = true; return; }
+    window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.render(), 30);
+  }
+
+  private render() {
+    const weekends = this.config.get("showWeekends") === true;
+    const all = this.data.data.map(e => readTask(this.app, e.file));
+    const cols = this.root.querySelector<HTMLElement>(".samaya-cols");
+    const scrollX = cols?.scrollLeft ?? 0; const scrollsY = Array.from(this.root.querySelectorAll<HTMLElement>(".samaya-col-body")).map(e => e.scrollTop);
+    this.root.empty(); this.scope.clear();
+
+    const head = this.root.createDiv("samaya-week-head");
+    const go = (w: string) => { this.weekStart = w; this.render(); };
+    head.createEl("button", { text: "‹" }).onclick = () => go(addDays(this.weekStart, -7));
+    head.createEl("button", { text: "This week" }).onclick = () => go(startOfWeek(today()));
+    head.createEl("button", { text: "›" }).onclick = () => go(addDays(this.weekStart, 7));
+    const fmt = (s: string) => parseYmd(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    head.createEl("h2", { text: `${fmt(this.weekStart)} – ${fmt(addDays(this.weekStart, 6))}` });
+
+    const cols2 = this.root.createDiv("samaya-cols");
+    // "This week": goals for the week not yet pinned to a day
+    this.column(cols2, "This week", "week", this.weekStart, sortTasks(all.filter(t => !t.planned && t.week === this.weekStart)), false);
+    for (let i = 0; i < (weekends ? 7 : 5); i++) {
+      const date = addDays(this.weekStart, i);
+      this.column(cols2, parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }), "day", date, sortTasks(all.filter(t => t.planned === date)), date === today());
+    }
+    cols2.scrollLeft = scrollX;
+    this.root.querySelectorAll<HTMLElement>(".samaya-col-body").forEach((e, i) => (e.scrollTop = scrollsY[i] ?? 0));
+  }
+
+  private column(parent: HTMLElement, title: string, kind: "week" | "day", key: string, tasks: Task[], isToday: boolean) {
+    const col = parent.createDiv({ cls: "samaya-col" + (isToday ? " is-today" : "") + (kind === "week" ? " is-week" : "") });
+    const h = col.createDiv("samaya-col-head");
+    h.createSpan({ cls: "samaya-col-title", text: title });
+    h.createSpan({ cls: "samaya-col-total", text: fmtDur(tasks.filter(t => t.status !== "done").reduce((a, t) => a + t.estimate, 0)) });
+    const body = col.createDiv("samaya-col-body");
+    const file = (p: string) => this.app.vault.getAbstractFileByPath(p) as TFile;
+    tasks.forEach((t, idx) => {
+      const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: kind === "day" });
+      if (kind === "day") bindCardDrop(this.scope, c, (path, after) => { void placeInDay(this.app, this.plugin.settings, path, key, idx + (after ? 1 : 0)); });
+    });
+    bindZone(this.scope, col, path => {
+      if (kind === "day") void placeInDay(this.app, this.plugin.settings, path, key, tasks.length);
+      else void patchTask(this.app, file(path), { planned: null, start: null, week: key });
+    });
+    const add = col.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task" } });
+    add.addEventListener("keydown", e => {
+      if (e.key !== "Enter" || !add.value.trim()) return;
+      const p = parseTitleEstimate(add.value); add.value = "";
+      void createTask(this.app, this.plugin.settings, p.title, { ...(kind === "day" ? { planned: key } : { week: key }), estimate: p.estimate ?? this.plugin.settings.defaultEstimate, order: tasks.length });
+    });
+  }
+}

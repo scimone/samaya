@@ -1,0 +1,9 @@
+{
+  "id": "samaya",
+  "name": "Samaya",
+  "version": "0.1.0",
+  "minAppVersion": "1.10.0",
+  "description": "A Samaya-style daily planner: timeboxing, planning rituals, focus timer, built on Bases.",
+  "author": "Local",
+  "isDesktopOnly": false
+}

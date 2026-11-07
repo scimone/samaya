@@ -1,0 +1,118 @@
+import esbuild from "esbuild";
+import assert from "node:assert/strict";
+const bundle = async (entry, out) => esbuild.build({ entryPoints: [entry], bundle: true, format: "esm", outfile: out, alias: { obsidian: "./test/obsidian-stub.mjs" }, logLevel: "error" });
+await bundle("src/ics.ts", "test/.ics.mjs"); await bundle("src/util.ts", "test/.util.mjs");
+await bundle("src/worktime.ts", "test/.worktime.mjs");
+await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timeline.ts", "test/.timeline.mjs");
+await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
+const { parseIcs } = await import("./.ics.mjs");
+const { parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify } = await import("./.util.mjs");
+const { fmtEstimate, taskLines, bulletLines, upsertSection, readSection } = await import("./.journal.mjs");
+const { fetchJira, fetchGitlab } = await import("./.tickets.mjs");
+
+// ---- ics
+const ics = `BEGIN:VCALENDAR
+BEGIN:VEVENT
+SUMMARY:Standup\\, daily
+DTSTART:20261102T090000
+DTEND:20261102T091500
+RRULE:FREQ=DAILY;COUNT=3
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Holiday
+DTSTART;VALUE=DATE:20261103
+DTEND;VALUE=DATE:20261104
+END:VEVENT
+BEGIN:VEVENT
+SUMMARY:Weekly
+DTSTART:20261102T140000
+DTEND:20261102T150000
+RRULE:FREQ=WEEKLY;BYDAY=MO,WE
+EXDATE:20261104T140000
+END:VEVENT
+END:VCALENDAR`;
+const ev = parseIcs(ics, new Date(2026, 10, 1), new Date(2026, 10, 8));
+const names = ev.map(e => e.title + "@" + e.start.getDate());
+assert.deepEqual(names.filter(n => n.startsWith("Standup")), ["Standup, daily@2", "Standup, daily@3", "Standup, daily@4"]);
+assert.ok(ev.find(e => e.title === "Holiday" && e.allDay));
+assert.deepEqual(names.filter(n => n.startsWith("Weekly")), ["Weekly@2"]);
+
+// ---- util
+assert.deepEqual(parseTitleEstimate("Write report 1h"), { title: "Write report", estimate: 60 });
+assert.deepEqual(parseTitleEstimate("Call mom"), { title: "Call mom" });
+assert.equal(startOfWeek("2026-11-03"), "2026-11-02");
+assert.equal(addDays("2026-11-30", 1), "2026-12-01");
+assert.equal(fmtDur(90), "1h 30m");
+
+assert.equal(fmtHm(90), "01:30"); assert.equal(fmtHm(5), "00:05");
+assert.equal(parseDuration("1:30"), 90); assert.equal(parseDuration("1.5h"), 90); assert.equal(parseDuration("45m"), 45); assert.equal(parseDuration("45"), 45); assert.equal(parseDuration("x"), null);
+assert.equal(slugify("Weekly Sync: Q4 Planning / Ärger!"), "weekly-sync-q4-planning-arger"); assert.equal(slugify("!!!"), "meeting");
+
+// ---- task body / templates / layout
+const { ensureSubtasksHeading, insertSubtask, renderTemplate, monthFolder, DEFAULT_TASK_TEMPLATE } = await import("./.taskbody.mjs");
+const { layoutItems } = await import("./.timeline.mjs");
+let body = DEFAULT_TASK_TEMPLATE;
+body = insertSubtask(body, "one"); body = insertSubtask(body, "two");
+assert.equal(body, "## Subtasks\n- [ ] one\n- [ ] two\n\n## Notes\n");
+assert.equal(ensureSubtasksHeading("# T\n\n## Notes\nhi"), "# T\n\n## Subtasks\n\n\n## Notes\nhi");
+assert.equal(ensureSubtasksHeading("plain"), "plain\n\n## Subtasks\n\n");
+assert.equal(insertSubtask("# T\n", "a"), "# T\n\n## Subtasks\n- [ ] a\n\n");
+const fmt = (d, f) => f === "YYYY" ? String(d.getFullYear()) : "X";
+assert.equal(renderTemplate("# {{title}} {{date:YYYY}} {{start}}-{{end}} {{ time }}", { title: "Sync", date: new Date(2026, 10, 3), start: "09:00", end: "10:00" }, fmt), "# Sync 2026 09:00-10:00 X");
+assert.equal(monthFolder("Tasks", new Date(2026, 10, 3)), "Tasks/2026/11");
+const L = layoutItems([{ s: 0, dur: 60 }, { s: 30, dur: 60 }, { s: 120, dur: 30 }]);
+assert.deepEqual([...L.values()], [{ col: 0, n: 2 }, { col: 1, n: 2 }, { col: 0, n: 1 }]);
+
+// ---- worktime
+const W = await import("./.worktime.mjs");
+const log = { date: "2026-11-03", start: "08:30", end: "17:00", breaks: [{ start: "12:00", end: "12:45", kind: "lunch" }, { start: "15:00", end: "15:10", kind: "break" }], open: null };
+assert.equal(W.workedMinutes(log, 0), 8 * 60 + 30 - 55);
+assert.equal(W.workedMinutes({ date: "d", start: "09:00", end: null, breaks: [], open: { start: "10:00", kind: "break" } }, 10 * 60 + 20), 60); // open break not counted
+assert.deepEqual(W.parseBreak("12:00-12:45 lunch"), { start: "12:00", end: "12:45", kind: "lunch" });
+assert.equal(W.fmtBreak({ start: "15:00", end: "15:10", kind: "break" }), "15:00-15:10");
+assert.equal(W.parseBreak("nope"), null);
+assert.equal(W.dailyTarget(40, 5, "2026-11-03"), 480); assert.equal(W.dailyTarget(40, 5, "2026-11-07"), 0); assert.equal(W.dailyTarget(30, 4, "2026-11-06"), 0);
+assert.equal(W.unionMinutes([[0, 60], [30, 90], [120, 150]]), 120);
+const cap = W.capacityMinutes(6, [720, 780], [[600, 660], [630, 690], [740, 800]]); // meetings: 10:00-11:30 (union 90) + 12:20-13:20 -> 20 min beyond lunch end
+assert.deepEqual(cap, { total: 360, lunch: 60, meetings: 90 + 20, free: 360 - 60 - 110 });
+assert.deepEqual(W.autoLunch({ ...log, breaks: [] }, [720, 780]), { start: "12:00", end: "13:00", kind: "lunch" });
+assert.equal(W.autoLunch(log, [720, 780]), null);
+assert.equal(W.autoLunch({ ...log, start: "13:30", breaks: [] }, [720, 780]), null);
+const logs = [log, { date: "2026-11-04", start: "09:00", end: "18:00", breaks: [{ start: "12:00", end: "13:00", kind: "lunch" }], open: null }, { date: "2026-11-05", start: "09:00", end: null, breaks: [], open: null }];
+const wk = W.weekSummary(logs, "2026-11-02", 40, 5, "2026-11-05", 10 * 60);
+assert.equal(wk.rows[1].delta, 8 * 60 + 30 - 55 - 480); assert.equal(wk.rows[2].delta, 0); assert.equal(wk.rows[3].delta, null); assert.equal(wk.rows[3].worked, 60);
+assert.equal(wk.target, 2400); assert.equal(wk.balance, (8 * 60 + 30 - 55 - 480) + 0);
+assert.equal(W.totalBalance(logs, 40, 5), (8 * 60 + 30 - 55 - 480) + 0);
+assert.equal(W.fmtSigned(-18), "-0:18"); assert.equal(W.fmtSigned(75), "+1:15");
+
+// ---- journal
+assert.equal(fmtEstimate(20), "20 min"); assert.equal(fmtEstimate(120), "2 hr"); assert.equal(fmtEstimate(90), "1.5 hr"); assert.equal(fmtEstimate(0), "");
+assert.equal(taskLines([{ title: "Task A", minutes: 20, subtasks: [] }, { title: "Task B", minutes: 120, subtasks: ["Subtask 1", "Subtask 2"] }]),
+  "- [[Task A]] • *20 min*\n- [[Task B]] • *2 hr*\n    - Subtask 1\n    - Subtask 2");
+assert.equal(bulletLines(["", "- a", "b "]), "- a\n- b");
+let note = upsertSection("", "Planned today", "- [[A]]");
+note = upsertSection(note, "Obstacles in my way", "- meetings");
+note = upsertSection(note, "Planned for tomorrow", "- [[C]]");
+note = upsertSection(note, "Finished today", "- [[A]] • *5 min*"); // must land before "Planned for tomorrow"
+const order = note.split("\n").filter(l => l.startsWith("## "));
+assert.deepEqual(order, ["## Planned today", "## Obstacles in my way", "## Finished today", "## Planned for tomorrow"]);
+note = upsertSection(note, "Planned today", "- [[A]]\n- [[B]]"); // replaces, doesn't duplicate
+assert.equal(note.split("## Planned today").length, 2);
+assert.deepEqual(readSection(note, "Planned today"), ["[[A]]", "[[B]]"]);
+assert.ok(upsertSection("# My day\nfree text\n", "Planned today", "- x").startsWith("# My day\nfree text"));
+
+// ---- tickets
+const calls = [];
+const jiraHttp = async o => { calls.push(o.url);
+  if (!o.url.includes("nextPageToken")) return { status: 200, headers: {}, json: { issues: [{ key: "OPS-1", fields: { summary: "One", status: { name: "To Do" }, project: { key: "OPS" } } }], nextPageToken: "abc" } };
+  return { status: 200, headers: {}, json: { issues: [{ key: "OPS-2", fields: { summary: "Two", status: { name: "Doing" } } }], isLast: true } }; };
+const jira = await fetchJira({ flavor: "cloud", url: "https://x.atlassian.net", email: "a@b.c", token: "t", jql: "a = b" }, jiraHttp);
+assert.deepEqual(jira.map(t => t.key), ["OPS-1", "OPS-2"]); assert.equal(jira[0].url, "https://x.atlassian.net/browse/OPS-1"); assert.equal(jira[1].project, "OPS");
+assert.ok(calls[0].includes("/rest/api/3/search/jql?jql=a%20%3D%20b"));
+const glHttp = async o => o.url.endsWith("page=1")
+  ? { status: 200, headers: { "X-Next-Page": "2" }, json: [{ iid: 12, title: "Bug", web_url: "https://gl/x/-/issues/12", state: "opened", references: { full: "grp/proj#12" } }] }
+  : { status: 200, headers: { "x-next-page": "" }, json: [{ iid: 3, title: "Feat", web_url: "u", state: "opened", references: { full: "grp/other#3" } }] };
+const gl = await fetchGitlab({ url: "https://gl", token: "t", scope: "assigned_to_me" }, glHttp);
+assert.deepEqual(gl.map(t => [t.id, t.key]), [["grp/proj#12", "proj#12"], ["grp/other#3", "other#3"]]);
+await assert.rejects(fetchJira({ flavor: "cloud", url: "", email: "", token: "", jql: "" }, jiraHttp));
+console.log("all tests passed");

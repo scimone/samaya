@@ -15,11 +15,12 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   const el = parent.createDiv({ cls: "samaya-card" + (t.status === "done" ? " is-done" : "") });
   el.dataset.path = t.file.path;
   const row = el.createDiv("samaya-card-row");
-  const cb = row.createEl("input", { type: "checkbox", cls: "samaya-check" }); cb.checked = t.status === "done";
-  cb.addEventListener("change", () => { void setDone(app, t, cb.checked); });
   const body = row.createDiv("samaya-card-body");
   if (o.showTime && t.start) body.createDiv({ cls: "samaya-card-time", text: t.start });
-  const title = body.createDiv({ cls: "samaya-card-title", text: t.title });
+  const line = body.createDiv("samaya-card-line");
+  const cb = line.createEl("input", { type: "checkbox", cls: "samaya-check" }); cb.checked = t.status === "done";
+  cb.addEventListener("change", () => { void setDone(app, t, cb.checked); });
+  const title = line.createDiv({ cls: "samaya-card-title", text: t.title });
   title.addEventListener("click", e => { void app.workspace.getLeaf(e.ctrlKey || e.metaKey ? "tab" : false).openFile(t.file); });
   const meta = body.createDiv("samaya-card-meta");
   const tp = ticketPathOf(app, t);

@@ -339,8 +339,11 @@ body { --samaya-green: #2fa862; }
 .samaya-check, .samaya-sub-row input[type="checkbox"], .samaya-card input[type="checkbox"] { border-radius: 50% !important; }
 .samaya-check, .samaya-sub-row input[type="checkbox"] { width: 16px; height: 16px; }
 .samaya-check::after, .samaya-sub-row input[type="checkbox"]::after { border-radius: 50%; }
-.samaya-check { margin: 2px 4px 0 0; }
-.samaya-card-row { gap: 8px; }
+.samaya-check { margin: 0; }
+.samaya-card-row { gap: 6px; }
+.samaya-card-line { display: flex; align-items: flex-start; gap: 5px; }
+.samaya-card-line .samaya-check { margin-top: 2px; }
+.samaya-card-meta { padding-left: 21px; }
 
 /* day navigation in the sidebar */
 .samaya-today-title { align-items: center; }

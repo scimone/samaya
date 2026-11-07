@@ -115,4 +115,19 @@ const glHttp = async o => o.url.endsWith("page=1")
 const gl = await fetchGitlab({ url: "https://gl", token: "t", scope: "assigned_to_me" }, glHttp);
 assert.deepEqual(gl.map(t => [t.id, t.key]), [["grp/proj#12", "proj#12"], ["grp/other#3", "other#3"]]);
 await assert.rejects(fetchJira({ flavor: "cloud", url: "", email: "", token: "", jql: "" }, jiraHttp));
+// ---- event notes
+await bundle("src/eventnotes.ts", "test/.eventnotes.mjs");
+const { compilePattern, eventFromNote, parseClock } = await import("./.eventnotes.mjs");
+const mt = compilePattern("{{date}}_{{title}}");
+assert.deepEqual(mt("2026-11-09_Sprint planning"), { date: "2026-11-09", title: "Sprint planning" });
+assert.equal(mt("Sprint planning"), null);
+assert.deepEqual(compilePattern("{{date}} {{start}} {{title}}")("2026-11-09 1030 Review"), { date: "2026-11-09", start: "1030", title: "Review" });
+assert.equal(compilePattern("{{nope}}"), null);
+assert.equal(parseClock("9:30"), 570); assert.equal(parseClock("0930"), 570); assert.equal(parseClock("x"), null);
+const e1 = eventFromNote({ start: "10:00", end: "11:30" }, { date: "2026-11-09", title: "Sprint planning" }, "x");
+assert.equal(e1.title, "Sprint planning"); assert.equal(e1.start.getHours(), 10); assert.equal((e1.end - e1.start) / 60000, 90);
+assert.equal(eventFromNote({ start: "10:00" }, { date: "2026-11-09" }, "x"), null); // no end
+assert.equal(eventFromNote({ start: "10:00", end: "11:00" }, {}, "x"), null); // no date anywhere
+const e2 = eventFromNote({ date: "2026-11-10", title: "T", start: "23:00", end: "01:00" }, {}, "x"); assert.equal((e2.end - e2.start) / 60000, 120);
+assert.ok(eventFromNote({ allday: true }, { date: "2026-11-09", title: "Off" }, "x").allDay);
 console.log("all tests passed");

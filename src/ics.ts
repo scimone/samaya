@@ -1,5 +1,5 @@
 // Minimal, dependency-free ICS parser with basic RRULE expansion. Pure (no Obsidian imports) so it can be unit-tested.
-export interface IcsEvent { title: string; start: Date; end: Date; allDay: boolean; }
+export interface IcsEvent { title: string; start: Date; end: Date; allDay: boolean; /** set when the event IS an existing note (note-based calendar) */ notePath?: string; }
 
 function unfold(text: string): string[] {
   const out: string[] = [];

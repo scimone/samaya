@@ -1,9 +1,11 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import type SamayaPlugin from "./main";
+import { DEFAULT_EVENT_PATTERN, PATTERN_HELP, compilePattern } from "./eventnotes";
 
 export interface SamayaSettings {
   tasksFolder: string; ticketsFolder: string; meetingsFolder: string; journalFolder: string; plannerFile: string;
   taskTemplate: string; meetingTemplate: string;
+  calendarSource: "ics" | "notes"; eventNotesFolder: string; eventNotePattern: string;
   icsUrls: string[]; icsRefreshMinutes: number;
   dayStartHour: number; dayEndHour: number; slotMinutes: number;
   defaultEstimate: number; capacityHours: number; shutdownTime: string; openOnStartup: boolean;
@@ -14,6 +16,7 @@ export interface SamayaSettings {
 }
 export const DEFAULT_SETTINGS: SamayaSettings = {
   tasksFolder: "Tasks", ticketsFolder: "Tickets", meetingsFolder: "Meetings", journalFolder: "Journal", plannerFile: "Planner.base", taskTemplate: "", meetingTemplate: "",
+  calendarSource: "ics", eventNotesFolder: "Meetings", eventNotePattern: "{{date}}_{{title}}",
   icsUrls: [], icsRefreshMinutes: 15,
   dayStartHour: 7, dayEndHour: 20, slotMinutes: 15, defaultEstimate: 30, capacityHours: 6, shutdownTime: "17:30", openOnStartup: false,
   jiraFlavor: "cloud", jiraUrl: "", jiraEmail: "", jiraToken: "",
@@ -59,10 +62,18 @@ export class SamayaSettingTab extends PluginSettingTab {
     num("Working days per week", "Counted from Monday (5 = Mon-Fri). Work on other days is all overtime.", () => s.workDays, v => (s.workDays = Math.min(7, Math.round(v))));
     new Setting(c).setName("Add the default lunch automatically").setDesc("When you end the day without having logged a lunch break, subtract the lunch window above.").addToggle(t => t.setValue(s.autoLunch).onChange(async v => { s.autoLunch = v; await save(); }));
 
-    new Setting(c).setName("Calendar overlay (ICS, read-only)").setHeading();
-    new Setting(c).setName("ICS URLs").setDesc("One per line (Google Calendar 'secret address in iCal format', Outlook, ...).")
-      .addTextArea(t => { t.setValue(s.icsUrls.join("\n")).onChange(async v => { s.icsUrls = v.split("\n").map(x => x.trim().replace(/^webcal:/, "https:")).filter(Boolean); await save(); this.plugin.ics.clear(); }); t.inputEl.rows = 3; t.inputEl.cols = 40; });
-    num("ICS refresh (minutes)", "How long fetched calendars are cached.", () => s.icsRefreshMinutes, v => (s.icsRefreshMinutes = v));
+    new Setting(c).setName("Calendar events").setHeading();
+    new Setting(c).setName("Event source").setDesc("Show events from a read-only ICS feed, or from notes that already exist in your vault.")
+      .addDropdown(d => d.addOption("ics", "ICS feed").addOption("notes", "Notes in my vault").setValue(s.calendarSource).onChange(async v => { s.calendarSource = v as SamayaSettings["calendarSource"]; await save(); this.plugin.bus.emit(); this.display(); }));
+    if (s.calendarSource === "notes") {
+      text("Event notes folder", "Searched recursively. Only notes whose file name matches the pattern below are used.", () => s.eventNotesFolder, v => (s.eventNotesFolder = v || "Meetings"));
+      text("File name pattern", `${PATTERN_HELP}. Leave out ".md".`, () => s.eventNotePattern, v => { if (compilePattern(v || DEFAULT_EVENT_PATTERN)) s.eventNotePattern = v || DEFAULT_EVENT_PATTERN; });
+      c.createEl("p", { cls: "setting-item-description", text: "Each event note needs these properties: start and end (hh:mm, or yyyy-mm-dd hh:mm for events over midnight). The day comes from a date property (yyyy-mm-dd) or from {{date}} in the file name. Optional: title (otherwise {{title}} from the file name) and allday: true (then only the date is needed). Example: file '2026-11-09_Sprint planning.md' with start: 10:00 and end: 11:00." });
+    } else {
+      new Setting(c).setName("ICS URLs").setDesc("One per line (Google Calendar 'secret address in iCal format', Outlook, ...).")
+        .addTextArea(t => { t.setValue(s.icsUrls.join("\n")).onChange(async v => { s.icsUrls = v.split("\n").map(x => x.trim().replace(/^webcal:/, "https:")).filter(Boolean); await save(); this.plugin.ics.clear(); }); t.inputEl.rows = 3; t.inputEl.cols = 40; });
+      num("ICS refresh (minutes)", "How long fetched calendars are cached.", () => s.icsRefreshMinutes, v => (s.icsRefreshMinutes = v));
+    }
 
     new Setting(c).setName("Jira").setHeading();
     c.createEl("p", { cls: "setting-item-description", text: "Tokens are stored unencrypted in this plugin's data.json inside the vault. Don't sync that file to places you don't trust." });

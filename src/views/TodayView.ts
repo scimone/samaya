@@ -1,6 +1,7 @@
 import { ItemView, Menu, TFile, setIcon, WorkspaceLeaf, normalizePath } from "obsidian";
 import type SamayaPlugin from "../main";
 import type { IcsEvent } from "../ics";
+import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { DndScope } from "../dnd";
 import { ensureMeetingNote } from "../meetings";
 import { Task, allTasks, createTask, patchTask, placeInDay, readTask, setDone, sortTasks } from "../model";
@@ -34,7 +35,7 @@ export class TodayView extends ItemView {
 
   async onOpen() {
     this.contentEl.addClass("samaya-today");
-    const under = (f: { path: string }) => f.path.startsWith(normalizePath(this.plugin.settings.tasksFolder) + "/");
+    const under = (f: { path: string }) => f.path.startsWith(normalizePath(this.plugin.settings.tasksFolder) + "/") || inEventFolder(this.plugin.settings, f.path);
     this.registerEvent(this.app.metadataCache.on("changed", f => { if (under(f)) this.schedule(); }));
     this.registerEvent(this.app.vault.on("delete", f => { if (under(f)) this.schedule(); }));
     this.registerEvent(this.app.vault.on("rename", f => { if (under(f)) this.schedule(); }));
@@ -62,7 +63,7 @@ export class TodayView extends ItemView {
   async render() {
     const token = ++this.token; const s = this.plugin.settings; const date = this.viewDate || today();
     const lists = this.plannerOpen(); this.mode = lists ? "lists" : "timeline"; this.shownDate = this.plugin.plannerDate;
-    const events: IcsEvent[] = !lists && s.icsUrls.length ? await this.plugin.ics.eventsBetween(parseYmd(date), new Date(parseYmd(date).getTime() + 86400000)) : [];
+    const events: IcsEvent[] = !lists && calendarEnabled(s) ? await calendarEvents(this.plugin, parseYmd(date), new Date(parseYmd(date).getTime() + 86400000)) : [];
     const notes = new Map<IcsEvent, TFile>();
     for (const ev of (lists ? [] : events.filter(e => !e.allDay))) { try { notes.set(ev, await ensureMeetingNote(this.app, s, ev)); } catch { /* ignore */ } }
     if (token !== this.token) return;

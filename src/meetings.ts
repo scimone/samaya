@@ -7,6 +7,7 @@ import { minToHm, slugify, ymd } from "./util";
 
 /** Find or create the note for a calendar meeting: `Meetings/YYYY/MM/yyyy-mm-dd_<title-slug>.md`. Never overwrites existing notes. */
 export async function ensureMeetingNote(app: App, s: SamayaSettings, ev: IcsEvent): Promise<TFile> {
+  if (ev.notePath) { const f = app.vault.getAbstractFileByPath(ev.notePath); if (f instanceof TFile) return f; } // event already is a note
   const root = normalizePath(s.meetingsFolder); const folder = monthFolder(root, ev.start);
   const date = ymd(ev.start); const start = minToHm(ev.start.getHours() * 60 + ev.start.getMinutes());
   const end = minToHm(ev.end.getHours() * 60 + ev.end.getMinutes());

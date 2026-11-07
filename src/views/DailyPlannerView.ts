@@ -5,6 +5,7 @@ import { Task, createTask, patchTask, placeInDay, readTask, setDone, sortTasks }
 import { addDays, fmtDur, hmToMin, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { bindCardDrop, bindZone, renderTaskCard } from "./common";
 import type { IcsEvent } from "../ics";
+import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { ensureMeetingNote } from "../meetings";
 import { layoutItems } from "../timeline";
 import { addBands } from "./bands";
@@ -36,6 +37,8 @@ export class DailyPlannerView extends BasesView {
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
     this.registerInterval(window.setInterval(() => this.updateNowLine(), 60000));
     this.register(plugin.bus.on(() => this.schedule()));
+    const evRef = plugin.app.metadataCache.on("changed", f => { if (inEventFolder(plugin.settings, f.path)) this.schedule(); });
+    this.register(() => plugin.app.metadataCache.offref(evRef));
   }
 
   private get opts() {
@@ -59,8 +62,8 @@ export class DailyPlannerView extends BasesView {
     const token = ++this.token; const o = this.opts;
     const guide = this.plugin.guide;
     if (guide?.fresh) { guide.fresh = false; this.date = today(); this.scrolledFor = ""; }
-    const events = o.showIcs && this.plugin.settings.icsUrls.length
-      ? await this.plugin.ics.eventsBetween(parseYmd(this.date), parseYmd(addDays(this.date, 1))) : [];
+    const events = o.showIcs && calendarEnabled(this.plugin.settings)
+      ? await calendarEvents(this.plugin, parseYmd(this.date), parseYmd(addDays(this.date, 1))) : [];
     const meetingNotes = new Map<IcsEvent, TFile>();
     for (const ev of events.filter(e => !e.allDay)) { // sequential: same-titled meetings must not race
       try { meetingNotes.set(ev, await ensureMeetingNote(this.app, this.plugin.settings, ev)); } catch (e) { console.warn("Samaya: meeting note failed", e); }

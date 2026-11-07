@@ -15,6 +15,8 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   const el = parent.createDiv({ cls: "samaya-card" + (t.status === "done" ? " is-done" : "") });
   el.dataset.path = t.file.path;
   const row = el.createDiv("samaya-card-row");
+  const cb = row.createEl("input", { type: "checkbox", cls: "samaya-check" }); cb.checked = t.status === "done";
+  cb.addEventListener("change", () => { void setDone(app, t, cb.checked); });
   const body = row.createDiv("samaya-card-body");
   if (o.showTime && t.start) body.createDiv({ cls: "samaya-card-time", text: t.start });
   const title = body.createDiv({ cls: "samaya-card-title", text: t.title });
@@ -40,9 +42,6 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
     input.addEventListener("blur", () => { if (done) return; done = true; const v = parseDuration(input.value); void patchTask(app, t.file, { estimate: v && v > 0 ? v : null }); });
     input.addEventListener("keydown", ev => { if (ev.key === "Enter") input.blur(); if (ev.key === "Escape") { done = true; input.replaceWith(est); } });
   });
-
-  const cb = row.createEl("input", { type: "checkbox", cls: "samaya-check" }); cb.checked = t.status === "done";
-  cb.addEventListener("change", () => { void setDone(app, t, cb.checked); });
 
   if (!o.compact) void renderSubtasks(plugin, el.createDiv("samaya-subs"), t.file);
   else el.addClass("is-compact");

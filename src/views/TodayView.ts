@@ -1,11 +1,11 @@
-import { ItemView, Menu, TFile, WorkspaceLeaf, normalizePath } from "obsidian";
+import { ItemView, Menu, TFile, setIcon, WorkspaceLeaf, normalizePath } from "obsidian";
 import type SamayaPlugin from "../main";
 import type { IcsEvent } from "../ics";
 import { DndScope } from "../dnd";
 import { ensureMeetingNote } from "../meetings";
 import { Task, allTasks, createTask, patchTask, placeInDay, readTask, setDone, sortTasks } from "../model";
 import { layoutItems } from "../timeline";
-import { fmtDur, hmToMin, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
+import { addDays, fmtDur, hmToMin, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { bindZone, renderTaskCard } from "./common";
 import { addBands } from "./bands";
 import { renderWorkdayCard } from "./workdayCard";
@@ -25,6 +25,7 @@ export class TodayView extends ItemView {
   private mode: "timeline" | "lists" = "timeline";
   private tab: "week" | "backlog" = "week";
   private shownDate = "";
+  private viewDate = ""; // day shown on the timeline ("" = today)
   private listTop = 0;
   constructor(leaf: WorkspaceLeaf, private plugin: SamayaPlugin) { super(leaf); this.dnd.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } }; }
   getViewType() { return TODAY_VIEW_TYPE; }
@@ -59,7 +60,7 @@ export class TodayView extends ItemView {
   }
 
   async render() {
-    const token = ++this.token; const s = this.plugin.settings; const date = today();
+    const token = ++this.token; const s = this.plugin.settings; const date = this.viewDate || today();
     const lists = this.plannerOpen(); this.mode = lists ? "lists" : "timeline"; this.shownDate = this.plugin.plannerDate;
     const events: IcsEvent[] = !lists && s.icsUrls.length ? await this.plugin.ics.eventsBetween(parseYmd(date), new Date(parseYmd(date).getTime() + 86400000)) : [];
     const notes = new Map<IcsEvent, TFile>();
@@ -77,10 +78,23 @@ export class TodayView extends ItemView {
 
     // ---- header: title, workday strip, capacity - kept minimal
     const head = c.createDiv("samaya-today-head");
-    const d = new Date();
+    const d = parseYmd(date); const isToday = date === today();
     const title = head.createDiv("samaya-today-title");
-    title.createSpan({ cls: "samaya-today-dow", text: d.toLocaleDateString(undefined, { weekday: "long" }) });
-    title.createSpan({ cls: "samaya-today-date", text: d.toLocaleDateString(undefined, { day: "numeric", month: "short" }) });
+    if (!lists) {
+      const nav = (icon: string, label: string, to: () => string) => {
+        const b = title.createEl("button", { cls: "samaya-day-nav clickable-icon", attr: { "aria-label": label } }); setIcon(b, icon);
+        b.addEventListener("click", () => { const n = to(); this.viewDate = n === today() ? "" : n; void this.render(); });
+      };
+      nav("chevron-left", "Previous day", () => addDays(date, -1));
+      title.createSpan({ cls: "samaya-today-dow", text: d.toLocaleDateString(undefined, { weekday: "long" }) });
+      title.createSpan({ cls: "samaya-today-date", text: d.toLocaleDateString(undefined, { day: "numeric", month: "short" }) });
+      nav("chevron-right", "Next day", () => addDays(date, 1));
+      if (!isToday) { const t = title.createEl("button", { cls: "samaya-mini", text: "Today" }); t.addEventListener("click", () => { this.viewDate = ""; void this.render(); }); }
+    }
+    if (lists) {
+      title.createSpan({ cls: "samaya-today-dow", text: new Date().toLocaleDateString(undefined, { weekday: "long" }) });
+      title.createSpan({ cls: "samaya-today-date", text: new Date().toLocaleDateString(undefined, { day: "numeric", month: "short" }) });
+    }
     renderWorkdayCard(this.plugin, head.createDiv(), { compact: true });
     const dayMs = parseYmd(date).getTime();
     renderDoneBar(head, day.filter(t => t.status === "done").length, day.length);
@@ -189,7 +203,7 @@ export class TodayView extends ItemView {
     });
 
     const now = new Date(); const nm = now.getHours() * 60 + now.getMinutes();
-    if (nm >= startH * 60 && nm <= endH * 60) lane.createDiv("samaya-now").style.top = `${px(nm)}px`;
+    if (isToday && nm >= startH * 60 && nm <= endH * 60) lane.createDiv("samaya-now").style.top = `${px(nm)}px`;
     if (this.scrolled !== date) { this.scrolled = date; this.scrollTop = Math.max(0, px(nm) - 120); }
     scroll.scrollTop = this.scrollTop;
   }

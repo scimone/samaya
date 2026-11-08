@@ -176,12 +176,13 @@ export default class SamayaPlugin extends Plugin {
     });
   }
 
-  /** Keep task notes in the tasks-path subfolder of their scheduled (planned) date. Unscheduled tasks stay where they are. */
+  /** Keep task notes in the tasks-path subfolder of their scheduled (planned) date; unscheduled ones go to "Unscheduled". */
   async fileByPlanned(f: TFile) {
-    if (f.extension !== "md" || !f.path.startsWith(prefixOf(this.settings.tasksPath))) return;
-    const { planned } = readTask(this.app, f); if (!planned) return;
+    const root = rootOf(this.settings.tasksPath); // never reshuffle a whole vault
+    if (root === "/" || f.extension !== "md" || !f.path.startsWith(root + "/")) return;
+    const { planned } = readTask(this.app, f);
     const [y, m, d] = planned.split("-").map(Number);
-    const folder = folderFor(this.settings.tasksPath, new Date(y, m - 1, d));
+    const folder = planned ? folderFor(this.settings.tasksPath, new Date(y, m - 1, d)) : normalizePath(`${root}/Unscheduled`);
     const dir = f.parent?.path ?? "/";
     if (normalizePath(dir) === folder) return;
     let path = `${folder}/${f.name}`; let i = 2;

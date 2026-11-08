@@ -1,7 +1,7 @@
 import { FuzzySuggestModal, Modal, Notice } from "obsidian";
 import type SamayaPlugin from "./main";
 import { Task, Ticket, allTasks, allTickets, patchTask, setDone, sortTasks } from "./model";
-import { taskLines, toJournalTasks, writeSection } from "./journal";
+import { journalWants, taskLines, toJournalTasks, writeSection } from "./journal";
 import { addDays, fmtDur, startOfWeek, today } from "./util";
 
 export class TextPromptModal extends Modal {
@@ -93,9 +93,9 @@ export class ShutdownModal extends Stepper {
     const all = allTasks(this.app, s);
     const finished = sortTasks(all.filter(t => t.status === "done" && t.planned === td));
     const tomorrow = sortTasks(all.filter(t => t.planned === tm && t.status !== "done"));
-    await writeSection(this.app, s, td, "Finished today", taskLines(await toJournalTasks(this.app, finished, true)));
-    await writeSection(this.app, s, td, "Planned for tomorrow", taskLines(await toJournalTasks(this.app, tomorrow)));
+    if (journalWants(s, "journalFinished")) await writeSection(this.app, s, td, "Finished today", taskLines(await toJournalTasks(this.app, finished, true)));
+    if (journalWants(s, "journalTomorrow")) await writeSection(this.app, s, td, "Planned for tomorrow", taskLines(await toJournalTasks(this.app, tomorrow)));
     await this.plugin.workday.endDay();
-    new Notice("Shutdown complete - saved to your journal. See you tomorrow.");
+    new Notice(`Shutdown complete${s.journalOn ? " - saved to your journal" : ""}. See you tomorrow.`);
   }
 }

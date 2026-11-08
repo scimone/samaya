@@ -1,6 +1,6 @@
 import { App, Menu, Notice } from "obsidian";
 import type SamayaPlugin from "./main";
-import { setJournalProps } from "./journal";
+import { journalWants, setJournalProps } from "./journal";
 import { Break, BreakKind, DayLog, autoLunch, breakMinutes, fmtBreak, parseBreak, workedMinutes } from "./worktime";
 import { fmtDur, hmToMin, minToHm, today } from "./util";
 
@@ -65,10 +65,15 @@ export class WorkdayManager {
   private async persist() { this.plugin.data.workday = this.log; await this.plugin.saveData(this.plugin.data); }
   private async writeProps(l: DayLog) {
     const worked = workedMinutes(l, nowMin());
-    await setJournalProps(this.plugin.app, this.s, l.date, {
-      date: l.date, lunch: `${minToHm(this.plugin.lunchFor(l.date)[0])}-${minToHm(this.plugin.lunchFor(l.date)[1])}`, work_start: l.start, work_end: l.end, work_end_auto: l.endAuto ? true : null,
-      breaks: l.breaks.map(fmtBreak), break_minutes: breakMinutes(l) || null, work_minutes: l.end ? worked : null,
+    const s = this.s; const patch: Record<string, string | number | boolean | string[] | null> = {};
+    if (journalWants(s, "journalWorkTimes")) Object.assign(patch, { work_start: l.start, work_end: l.end, work_end_auto: l.endAuto ? true : null });
+    if (journalWants(s, "journalBreaks")) Object.assign(patch, {
+      lunch: `${minToHm(this.plugin.lunchFor(l.date)[0])}-${minToHm(this.plugin.lunchFor(l.date)[1])}`,
+      breaks: l.breaks.map(fmtBreak), break_minutes: breakMinutes(l) || null,
     });
+    if (journalWants(s, "journalTracked")) patch.work_minutes = l.end ? worked : null;
+    if (!Object.keys(patch).length) return;
+    await setJournalProps(this.plugin.app, s, l.date, { date: l.date, ...patch });
   }
   private async commit() { if (this.log) await this.writeProps(this.log); await this.persist(); this.paintStatus(); this.plugin.bus.emit(); }
 

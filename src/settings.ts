@@ -3,7 +3,7 @@ import type SamayaPlugin from "./main";
 import { ticketFolderFor, folderFor } from "./model";
 import { MEETING_SYNC_AHEAD_DAYS, syncMeetingNotes } from "./meetings";
 import { TICKET_VARIABLES, renderTicketFileName, TicketVars } from "./taskbody";
-import { JournalLoc, JournalSource, journalLocation, journalPathFor, journalSources } from "./journal";
+import { JournalLoc, JournalPart, JournalSource, journalLocation, journalPathFor, journalSources } from "./journal";
 import { DEFAULT_EVENT_PATTERN, PATTERN_HELP, compilePattern } from "./eventnotes";
 
 export interface SamayaSettings {
@@ -19,6 +19,9 @@ export interface SamayaSettings {
   lunchStart: string; lunchEnd: string; weeklyHours: number; workDays: number; autoLunch: boolean;
   /** optional modules; off by default for new installs */
   calendarOn: boolean; jiraOn: boolean; gitlabOn: boolean;
+  /** journal module: write into the daily note, and which parts */
+  journalOn: boolean; journalPlanned: boolean; journalObstacles: boolean; journalFinished: boolean; journalTomorrow: boolean;
+  journalWorkTimes: boolean; journalBreaks: boolean; journalTracked: boolean;
 }
 export const DEFAULT_SETTINGS: SamayaSettings = {
   tasksPath: "[Tasks]/YYYY/MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", meetingsPath: "[Meetings]/YYYY/MM", journalSource: "auto", journalFolder: "[Journal]", journalFormat: "YYYY-MM-DD", plannerFile: "Planner/Planner.base", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
@@ -30,6 +33,8 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   gitlabUrl: "https://gitlab.com", gitlabToken: "", gitlabScope: "assigned_to_me", syncOnStartup: false,
   lunchStart: "12:00", lunchEnd: "13:00", weeklyHours: 40, workDays: 5, autoLunch: true,
   calendarOn: false, jiraOn: false, gitlabOn: false,
+  journalOn: false, journalPlanned: true, journalObstacles: true, journalFinished: true, journalTomorrow: true,
+  journalWorkTimes: true, journalBreaks: true, journalTracked: true,
 };
 
 /** Settings saved by older versions used plain folders; turn them into equivalent path patterns. */
@@ -43,6 +48,7 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<SamayaS
   if (o.calendarOn == null) o.calendarOn = (o.calendarSource === "notes" && !!o.eventNotesFolder) || (Array.isArray(o.icsUrls) && o.icsUrls.length > 0);
   if (o.jiraOn == null) o.jiraOn = !!(o.jiraUrl && o.jiraToken);
   if (o.gitlabOn == null) o.gitlabOn = !!o.gitlabToken;
+  if (o.journalOn == null) o.journalOn = Object.keys(saved).length > 0; // the journal was always on for existing installs
   // ticket variables were called TASK_* before
   for (const k of ["ticketsPath", "ticketFileName"]) if (typeof o[k] === "string") o[k] = (o[k] as string).replace(/\bTASK_/g, "TICKET_");
   // the daily note folder is a path pattern now: a plain name becomes a literal
@@ -51,6 +57,15 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<SamayaS
   return o as Partial<SamayaSettings>;
 }
 
+const JOURNAL_PARTS: Array<[JournalPart, string, string]> = [
+  ["journalPlanned", "Planned tasks", "“Planned today” section, written when you finish the morning planning."],
+  ["journalObstacles", "Obstacles", "“Obstacles in my way” section, and the reflection step in the morning planning."],
+  ["journalFinished", "Finished tasks", "“Finished today” section, written at shutdown (with the tracked time per task)."],
+  ["journalTomorrow", "Tomorrow's plan", "“Planned for tomorrow” section, written at shutdown."],
+  ["journalWorkTimes", "Work start & end", "work_start and work_end properties."],
+  ["journalBreaks", "Breaks & lunch", "breaks, break_minutes and lunch properties."],
+  ["journalTracked", "Tracked work time", "work_minutes property: total time worked that day."],
+];
 const SAMPLE_TICKET: TicketVars = { id: "OPS-12", title: "Fix the deploy pipeline", type: "Bug", status: "In Progress", assignedTo: "Ada", url: "", description: "", source: "Jira", project: "OPS" };
 const HM = /^\d{1,2}:\d{2}$/;
 const vars = (names: string) => names.split(", ").map(v => `{{${v}}}`).join(" ");
@@ -244,8 +259,6 @@ export class SamayaSettingTab extends PluginSettingTab {
       label(b, "Startup & files");
       toggle(b, "Open planner on startup", "Open today's planner whenever Obsidian starts.", () => s.openOnStartup, v => (s.openOnStartup = v));
       text(b, "Planner base file", "The base file opened by the ribbon icon.", () => s.plannerFile, v => (s.plannerFile = v || "Planner/Planner.base"), { placeholder: "Planner/Planner.base" });
-      const dailyBox = b.createDiv(); // filled once we know which daily note sources exist
-      void this.renderDailyNotes(dailyBox, changed);
     }
 
     {
@@ -296,6 +309,19 @@ export class SamayaSettingTab extends PluginSettingTab {
         template(meetBox, "Meeting note template", "Path of a template note. Variables: {{title}} {{date}} {{start}} {{end}}.", "meetingTemplate");
       };
       renderMeet();
+    }
+
+    {
+      const b = card("Journal", "Write your day into your daily (periodic) note: plans, results and work times.", {
+        enabled: { get: () => s.journalOn, set: v => { s.journalOn = v; this.plugin.bus.emit(); } },
+        status: () => { const n = JOURNAL_PARTS.filter(([k]) => s[k]).length; return n ? [`${n} of ${JOURNAL_PARTS.length} items`, "ok"] : ["Nothing selected", "warn"]; },
+      });
+      label(b, "Write into the daily note");
+      for (const [k, name, desc] of JOURNAL_PARTS) toggle(b, name, desc, () => s[k], v => (s[k] = v));
+      note(b, "The work time dashboard and per-day lunch overrides read work times, breaks and lunch from the daily notes. Turn those items off and the dashboard shows nothing new, and a lunch changed on the grid lasts only until Obsidian restarts.");
+      label(b, "Daily note location");
+      const dailyBox = b.createDiv(); // filled once we know which daily note sources exist
+      void this.renderDailyNotes(dailyBox, changed);
     }
 
     const secrets = "Tokens are stored unencrypted in this plugin's data.json inside the vault. Don't sync that file to places you don't trust.";

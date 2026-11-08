@@ -1,5 +1,5 @@
 import type SamayaPlugin from "../main";
-import { readJournalSection } from "../journal";
+import { journalWants, readJournalSection } from "../journal";
 import { fmtDur, today } from "../util";
 
 export const GUIDE_STEPS = [
@@ -31,10 +31,12 @@ export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideC
     status.toggleClass("is-over", ctx.planned > ctx.free);
   }
   if (g.step === 3) {
-    box.createEl("label", { text: "Obstacles in my way (one per line)" });
-    const ta = box.createEl("textarea", { cls: "samaya-reflection" }); ta.rows = 4; ta.value = g.obstacles ?? "";
-    if (g.obstacles === null) void readJournalSection(plugin.app, plugin.settings, today(), "Obstacles in my way").then(l => { if (g.obstacles === null) { g.obstacles = l.join("\n"); ta.value = g.obstacles; } });
-    ta.oninput = () => { g.obstacles = ta.value; };
+    if (journalWants(plugin.settings, "journalObstacles")) {
+      box.createEl("label", { text: "Obstacles in my way (one per line)" });
+      const ta = box.createEl("textarea", { cls: "samaya-reflection" }); ta.rows = 4; ta.value = g.obstacles ?? "";
+      if (g.obstacles === null) void readJournalSection(plugin.app, plugin.settings, today(), "Obstacles in my way").then(l => { if (g.obstacles === null) { g.obstacles = l.join("\n"); ta.value = g.obstacles; } });
+      ta.oninput = () => { g.obstacles = ta.value; };
+    }
     const row = box.createDiv("samaya-guide-row");
     row.createEl("label", { text: "I plan to finish at" });
     const t = row.createEl("input", { type: "time" }); t.value = g.shutdown.padStart(5, "0"); t.onchange = () => { if (t.value) g.shutdown = t.value; };

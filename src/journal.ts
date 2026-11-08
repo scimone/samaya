@@ -4,6 +4,10 @@ import type { SamayaSettings } from "./settings";
 import { renderPath } from "./taskbody";
 import { Task, ensureFolder, momentFmt, readSubtasks } from "./model";
 
+export type JournalPart = "journalPlanned" | "journalObstacles" | "journalFinished" | "journalTomorrow" | "journalWorkTimes" | "journalBreaks" | "journalTracked";
+/** Whether the journal module is on and the given part of it is enabled. */
+export const journalWants = (s: SamayaSettings, part: JournalPart): boolean => s.journalOn && s[part];
+
 export const SECTIONS = ["Planned today", "Obstacles in my way", "Finished today", "Planned for tomorrow"] as const;
 export type Section = typeof SECTIONS[number];
 

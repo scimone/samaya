@@ -12,7 +12,7 @@ import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
 import { ShutdownModal, TextPromptModal, TicketSuggestModal } from "./modals";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask } from "./model";
-import { bulletLines, journalPath, readJournalSection, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
+import { bulletLines, journalPath, journalWants, readJournalSection, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
 import { Emitter, addDays, hmToMin, parseTitleEstimate as parseTitleEstimateSafe, today } from "./util";
 import { WorkdayManager } from "./workday";
 import type { DayLog } from "./worktime";
@@ -224,9 +224,12 @@ export default class SamayaPlugin extends Plugin {
     return before !== (m ? `${m[1]}-${m[2]}` : undefined);
   }
   private scanLunch() { let ch = false; for (const f of this.app.vault.getMarkdownFiles()) ch = this.indexLunch(f) || ch; if (ch) this.bus.emit(); }
-  /** Set the lunch for ONE day and always write it to that day's daily note (null = the current default). */
+  /** Set the lunch for ONE day and write it to that day's daily note (when the journal keeps break times) (null = the current default). */
   async setLunch(date: string, start: string | null, end: string | null) {
     const st = start ?? this.settings.lunchStart, en = end ?? this.settings.lunchEnd;
+    if (!journalWants(this.settings, "journalBreaks")) { // no daily note to keep it in: applies until Obsidian restarts
+      this.lunchIdx.set("memory:" + date, { date, range: [st, en] }); this.bus.emit(); return;
+    }
     const path = await journalPath(this.app, this.settings, date);
     this.lunchIdx.set(path, { date, range: [st, en] }); // optimistic
     this.bus.emit();
@@ -243,7 +246,7 @@ export default class SamayaPlugin extends Plugin {
     // Daily notes follow the core plugin; only seed its config when it has none
     const dn = normalizePath(`${this.app.vault.configDir}/daily-notes.json`);
     try {
-      if (!(await this.app.vault.adapter.exists(dn))) await this.app.vault.adapter.write(dn, JSON.stringify({ folder: rootOf(this.settings.journalFolder).replace(/^\/$/, ""), format: "YYYY-MM-DD" }, null, 2));
+      if (this.settings.journalOn && !(await this.app.vault.adapter.exists(dn))) await this.app.vault.adapter.write(dn, JSON.stringify({ folder: rootOf(this.settings.journalFolder).replace(/^\/$/, ""), format: "YYYY-MM-DD" }, null, 2));
     } catch (e) { console.warn("Samaya: could not seed daily-notes.json", e); }
 
     // Backlog + All tasks live in their own base inside the tasks folder; moved out of the planner base once
@@ -301,12 +304,14 @@ export default class SamayaPlugin extends Plugin {
     const g = this.guide; if (!g) return; const s = this.settings; const td = today();
     s.shutdownTime = g.shutdown; await this.saveSettings();
     const day = sortTasks(allTasks(this.app, s).filter(t => t.planned === td));
-    await writeSection(this.app, s, td, "Planned today", taskLines(await toJournalTasks(this.app, day)));
-    const prior = g.obstacles ?? (await readJournalSection(this.app, s, td, "Obstacles in my way")).join("\n");
-    await writeSection(this.app, s, td, "Obstacles in my way", bulletLines(prior.split("\n")));
+    if (journalWants(s, "journalPlanned")) await writeSection(this.app, s, td, "Planned today", taskLines(await toJournalTasks(this.app, day)));
+    if (journalWants(s, "journalObstacles")) {
+      const prior = g.obstacles ?? (await readJournalSection(this.app, s, td, "Obstacles in my way")).join("\n");
+      await writeSection(this.app, s, td, "Obstacles in my way", bulletLines(prior.split("\n")));
+    }
     await this.workday.startDay();
     this.guide = null; this.bus.emit();
-    new Notice("Day planned and started. Saved to your journal.");
+    new Notice(`Day planned and started.${s.journalOn ? " Saved to your journal." : ""}`);
   }
   startShutdown() { new ShutdownModal(this).open(); }
 

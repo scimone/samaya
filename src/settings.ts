@@ -27,6 +27,8 @@ export interface SamayaSettings {
   journalNotes: Record<PeriodicKind, PeriodCfg>;
   /** hide the properties block in journal notes */
   journalHideProps: boolean;
+  /** navigation bar above journal notes */
+  journalNavBar: boolean;
   /** projects module: folder of project notes and the base that shows them */
   projectsOn: boolean; projectsPath: string; projectsBase: string;
   /** home page: a base file with the Home view, at the vault root by default */
@@ -44,7 +46,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   calendarOn: false, jiraOn: false, gitlabOn: false,
   journalOn: false, journalPlanned: true, journalObstacles: true, journalFinished: true, journalTomorrow: true,
   journalWorkTimes: true, journalBreaks: true, journalTracked: true,
-  journalHideProps: true,
+  journalHideProps: true, journalNavBar: true,
   journalNotes: {
     weekly: { on: false, source: "auto", folder: "[Journal]/YYYY/[Weekly]", format: PERIOD_DEFAULT_FORMAT.weekly },
     monthly: { on: false, source: "auto", folder: "[Journal]/YYYY/YYYY-MM", format: PERIOD_DEFAULT_FORMAT.monthly },
@@ -404,6 +406,7 @@ export class SamayaSettingTab extends PluginSettingTab {
         status: () => { const n = JOURNAL_PARTS.filter(([k]) => s[k]).length; return n ? [`${n} of ${JOURNAL_PARTS.length} items`, "ok"] : ["Nothing selected", "warn"]; },
       });
       toggle(b, "Hide properties in journal notes", "Hides the properties block at the top of your daily, weekly, monthly, quarterly and yearly notes. The properties are still there (work times are stored in them); turn this off to see and edit them.", () => s.journalHideProps, v => { s.journalHideProps = v; this.plugin.bus.emit(); });
+      toggle(b, "Navigation bar in journal notes", "Shows a bar above your daily, weekly, monthly, quarterly and yearly notes to jump to the previous / next note, to today, or to the note of another period.", () => s.journalNavBar, v => { s.journalNavBar = v; this.plugin.bus.emit(); });
       label(b, "Write into the daily note");
       for (const [k, name, desc] of JOURNAL_PARTS) toggle(b, name, desc, () => s[k], v => (s[k] = v));
       note(b, "The work time dashboard and per-day lunch overrides read work times, breaks and lunch from the daily notes. Turn those items off and the dashboard shows nothing new, and a lunch changed on the grid lasts only until Obsidian restarts.");

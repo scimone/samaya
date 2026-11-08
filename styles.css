@@ -581,3 +581,13 @@ body { --samaya-green: #2fa862; }
   .samaya-home-hero { padding: 18px; }
   .samaya-home-week { gap: 4px; }
 }
+
+/* journal notes: navigation bar above the note */
+.samaya-journal-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; padding: 4px var(--size-4-3, 12px); border-bottom: 1px solid var(--background-modifier-border); font-size: var(--font-ui-small); }
+.samaya-jb-step { display: flex; align-items: center; gap: 4px; }
+.samaya-jb-label { min-width: 7em; text-align: center; font-weight: 600; }
+.samaya-jb-kinds { display: flex; gap: 2px; margin-left: auto; }
+.samaya-jb-btn { padding: 2px 8px; height: auto; font-size: inherit; background: transparent; box-shadow: none; color: var(--text-muted); }
+.samaya-jb-btn:hover:not(:disabled) { background: var(--background-modifier-hover); color: var(--text-normal); }
+.samaya-jb-btn:disabled { opacity: 0.35; cursor: default; }
+.samaya-jb-btn.is-active, .samaya-jb-btn.is-active:disabled { opacity: 1; color: var(--text-accent); font-weight: 600; }

@@ -14,7 +14,8 @@ import { GANTT_VIEW_TYPE, GanttView } from "./views/GanttView";
 import { KANBAN_VIEW_TYPE, KanbanView } from "./views/KanbanView";
 import { JOURNAL_CAL_TYPE, JournalCalendarView } from "./views/JournalCalendarView";
 import { JOURNAL_BASE_VIEW_TYPE, JournalBaseView } from "./views/JournalBaseView";
-import { identifyNote, findLatestPeriodNote, journalLocation, openPeriodNote, periodNotePath } from "./journal";
+import type { Period } from "./journal";
+import { PERIODS_ALL, identifyNote, findLatestPeriodNote, listPeriodNotes, neighbours, journalLocation, openPeriodNote, periodNotePath } from "./journal";
 import { PROJECTS_BASE_TEMPLATE, assignProject, createProject } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { HOME_VIEW_TYPE, HomeView } from "./views/HomeView";
@@ -424,14 +425,43 @@ export default class SamayaPlugin extends Plugin {
     await ensureFolder(this.app, "Journal");
     await this.app.vault.create(bp, JOURNAL_BASE_TEMPLATE(root === "/" ? "Journal" : root)); if (announce) new Notice("Created " + bp);
   }
-  /** Toggle `samaya-hide-props` on every open note tab that is a journal note (while the setting asks for it). */
+  /** Per open note tab: toggle `samaya-hide-props` and show / remove the navigation bar, for journal notes. */
   async markJournalNotes() {
     const s = this.settings; const leaves = this.app.workspace.getLeavesOfType("markdown");
     for (const leaf of leaves) {
       const file = (leaf.view as { file?: TFile }).file; const el = leaf.view.containerEl;
-      const hide = s.journalOn && s.journalHideProps && !!file && !!(await identifyNote(this.app, s, file));
-      el.toggleClass("samaya-hide-props", hide);
+      const id = s.journalOn && !!file ? await identifyNote(this.app, s, file) : null;
+      el.toggleClass("samaya-hide-props", s.journalHideProps && !!id);
+      await this.renderJournalBar(leaf.view.containerEl, s.journalNavBar && file && id ? { file, ...id } : null);
     }
+  }
+  private async renderJournalBar(el: HTMLElement, cur: { file: TFile; p: Period; date: string } | null) {
+    const old = el.querySelector(":scope > .samaya-journal-bar");
+    if (!cur) { old?.remove(); return; }
+    const s = this.settings; const kinds: Period[] = [];
+    for (const k of PERIODS_ALL) if (await periodNotePath(this.app, s, k, cur.date)) kinds.push(k);
+    const { prev, next } = neighbours(await listPeriodNotes(this.app, s, cur.p), cur.date);
+    const key = JSON.stringify([cur.file.path, cur.p, cur.date, kinds, prev?.file.path, next?.file.path, today()]);
+    if (old && (old as HTMLElement).dataset.key === key) return;
+    old?.remove();
+    const content = el.querySelector(":scope > .view-content"); if (!content) return;
+    const bar = createDiv({ cls: "samaya-journal-bar" }); bar.dataset.key = key;
+    const btn = (parent: HTMLElement, text: string, title: string, go: (() => void) | null, cls = "") => {
+      const b = parent.createEl("button", { text, cls: "samaya-jb-btn " + cls, attr: { "aria-label": title } });
+      if (go) b.addEventListener("click", go); else b.disabled = true; return b;
+    };
+    const open = (f: TFile | null) => { if (f) void this.openNoteInMain(f); };
+    const step = bar.createDiv({ cls: "samaya-jb-step" });
+    btn(step, "‹", "Previous note", prev ? () => open(prev.file) : null);
+    step.createSpan({ cls: "samaya-jb-label", text: cur.file.basename });
+    btn(step, "›", "Next note", next ? () => open(next.file) : null);
+    btn(bar, "Today", "Open today's note of this kind", () => { void openPeriodNote(this.app, s, cur.p, today()).then(open); });
+    const kindsEl = bar.createDiv({ cls: "samaya-jb-kinds" });
+    for (const k of kinds) {
+      const b = btn(kindsEl, k[0].toUpperCase() + k.slice(1), `Open the ${k} note for this date`, k === cur.p ? null : () => { void openPeriodNote(this.app, s, k, cur.date).then(open); });
+      if (k === cur.p) b.addClass("is-active");
+    }
+    el.insertBefore(bar, content);
   }
   /** Open a note in the main area: reuse a tab already showing it, else the first note tab, else a new tab. */
   async openNoteInMain(file: TFile) {

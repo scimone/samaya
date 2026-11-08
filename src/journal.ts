@@ -129,17 +129,30 @@ export async function periodNotePath(app: App, s: SamayaSettings, p: Period, dat
 export function latestOnOrBefore<T extends { date: string }>(items: T[], limit: string): T | null {
   return items.filter(i => i.date <= limit).sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
 }
-/** The most recent existing note of a kind up to today, found by parsing file names with the configured format. */
-export async function findLatestPeriodNote(app: App, s: SamayaSettings, p: Period): Promise<TFile | null> {
-  const loc = await periodLocation(app, s, p); if (!loc) return null;
+/** All existing notes of a kind, oldest first, found by parsing file names with the configured format. */
+export async function listPeriodNotes(app: App, s: SamayaSettings, p: Period): Promise<Array<{ file: TFile; date: string }>> {
+  const loc = await periodLocation(app, s, p); if (!loc) return [];
   const root = loc.pattern ? rootOf(loc.folder) : normalizePath(loc.folder || "/"); const prefix = root === "/" ? "" : root + "/";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const moment = (window as any).moment; const items: Array<{ file: TFile; date: string }> = [];
+  const hasYear = /[YyGg]/.test(loc.format.replace(/\[[^\]]*\]/g, ""));
   for (const f of app.vault.getMarkdownFiles()) {
     if (!f.path.startsWith(prefix)) continue;
-    const m = moment(f.basename, loc.format, true); if (m.isValid()) items.push({ file: f, date: m.format("YYYY-MM-DD") });
+    const m = moment(f.basename, loc.format, true); if (!m.isValid()) continue;
+    const yr = f.path.match(/(?:^|\/)((?:19|20)\d{2})(?:\/|-|$)/)?.[1]; if (yr && !hasYear) m.year(Number(yr));
+    items.push({ file: f, date: m.format("YYYY-MM-DD") });
   }
-  return latestOnOrBefore(items, today())?.file ?? null;
+  return items.sort((a, b) => a.date.localeCompare(b.date));
+}
+/** The most recent existing note of a kind up to today. */
+export async function findLatestPeriodNote(app: App, s: SamayaSettings, p: Period): Promise<TFile | null> {
+  return latestOnOrBefore(await listPeriodNotes(app, s, p), today())?.file ?? null;
+}
+/** The items just before and after `date` in a list sorted by date. Pure. */
+export function neighbours<T extends { date: string }>(items: T[], date: string): { prev: T | null; next: T | null } {
+  let prev: T | null = null, next: T | null = null;
+  for (const i of items) { if (i.date < date) prev = i; else if (i.date > date && !next) next = i; }
+  return { prev, next };
 }
 /** Which note of the journal a file is (kind and a date inside its period), or null. Matches by file name format inside the kind's folder, wherever in it the file sits. */
 export async function identifyNote(app: App, s: SamayaSettings, file: TFile): Promise<{ p: Period; date: string } | null> {
@@ -206,3 +219,4 @@ export async function setJournalProps(app: App, s: SamayaSettings, date: string,
     for (const [k, v] of Object.entries(patch)) { if (v === null || (Array.isArray(v) && !v.length)) delete fm[k]; else fm[k] = v; }
   });
 }
+export const PERIODS_ALL: Period[] = ["daily", "weekly", "monthly", "quarterly", "yearly"];

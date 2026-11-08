@@ -76,25 +76,37 @@ export class SamayaSettingTab extends PluginSettingTab {
       if (!box.isConnected) return; box.empty();
       const names: Record<JournalSource, string> = { daily: "Daily notes (core plugin)", periodic: "Periodic Notes (community plugin)", custom: "Custom folder" };
       const options = (["periodic", "daily"] as const).filter(k => avail[k]).map(k => k as JournalSource).concat("custom");
-      const preview = (l: JournalLoc) => "Today: " + journalPathFor(l, new Date().toLocaleDateString("sv"));
       if (options.length > 1) {
         new Setting(box).setName("Daily note location").setDesc("Where the planner reads and writes your daily notes.")
           .addDropdown(d => { for (const k of options) d.addOption(k, names[k]); d.setValue(loc.source).onChange(async v => { s.journalSource = v as JournalSource; await changed(); void draw(); }); });
       }
+      // folder + file name form one path: grouped by an accent rule and closed by a shared preview
+      const group = box.createDiv("samaya-pathgroup");
+      const result = group.createDiv("samaya-pathresult");
+      const show = (l: JournalLoc) => {
+        const p = journalPathFor(l, new Date().toLocaleDateString("sv")); const i = p.lastIndexOf("/");
+        result.empty(); result.createSpan({ cls: "samaya-pathresult-label", text: "Today's note" });
+        const code = result.createEl("code");
+        if (i >= 0) code.createSpan({ cls: "samaya-pathresult-dir", text: p.slice(0, i + 1) });
+        code.createSpan({ cls: "samaya-pathresult-file", text: p.slice(i + 1) });
+      };
+      const rows = (folderSt: Setting, fileSt: Setting) => { group.insertBefore(folderSt.settingEl, result); group.insertBefore(fileSt.settingEl, result); };
       if (loc.source === "custom") {
-        const st = new Setting(box).setName(options.length > 1 ? "Folder" : "Daily note folder");
-        st.descEl.appendText("A folder pattern. Date parts use moment.js format; put literal text in [brackets], e.g. [Journal]/YYYY. ");
-        st.descEl.createEl("a", { text: "Syntax reference", href: "https://momentjs.com/docs/#/displaying/format" });
-        if (options.length === 1) st.descEl.createDiv({ text: "Enable the Daily notes core plugin or Periodic Notes and you can use their settings here instead." });
-        const pv = st.descEl.createDiv({ cls: "samaya-path-preview" });
-        const show = () => pv.setText(preview({ folder: s.journalFolder.trim(), format: s.journalFormat.trim() || "YYYY-MM-DD", pattern: true }));
-        st.addText(t => t.setValue(s.journalFolder).setPlaceholder("[Journal]/YYYY").onChange(async v => { s.journalFolder = v.trim(); await changed(); show(); }));
-        new Setting(box).setName("Date format").setDesc("moment.js format of the note name.").addText(t => t.setValue(s.journalFormat).setPlaceholder("YYYY-MM-DD").onChange(async v => { s.journalFormat = v.trim() || "YYYY-MM-DD"; await changed(); show(); }));
-        show();
+        const cur = (): JournalLoc => ({ folder: s.journalFolder.trim(), format: s.journalFormat.trim() || "YYYY-MM-DD", pattern: true });
+        const folderSt = new Setting(group).setName("Folder");
+        folderSt.descEl.appendText("A folder pattern. Date parts use moment.js format; put literal text in [brackets], e.g. [Journal]/YYYY. ");
+        folderSt.descEl.createEl("a", { text: "Syntax reference", href: "https://momentjs.com/docs/#/displaying/format" });
+        if (options.length === 1) folderSt.descEl.createDiv({ text: "Enable the Daily notes core plugin or Periodic Notes and you can use their settings here instead." });
+        folderSt.addText(t => t.setValue(s.journalFolder).setPlaceholder("[Journal]/YYYY").onChange(async v => { s.journalFolder = v.trim(); await changed(); show(cur()); }));
+        const fileSt = new Setting(group).setName("File name").setDesc("moment.js format of the note's name, without “.md”.");
+        fileSt.addText(t => t.setValue(s.journalFormat).setPlaceholder("YYYY-MM-DD").onChange(async v => { s.journalFormat = v.trim() || "YYYY-MM-DD"; await changed(); show(cur()); }));
+        rows(folderSt, fileSt); show(cur());
       } else {
         const where = loc.source === "daily" ? "Settings › Daily notes" : "Settings › Periodic Notes";
-        const st = new Setting(box).setName("Folder and format").setDesc(`Taken from ${where}. Change them there.`);
-        st.descEl.createDiv({ cls: "samaya-path-preview", text: `${loc.folder || "(vault root)"} · ${loc.format}  →  ${preview(loc).slice(7)}` });
+        const ro = (name: string, value: string, desc = "") => new Setting(group).setName(name).setDesc(desc).addText(t => { t.setValue(value); t.setDisabled(true); });
+        const folderSt = ro("Folder", loc.folder || "(vault root)", `Taken from ${where}. Change it there.`);
+        const fileSt = ro("File name", loc.format);
+        rows(folderSt, fileSt); show(loc);
       }
     };
     await draw();

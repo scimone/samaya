@@ -377,3 +377,11 @@ body { --samaya-green: #2fa862; }
 @media (prefers-reduced-motion: reduce) { .samaya-mod-body { transition: none; } }
 .samaya-range .setting-item-control { gap: 8px; align-items: center; }
 .samaya-range-sep { color: var(--text-muted); font-size: var(--font-ui-small); }
+/* folder + file name of the daily note: one path, one preview */
+.samaya-pathgroup { margin: 6px 0 10px; padding-left: 12px; border-left: 3px solid var(--interactive-accent); }
+.samaya-pathgroup .setting-item { border-top: 0; padding: 8px 0; }
+.samaya-pathresult { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 4px; padding: 8px 10px; border-radius: var(--radius-s); background: var(--background-secondary); }
+.samaya-pathresult-label { font-size: var(--font-ui-smaller); font-weight: var(--font-semibold); letter-spacing: .05em; text-transform: uppercase; color: var(--text-faint); }
+.samaya-pathresult code { font-size: var(--font-ui-small); background: transparent; padding: 0; overflow-wrap: anywhere; }
+.samaya-pathresult-dir { color: var(--text-muted); }
+.samaya-pathresult-file { color: var(--text-accent); font-weight: var(--font-semibold); }

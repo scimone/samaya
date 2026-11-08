@@ -3,9 +3,10 @@ import type SamayaPlugin from "./main";
 import { ticketFolderFor, folderFor } from "./model";
 import { MEETING_SYNC_AHEAD_DAYS, syncMeetingNotes } from "./meetings";
 import { TICKET_VARIABLES, renderTicketFileName, TicketVars } from "./taskbody";
-import { JournalLoc, JournalPart, JournalSource, journalLocation, journalPathFor, journalSources } from "./journal";
+import { JournalLoc, JournalPart, JournalSource, PERIOD_DEFAULT_FORMAT, Period, journalLocation, journalPathFor, journalSources, pickJournalSource } from "./journal";
 import { DEFAULT_EVENT_PATTERN, PATTERN_HELP, compilePattern } from "./eventnotes";
 
+export interface PeriodCfg { on: boolean; source: "auto" | JournalSource; folder: string; format: string; }
 export interface SamayaSettings {
   tasksPath: string; ticketsPath: string; meetingsPath: string; journalSource: "auto" | JournalSource; journalFolder: string; journalFormat: string; plannerFile: string;
   taskTemplate: string; meetingTemplate: string; ticketTemplate: string; ticketFileName: string;
@@ -22,6 +23,8 @@ export interface SamayaSettings {
   /** journal module: write into the daily note, and which parts */
   journalOn: boolean; journalPlanned: boolean; journalObstacles: boolean; journalFinished: boolean; journalTomorrow: boolean;
   journalWorkTimes: boolean; journalBreaks: boolean; journalTracked: boolean;
+  /** weekly / monthly / yearly notes of the journal calendar */
+  journalNotes: Record<"weekly" | "monthly" | "yearly", PeriodCfg>;
   /** projects module: folder of project notes and the base that shows them */
   projectsOn: boolean; projectsPath: string; projectsBase: string;
 }
@@ -37,6 +40,11 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   calendarOn: false, jiraOn: false, gitlabOn: false,
   journalOn: false, journalPlanned: true, journalObstacles: true, journalFinished: true, journalTomorrow: true,
   journalWorkTimes: true, journalBreaks: true, journalTracked: true,
+  journalNotes: {
+    weekly: { on: false, source: "auto", folder: "[Journal]/Weekly", format: PERIOD_DEFAULT_FORMAT.weekly },
+    monthly: { on: false, source: "auto", folder: "[Journal]/Monthly", format: PERIOD_DEFAULT_FORMAT.monthly },
+    yearly: { on: false, source: "auto", folder: "[Journal]/Yearly", format: PERIOD_DEFAULT_FORMAT.yearly },
+  },
   projectsOn: false, projectsPath: "Projects", projectsBase: "Projects/Projects.base",
 };
 
@@ -56,6 +64,8 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<SamayaS
   for (const k of ["ticketsPath", "ticketFileName"]) if (typeof o[k] === "string") o[k] = (o[k] as string).replace(/\bTASK_/g, "TICKET_");
   // the daily note folder is a path pattern now: a plain name becomes a literal
   if (typeof o.journalFolder === "string" && o.journalFolder.trim() && !o.journalFolder.includes("[")) o.journalFolder = `[${o.journalFolder.trim().replace(/[[\]]/g, "")}]`;
+  const dj = DEFAULT_SETTINGS.journalNotes; const sj = (o.journalNotes ?? {}) as Partial<typeof dj>;
+  o.journalNotes = { weekly: { ...dj.weekly, ...sj.weekly }, monthly: { ...dj.monthly, ...sj.monthly }, yearly: { ...dj.yearly, ...sj.yearly } };
   delete o.tasksFolder; delete o.ticketsFolder; delete o.meetingsFolder;
   return o as Partial<SamayaSettings>;
 }
@@ -87,41 +97,49 @@ interface CardOpts { /** folds away unless true, without a switch of its own */ 
 export class SamayaSettingTab extends PluginSettingTab {
   constructor(app: App, private plugin: SamayaPlugin) { super(app, plugin); }
 
-  /** Where daily notes live: offer only the sources that are installed and enabled right now. */
-  private async renderDailyNotes(box: HTMLElement, changed: () => Promise<void>) {
+  /** Where notes of one kind live: offer only the sources that are installed and enabled right now. */
+  private async renderLocation(box: HTMLElement, p: Period, changed: () => Promise<void>) {
     const s = this.plugin.settings;
+    // daily notes keep their settings at the top level; the other kinds live in journalNotes
+    const f = p === "daily"
+      ? { src: () => s.journalSource, setSrc: (v: "auto" | JournalSource) => { s.journalSource = v; }, folder: () => s.journalFolder, setFolder: (v: string) => { s.journalFolder = v; }, format: () => s.journalFormat, setFormat: (v: string) => { s.journalFormat = v; } }
+      : (() => { const n = s.journalNotes[p]; return { src: () => n.source, setSrc: (v: "auto" | JournalSource) => { n.source = v; }, folder: () => n.folder, setFolder: (v: string) => { n.folder = v; }, format: () => n.format, setFormat: (v: string) => { n.format = v; } }; })();
+    const dflt = PERIOD_DEFAULT_FORMAT[p];
+    const what = { daily: "daily", weekly: "weekly", monthly: "monthly", yearly: "yearly" }[p];
     const draw = async () => {
-      const avail = await journalSources(this.app); const loc = await journalLocation(this.app, s);
+      const avail = await journalSources(this.app, p);
+      const source = pickJournalSource(avail, f.src());
+      const loc: JournalLoc = source === "custom" ? { folder: f.folder().trim(), format: f.format().trim() || dflt, pattern: true } : avail[source]!;
       if (!box.isConnected) return; box.empty();
       const names: Record<JournalSource, string> = { daily: "Daily notes (core plugin)", periodic: "Periodic Notes (community plugin)", custom: "Custom folder" };
       const options = (["periodic", "daily"] as const).filter(k => avail[k]).map(k => k as JournalSource).concat("custom");
       if (options.length > 1) {
-        new Setting(box).setName("Daily note location").setDesc("Where the planner reads and writes your daily notes.")
-          .addDropdown(d => { for (const k of options) d.addOption(k, names[k]); d.setValue(loc.source).onChange(async v => { s.journalSource = v as JournalSource; await changed(); void draw(); }); });
+        new Setting(box).setName(`${p === "daily" ? "Daily" : p[0].toUpperCase() + p.slice(1)} note location`).setDesc(`Where the planner reads and writes your ${what} notes.`)
+          .addDropdown(d => { for (const k of options) d.addOption(k, names[k]); d.setValue(source).onChange(async v => { f.setSrc(v as JournalSource); await changed(); void draw(); }); });
       }
       // folder + file name form one path: grouped by an accent rule and closed by a shared preview
       const group = box.createDiv("samaya-pathgroup");
       const result = group.createDiv("samaya-pathresult");
       const show = (l: JournalLoc) => {
-        const p = journalPathFor(l, new Date().toLocaleDateString("sv")); const i = p.lastIndexOf("/");
-        result.empty(); result.createSpan({ cls: "samaya-pathresult-label", text: "Today's note" });
+        const path = journalPathFor(l, new Date().toLocaleDateString("sv")); const i = path.lastIndexOf("/");
+        result.empty(); result.createSpan({ cls: "samaya-pathresult-label", text: p === "daily" ? "Today's note" : `This ${p.replace("ly", "")}'s note` });
         const code = result.createEl("code");
-        if (i >= 0) code.createSpan({ cls: "samaya-pathresult-dir", text: p.slice(0, i + 1) });
-        code.createSpan({ cls: "samaya-pathresult-file", text: p.slice(i + 1) });
+        if (i >= 0) code.createSpan({ cls: "samaya-pathresult-dir", text: path.slice(0, i + 1) });
+        code.createSpan({ cls: "samaya-pathresult-file", text: path.slice(i + 1) });
       };
       const rows = (folderSt: Setting, fileSt: Setting) => { group.insertBefore(folderSt.settingEl, result); group.insertBefore(fileSt.settingEl, result); };
-      if (loc.source === "custom") {
-        const cur = (): JournalLoc => ({ folder: s.journalFolder.trim(), format: s.journalFormat.trim() || "YYYY-MM-DD", pattern: true });
+      if (source === "custom") {
+        const cur = (): JournalLoc => ({ folder: f.folder().trim(), format: f.format().trim() || dflt, pattern: true });
         const folderSt = new Setting(group).setName("Folder");
         folderSt.descEl.appendText("A folder pattern. Date parts use moment.js format; put literal text in [brackets], e.g. [Journal]/YYYY. ");
         folderSt.descEl.createEl("a", { text: "Syntax reference", href: "https://momentjs.com/docs/#/displaying/format" });
-        if (options.length === 1) folderSt.descEl.createDiv({ text: "Enable the Daily notes core plugin or Periodic Notes and you can use their settings here instead." });
-        folderSt.addText(t => t.setValue(s.journalFolder).setPlaceholder("[Journal]/YYYY").onChange(async v => { s.journalFolder = v.trim(); await changed(); show(cur()); }));
+        if (options.length === 1) folderSt.descEl.createDiv({ text: p === "daily" ? "Enable the Daily notes core plugin or Periodic Notes and you can use their settings here instead." : `Install Periodic Notes and enable its ${what} notes and you can use its settings here instead.` });
+        folderSt.addText(t => t.setValue(f.folder()).setPlaceholder("[Journal]/YYYY").onChange(async v => { f.setFolder(v.trim()); await changed(); show(cur()); }));
         const fileSt = new Setting(group).setName("File name").setDesc("moment.js format of the note's name, without “.md”.");
-        fileSt.addText(t => t.setValue(s.journalFormat).setPlaceholder("YYYY-MM-DD").onChange(async v => { s.journalFormat = v.trim() || "YYYY-MM-DD"; await changed(); show(cur()); }));
+        fileSt.addText(t => t.setValue(f.format()).setPlaceholder(dflt).onChange(async v => { f.setFormat(v.trim() || dflt); await changed(); show(cur()); }));
         rows(folderSt, fileSt); show(cur());
       } else {
-        const where = loc.source === "daily" ? "Settings › Daily notes" : "Settings › Periodic Notes";
+        const where = source === "daily" ? "Settings › Daily notes" : "Settings › Periodic Notes";
         const ro = (name: string, value: string, desc = "") => new Setting(group).setName(name).setDesc(desc).addText(t => { t.setValue(value); t.setDisabled(true); });
         const folderSt = ro("Folder", loc.folder || "(vault root)", `Taken from ${where}. Change it there.`);
         const fileSt = ro("File name", loc.format);
@@ -316,7 +334,7 @@ export class SamayaSettingTab extends PluginSettingTab {
 
     {
       const b = card("Journal", "Write your day into your daily (periodic) note: plans, results and work times.", {
-        enabled: { get: () => s.journalOn, set: v => { s.journalOn = v; this.plugin.bus.emit(); } },
+        enabled: { get: () => s.journalOn, set: v => { s.journalOn = v; if (v) void this.plugin.scaffoldJournal(false); this.plugin.bus.emit(); } },
         status: () => { const n = JOURNAL_PARTS.filter(([k]) => s[k]).length; return n ? [`${n} of ${JOURNAL_PARTS.length} items`, "ok"] : ["Nothing selected", "warn"]; },
       });
       label(b, "Write into the daily note");
@@ -324,7 +342,16 @@ export class SamayaSettingTab extends PluginSettingTab {
       note(b, "The work time dashboard and per-day lunch overrides read work times, breaks and lunch from the daily notes. Turn those items off and the dashboard shows nothing new, and a lunch changed on the grid lasts only until Obsidian restarts.");
       label(b, "Daily note location");
       const dailyBox = b.createDiv(); // filled once we know which daily note sources exist
-      void this.renderDailyNotes(dailyBox, changed);
+      const changedJ = async () => { await changed(); this.plugin.bus.emit(); };
+      void this.renderLocation(dailyBox, "daily", changedJ);
+      label(b, "Periodic notes");
+      note(b, "The journal calendar in the right sidebar opens the daily note when you click a day. Switch on weekly, monthly and yearly notes to also open them from the week numbers, the month and the year.");
+      for (const [p, name, desc] of [["weekly", "Weekly notes", "Click a week number in the calendar."], ["monthly", "Monthly notes", "Click the month name in the calendar."], ["yearly", "Yearly notes", "Click the year in the calendar."]] as const) {
+        const cfg = s.journalNotes[p];
+        toggle(b, name, desc, () => cfg.on, v => { cfg.on = v; this.plugin.bus.emit(); });
+        const box = b.createDiv(); void this.renderLocation(box, p, changedJ);
+        const vis = () => { box.style.display = cfg.on ? "" : "none"; }; vis(); refreshers.push(vis);
+      }
     }
 
     {

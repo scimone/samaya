@@ -5,7 +5,7 @@ await bundle("src/ics.ts", "test/.ics.mjs"); await bundle("src/util.ts", "test/.
 await bundle("src/worktime.ts", "test/.worktime.mjs");
 await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timeline.ts", "test/.timeline.mjs");
 await bundle("src/settings.ts", "test/.settings.mjs");
-await bundle("src/kanban.ts", "test/.kanban.mjs"); await bundle("src/gantt.ts", "test/.gantt.mjs"); await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
+await bundle("src/monthgrid.ts", "test/.monthgrid.mjs"); await bundle("src/kanban.ts", "test/.kanban.mjs"); await bundle("src/gantt.ts", "test/.gantt.mjs"); await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
 const { parseIcs } = await import("./.ics.mjs");
 const { parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify } = await import("./.util.mjs");
 const { fmtEstimate, taskLines, bulletLines, upsertSection, readSection, pickJournalSource: pick } = await import("./.journal.mjs");
@@ -91,6 +91,15 @@ assert.equal(wk.rows[1].delta, 8 * 60 + 30 - 55 - 480); assert.equal(wk.rows[2].
 assert.equal(wk.target, 2400); assert.equal(wk.balance, (8 * 60 + 30 - 55 - 480) + 0);
 assert.equal(W.totalBalance(logs, 40, 5), (8 * 60 + 30 - 55 - 480) + 0);
 assert.equal(W.fmtSigned(-18), "-0:18"); assert.equal(W.fmtSigned(75), "+1:15");
+
+// ---- month grid
+{
+  const { isoWeek, monthGrid } = await import("./.monthgrid.mjs");
+  assert.equal(isoWeek("2026-01-01"), 1); assert.equal(isoWeek("2026-12-31"), 53); assert.equal(isoWeek("2027-01-03"), 53); assert.equal(isoWeek("2027-01-04"), 1);
+  const g = monthGrid(2026, 10); // November 2026 starts on a Sunday
+  assert.equal(g.length, 6); assert.equal(g[0].start, "2026-10-26"); assert.equal(g[0].days[6].date, "2026-11-01"); assert.equal(g[0].days[6].inMonth, true); assert.equal(g[0].days[0].inMonth, false);
+  assert.equal(g[0].week, 44);
+}
 
 // ---- kanban
 {
@@ -193,6 +202,8 @@ console.log("all tests passed");
   assert.equal(migrateSettings({ calendarSource: "notes", eventNotesFolder: "Meetings" }).calendarOn, true);
   assert.equal(migrateSettings({}).calendarOn, false);
   assert.equal(migrateSettings({ journalFolder: "Journal" }).journalFolder, "[Journal]");
+  { const jn = migrateSettings({ journalNotes: { weekly: { on: true } } }).journalNotes;
+    assert.equal(jn.weekly.on, true); assert.equal(jn.weekly.format, "gggg-[W]ww"); assert.equal(jn.yearly.on, false); }
   assert.equal(migrateSettings({ tasksPath: "T" }).journalOn, true); // existing installs keep the journal
   assert.equal(migrateSettings({}).journalOn, false); // fresh installs start without it
   assert.equal(migrateSettings({ journalFolder: "[Journal]/YYYY" }).journalFolder, "[Journal]/YYYY");

@@ -12,6 +12,9 @@ import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
 import { ProjectSuggestModal, ShutdownModal, TextPromptModal, TicketSuggestModal } from "./modals";
 import { GANTT_VIEW_TYPE, GanttView } from "./views/GanttView";
 import { KANBAN_VIEW_TYPE, KanbanView } from "./views/KanbanView";
+import { JOURNAL_CAL_TYPE, JournalCalendarView } from "./views/JournalCalendarView";
+import { JOURNAL_BASE_VIEW_TYPE, JournalBaseView } from "./views/JournalBaseView";
+import { journalLocation } from "./journal";
 import { PROJECTS_BASE_TEMPLATE, assignProject, createProject } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask } from "./model";
@@ -57,6 +60,23 @@ views:
       - status
       - project
       - assignee
+`;
+
+const JOURNAL_BASE_TEMPLATE = (folder: string) => `filters:
+  and:
+    - file.inFolder("${folder}")
+    - file.ext == "md"
+views:
+  - type: ${JOURNAL_BASE_VIEW_TYPE}
+    name: Calendar
+  - type: table
+    name: All notes
+    order:
+      - file.name
+      - file.mtime
+    sort:
+      - property: file.name
+        direction: DESC
 `;
 
 const TASKS_BASE_TEMPLATE = (folder: string) => `filters:
@@ -125,6 +145,7 @@ export default class SamayaPlugin extends Plugin {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, migrateSettings(this.data.settings ?? {}));
     this.registerView(DASHBOARD_VIEW_TYPE, leaf => new DashboardView(leaf, this));
     this.registerView(TODAY_VIEW_TYPE, leaf => new TodayView(leaf, this));
+    this.registerView(JOURNAL_CAL_TYPE, leaf => new JournalCalendarView(leaf, this));
     this.registerView(FOCUS_VIEW_TYPE, leaf => new FocusView(leaf, this));
     this.addSettingTab(new SamayaSettingTab(this.app, this));
 
@@ -158,7 +179,9 @@ export default class SamayaPlugin extends Plugin {
     const f = ok(KANBAN_VIEW_TYPE, "Ticket board", "lucide-kanban",
       (ct, el) => new KanbanView(ct, el, this),
       () => [{ type: "toggle", key: "hideDone", displayName: "Hide done / closed tickets", default: false }]);
-    if (!a || !b || !c || !d || !e || !f) new Notice("Samaya: could not register Bases views. Enable the core Bases plugin and use Obsidian 1.10+.");
+    const g = ok(JOURNAL_BASE_VIEW_TYPE, "Journal calendar", "lucide-calendar",
+      (ct, el) => new JournalBaseView(ct, el, this), () => []);
+    if (!a || !b || !c || !d || !e || !f || !g) new Notice("Samaya: could not register Bases views. Enable the core Bases plugin and use Obsidian 1.10+.");
 
     this.addRibbonIcon("calendar-clock", "Open Samaya planner", () => { void this.openPlanner(); });
     this.focus.init(this.addStatusBarItem(), this.data.focus ?? null);
@@ -201,6 +224,7 @@ export default class SamayaPlugin extends Plugin {
       if (!c) void this.scaffoldTickets(false).then(() => { const r = rootOf(this.settings.ticketsPath); const f = this.app.vault.getAbstractFileByPath(normalizePath(r === "/" ? "Tickets.base" : `${r}/Tickets.base`)); if (f instanceof TFile) return this.app.workspace.getLeaf("tab").openFile(f); });
       return true;
     } });
+    this.addCommand({ id: "open-journal", name: "Open journal calendar", checkCallback: c => { if (!this.settings.journalOn) return false; if (!c) void this.openJournalCalendar(); return true; } });
     this.addCommand({ id: "open-projects", name: "Open projects", checkCallback: c => { if (!this.settings.projectsOn) return false; if (!c) void this.openProjects(); return true; } });
     this.addCommand({ id: "assign-project", name: "Assign current task or ticket note to a project", checkCallback: c => {
       const f = this.app.workspace.getActiveFile();
@@ -302,6 +326,21 @@ export default class SamayaPlugin extends Plugin {
     if (this.app.vault.getAbstractFileByPath(bp)) { if (announce) new Notice("Tickets base already exists."); return; }
     await this.app.vault.create(bp, TICKETS_BASE_TEMPLATE(folder)); if (announce) new Notice("Created " + bp);
   }
+  /** Journal/Journal.base: opens the calendar sidebar (only while the journal is on). */
+  async scaffoldJournal(announce: boolean) {
+    if (!this.settings.journalOn) return;
+    const loc = await journalLocation(this.app, this.settings);
+    const root = loc.pattern ? rootOf(loc.folder) : normalizePath(loc.folder || "/");
+    const bp = "Journal/Journal.base";
+    if (this.app.vault.getAbstractFileByPath(bp)) { if (announce) new Notice("Journal base already exists."); return; }
+    await ensureFolder(this.app, "Journal");
+    await this.app.vault.create(bp, JOURNAL_BASE_TEMPLATE(root === "/" ? "Journal" : root)); if (announce) new Notice("Created " + bp);
+  }
+  async openJournalCalendar() {
+    const ws = this.app.workspace; let leaf = ws.getLeavesOfType(JOURNAL_CAL_TYPE)[0];
+    if (!leaf) { leaf = ws.getRightLeaf(false) ?? ws.getLeaf("split", "vertical"); await leaf.setViewState({ type: JOURNAL_CAL_TYPE, active: true }); }
+    await ws.revealLeaf(leaf);
+  }
   async openProjects() {
     await this.scaffoldProjects(false);
     const f = this.app.vault.getAbstractFileByPath(normalizePath(this.settings.projectsBase.trim() || "Projects/Projects.base"));
@@ -309,7 +348,7 @@ export default class SamayaPlugin extends Plugin {
   }
 
   async scaffold(announce: boolean) {
-    await this.scaffoldProjects(announce); await this.scaffoldTickets(announce);
+    await this.scaffoldProjects(announce); await this.scaffoldTickets(announce); await this.scaffoldJournal(announce);
     const folder = rootOf(this.settings.tasksPath);
     if (folder !== "/") await ensureFolder(this.app, folder);
     // Daily notes follow the core plugin; only seed its config when it has none

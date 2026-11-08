@@ -474,3 +474,22 @@ body { --samaya-green: #2fa862; }
 .samaya-kb-card { touch-action: none; }
 .samaya-kb-card.is-dragging { opacity: 0.35; }
 .samaya-kb-cell.is-drop { outline: 2px dashed var(--interactive-accent); background: var(--background-modifier-hover); }
+
+/* ---- journal calendar */
+.samaya-jcal { padding: 8px 10px; }
+.samaya-jcal-head { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; }
+.samaya-jcal-title { flex: 1; text-align: center; font-weight: 600; display: flex; gap: 6px; justify-content: center; }
+.samaya-jcal-title .is-link, .samaya-jcal-wk.is-link { cursor: pointer; }
+.samaya-jcal-title .is-link:hover, .samaya-jcal-wk.is-link:hover { color: var(--text-accent); }
+.samaya-jcal-title .has-note { text-decoration: underline; text-decoration-color: var(--interactive-accent); text-underline-offset: 3px; }
+.samaya-jcal-grid { display: grid; grid-template-columns: 1.6em repeat(7, 1fr); gap: 2px; text-align: center; }
+.samaya-jcal-dow { font-size: var(--font-ui-smaller); color: var(--text-muted); padding: 2px 0; }
+.samaya-jcal-wk { font-size: var(--font-ui-smaller); color: var(--text-faint); display: flex; align-items: center; justify-content: center; }
+.samaya-jcal-wk.has-note { color: var(--text-accent); }
+.samaya-jcal-day { position: relative; padding: 6px 0; border-radius: 6px; cursor: pointer; font-size: var(--font-ui-small); }
+.samaya-jcal-day:hover { background: var(--background-modifier-hover); }
+.samaya-jcal-day.is-other { color: var(--text-faint); }
+.samaya-jcal-day.is-today { color: var(--text-on-accent); background: var(--interactive-accent); }
+.samaya-jcal-day.has-note::after { content: ""; position: absolute; left: 50%; bottom: 2px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--interactive-accent); }
+.samaya-jcal-day.is-today.has-note::after { background: var(--text-on-accent); }
+.samaya-journal-page { padding: 16px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }

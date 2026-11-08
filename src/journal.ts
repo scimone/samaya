@@ -1,8 +1,8 @@
 // Daily note ("Journal") sections written by the planning and shutdown rituals.
 import { App, TFile, normalizePath } from "obsidian";
 import type { SamayaSettings } from "./settings";
-import { renderPath } from "./taskbody";
-import { Task, ensureFolder, momentFmt, readSubtasks } from "./model";
+import { renderPath, renderTemplate } from "./taskbody";
+import { Task, ensureFolder, loadTemplate, momentFmt, readSubtasks } from "./model";
 
 export type JournalPart = "journalPlanned" | "journalObstacles" | "journalFinished" | "journalTomorrow" | "journalWorkTimes" | "journalBreaks" | "journalTracked";
 /** Whether the journal module is on and the given part of it is enabled. */
@@ -64,8 +64,10 @@ export function readSection(text: string, heading: Section): string[] {
 
 export type JournalSource = "daily" | "periodic" | "custom";
 /** `pattern`: the folder is a path pattern like "[Journal]/YYYY" (custom source only); Daily / Periodic Notes folders are plain. */
-export interface JournalLoc { folder: string; format: string; pattern?: boolean }
-const DEFAULT_FORMAT = "YYYY-MM-DD";
+export interface JournalLoc { folder: string; format: string; pattern?: boolean; /** template note path, from Daily / Periodic Notes */ template?: string }
+export type Period = "daily" | "weekly" | "monthly" | "yearly";
+export const PERIOD_DEFAULT_FORMAT: Record<Period, string> = { daily: "YYYY-MM-DD", weekly: "gggg-[W]ww", monthly: "YYYY-MM", yearly: "YYYY" };
+const DEFAULT_FORMAT = PERIOD_DEFAULT_FORMAT.daily;
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const readJson = async (app: App, path: string): Promise<any> => {
   try { return JSON.parse(await app.vault.adapter.read(normalizePath(path))); } catch { return null; }
@@ -78,23 +80,23 @@ async function coreDailyEnabled(app: App): Promise<boolean> {
   const j = await readJson(app, cfg(app, "core-plugins.json"));
   return Array.isArray(j) ? j.includes("daily-notes") : !!j?.["daily-notes"];
 }
-async function periodicDailyConfig(app: App): Promise<JournalLoc | null> {
+async function periodicConfig(app: App, p: Period): Promise<JournalLoc | null> {
   const live = (app as any).plugins?.enabledPlugins;
   const on = live instanceof Set ? live.has("periodic-notes") : ((await readJson(app, cfg(app, "community-plugins.json"))) ?? []).includes("periodic-notes");
   if (!on) return null;
-  const d = (await readJson(app, cfg(app, "plugins/periodic-notes/data.json")))?.daily;
-  if (!d || d.enabled === false) return null; // the plugin's daily notes are switched off
-  return { folder: String(d.folder ?? "").trim(), format: String(d.format || "").trim() || DEFAULT_FORMAT };
+  const d = (await readJson(app, cfg(app, "plugins/periodic-notes/data.json")))?.[p];
+  if (!d || d.enabled === false) return null; // this kind of note is switched off in the plugin
+  return { folder: String(d.folder ?? "").trim(), format: String(d.format || "").trim() || PERIOD_DEFAULT_FORMAT[p], template: String(d.template ?? "").trim() };
 }
 async function coreDailyConfig(app: App): Promise<JournalLoc | null> {
   if (!(await coreDailyEnabled(app))) return null;
   const j = await readJson(app, cfg(app, "daily-notes.json"));
-  return { folder: String(j?.folder ?? "").trim(), format: String(j?.format || "").trim() || DEFAULT_FORMAT };
+  return { folder: String(j?.folder ?? "").trim(), format: String(j?.format || "").trim() || DEFAULT_FORMAT, template: String(j?.template ?? "").trim() };
 }
 
-/** Which daily note sources exist in this vault right now, with the folder / format each one prescribes. */
-export async function journalSources(app: App): Promise<{ daily: JournalLoc | null; periodic: JournalLoc | null }> {
-  return { daily: await coreDailyConfig(app), periodic: await periodicDailyConfig(app) };
+/** Which note sources exist in this vault right now for a kind of note, with the folder / format each one prescribes. Only daily notes have a core plugin. */
+export async function journalSources(app: App, p: Period = "daily"): Promise<{ daily: JournalLoc | null; periodic: JournalLoc | null }> {
+  return { daily: p === "daily" ? await coreDailyConfig(app) : null, periodic: await periodicConfig(app, p) };
 }
 /** The source in effect: the chosen one if available, else the first available (Periodic Notes, Daily notes), else custom. */
 export function pickJournalSource(avail: { daily: unknown; periodic: unknown }, wanted: string): JournalSource {
@@ -105,6 +107,24 @@ export async function journalLocation(app: App, s: SamayaSettings): Promise<Jour
   const avail = await journalSources(app); const source = pickJournalSource(avail, s.journalSource);
   const loc = source === "custom" ? { folder: s.journalFolder.trim(), format: s.journalFormat.trim() || DEFAULT_FORMAT, pattern: true } : avail[source]!;
   return { ...loc, source };
+}
+/** Where weekly / monthly / yearly notes go (null when that kind is switched off); daily notes as journalLocation. */
+export async function periodLocation(app: App, s: SamayaSettings, p: Period): Promise<(JournalLoc & { source: JournalSource }) | null> {
+  if (p === "daily") return journalLocation(app, s);
+  const n = s.journalNotes[p]; if (!s.journalOn || !n.on) return null;
+  const avail = await journalSources(app, p); const source = pickJournalSource(avail, n.source);
+  const loc = source === "custom" ? { folder: n.folder.trim(), format: n.format.trim() || PERIOD_DEFAULT_FORMAT[p], pattern: true } : avail[source]!;
+  return { ...loc, source };
+}
+/** The note of a period containing `date`, created (from the configured template) when missing. */
+export async function openPeriodNote(app: App, s: SamayaSettings, p: Period, date: string): Promise<TFile | null> {
+  const loc = await periodLocation(app, s, p); if (!loc) return null;
+  const path = journalPathFor(loc, date); const existing = app.vault.getAbstractFileByPath(path);
+  if (existing instanceof TFile) return existing;
+  const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : ""; if (dir) await ensureFolder(app, dir);
+  const title = path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/, "");
+  const tpl = loc.template ? renderTemplate(await loadTemplate(app, loc.template, ""), { title, date: new Date(date + "T12:00:00") }, momentFmt) : "";
+  return app.vault.create(path, tpl);
 }
 export function journalPathFor(loc: JournalLoc, date: string): string {
   const d = new Date(date + "T12:00:00"); const name = momentFmt(d, loc.format);

@@ -27,7 +27,7 @@ Two extra variables are available: `{{TASK_SOURCE}}` (`Jira` / `GitLab`) and `{{
 
 | Setting | Variables allowed | Default |
 | --- | --- | --- |
-| **Tickets path** | all except `TASK_DESCRIPTION`, `TASK_URL` | `[Tickets]` |
+| **Tickets path** | all (in practice `TASK_STATUS`, `TASK_PROJECT`, `TASK_TYPE`, `TASK_ASSIGNEE`) | `[Tickets]` |
 | **Ticket file name** | all | `{{TASK_ID}}_{{TASK_TITLE_SLUG}}` |
 | **Ticket note template** | all, plus `{{date}}` and `{{date:FORMAT}}` | `# {{TASK_TITLE}}` and a link to the ticket |
 

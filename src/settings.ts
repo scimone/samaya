@@ -1,6 +1,7 @@
 import { AbstractInputSuggest, App, PluginSettingTab, Setting } from "obsidian";
 import type SamayaPlugin from "./main";
 import { ticketFolderFor, folderFor } from "./model";
+import { MEETING_SYNC_DAYS, generateMeetingNotes } from "./meetings";
 import { TICKET_VARIABLES, renderTicketFileName, TicketVars } from "./taskbody";
 import { JournalLoc, JournalSource, journalLocation, journalPathFor, journalSources } from "./journal";
 import { DEFAULT_EVENT_PATTERN, PATTERN_HELP, compilePattern } from "./eventnotes";
@@ -279,7 +280,7 @@ export class SamayaSettingTab extends PluginSettingTab {
           new Setting(srcBox).setName("ICS URLs").setDesc("One per line: Google Calendar “secret address in iCal format”, Outlook, …")
             .addTextArea(t => { t.setValue(s.icsUrls.join("\n")).setPlaceholder("https://calendar.google.com/…/basic.ics").onChange(async v => { s.icsUrls = v.split("\n").map(x => x.trim().replace(/^webcal:/, "https:")).filter(Boolean); this.plugin.ics.clear(); await changed(); }); t.inputEl.rows = 3; t.inputEl.addClass("samaya-wide"); });
           num(srcBox, "Refresh interval (minutes)", "How long fetched calendars are cached.", () => s.icsRefreshMinutes, v => (s.icsRefreshMinutes = v), { min: 1, max: 1440, int: true });
-          new Setting(srcBox).setName("Refresh now").setDesc("Fetch the feeds again right away.").addButton(bt => bt.setButtonText("Refresh").onClick(() => { this.plugin.ics.clear(); this.plugin.bus.emit(); bt.setButtonText("Refreshed ✓"); window.setTimeout(() => bt.setButtonText("Refresh"), 1500); }));
+          new Setting(srcBox).setName("Refresh now").setDesc(`Fetch the feeds again and create meeting notes for all events from ${MEETING_SYNC_DAYS.back} days ago to ${MEETING_SYNC_DAYS.ahead} days ahead.`).addButton(bt => bt.setButtonText("Refresh").onClick(async () => { this.plugin.ics.clear(); bt.setDisabled(true); const day = 86400000, now = Date.now(); const evs = await this.plugin.ics.eventsBetween(new Date(now - MEETING_SYNC_DAYS.back * day), new Date(now + MEETING_SYNC_DAYS.ahead * day)); const n = await generateMeetingNotes(this.app, s, evs); bt.setDisabled(false); this.plugin.bus.emit(); bt.setButtonText(`Refreshed ✓ (${n} new)`); window.setTimeout(() => bt.setButtonText("Refresh"), 1500); }));
           note(srcBox, "The feed URL is private. It is stored unencrypted in this plugin's data.json; don't sync that file to places you don't trust.");
         }
       };

@@ -31,3 +31,20 @@ export async function ensureMeetingNote(app: App, s: SamayaSettings, ev: IcsEven
   }
   return app.vault.getAbstractFileByPath(`${folder}/${names[1]}.md`) as TFile;
 }
+
+/** Days around today for which "Refresh" creates meeting notes (recurring events make "all" unbounded). */
+export const MEETING_SYNC_DAYS = { back: 14, ahead: 60 };
+
+/** Create notes for every timed ICS event in the sync window. Returns how many notes were newly created. */
+export async function generateMeetingNotes(app: App, s: SamayaSettings, events: IcsEvent[]): Promise<number> {
+  let created = 0;
+  for (const ev of events.filter(e => !e.allDay)) { // sequential: same-titled meetings must not race
+    try {
+      const before = created;
+      const day = ymd(ev.start); const hit = app.vault.getMarkdownFiles().some(f => f.basename === `${day}_${slugify(ev.title)}` || f.basename.startsWith(`${day}_${slugify(ev.title)}-`));
+      await ensureMeetingNote(app, s, ev);
+      if (!hit) created = before + 1;
+    } catch (e) { console.warn("Samaya: meeting note failed", e); }
+  }
+  return created;
+}

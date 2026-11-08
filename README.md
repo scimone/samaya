@@ -41,7 +41,7 @@ Sync writes these properties to each ticket note (overwritten on every sync):
 
 | Property | Value |
 | --- | --- |
-| `source` | `jira`, `gitlab` or `manual` |
+| `source` | `jira` or `gitlab` |
 | `id` | `TASK_ID` (also stored in `aliases`, so `[[OPS-12]]` links resolve) |
 | `title` | `TASK_TITLE` |
 | `project` | `TASK_PROJECT` |

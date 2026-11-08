@@ -187,12 +187,6 @@ export async function relocateTicket(app: App, s: SamayaSettings, t: Ticket, v: 
   if (path === t.file.path || app.vault.getAbstractFileByPath(path)) return;
   await ensureFolder(app, folder); await app.fileManager.renameFile(t.file, path);
 }
-export async function createManualTicket(app: App, s: SamayaSettings, key: string, summary: string): Promise<TFile> {
-  const v: TicketVars = { id: key, title: summary, type: "", status: "open", assignedTo: "", url: "", description: "", source: "Manual", project: "" };
-  const f = await createTicketNote(app, s, v, summary ? `# ${summary}\n` : "");
-  await patchTask(app, f, ticketProps("manual", v));
-  return f;
-}
 
 /** Put a task at `index` of the day's ordered list and renumber (only writes what changed). */
 export async function placeInDay(app: App, s: SamayaSettings, path: string, date: string, index: number): Promise<void> {

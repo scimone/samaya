@@ -173,7 +173,7 @@ export class SamayaSettingTab extends PluginSettingTab {
     }
 
     {
-      const b = card("Tickets", "Backlog tickets, entered by hand or imported from Jira and GitLab. Both share these notes.");
+      const b = card("Tickets", "Ticket notes imported from Jira and GitLab. Both share these settings.");
       label(b, "Notes & templates");
       pathText(b, "Tickets path", "Where ticket notes are stored.", "ticketsPath", `May contain ticket variables (${vars(TICKET_VARIABLES)}), e.g. [Tickets]/[Jira]/{{TASK_STATUS}}. With {{TASK_STATUS}}, notes move when the ticket's status changes.`);
       const fn = new Setting(b).setName("Ticket file name").setDesc("Ticket variables in double braces, plus {{TASK_TITLE_SLUG}} (the title as a slug). Leave out “.md”.");

@@ -1,10 +1,9 @@
 import { BasesView, Menu, QueryController, TFile } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
-import { Task, Ticket, allTickets, assignTicket, createManualTicket, createTask, patchTask, readTask, sortTasks, ticketPathOf } from "../model";
+import { Task, Ticket, allTickets, assignTicket, createTask, patchTask, readTask, sortTasks, ticketPathOf } from "../model";
 import { fmtDur, parseTitleEstimate, startOfWeek, today } from "../util";
 import { bindZone, renderTaskCard } from "./common";
-import { TextPromptModal } from "../modals";
 
 export const BACKLOG_VIEW_TYPE = "samaya-backlog";
 
@@ -44,9 +43,6 @@ export class BacklogView extends BasesView {
     const search = head.createEl("input", { type: "search", cls: "samaya-search", attr: { placeholder: "Filter…" } }); search.value = this.filter;
     search.addEventListener("input", () => { this.filter = search.value; this.render(); });
     if (s.jiraOn || s.gitlabOn) head.createEl("button", { text: "Sync tickets" }).onclick = () => { void this.plugin.syncTickets(); };
-    head.createEl("button", { text: "+ Ticket" }).onclick = () => new TextPromptModal(this.plugin, "New ticket (key and summary, e.g. “OPS-12 Fix deploy”)", v => {
-      const [key, ...rest] = v.split(/\s+/); void createManualTicket(app, s, key, rest.join(" "));
-    }).open();
 
     const tickets = allTickets(app, s); const byPath = new Map(tickets.map(t => [t.file.path, t]));
     const tasks = sortTasks(this.data.data.map(e => readTask(app, e.file)).filter(t => !t.planned && t.status !== "done"));

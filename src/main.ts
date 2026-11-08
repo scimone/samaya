@@ -1,7 +1,7 @@
 import { Editor, MarkdownView, Notice, Plugin, TFile, normalizePath } from "obsidian";
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FOCUS_VIEW_TYPE, FocusManager, FocusState, FocusView } from "./focus";
-import { IcsClient, assignTicket, createManualTicket, createTask } from "./model";
+import { IcsClient, assignTicket, createTask } from "./model";
 import { DAILY_VIEW_TYPE, DailyPlannerView } from "./views/DailyPlannerView";
 import { WEEK_VIEW_TYPE, WeeklyBoardView } from "./views/WeeklyBoardView";
 import { BACKLOG_VIEW_TYPE, BacklogView } from "./views/BacklogView";
@@ -131,9 +131,6 @@ export default class SamayaPlugin extends Plugin {
     gated("sync-tickets", "Sync Jira and GitLab tickets", () => this.settings.jiraOn || this.settings.gitlabOn);
     gated("sync-jira", "Sync Jira tickets", () => this.settings.jiraOn, "jira");
     gated("sync-gitlab", "Sync GitLab issues", () => this.settings.gitlabOn, "gitlab");
-    this.addCommand({ id: "new-ticket", name: "New manual ticket", callback: () => new TextPromptModal(this, "New ticket (key and summary, e.g. “OPS-12 Fix deploy”)", v => {
-      const [key, ...rest] = v.split(/\s+/); void createManualTicket(this.app, this.settings, key, rest.join(" "));
-    }).open() });
     this.addCommand({ id: "assign-ticket", name: "Assign current task note to a ticket", checkCallback: c => {
       const f = this.app.workspace.getActiveFile(); const ok2 = !!f && f.path.startsWith(prefixOf(this.settings.tasksPath));
       if (ok2 && !c && f) new TicketSuggestModal(this, t => { void assignTicket(this.app, f, t); }).open(); return ok2;

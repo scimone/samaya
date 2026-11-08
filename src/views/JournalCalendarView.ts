@@ -38,11 +38,17 @@ export class JournalCalendarView extends ItemView {
     await this.app.workspace.revealLeaf(leaf);
   }
   private async openPeriod(p: Period, date: string) {
-    const s = this.plugin.settings; const hit = await periodNotePath(this.app, s, p, date); if (!hit) return;
+    const s = this.plugin.settings;
+    const off = p !== "daily" && !s.journalNotes[p].on; // this kind of note is not switched on yet: offer to do so
+    const cfg = off && p !== "daily" ? { ...s, journalNotes: { ...s.journalNotes, [p]: { ...s.journalNotes[p], on: true } } } : s;
+    const hit = await periodNotePath(this.app, cfg, p, date); if (!hit) return;
     if (hit.file) { await this.showInMain(hit.file); return; }
     new ConfirmCreateModal(this.plugin, hit.path, () => {
-      void openPeriodNote(this.app, s, p, date).then(f => { if (f) return this.showInMain(f); });
-    }).open();
+      void (async () => {
+        if (off && p !== "daily") { s.journalNotes[p].on = true; await this.plugin.saveSettings(); this.plugin.bus.emit(); }
+        const f = await openPeriodNote(this.app, s, p, date); if (f) await this.showInMain(f);
+      })();
+    }, off ? `${p[0].toUpperCase() + p.slice(1)} notes are switched off. Creating this note switches them on (see the Journal settings).` : "").open();
   }
 
   private async render() {
@@ -69,7 +75,7 @@ export class JournalCalendarView extends ItemView {
     const title = head.createDiv("samaya-jcal-title");
     const link = (text: string, p: Period, date: string) => {
       const el = title.createSpan({ text });
-      if (locs[p]) { el.addClass("is-link"); el.toggleClass("has-note", exists(p, date)); el.onclick = () => { void this.openPeriod(p, date); }; }
+      el.addClass("is-link"); el.toggleClass("has-note", exists(p, date)); el.onclick = () => { void this.openPeriod(p, date); };
     };
     link(new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long" }), "monthly", first);
     link(String(y), "yearly", `${y}-01-01`);
@@ -83,7 +89,7 @@ export class JournalCalendarView extends ItemView {
     for (let i = 0; i < 7; i++) grid.createDiv({ cls: "samaya-jcal-dow", text: new Date(`${addDays(mon, i)}T12:00:00`).toLocaleDateString(undefined, { weekday: "narrow" }) });
     for (const w of monthGrid(y, m - 1)) {
       const wk = grid.createDiv({ cls: "samaya-jcal-wk", text: String(w.week) });
-      if (locs.weekly) { wk.addClass("is-link"); wk.toggleClass("has-note", exists("weekly", w.start)); wk.onclick = () => { void this.openPeriod("weekly", w.start); }; }
+      wk.addClass("is-link"); wk.toggleClass("has-note", exists("weekly", w.start)); wk.onclick = () => { void this.openPeriod("weekly", w.start); };
       for (const d of w.days) {
         const c = grid.createDiv({ cls: "samaya-jcal-day", text: String(Number(d.date.slice(8))) });
         c.toggleClass("is-other", !d.inMonth); c.toggleClass("is-today", d.date === td); c.toggleClass("has-note", exists("daily", d.date));

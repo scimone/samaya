@@ -18,11 +18,12 @@ export class TextPromptModal extends Modal {
 
 /** "X does not exist yet - create it?" */
 export class ConfirmCreateModal extends Modal {
-  constructor(plugin: SamayaPlugin, private path: string, private onCreate: () => void) { super(plugin.app); }
+  constructor(plugin: SamayaPlugin, private path: string, private onCreate: () => void, private extra = "") { super(plugin.app); }
   onOpen() {
     this.titleEl.setText("Note does not exist yet");
     this.contentEl.createEl("p", { text: "This note has not been created yet:" });
     this.contentEl.createEl("code", { text: this.path });
+    if (this.extra) this.contentEl.createEl("p", { text: this.extra });
     this.contentEl.createEl("p", { text: "Do you want to create it?" });
     const nav = this.contentEl.createDiv("samaya-ritual-nav");
     nav.createEl("button", { text: "Cancel" }).onclick = () => this.close();

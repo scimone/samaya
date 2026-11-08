@@ -419,3 +419,6 @@ body { --samaya-green: #2fa862; }
 .samaya-wtl .samaya-block.is-done { background: color-mix(in srgb, var(--text-muted) 12%, var(--background-primary)); border-left-color: var(--text-faint); color: var(--text-muted); }
 .samaya-wtl .samaya-block.is-done .samaya-block-state { background: var(--text-faint); border-color: var(--text-faint); opacity: 1; }
 .samaya-wtl .samaya-event { cursor: default; }
+.samaya-week-backlog { display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; }
+.samaya-week-backlog .samaya-today-cards { flex: 1; }
+.samaya-week-backlog.is-drop { outline: 2px dashed var(--interactive-accent); outline-offset: -2px; }

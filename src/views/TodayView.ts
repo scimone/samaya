@@ -231,24 +231,31 @@ export class TodayView extends ItemView {
     const open = all.filter(t => t.status !== "done");
     const unscheduled = sortTasks(open.filter(t => !t.planned && t.week === wk));
     const scheduled = sortTasks(open.filter(t => t.planned && t.planned >= wk && t.planned <= end));
+    const backlog = sortTasks(open.filter(t => !t.planned && t.week !== wk));
+    const tabs = c.createDiv("samaya-tabs");
+    ([["week", "Unscheduled", unscheduled.length], ["backlog", "Backlog", backlog.length]] as const).forEach(([key, label, n]) => {
+      const b = tabs.createEl("button", { cls: "samaya-tab" + (this.tab === key ? " is-active" : ""), text: `${label} ${n}` });
+      b.onclick = () => { this.tab = key; void this.render(); };
+    });
+    const isWeek = this.tab === "week"; const tasks = isWeek ? unscheduled : backlog;
     const keep = c.querySelector<HTMLElement>(".samaya-today-cards")?.scrollTop ?? this.listTop;
-    const sec = c.createDiv("samaya-week-unsched");
-    sec.createDiv({ cls: "samaya-today-label", text: `Not scheduled yet · ${unscheduled.length}` });
+    const sec = c.createDiv(isWeek ? "samaya-week-unsched" : "samaya-week-backlog");
+    if (isWeek) sec.createDiv({ cls: "samaya-today-label", text: `Not scheduled yet · ${unscheduled.length}` });
     const list = sec.createDiv("samaya-today-cards");
-    if (!unscheduled.length) list.createDiv({ cls: "samaya-today-empty", text: "Every weekly task has a day" });
-    unscheduled.forEach(t => renderTaskCard(this.plugin, list, t, { scope: this.dnd, compact: true }));
+    if (!tasks.length) list.createDiv({ cls: "samaya-today-empty", text: isWeek ? "Every weekly task has a day" : "Backlog is empty" });
+    tasks.forEach(t => renderTaskCard(this.plugin, list, t, { scope: this.dnd, compact: true }));
     list.scrollTop = keep;
     bindZone(this.dnd, sec, path => {
       const f = this.app.vault.getAbstractFileByPath(path);
-      if (f instanceof TFile) void patchTask(this.app, f, { planned: null, start: null, week: wk });
+      if (f instanceof TFile) void patchTask(this.app, f, { planned: null, start: null, week: isWeek ? wk : null });
     });
-    const add = sec.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add weekly task" } });
+    const add = sec.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: isWeek ? "+ Add weekly task" : "+ Add to backlog" } });
     add.addEventListener("keydown", e => {
       if (e.key !== "Enter" || !add.value.trim()) return;
       const p = parseTitleEstimate(add.value); add.value = "";
-      void createTask(this.app, s, p.title, { week: wk, estimate: p.estimate ?? s.defaultEstimate });
+      void createTask(this.app, s, p.title, { ...(isWeek ? { week: wk } : {}), estimate: p.estimate ?? s.defaultEstimate });
     });
-    if (scheduled.length) {
+    if (scheduled.length && isWeek) {
       c.createDiv({ cls: "samaya-today-label", text: `Scheduled this week · ${scheduled.length}` });
       const done = c.createDiv("samaya-today-cards samaya-week-sched");
       scheduled.forEach(t => {

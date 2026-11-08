@@ -15,7 +15,7 @@ export async function syncTickets(plugin: SamayaPlugin, only?: "jira" | "gitlab"
   if ((!only || only === "gitlab") && s.gitlabOn && s.gitlabUrl && s.gitlabToken) jobs.push(["gitlab", () => fetchGitlab({ url: s.gitlabUrl, token: s.gitlabToken, scope: s.gitlabScope }, http)]);
   if (!jobs.length) { new Notice("Samaya: enable and configure Jira and/or GitLab in the plugin settings first."); return; }
 
-  const byStatus = s.ticketsPath.includes("TASK_STATUS");
+  const byStatus = s.ticketsPath.includes("TICKET_STATUS");
 
   for (const [source, run] of jobs) {
     try {

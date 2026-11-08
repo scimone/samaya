@@ -10,28 +10,29 @@ Configure Jira and/or GitLab in the plugin settings, then run **Sync Jira and Gi
 
 ### Ticket variables
 
-Three settings can use ticket variables, always written in double braces, e.g. `{{TASK_ID}}`:
+Three settings can use ticket variables, always written in double braces, e.g. `{{TICKET_ID}}`:
 
 | Variable | Value |
 | --- | --- |
-| `{{TASK_ID}}` | Ticket key, e.g. `OPS-12` (Jira) or `proj#12` (GitLab) |
-| `{{TASK_TITLE}}` | Summary / title |
-| `{{TASK_TYPE}}` | Issue type, e.g. `Bug`, `Story` (GitLab: `issue`, `incident`, ...) |
-| `{{TASK_STATUS}}` | Jira status name, or GitLab state (`opened`) |
-| `{{TASK_ASSIGNEE}}` | Assignee display name(s), comma-separated |
-| `{{TASK_URL}}` | Link to the ticket |
-| `{{TASK_DESCRIPTION}}` | Description as plain text (Jira) or Markdown (GitLab) |
-| `{{TASK_PROJECT}}` | Jira project key, or GitLab `group/project` |
+| `{{TICKET_ID}}` | Ticket key, e.g. `OPS-12` (Jira) or `proj#12` (GitLab) |
+| `{{TICKET_TITLE}}` | Summary / title |
+| `{{TICKET_TYPE}}` | Issue type, e.g. `Bug`, `Story` (GitLab: `issue`, `incident`, ...) |
+| `{{TICKET_STATUS}}` | Jira status name, or GitLab state (`opened`) |
+| `{{TICKET_ASSIGNEE}}` | Assignee display name(s), comma-separated |
+| `{{TICKET_URL}}` | Link to the ticket |
+| `{{TICKET_DESCRIPTION}}` | Description as plain text (Jira) or Markdown (GitLab) |
+| `{{TICKET_PROJECT}}` | Jira project key, or GitLab `group/project` |
+| `{{TICKET_SOURCE}}` | Where the ticket comes from: `jira` or `gitlab` |
 
-Two extra variables are available: `{{TASK_SOURCE}}` (`Jira` / `GitLab`) and `{{TASK_TITLE_SLUG}}` (the title as a lowercase slug, max 60 characters). Unknown variables are left as they are.
+One extra variable is available: `{{TICKET_TITLE_SLUG}}` (the title as a lowercase slug, max 60 characters). Unknown variables are left as they are. Older `{{TASK_*}}` names still work in templates.
 
 | Setting | Variables allowed | Default |
 | --- | --- | --- |
-| **Tickets path** | all (in practice `TASK_STATUS`, `TASK_PROJECT`, `TASK_TYPE`, `TASK_ASSIGNEE`) | `[Tickets]` |
-| **Ticket file name** | all | `{{TASK_ID}}_{{TASK_TITLE_SLUG}}` |
-| **Ticket note template** | all, plus `{{date}}` and `{{date:FORMAT}}` | `# {{TASK_TITLE}}` and a link to the ticket |
+| **Tickets path** | all (in practice `TICKET_SOURCE`, `TICKET_STATUS`, `TICKET_PROJECT`, `TICKET_TYPE`, `TICKET_ASSIGNEE`) | `[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}` |
+| **Ticket file name** | all | `{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}` |
+| **Ticket note template** | all, plus `{{date}}` and `{{date:FORMAT}}` | `# {{TICKET_TITLE}}` and a link to the ticket |
 
-- **Tickets path** is a folder pattern. Date parts use [moment.js format](https://momentjs.com/docs/#/displaying/format); literal text goes in `[brackets]`. Example: `[Tickets]/[Jira]/{{TASK_STATUS}}` puts a ticket with status "In Progress" in `Tickets/Jira/In Progress/`. Values are made safe for folder names (an empty value becomes `None`). If the path contains `{{TASK_STATUS}}`, a note moves to the new folder when the ticket's status changes.
+- **Tickets path** is a folder pattern. Date parts use [moment.js format](https://momentjs.com/docs/#/displaying/format); literal text goes in `[brackets]`. Example: the default `[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}` puts a Jira ticket with status "In Progress" in `Tickets/jira/In Progress/`. Values are made safe for folder names (an empty value becomes `None`). If the path contains `{{TICKET_STATUS}}`, a note moves to the new folder when the ticket's status changes.
 - **Ticket file name** has no `.md`; characters not allowed in file names are replaced. If a name is taken, ` 2`, ` 3`, ... is appended.
 - **Ticket note template** is the path of a template note in your vault, e.g. `Templates/Ticket`. Empty uses the built-in template. The template is only used when a note is created; later syncs update properties, not the body.
 
@@ -42,13 +43,13 @@ Sync writes these properties to each ticket note (overwritten on every sync):
 | Property | Value |
 | --- | --- |
 | `source` | `jira` or `gitlab` |
-| `id` | `TASK_ID` (also stored in `aliases`, so `[[OPS-12]]` links resolve) |
-| `title` | `TASK_TITLE` |
-| `project` | `TASK_PROJECT` |
-| `status` | `TASK_STATUS` (`closed` once the ticket no longer appears in sync) |
-| `type` | `TASK_TYPE` |
-| `assignee` | `TASK_ASSIGNEE` |
-| `url` | `TASK_URL`; sync matches existing notes by this, so don't edit it |
-| `aliases` | `[TASK_ID]` |
+| `id` | `TICKET_ID` (also stored in `aliases`, so `[[OPS-12]]` links resolve) |
+| `title` | `TICKET_TITLE` |
+| `project` | `TICKET_PROJECT` |
+| `status` | `TICKET_STATUS` (`closed` once the ticket no longer appears in sync) |
+| `type` | `TICKET_TYPE` |
+| `assignee` | `TICKET_ASSIGNEE` |
+| `url` | `TICKET_URL`; sync matches existing notes by this, so don't edit it |
+| `aliases` | `[TICKET_ID]` |
 
 Notes created by version 0.1.3 or earlier (`key`, `summary`, `state`, `issue_type`, `type: ticket`) are migrated on the next sync.

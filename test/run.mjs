@@ -125,13 +125,15 @@ await assert.rejects(fetchJira({ flavor: "cloud", url: "", email: "", token: "",
 // ---- ticket templates
 const tv = { id: "OPS-1", title: "Fix the Deploy!", type: "Bug", status: "In Progress", assignedTo: "Ada", url: "https://x/OPS-1", description: "Desc", source: "Jira", project: "OPS" };
 assert.equal(renderTicketFileName("", tv), "OPS-1_fix-the-deploy");
-assert.equal(renderTicketFileName("{{TASK_ID}} {{TASK_TITLE}}", tv), "OPS-1 Fix the Deploy!");
-assert.equal(renderTicketPath("[Tickets]/[Jira]/{{TASK_STATUS}}", tv, new Date(2026, 10, 8), mfmt), "Tickets/Jira/In Progress");
-assert.equal(renderTicketPath("[Tickets]/YYYY/{{TASK_ASSIGNEE}}", tv, new Date(2026, 10, 8), mfmt), "Tickets/2026/Ada");
-assert.equal(renderTicketPath("[T]/{{TASK_PROJECT}}", tv, new Date(2026, 10, 8), mfmt), "T/OPS");
-assert.equal(pathRoot("[Tickets]/[Jira]/{{TASK_STATUS}}", mfmt), "Tickets/Jira");
-assert.equal(renderTicketNote("", tv), "# Fix the Deploy!\n\n[Open in Jira](https://x/OPS-1)\n");
-assert.equal(renderTicketNote("{{TASK_TYPE}}|{{ TASK_STATUS }}|{{TASK_NOPE}}", tv), "Bug|In Progress|{{TASK_NOPE}}");
+assert.equal(renderTicketFileName("{{TICKET_ID}} {{TICKET_TITLE}}", tv), "OPS-1 Fix the Deploy!");
+assert.equal(renderTicketPath("[Tickets]/[Jira]/{{TICKET_STATUS}}", tv, new Date(2026, 10, 8), mfmt), "Tickets/Jira/In Progress");
+assert.equal(renderTicketPath("[Tickets]/YYYY/{{TICKET_ASSIGNEE}}", tv, new Date(2026, 10, 8), mfmt), "Tickets/2026/Ada");
+assert.equal(renderTicketPath("[T]/{{TICKET_PROJECT}}", tv, new Date(2026, 10, 8), mfmt), "T/OPS");
+assert.equal(pathRoot("[Tickets]/[Jira]/{{TICKET_STATUS}}", mfmt), "Tickets/Jira");
+assert.equal(renderTicketPath("[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", tv, new Date(2026, 10, 8), mfmt), "Tickets/jira/In Progress");
+assert.equal(renderTicketNote("{{TASK_ID}}|{{TASK_STATUS}}", tv), "OPS-1|In Progress"); // legacy prefix
+assert.equal(renderTicketNote("", tv), "# Fix the Deploy!\n\n[Open in jira](https://x/OPS-1)\n");
+assert.equal(renderTicketNote("{{TICKET_TYPE}}|{{ TICKET_STATUS }}|{{TICKET_NOPE}}", tv), "Bug|In Progress|{{TICKET_NOPE}}");
 assert.equal(adfToText({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "A" }] }, { type: "bulletList", content: [{ type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }] }] }] }), "A\n\n- x");
 // ---- event notes
 await bundle("src/eventnotes.ts", "test/.eventnotes.mjs");
@@ -158,5 +160,6 @@ console.log("all tests passed");
   assert.deepEqual([m.jiraOn, m.gitlabOn, m.calendarOn], [true, false, true]);
   assert.equal(migrateSettings({ calendarSource: "notes", eventNotesFolder: "Meetings" }).calendarOn, true);
   assert.equal(migrateSettings({}).calendarOn, false);
+  assert.equal(migrateSettings({ ticketsPath: "[T]/{{TASK_STATUS}}", ticketFileName: "{{TASK_ID}}" }).ticketsPath, "[T]/{{TICKET_STATUS}}");
   assert.equal(migrateSettings({ jiraOn: false, jiraUrl: "u", jiraToken: "t" }).jiraOn, false); // explicit choice wins
 }

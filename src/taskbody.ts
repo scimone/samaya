@@ -60,24 +60,25 @@ export function pathRoot(pattern: string, fmt: Fmt): string {
 
 // ---------- ticket notes (Jira / GitLab) ----------
 export interface TicketVars { id: string; title: string; type: string; status: string; assignedTo: string; url: string; description: string; source: string; project: string; }
-export const DEFAULT_TICKET_TEMPLATE = "# {{TASK_TITLE}}\n\n[Open in {{TASK_SOURCE}}]({{TASK_URL}})\n";
-export const DEFAULT_TICKET_FILENAME = "{{TASK_ID}}_{{TASK_TITLE_SLUG}}";
-export const TICKET_VARIABLES = "TASK_ID, TASK_TITLE, TASK_TYPE, TASK_STATUS, TASK_ASSIGNEE, TASK_URL, TASK_DESCRIPTION, TASK_PROJECT";
+export const DEFAULT_TICKET_TEMPLATE = "# {{TICKET_TITLE}}\n\n[Open in {{TICKET_SOURCE}}]({{TICKET_URL}})\n";
+export const DEFAULT_TICKET_FILENAME = "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}";
+export const TICKET_VARIABLES = "TICKET_ID, TICKET_TITLE, TICKET_TYPE, TICKET_STATUS, TICKET_ASSIGNEE, TICKET_URL, TICKET_DESCRIPTION, TICKET_PROJECT, TICKET_SOURCE";
 
 function ticketVarMap(v: TicketVars): Record<string, string> {
-  return { TASK_ID: v.id, TASK_TITLE: v.title, TASK_TITLE_SLUG: slugify(v.title, "untitled"), TASK_TYPE: v.type, TASK_STATUS: v.status,
-    TASK_ASSIGNEE: v.assignedTo, TASK_ASSIGNEDTO: v.assignedTo, /* old name */ TASK_URL: v.url, TASK_DESCRIPTION: v.description, TASK_SOURCE: v.source, TASK_PROJECT: v.project };
+  return { TICKET_ID: v.id, TICKET_TITLE: v.title, TICKET_TITLE_SLUG: slugify(v.title, "untitled"), TICKET_TYPE: v.type, TICKET_STATUS: v.status,
+    TICKET_ASSIGNEE: v.assignedTo, TICKET_ASSIGNEDTO: v.assignedTo, /* old name */ TICKET_URL: v.url, TICKET_DESCRIPTION: v.description, TICKET_SOURCE: v.source.toLowerCase(), /* "jira" | "gitlab" */ TICKET_PROJECT: v.project };
 }
-/** Replace {{TASK_*}} variables (unknown names are left untouched). `esc` post-processes each value. */
+/** Replace {{TICKET_*}} variables (unknown names are left untouched). `esc` post-processes each value. */
 export function fillTicketVars(tpl: string, v: TicketVars, esc: (x: string) => string = x => x): string {
   const m = ticketVarMap(v);
-  return tpl.replace(/\{\{\s*(TASK_[A-Z_]+)\s*\}\}/g, (all, k: string) => (k in m ? esc(m[k]) : all));
+  // templates written for older versions used the TASK_ prefix: still understood
+  return tpl.replace(/\{\{\s*((?:TICKET|TASK)_[A-Z_]+)\s*\}\}/g, (all, k: string) => { k = k.replace(/^TASK_/, "TICKET_"); return k in m ? esc(m[k]) : all; });
 }
 /** Note body from a user template (or the built-in one). */
 export function renderTicketNote(tpl: string, v: TicketVars): string { return fillTicketVars(tpl || DEFAULT_TICKET_TEMPLATE, v); }
 /** File name (without ".md") from the file name template. */
 export function renderTicketFileName(tpl: string, v: TicketVars): string { return safeFileName(fillTicketVars(tpl.trim() || DEFAULT_TICKET_FILENAME, v)); }
-/** Folder pattern with {{TASK_*}} variables, e.g. "[Tickets]/[Jira]/{{TASK_STATUS}}". Values are inserted as moment literals. */
+/** Folder pattern with {{TICKET_*}} variables, e.g. "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}". Values are inserted as moment literals. */
 export function renderTicketPath(pattern: string, v: TicketVars, d: Date, fmt: Fmt): string {
   const part = (x: string) => `[${x.trim() ? safeFileName(x) : "None"}]`;
   return renderPath(fillTicketVars(pattern, v, part), d, fmt);

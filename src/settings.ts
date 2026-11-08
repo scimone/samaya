@@ -19,7 +19,7 @@ export interface SamayaSettings {
   calendarOn: boolean; jiraOn: boolean; gitlabOn: boolean;
 }
 export const DEFAULT_SETTINGS: SamayaSettings = {
-  tasksPath: "[Tasks]/YYYY/MM", ticketsPath: "[Tickets]", meetingsPath: "[Meetings]/YYYY/MM", journalFolder: "Journal", plannerFile: "Planner.base", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TASK_ID}}_{{TASK_TITLE_SLUG}}",
+  tasksPath: "[Tasks]/YYYY/MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", meetingsPath: "[Meetings]/YYYY/MM", journalFolder: "Journal", plannerFile: "Planner.base", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
   calendarSource: "ics", eventNotesFolder: "Meetings", eventNotePattern: "{{date}}_{{title}}",
   icsUrls: [], icsRefreshMinutes: 15,
   dayStartHour: 7, dayEndHour: 20, slotMinutes: 15, defaultEstimate: 30, capacityHours: 6, shutdownTime: "17:30", openOnStartup: false,
@@ -41,6 +41,8 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<SamayaS
   if (o.calendarOn == null) o.calendarOn = (o.calendarSource === "notes" && !!o.eventNotesFolder) || (Array.isArray(o.icsUrls) && o.icsUrls.length > 0);
   if (o.jiraOn == null) o.jiraOn = !!(o.jiraUrl && o.jiraToken);
   if (o.gitlabOn == null) o.gitlabOn = !!o.gitlabToken;
+  // ticket variables were called TASK_* before
+  for (const k of ["ticketsPath", "ticketFileName"]) if (typeof o[k] === "string") o[k] = (o[k] as string).replace(/\bTASK_/g, "TICKET_");
   delete o.tasksFolder; delete o.ticketsFolder; delete o.meetingsFolder;
   return o as Partial<SamayaSettings>;
 }
@@ -287,12 +289,12 @@ export class SamayaSettingTab extends PluginSettingTab {
     {
       const b = card("Tickets", "Ticket notes imported from Jira and GitLab. Both share these settings. Appears when either is on.", { activeWhen: () => s.jiraOn || s.gitlabOn });
       label(b, "Notes & templates");
-      pathText(b, "Tickets path", "Where ticket notes are stored.", "ticketsPath", `May contain ticket variables (${vars(TICKET_VARIABLES)}), e.g. [Tickets]/[Jira]/{{TASK_STATUS}}. With {{TASK_STATUS}}, notes move when the ticket's status changes.`);
-      const fn = new Setting(b).setName("Ticket file name").setDesc("Ticket variables in double braces, plus {{TASK_TITLE_SLUG}} (the title as a slug). Leave out “.md”.");
+      pathText(b, "Tickets path", "Where ticket notes are stored.", "ticketsPath", `May contain ticket variables (${vars(TICKET_VARIABLES)}), e.g. [Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}} ({{TICKET_SOURCE}} is “jira” or “gitlab”). With {{TICKET_STATUS}}, notes move when the ticket's status changes.`);
+      const fn = new Setting(b).setName("Ticket file name").setDesc("Ticket variables in double braces, plus {{TICKET_TITLE_SLUG}} (the title as a slug). Leave out “.md”.");
       const fnPreview = fn.descEl.createDiv({ cls: "samaya-path-preview" });
       const showFn = () => fnPreview.setText("Example: " + renderTicketFileName(s.ticketFileName, SAMPLE_TICKET) + ".md");
       fn.addText(t => t.setValue(s.ticketFileName).setPlaceholder(DEFAULT_SETTINGS.ticketFileName).onChange(async v => { s.ticketFileName = v.trim() || DEFAULT_SETTINGS.ticketFileName; await changed(); showFn(); })); showFn();
-      template(b, "Ticket note template", `Path of a template note. Variables: ${vars(TICKET_VARIABLES)} {{TASK_SOURCE}} {{date}}.`, "ticketTemplate");
+      template(b, "Ticket note template", `Path of a template note. Variables: ${vars(TICKET_VARIABLES)} {{date}}.`, "ticketTemplate");
       label(b, "Sync");
       toggle(b, "Sync on startup", "Import tickets from the enabled integrations when Obsidian starts.", () => s.syncOnStartup, v => (s.syncOnStartup = v));
     }

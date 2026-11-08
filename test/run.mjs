@@ -1,7 +1,7 @@
 import esbuild from "esbuild";
 import assert from "node:assert/strict";
 const bundle = async (entry, out) => esbuild.build({ entryPoints: [entry], bundle: true, format: "esm", outfile: out, alias: { obsidian: "./test/obsidian-stub.mjs" }, logLevel: "error" });
-await bundle("src/ics.ts", "test/.ics.mjs"); await bundle("src/util.ts", "test/.util.mjs");
+await bundle("src/home.ts", "test/.home.mjs"); await bundle("src/ics.ts", "test/.ics.mjs"); await bundle("src/util.ts", "test/.util.mjs");
 await bundle("src/worktime.ts", "test/.worktime.mjs");
 await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timeline.ts", "test/.timeline.mjs");
 await bundle("src/settings.ts", "test/.settings.mjs");
@@ -232,3 +232,18 @@ console.log("all tests passed");
   assert.equal(migrateSettings({ ticketsPath: "[T]/{{TASK_STATUS}}", ticketFileName: "{{TASK_ID}}" }).ticketsPath, "[T]/{{TICKET_STATUS}}");
   assert.equal(migrateSettings({ jiraOn: false, jiraUrl: "u", jiraToken: "t" }).jiraOn, false); // explicit choice wins
 }
+
+// ---- home
+const { pickMoment, greeting, weekIntent, inMinutes } = await import("./.home.mjs");
+const mi = { started: true, ended: false, onBreak: false, now: 600, shutdown: 1050, open: 2, total: 4 };
+assert.equal(pickMoment({ ...mi, started: false }), "morning");
+assert.equal(pickMoment(mi), "working");
+assert.equal(pickMoment({ ...mi, onBreak: true }), "break");
+assert.equal(pickMoment({ ...mi, now: 1050 }), "wrapup");
+assert.equal(pickMoment({ ...mi, open: 0 }), "wrapup");
+assert.equal(pickMoment({ ...mi, open: 0, total: 0 }), "working");
+assert.equal(pickMoment({ ...mi, ended: true }), "done");
+assert.equal(greeting(8), "Good morning"); assert.equal(greeting(13), "Good afternoon"); assert.equal(greeting(20), "Good evening");
+assert.equal(weekIntent(1, 9), "plan"); assert.equal(weekIntent(3, 9), null); assert.equal(weekIntent(5, 10), null); assert.equal(weekIntent(5, 15), "review"); assert.equal(weekIntent(0, 12), "plan");
+assert.equal(inMinutes(0), "now"); assert.equal(inMinutes(25), "in 25m"); assert.equal(inMinutes(65), "in 1h 5m"); assert.equal(inMinutes(120), "in 2h");
+console.log("home ok");

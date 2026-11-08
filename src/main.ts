@@ -17,6 +17,7 @@ import { JOURNAL_BASE_VIEW_TYPE, JournalBaseView } from "./views/JournalBaseView
 import { identifyNote, findLatestPeriodNote, journalLocation, openPeriodNote, periodNotePath } from "./journal";
 import { PROJECTS_BASE_TEMPLATE, assignProject, createProject } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
+import { HOME_VIEW_TYPE, HomeView } from "./views/HomeView";
 import { allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask } from "./model";
 import { bulletLines, journalPath, journalWants, readJournalSection, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
 import { Emitter, addDays, hmToMin, parseTitleEstimate as parseTitleEstimateSafe, today } from "./util";
@@ -77,6 +78,28 @@ views:
     sort:
       - property: file.name
         direction: DESC
+`;
+
+const HOME_BASE_TEMPLATE = `views:
+  - type: ${HOME_VIEW_TYPE}
+    name: Home
+`;
+
+const WEEKLY_BASE_TEMPLATE = (folder: string) => `filters:
+  and:
+    - file.inFolder("${folder}")
+properties:
+  note.planned:
+    displayName: Planned
+  note.estimate:
+    displayName: Estimate (min)
+  note.start:
+    displayName: Start
+views:
+  - type: ${WEEK_VIEW_TYPE}
+    name: Weekly Board
+  - type: ${WTL_VIEW_TYPE}
+    name: Weekly Timeline
 `;
 
 const TASKS_BASE_TEMPLATE = (folder: string) => `filters:
@@ -181,7 +204,9 @@ export default class SamayaPlugin extends Plugin {
       () => [{ type: "toggle", key: "hideDone", displayName: "Hide done / closed tickets", default: false }]);
     const g = ok(JOURNAL_BASE_VIEW_TYPE, "Journal calendar", "lucide-calendar",
       (ct, el) => new JournalBaseView(ct, el, this), () => []);
-    if (!a || !b || !c || !d || !e || !f || !g) new Notice("Samaya: could not register Bases views. Enable the core Bases plugin and use Obsidian 1.10+.");
+    const h = ok(HOME_VIEW_TYPE, "Home", "lucide-home",
+      (ct, el) => new HomeView(ct, el, this), () => []);
+    if (!a || !b || !c || !d || !e || !f || !g || !h) new Notice("Samaya: could not register Bases views. Enable the core Bases plugin and use Obsidian 1.10+.");
 
     this.addRibbonIcon("calendar-clock", "Open Samaya planner", () => { void this.openPlanner(); });
     this.focus.init(this.addStatusBarItem(), this.data.focus ?? null);
@@ -189,6 +214,9 @@ export default class SamayaPlugin extends Plugin {
 
     this.addRibbonIcon("calendar-days", "Samaya: today's timeline", () => { void this.openToday(); });
     this.addCommand({ id: "open-today", name: "Open today's timeline in the right sidebar", callback: () => this.openToday() });
+    this.addCommand({ id: "open-home", name: "Open home", checkCallback: c => { if (!this.settings.homeOn) return false; if (!c) void this.openHome(); return true; } });
+    this.addCommand({ id: "plan-week", name: "Plan my week", callback: () => this.openWeekPlanner() });
+    this.addCommand({ id: "review-week", name: "Review my week", callback: () => this.reviewWeek() });
     this.addCommand({ id: "open-planner", name: "Open planner", callback: () => this.openPlanner() });
     this.addCommand({ id: "plan-day", name: "Plan my day (guided)", callback: () => this.startGuide() });
     this.addCommand({ id: "start-day", name: "Start workday now", callback: () => this.workday.startDay() });
@@ -245,6 +273,7 @@ export default class SamayaPlugin extends Plugin {
       await this.scaffold(false);
       if (this.settings.syncOnStartup && (this.settings.jiraOn || this.settings.gitlabOn)) void this.syncTickets();
       if (this.settings.openOnStartup) await this.openPlanner();
+      if (this.settings.homeOn && this.settings.homeOnStartup) await this.openHome();
       this.registerInterval(window.setInterval(() => this.shutdownNudge(), 60000));
       void this.meetingSyncLoop();
     });
@@ -322,6 +351,60 @@ export default class SamayaPlugin extends Plugin {
     await this.app.vault.create(bp, PROJECTS_BASE_TEMPLATE(folder, GANTT_VIEW_TYPE));
     if (announce) new Notice("Created " + bp);
   }
+  /** Vault path of the home page (".base" added when missing). */
+  homeFile(path = this.settings.homePath): string { const p = normalizePath(path.trim() || "Home.base"); return p.endsWith(".base") ? p : p + ".base"; }
+  /** The home page base at the configured path (only when the module is on). */
+  async scaffoldHome(announce: boolean) {
+    if (!this.settings.homeOn) return;
+    const hp = this.homeFile();
+    if (this.app.vault.getAbstractFileByPath(hp)) { if (announce) new Notice("Home page already exists."); return; }
+    const dir = hp.split("/").slice(0, -1).join("/"); if (dir) await ensureFolder(this.app, dir);
+    await this.app.vault.create(hp, HOME_BASE_TEMPLATE); if (announce) new Notice("Created " + hp);
+  }
+  /** The home path changed: move the existing page along, or create one at the new path. */
+  async moveHome(from: string, to: string) {
+    const src = this.app.vault.getAbstractFileByPath(this.homeFile(from)); const dst = this.homeFile(to);
+    if (src instanceof TFile && !this.app.vault.getAbstractFileByPath(dst)) {
+      const dir = dst.split("/").slice(0, -1).join("/"); if (dir) await ensureFolder(this.app, dir);
+      await this.app.fileManager.renameFile(src, dst); new Notice("Moved the home page to " + dst);
+    } else await this.scaffoldHome(true);
+  }
+  async openHome() {
+    await this.scaffoldHome(false);
+    const f = this.app.vault.getAbstractFileByPath(this.homeFile());
+    if (!(f instanceof TFile)) return;
+    let found: import("obsidian").WorkspaceLeaf | null = null;
+    this.app.workspace.iterateRootLeaves(l => { if (!found && (l.view as { file?: TFile }).file?.path === f.path) found = l; });
+    const leaf = found ?? this.app.workspace.getLeaf("tab");
+    if (!found) await leaf.openFile(f);
+    await this.app.workspace.revealLeaf(leaf);
+  }
+  /** Weekly Board + Weekly Timeline in their own base next to the planner (the planner base always opens on the Daily Planner). */
+  async openWeekPlanner() {
+    const dir = normalizePath(this.settings.plannerFile).split("/").slice(0, -1).join("/");
+    const wp = normalizePath(dir ? `${dir}/Weekly.base` : "Weekly.base");
+    if (!this.app.vault.getAbstractFileByPath(wp)) {
+      if (dir) await ensureFolder(this.app, dir);
+      const root = rootOf(this.settings.tasksPath); await ensureFolder(this.app, root === "/" ? "" : root);
+      await this.app.vault.create(wp, WEEKLY_BASE_TEMPLATE(root));
+    }
+    const f = this.app.vault.getAbstractFileByPath(wp); if (!(f instanceof TFile)) return;
+    let found: import("obsidian").WorkspaceLeaf | null = null;
+    this.app.workspace.iterateRootLeaves(l => { if (!found && (l.view as { file?: TFile }).file?.path === f.path) found = l; });
+    const leaf = found ?? this.app.workspace.getLeaf("tab");
+    if (!found) await leaf.openFile(f);
+    await this.app.workspace.revealLeaf(leaf);
+  }
+  /** Weekly note when the journal keeps them, else the work time dashboard. */
+  async reviewWeek() {
+    const s = this.settings;
+    if (s.journalOn && s.journalNotes.weekly.on) {
+      const f = await openPeriodNote(this.app, s, "weekly", today());
+      if (f) { await this.openNoteInMain(f); return; }
+    }
+    await this.openDashboard();
+  }
+
   /** Tickets/Tickets.base: a kanban board of the imported tickets (only while Jira or GitLab is on). */
   async scaffoldTickets(announce: boolean) {
     if (!this.settings.jiraOn && !this.settings.gitlabOn) return;
@@ -382,7 +465,7 @@ export default class SamayaPlugin extends Plugin {
   }
 
   async scaffold(announce: boolean) {
-    await this.scaffoldProjects(announce); await this.scaffoldTickets(announce); await this.scaffoldJournal(announce);
+    await this.scaffoldProjects(announce); await this.scaffoldTickets(announce); await this.scaffoldJournal(announce); await this.scaffoldHome(false);
     const folder = rootOf(this.settings.tasksPath);
     if (folder !== "/") await ensureFolder(this.app, folder);
     // Daily notes follow the core plugin; only seed its config when it has none

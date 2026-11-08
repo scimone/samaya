@@ -523,3 +523,61 @@ body { --samaya-green: #2fa862; }
 .samaya-panel.is-active { display: block; }
 .samaya-panel > .samaya-mod:first-child { margin-top: 16px; }
 @media (max-width: 600px) { .samaya-tab-name { display: none; } .samaya-tab.is-active .samaya-tab-name { display: inline; } }
+
+/* ---------------------------------------------------------------- Home */
+.samaya-home { max-width: 640px; margin: 0 auto; padding: 40px 20px 64px; display: flex; flex-direction: column; gap: 28px; }
+.samaya-home-head h1 { margin: 0; font-size: 1.9em; font-weight: 650; letter-spacing: -0.01em; }
+.samaya-home-date { color: var(--text-muted); margin-top: 2px; }
+
+.samaya-home-hero { padding: 22px 24px; border-radius: var(--radius-l); background: var(--background-secondary); border: 1px solid var(--background-modifier-border); display: flex; flex-direction: column; gap: 6px; }
+.samaya-home-kicker { display: flex; align-items: center; gap: 8px; font-size: var(--font-ui-smaller); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
+.samaya-home-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); }
+.samaya-home-hero.is-working .samaya-home-dot, .samaya-home-hero.is-wrapup .samaya-home-dot { background: var(--samaya-green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--samaya-green) 25%, transparent); }
+.samaya-home-hero.is-break .samaya-home-dot { background: var(--color-orange); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-orange) 25%, transparent); }
+.samaya-home-hero.is-break { background: color-mix(in srgb, var(--color-orange) 8%, var(--background-secondary)); }
+.samaya-home-title { font-size: 1.5em; font-weight: 650; line-height: 1.25; letter-spacing: -0.01em; margin-top: 4px; overflow-wrap: anywhere; }
+.samaya-home-sub { color: var(--text-muted); min-height: 1.2em; }
+.samaya-home-actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+.samaya-home-actions button.mod-cta { padding: 0 18px; height: 34px; }
+.samaya-home-actions .samaya-link-btn { padding: 4px 10px; font-size: var(--font-ui-small); }
+.samaya-home-actions button:not(.samaya-link-btn):not(.mod-cta) { height: 32px; }
+.samaya-home-btn-icon { display: inline-flex; margin-right: 6px; vertical-align: middle; }
+.samaya-home-btn-icon svg { width: 15px; height: 15px; }
+
+.samaya-home-sec { display: flex; flex-direction: column; gap: 8px; }
+.samaya-home-sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.samaya-home-sec-title { font-weight: 650; font-size: var(--font-ui-medium); }
+.samaya-home-sec-meta { color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.samaya-home-bar { margin-bottom: 4px; }
+
+.samaya-home-list { display: flex; flex-direction: column; }
+.samaya-home-task { display: flex; align-items: center; gap: 10px; padding: 6px 2px; border-bottom: 1px solid var(--background-modifier-border); }
+.samaya-home-task:last-child { border-bottom: none; }
+.samaya-home-task .samaya-check { margin: 0; flex: none; }
+.samaya-home-task-title { flex: 1; min-width: 0; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.samaya-home-task-title:hover { color: var(--interactive-accent); }
+.samaya-home-task.is-done .samaya-home-task-title { color: var(--text-faint); text-decoration: line-through; }
+.samaya-home-task-time { flex: none; color: var(--text-muted); font-size: var(--font-ui-smaller); font-variant-numeric: tabular-nums; }
+.samaya-home-add { margin: 6px 0 0; width: 100%; background: transparent; border-color: transparent; }
+.samaya-home-add:hover, .samaya-home-add:focus { border-color: var(--background-modifier-border); background: var(--background-primary); }
+.samaya-home-nudge { display: flex; align-items: center; flex-wrap: wrap; font-size: var(--font-ui-small); color: var(--color-orange); }
+.samaya-home-nudge .samaya-link-btn { color: var(--color-orange); font-weight: 600; padding: 0 4px; }
+
+.samaya-home-week { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
+.samaya-home-day { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px 8px; border-radius: var(--radius-m); border: 1px solid var(--background-modifier-border); }
+.samaya-home-day.is-today { border-color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 8%, transparent); }
+.samaya-home-day.is-past { opacity: 0.65; }
+.samaya-home-day-dow { font-size: var(--font-ui-smaller); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.samaya-home-day-num { font-size: 1.25em; font-weight: 650; font-variant-numeric: tabular-nums; }
+.samaya-home-day-bar { width: 70%; height: 3px; border-radius: 2px; background: var(--background-modifier-border); overflow: hidden; margin: 4px 0 2px; }
+.samaya-home-day-fill { height: 100%; background: var(--samaya-green); }
+.samaya-home-day-count { font-size: var(--font-ui-smaller); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.samaya-home-week-meta { color: var(--text-muted); font-size: var(--font-ui-smaller); }
+
+.samaya-home-links { display: flex; flex-wrap: wrap; gap: 2px 4px; padding-top: 12px; border-top: 1px solid var(--background-modifier-border); }
+
+@media (max-width: 480px) {
+  .samaya-home { padding: 24px 14px 48px; gap: 22px; }
+  .samaya-home-hero { padding: 18px; }
+  .samaya-home-week { gap: 4px; }
+}

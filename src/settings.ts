@@ -165,14 +165,6 @@ export class SamayaSettingTab extends PluginSettingTab {
     }
 
     {
-      const b = card("Tasks", "One note per task, created from the planner, the backlog or a checkbox.");
-      num(b, "Default estimate (minutes)", "Used for new tasks, and for unestimated tasks dropped on the grid.", () => s.defaultEstimate, v => (s.defaultEstimate = v), { min: 1, max: 1440, int: true });
-      label(b, "Notes & templates");
-      pathText(b, "Tasks path", "Where task notes are stored.", "tasksPath");
-      template(b, "Task note template", "Path of a template note. Variables: {{title}} {{date}} {{date:FORMAT}} {{time}}. A “## Subtasks” heading is added if missing.", "taskTemplate");
-    }
-
-    {
       const b = card("Work time", "Tracks your workday and overtime.");
       label(b, "Lunch break");
       text(b, "Starts", "Marked in the calendar and subtracted from capacity.", () => s.lunchStart, v => (s.lunchStart = v), { time: true });
@@ -181,6 +173,14 @@ export class SamayaSettingTab extends PluginSettingTab {
       label(b, "Contract");
       num(b, "Required hours per week", "Used by the work time dashboard for overtime.", () => s.weeklyHours, v => (s.weeklyHours = v), { min: 1, max: 168, step: 0.5 });
       num(b, "Working days per week", "Counted from Monday (5 = Mon–Fri). Work on other days is all overtime.", () => s.workDays, v => (s.workDays = v), { min: 1, max: 7, int: true });
+    }
+
+    {
+      const b = card("Tasks", "One note per task, created from the planner, the backlog or a checkbox.");
+      num(b, "Default estimate (minutes)", "Used for new tasks, and for unestimated tasks dropped on the grid.", () => s.defaultEstimate, v => (s.defaultEstimate = v), { min: 1, max: 1440, int: true });
+      label(b, "Notes & templates");
+      pathText(b, "Tasks path", "Where task notes are stored.", "tasksPath");
+      template(b, "Task note template", "Path of a template note. Variables: {{title}} {{date}} {{date:FORMAT}} {{time}}. A “## Subtasks” heading is added if missing.", "taskTemplate");
     }
 
     // ======================================================================== optional modules
@@ -213,10 +213,16 @@ export class SamayaSettingTab extends PluginSettingTab {
       };
       renderSrc();
       // the source dropdown changes which fields apply: rebuild only this block, not the page
-      let shown = s.calendarSource; refreshers.push(() => { if (shown !== s.calendarSource) { shown = s.calendarSource; renderSrc(); } });
-      label(b, "Meeting notes");
-      pathText(b, "Meetings path", "Where notes for calendar events are created (named yyyy-mm-dd_title).", "meetingsPath");
-      template(b, "Meeting note template", "Path of a template note. Variables: {{title}} {{date}} {{start}} {{end}}.", "meetingTemplate");
+      let shown = s.calendarSource; refreshers.push(() => { if (shown !== s.calendarSource) { shown = s.calendarSource; renderSrc(); renderMeet(); } });
+      // with notes as the source every event already is a note, so nothing is created and these don't apply
+      const meetBox = b.createDiv();
+      const renderMeet = () => {
+        meetBox.empty(); if (s.calendarSource === "notes") return;
+        label(meetBox, "Meeting notes");
+        pathText(meetBox, "Meetings path", "Where notes for calendar events are created (named yyyy-mm-dd_title).", "meetingsPath");
+        template(meetBox, "Meeting note template", "Path of a template note. Variables: {{title}} {{date}} {{start}} {{end}}.", "meetingTemplate");
+      };
+      renderMeet();
     }
 
     const secrets = "Tokens are stored unencrypted in this plugin's data.json inside the vault. Don't sync that file to places you don't trust.";

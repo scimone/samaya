@@ -36,8 +36,9 @@ export class WeeklyTimelineView extends BasesView {
     this.register(plugin.bus.on(() => this.schedule()));
     const ref = plugin.app.metadataCache.on("changed", f => { if (inEventFolder(plugin.settings, f.path)) this.schedule(); });
     this.register(() => plugin.app.metadataCache.offref(ref));
+    void plugin.openToday(); // same sidebar as the Weekly Board
   }
-  onunload() { window.clearTimeout(this.timer); this.scope.dispose(); }
+  onunload() { window.clearTimeout(this.timer); this.scope.dispose(); if (this.plugin.boardWeek === this.weekStart) { this.plugin.boardWeek = ""; this.plugin.modeBus.emit(); } }
   onDataUpdated(): void { this.schedule(); }
   private schedule() {
     if (this.scope.active) { this.pending = true; return; }
@@ -60,6 +61,7 @@ export class WeeklyTimelineView extends BasesView {
     const all = this.data.data.map(e => readTask(this.app, e.file));
     const byPath = new Map(all.map(t => [t.file.path, t]));
 
+    if (this.plugin.boardWeek !== this.weekStart) { this.plugin.boardWeek = this.weekStart; this.plugin.modeBus.emit(); }
     const head = this.root.createDiv("samaya-week-head");
     const go = (w: string) => { this.weekStart = w; this.scrolledFor = ""; void this.render(); };
     head.createEl("button", { text: "‹" }).onclick = () => go(addDays(this.weekStart, -7));

@@ -58,7 +58,7 @@ export class TodayView extends ItemView {
   private currentMode(): "timeline" | "lists" | "week" {
     const leaf = this.app.workspace.getMostRecentLeaf();
     const el = (leaf?.view as { containerEl?: HTMLElement } | undefined)?.containerEl;
-    if (el?.querySelector(".samaya-week")) return "week";
+    if (el?.querySelector(".samaya-week, .samaya-wtl")) return "week";
     return this.plannerOpen() ? "lists" : "timeline";
   }
 

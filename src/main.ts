@@ -77,6 +77,8 @@ export default class SamayaPlugin extends Plugin {
   modeBus = new Emitter();
   /** date currently shown by the Daily Planner (used by the sidebar lists) */
   plannerDate = "";
+  /** week (monday, ymd) shown by the Weekly Board while it is open ("" = none) */
+  boardWeek = "";
   guide: GuideState | null = null;
 
   async onload() {

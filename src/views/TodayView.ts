@@ -23,9 +23,10 @@ export class TodayView extends ItemView {
   private token = 0;
   private pending = false;
   private dnd = new DndScope();
-  private mode: "timeline" | "lists" = "timeline";
+  private mode: "timeline" | "lists" | "week" = "timeline";
   private tab: "week" | "backlog" = "week";
   private shownDate = "";
+  private shownWeek = "";
   private viewDate = ""; // day shown on the timeline ("" = today)
   private listTop = 0;
   constructor(leaf: WorkspaceLeaf, private plugin: SamayaPlugin) { super(leaf); this.dnd.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } }; }
@@ -42,7 +43,7 @@ export class TodayView extends ItemView {
     this.registerInterval(window.setInterval(() => { if (!this.dnd.active) void this.render(); }, 60000));
     this.register(this.plugin.bus.on(() => this.schedule()));
     // while the Daily Planner is the page in front, show This week / Backlog instead of the timeline
-    const check = () => { if (this.plannerOpen() !== (this.mode === "lists") || (this.mode === "lists" && this.plugin.plannerDate !== this.shownDate)) this.schedule(); };
+    const check = () => { if (this.currentMode() !== this.mode || (this.mode === "lists" && this.plugin.plannerDate !== this.shownDate) || (this.mode === "week" && this.plugin.boardWeek !== this.shownWeek)) this.schedule(); };
     this.registerEvent(this.app.workspace.on("active-leaf-change", check));
     this.registerEvent(this.app.workspace.on("layout-change", check));
     this.register(this.plugin.modeBus.on(check));
@@ -54,6 +55,13 @@ export class TodayView extends ItemView {
     window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { void this.render(); }, 120);
   }
 
+  private currentMode(): "timeline" | "lists" | "week" {
+    const leaf = this.app.workspace.getMostRecentLeaf();
+    const el = (leaf?.view as { containerEl?: HTMLElement } | undefined)?.containerEl;
+    if (el?.querySelector(".samaya-week")) return "week";
+    return this.plannerOpen() ? "lists" : "timeline";
+  }
+
   private plannerOpen(): boolean {
     const leaf = this.app.workspace.getMostRecentLeaf(); // most recent leaf of the MAIN area, even while a sidebar is focused
     const el = (leaf?.view as { containerEl?: HTMLElement } | undefined)?.containerEl;
@@ -62,7 +70,8 @@ export class TodayView extends ItemView {
 
   async render() {
     const token = ++this.token; const s = this.plugin.settings; const date = this.viewDate || today();
-    const lists = this.plannerOpen(); this.mode = lists ? "lists" : "timeline"; this.shownDate = this.plugin.plannerDate;
+    this.mode = this.currentMode(); const lists = this.mode !== "timeline"; this.shownDate = this.plugin.plannerDate;
+    const wkStart = this.plugin.boardWeek || startOfWeek(today()); this.shownWeek = this.plugin.boardWeek;
     const events: IcsEvent[] = !lists && calendarEnabled(s) ? await calendarEvents(this.plugin, parseYmd(date), new Date(parseYmd(date).getTime() + 86400000)) : [];
     const notes = new Map<IcsEvent, TFile>();
     for (const ev of (lists ? [] : events.filter(e => !e.allDay))) { try { notes.set(ev, await ensureMeetingNote(this.app, s, ev)); } catch { /* ignore */ } }
@@ -92,10 +101,15 @@ export class TodayView extends ItemView {
       nav("chevron-right", "Next day", () => addDays(date, 1));
       if (!isToday) { const t = title.createEl("button", { cls: "samaya-mini", text: "Today" }); t.addEventListener("click", () => { this.viewDate = ""; void this.render(); }); }
     }
-    if (lists) {
+    if (this.mode === "week") {
+      const fmt = (x: string) => parseYmd(x).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+      title.createSpan({ cls: "samaya-today-dow", text: "This week" });
+      title.createSpan({ cls: "samaya-today-date", text: `${fmt(wkStart)} – ${fmt(addDays(wkStart, 6))}` });
+    } else if (lists) {
       title.createSpan({ cls: "samaya-today-dow", text: new Date().toLocaleDateString(undefined, { weekday: "long" }) });
       title.createSpan({ cls: "samaya-today-date", text: new Date().toLocaleDateString(undefined, { day: "numeric", month: "short" }) });
     }
+    if (this.mode === "week") { this.renderWeek(c, all, wkStart); return; }
     renderWorkdayCard(this.plugin, head.createDiv(), { compact: true });
     const dayMs = parseYmd(date).getTime();
     renderDoneBar(head, day.filter(t => t.status === "done").length, day.length);
@@ -207,6 +221,39 @@ export class TodayView extends ItemView {
     if (isToday && nm >= startH * 60 && nm <= endH * 60) lane.createDiv("samaya-now").style.top = `${px(nm)}px`;
     if (this.scrolled !== date) { this.scrolled = date; this.scrollTop = Math.max(0, px(nm) - 120); }
     scroll.scrollTop = this.scrollTop;
+  }
+
+  /** Weekly Board open: the week's tasks, those without a day first and highlighted. */
+  private renderWeek(c: HTMLElement, all: Task[], wk: string) {
+    const s = this.plugin.settings; const end = addDays(wk, 6);
+    const open = all.filter(t => t.status !== "done");
+    const unscheduled = sortTasks(open.filter(t => !t.planned && t.week === wk));
+    const scheduled = sortTasks(open.filter(t => t.planned && t.planned >= wk && t.planned <= end));
+    const keep = c.querySelector<HTMLElement>(".samaya-today-cards")?.scrollTop ?? this.listTop;
+    const sec = c.createDiv("samaya-week-unsched");
+    sec.createDiv({ cls: "samaya-today-label", text: `Not scheduled yet · ${unscheduled.length}` });
+    const list = sec.createDiv("samaya-today-cards");
+    if (!unscheduled.length) list.createDiv({ cls: "samaya-today-empty", text: "Every weekly task has a day" });
+    unscheduled.forEach(t => renderTaskCard(this.plugin, list, t, { scope: this.dnd, compact: true }));
+    list.scrollTop = keep;
+    bindZone(this.dnd, sec, path => {
+      const f = this.app.vault.getAbstractFileByPath(path);
+      if (f instanceof TFile) void patchTask(this.app, f, { planned: null, start: null, week: wk });
+    });
+    const add = sec.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add weekly task" } });
+    add.addEventListener("keydown", e => {
+      if (e.key !== "Enter" || !add.value.trim()) return;
+      const p = parseTitleEstimate(add.value); add.value = "";
+      void createTask(this.app, s, p.title, { week: wk, estimate: p.estimate ?? s.defaultEstimate });
+    });
+    if (scheduled.length) {
+      c.createDiv({ cls: "samaya-today-label", text: `Scheduled this week · ${scheduled.length}` });
+      const done = c.createDiv("samaya-today-cards samaya-week-sched");
+      scheduled.forEach(t => {
+        const d = renderTaskCard(this.plugin, done, t, { scope: this.dnd, compact: true });
+        d.createDiv({ cls: "samaya-week-day", text: parseYmd(t.planned!).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }) });
+      });
+    }
   }
 
   /** This week / Backlog tabs with all their task cards (shown while the Daily Planner is open). */

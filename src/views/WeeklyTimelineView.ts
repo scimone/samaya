@@ -6,6 +6,7 @@ import { addDays, fmtDur, hmToMin, minToHm, parseYmd, startOfWeek, today } from 
 import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { layoutItems } from "../timeline";
+import { bindZone } from "./common";
 import { addBands } from "./bands";
 
 export const WTL_VIEW_TYPE = "samaya-week-timeline";
@@ -95,6 +96,10 @@ export class WeeklyTimelineView extends BasesView {
         c.addEventListener("dblclick", () => open(t.file)); this.scope.draggable(c, t.file.path);
       });
 
+      bindZone(this.scope, h, path => { // drop here = keep the day, remove the time slot
+        const f = this.app.vault.getAbstractFileByPath(path);
+        if (f instanceof TFile) void patchTask(this.app, f, { planned: date, week: null, start: null });
+      });
       const col = body.createDiv("samaya-wtl-col" + (isToday ? " is-today" : "")); col.style.height = `${(endH - startH) * HOUR_H}px`;
       for (let hr = startH; hr < endH; hr++) col.createDiv("samaya-wtl-hour").style.top = `${(hr - startH) * HOUR_H}px`;
       const lane = col.createDiv("samaya-lane");

@@ -375,3 +375,5 @@ body { --samaya-green: #2fa862; }
 .samaya-settings input.samaya-num { width: 90px; text-align: right; }
 .samaya-settings textarea.samaya-wide { width: 100%; min-width: 260px; }
 @media (prefers-reduced-motion: reduce) { .samaya-mod-body { transition: none; } }
+.samaya-range .setting-item-control { gap: 8px; align-items: center; }
+.samaya-range-sep { color: var(--text-muted); font-size: var(--font-ui-small); }

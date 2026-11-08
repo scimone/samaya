@@ -124,6 +124,29 @@ export class SamayaSettingTab extends PluginSettingTab {
         });
       });
 
+    /** Two linked inputs on one row ("from – to"); a pair is only saved when both are valid and in order. */
+    const range = (el: HTMLElement, name: string, desc: string, kind: "time" | "hour", from: [() => string | number, (v: never) => void], to: [() => string | number, (v: never) => void]) => {
+      const st = new Setting(el).setName(name).setDesc(desc); st.settingEl.addClass("samaya-range");
+      const inputs: HTMLInputElement[] = [];
+      const val = (i: HTMLInputElement): number | null => {
+        if (kind === "time") { if (!HM.test(i.value.trim())) return null; const [h, m] = i.value.split(":").map(Number); return h * 60 + m; }
+        const n = Number(i.value); return i.value.trim() === "" || !Number.isInteger(n) ? null : n;
+      };
+      const check = async () => {
+        const [a, b] = [val(inputs[0]), val(inputs[1])];
+        const bad = a == null || b == null || a >= b || (kind === "hour" && (a < 0 || a > 23 || b < 1 || b > 24));
+        inputs.forEach(i => i.toggleClass("is-invalid", bad)); if (bad) return;
+        (from[1] as (v: string | number) => void)(kind === "time" ? inputs[0].value : a!); (to[1] as (v: string | number) => void)(kind === "time" ? inputs[1].value : b!);
+        await changed();
+      };
+      [from, to].forEach((pair, idx) => {
+        if (idx) st.controlEl.createSpan({ cls: "samaya-range-sep", text: "to" });
+        const i = st.controlEl.createEl("input", { type: kind === "time" ? "time" : "number", cls: kind === "time" ? "" : "samaya-num" });
+        if (kind === "hour") { i.min = "0"; i.max = "24"; i.step = "1"; }
+        i.value = String(pair[0]()); i.addEventListener("input", () => { void check(); }); inputs.push(i);
+      });
+    };
+
     const toggle = (el: HTMLElement, name: string, desc: string, get: () => boolean, set: (v: boolean) => void) =>
       new Setting(el).setName(name).setDesc(desc).addToggle(t => t.setValue(get()).onChange(async v => { set(v); await changed(); }));
 
@@ -150,29 +173,28 @@ export class SamayaSettingTab extends PluginSettingTab {
     new Setting(c).setName("Core modules").setHeading().setDesc("Always on. They make up the planner itself.").settingEl.addClass("samaya-section");
 
     {
-      const b = card("Planner", "The timeboxing grid and your daily rhythm.");
-      label(b, "Day grid");
-      num(b, "Day start hour", "First hour on the grid (0–23).", () => s.dayStartHour, v => (s.dayStartHour = v), { min: 0, max: 23, int: true });
-      num(b, "Day end hour", "Last hour on the grid (1–24).", () => s.dayEndHour, v => (s.dayEndHour = v), { min: 1, max: 24, int: true });
-      num(b, "Snap size (minutes)", "Timeboxing granularity.", () => s.slotMinutes, v => (s.slotMinutes = v), { min: 1, max: 120, int: true });
-      label(b, "Capacity & rituals");
-      num(b, "Daily capacity (hours)", "Plannable hours per day. Free capacity = this minus the lunch break minus calendar meetings.", () => s.capacityHours, v => (s.capacityHours = v), { min: 0.5, max: 24, step: 0.5 });
-      text(b, "Shutdown time", "A reminder to run the shutdown ritual.", () => s.shutdownTime, v => (s.shutdownTime = v), { time: true });
-      toggle(b, "Open planner on startup", "Open today's planner whenever Obsidian starts.", () => s.openOnStartup, v => (s.openOnStartup = v));
-      label(b, "Files");
-      text(b, "Planner base file", "The base file opened by the ribbon icon.", () => s.plannerFile, v => (s.plannerFile = v || "Planner.base"), { placeholder: "Planner.base" });
-      text(b, "Daily note folder (fallback)", "Daily notes follow Settings › Daily notes. This folder is only used while that plugin has no settings.", () => s.journalFolder, v => (s.journalFolder = v || "Journal"), { placeholder: "Journal", suggest: folders });
-    }
-
-    {
-      const b = card("Work time", "Tracks your workday and overtime.");
-      label(b, "Lunch break");
-      text(b, "Starts", "Marked in the calendar and subtracted from capacity.", () => s.lunchStart, v => (s.lunchStart = v), { time: true });
-      text(b, "Ends", "", () => s.lunchEnd, v => (s.lunchEnd = v), { time: true });
+      const b = card("Planner", "How your workday is shaped: when you work, how much you plan, and what counts as overtime.");
+      label(b, "Workday");
+      range(b, "Lunch break", "Marked in the calendar and subtracted from capacity.", "time",
+        [() => s.lunchStart, v => (s.lunchStart = v)], [() => s.lunchEnd, v => (s.lunchEnd = v)]);
       toggle(b, "Add the default lunch automatically", "When you end the day without a logged lunch break, subtract the window above.", () => s.autoLunch, v => (s.autoLunch = v));
-      label(b, "Contract");
+      num(b, "Daily capacity (hours)", "Plannable hours per day. Free capacity = this minus lunch minus calendar meetings.", () => s.capacityHours, v => (s.capacityHours = v), { min: 0.5, max: 24, step: 0.5 });
+      text(b, "Shutdown reminder", "A nudge to run the shutdown ritual.", () => s.shutdownTime, v => (s.shutdownTime = v), { time: true });
+      label(b, "Week");
       num(b, "Required hours per week", "Used by the work time dashboard for overtime.", () => s.weeklyHours, v => (s.weeklyHours = v), { min: 1, max: 168, step: 0.5 });
       num(b, "Working days per week", "Counted from Monday (5 = Mon–Fri). Work on other days is all overtime.", () => s.workDays, v => (s.workDays = v), { min: 1, max: 7, int: true });
+      label(b, "Timeboxing grid");
+      range(b, "Visible hours", "The part of the day shown on the grid.", "hour",
+        [() => s.dayStartHour, v => (s.dayStartHour = v)], [() => s.dayEndHour, v => (s.dayEndHour = v)]);
+      new Setting(b).setName("Snap to").setDesc("Timeboxing granularity.").addDropdown(d => {
+        const opts = [5, 10, 15, 30, 60]; if (!opts.includes(s.slotMinutes)) opts.push(s.slotMinutes);
+        for (const m of opts.sort((x, y) => x - y)) d.addOption(String(m), m === 60 ? "1 hour" : `${m} minutes`);
+        d.setValue(String(s.slotMinutes)).onChange(async v => { s.slotMinutes = Number(v); await changed(); });
+      });
+      label(b, "Startup & files");
+      toggle(b, "Open planner on startup", "Open today's planner whenever Obsidian starts.", () => s.openOnStartup, v => (s.openOnStartup = v));
+      text(b, "Planner base file", "The base file opened by the ribbon icon.", () => s.plannerFile, v => (s.plannerFile = v || "Planner.base"), { placeholder: "Planner.base" });
+      text(b, "Daily note folder (fallback)", "Daily notes follow Settings › Daily notes. This folder is only used while that plugin has no settings.", () => s.journalFolder, v => (s.journalFolder = v || "Journal"), { placeholder: "Journal", suggest: folders });
     }
 
     {

@@ -19,18 +19,6 @@ import type { DayLog } from "./worktime";
 interface PluginData { settings?: Partial<SamayaSettings>; focus?: FocusState | null; workday?: DayLog | null; }
 export interface GuideState { step: number; obstacles: string | null; shutdown: string; fresh: boolean; }
 
-const OLD_BACKLOG = `  - type: table
-    name: Backlog
-    filters:
-      and:
-        - planned.isEmpty()
-        - status != "done"
-    order:
-      - file.name
-      - estimate
-      - channel
-`;
-
 const BASE_TEMPLATE = (folder: string) => `filters:
   and:
     - file.inFolder("${folder}")
@@ -48,6 +36,19 @@ views:
     name: Weekly Board
   - type: ${WTL_VIEW_TYPE}
     name: Weekly Timeline
+`;
+
+const TASKS_BASE_TEMPLATE = (folder: string) => `filters:
+  and:
+    - file.inFolder("${folder}")
+properties:
+  note.planned:
+    displayName: Planned
+  note.estimate:
+    displayName: Estimate (min)
+  note.start:
+    displayName: Start
+views:
   - type: ${BACKLOG_VIEW_TYPE}
     name: Backlog
     filters:
@@ -67,6 +68,20 @@ views:
       - property: planned
         direction: DESC
 `;
+
+/** Remove the Backlog / All tasks views (they moved to the Tasks base) from a planner base file. */
+function stripTaskViews(txt: string): string {
+  const out: string[] = []; let block: string[] = []; let inViews = false;
+  const flush = () => { if (!block.length || !/^    name: (Backlog|All tasks)\s*$/m.test(block.join("\n"))) out.push(...block); block = []; };
+  for (const line of txt.split("\n")) {
+    if (/^views:/.test(line)) { inViews = true; out.push(line); continue; }
+    if (inViews && /^  - /.test(line)) { flush(); block.push(line); }
+    else if (inViews && block.length && /^\s/.test(line)) block.push(line);
+    else { flush(); out.push(line); }
+  }
+  flush();
+  return out.join("\n");
+}
 
 export default class SamayaPlugin extends Plugin {
   settings!: SamayaSettings;
@@ -206,17 +221,21 @@ export default class SamayaPlugin extends Plugin {
       if (!(await this.app.vault.adapter.exists(dn))) await this.app.vault.adapter.write(dn, JSON.stringify({ folder: rootOf(this.settings.journalFolder).replace(/^\/$/, ""), format: "YYYY-MM-DD" }, null, 2));
     } catch (e) { console.warn("Samaya: could not seed daily-notes.json", e); }
 
+    // Backlog + All tasks live in their own base inside the tasks folder; moved out of the planner base once
+    const tp = normalizePath(folder === "/" ? "Tasks.base" : `${folder}/Tasks.base`);
+    const tasksBaseNew = !this.app.vault.getAbstractFileByPath(tp);
+    if (tasksBaseNew) { await this.app.vault.create(tp, TASKS_BASE_TEMPLATE(folder)); if (announce) new Notice("Created " + tp); }
+
     const bp = normalizePath(this.settings.plannerFile);
     const bf = this.app.vault.getAbstractFileByPath(bp);
     if (!bf) { await this.app.vault.create(bp, BASE_TEMPLATE(folder)); if (announce) new Notice("Created " + bp); }
     else if (bf instanceof TFile) {
       let txt = await this.app.vault.read(bf);
       if (/file\.folder == "/.test(txt)) { txt = txt.replace(/file\.folder == "([^"]*)"/, 'file.inFolder("$1")'); await this.app.vault.modify(bf, txt); } // tasks now live in year/month subfolders
-      if (!txt.includes(BACKLOG_VIEW_TYPE) && txt.includes(OLD_BACKLOG)) {
-        await this.app.vault.modify(bf, txt.replace(OLD_BACKLOG, `  - type: ${BACKLOG_VIEW_TYPE}\n    name: Backlog\n    filters:\n      and:\n        - planned.isEmpty()\n        - status != "done"\n`));
-        new Notice("Samaya: upgraded the Backlog view in " + bp);
+      if (tasksBaseNew) {
+        const next = stripTaskViews(txt);
+        if (next !== txt) { await this.app.vault.modify(bf, next); txt = next; new Notice(`Samaya: moved the Backlog and All tasks views to ${tp}`); }
       } else if (announce) new Notice("Planner files already exist.");
-      txt = await this.app.vault.read(bf);
       if (!txt.includes(WTL_VIEW_TYPE)) {
         const next = txt.replace(new RegExp(`(  - type: ${WEEK_VIEW_TYPE}\\n    name: [^\\n]*\\n)`), `$1  - type: ${WTL_VIEW_TYPE}\n    name: Weekly Timeline\n`);
         if (next !== txt) { await this.app.vault.modify(bf, next); new Notice("Samaya: added the Weekly Timeline view to " + bp); }

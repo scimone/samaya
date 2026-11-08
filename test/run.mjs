@@ -8,7 +8,7 @@ await bundle("src/settings.ts", "test/.settings.mjs");
 await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
 const { parseIcs } = await import("./.ics.mjs");
 const { parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify } = await import("./.util.mjs");
-const { fmtEstimate, taskLines, bulletLines, upsertSection, readSection } = await import("./.journal.mjs");
+const { fmtEstimate, taskLines, bulletLines, upsertSection, readSection, pickJournalSource: pick } = await import("./.journal.mjs");
 const { fetchJira, fetchGitlab, adfToText } = await import("./.tickets.mjs");
 const { renderTicketPath, renderTicketFileName, renderTicketNote, pathRoot: pathRoot2 } = await import("./.taskbody.mjs");
 
@@ -93,6 +93,14 @@ assert.equal(W.totalBalance(logs, 40, 5), (8 * 60 + 30 - 55 - 480) + 0);
 assert.equal(W.fmtSigned(-18), "-0:18"); assert.equal(W.fmtSigned(75), "+1:15");
 
 // ---- journal
+{
+  const L = { folder: "x", format: "y" };
+  assert.equal(pick({ daily: L, periodic: L }, "auto"), "periodic"); // Periodic Notes replaces the core plugin when both exist
+  assert.equal(pick({ daily: L, periodic: L }, "daily"), "daily");
+  assert.equal(pick({ daily: L, periodic: null }, "periodic"), "daily"); // chosen source gone: next best
+  assert.equal(pick({ daily: null, periodic: null }, "auto"), "custom");
+  assert.equal(pick({ daily: L, periodic: L }, "custom"), "custom");
+}
 assert.equal(fmtEstimate(20), "20 min"); assert.equal(fmtEstimate(120), "2 hr"); assert.equal(fmtEstimate(90), "1.5 hr"); assert.equal(fmtEstimate(0), "");
 assert.equal(taskLines([{ title: "Task A", minutes: 20, subtasks: [] }, { title: "Task B", minutes: 120, subtasks: ["Subtask 1", "Subtask 2"] }]),
   "- [[Task A]] • *20 min*\n- [[Task B]] • *2 hr*\n    - Subtask 1\n    - Subtask 2");
@@ -130,9 +138,9 @@ assert.equal(renderTicketPath("[Tickets]/[Jira]/{{TICKET_STATUS}}", tv, new Date
 assert.equal(renderTicketPath("[Tickets]/YYYY/{{TICKET_ASSIGNEE}}", tv, new Date(2026, 10, 8), mfmt), "Tickets/2026/Ada");
 assert.equal(renderTicketPath("[T]/{{TICKET_PROJECT}}", tv, new Date(2026, 10, 8), mfmt), "T/OPS");
 assert.equal(pathRoot("[Tickets]/[Jira]/{{TICKET_STATUS}}", mfmt), "Tickets/Jira");
-assert.equal(renderTicketPath("[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", tv, new Date(2026, 10, 8), mfmt), "Tickets/jira/In Progress");
+assert.equal(renderTicketPath("[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", tv, new Date(2026, 10, 8), mfmt), "Tickets/JIRA/In Progress");
 assert.equal(renderTicketNote("{{TASK_ID}}|{{TASK_STATUS}}", tv), "OPS-1|In Progress"); // legacy prefix
-assert.equal(renderTicketNote("", tv), "# Fix the Deploy!\n\n[Open in jira](https://x/OPS-1)\n");
+assert.equal(renderTicketNote("", tv), "# Fix the Deploy!\n\n[Open in JIRA](https://x/OPS-1)\n");
 assert.equal(renderTicketNote("{{TICKET_TYPE}}|{{ TICKET_STATUS }}|{{TICKET_NOPE}}", tv), "Bug|In Progress|{{TICKET_NOPE}}");
 assert.equal(adfToText({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "A" }] }, { type: "bulletList", content: [{ type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }] }] }] }), "A\n\n- x");
 // ---- event notes

@@ -2,10 +2,11 @@ import { AbstractInputSuggest, App, PluginSettingTab, Setting } from "obsidian";
 import type SamayaPlugin from "./main";
 import { ticketFolderFor, folderFor } from "./model";
 import { TICKET_VARIABLES, renderTicketFileName, TicketVars } from "./taskbody";
+import { JournalSource, journalLocation, journalPathFor, journalSources } from "./journal";
 import { DEFAULT_EVENT_PATTERN, PATTERN_HELP, compilePattern } from "./eventnotes";
 
 export interface SamayaSettings {
-  tasksPath: string; ticketsPath: string; meetingsPath: string; journalFolder: string; plannerFile: string;
+  tasksPath: string; ticketsPath: string; meetingsPath: string; journalSource: "auto" | JournalSource; journalFolder: string; journalFormat: string; plannerFile: string;
   taskTemplate: string; meetingTemplate: string; ticketTemplate: string; ticketFileName: string;
   calendarSource: "ics" | "notes"; eventNotesFolder: string; eventNotePattern: string;
   icsUrls: string[]; icsRefreshMinutes: number;
@@ -19,7 +20,7 @@ export interface SamayaSettings {
   calendarOn: boolean; jiraOn: boolean; gitlabOn: boolean;
 }
 export const DEFAULT_SETTINGS: SamayaSettings = {
-  tasksPath: "[Tasks]/YYYY/MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", meetingsPath: "[Meetings]/YYYY/MM", journalFolder: "Journal", plannerFile: "Planner.base", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
+  tasksPath: "[Tasks]/YYYY/MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", meetingsPath: "[Meetings]/YYYY/MM", journalSource: "auto", journalFolder: "Journal", journalFormat: "YYYY-MM-DD", plannerFile: "Planner.base", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
   calendarSource: "ics", eventNotesFolder: "Meetings", eventNotePattern: "{{date}}_{{title}}",
   icsUrls: [], icsRefreshMinutes: 15,
   dayStartHour: 7, dayEndHour: 20, slotMinutes: 15, defaultEstimate: 30, capacityHours: 6, shutdownTime: "17:30", openOnStartup: false,
@@ -64,6 +65,36 @@ interface CardOpts { /** folds away unless true, without a switch of its own */ 
 
 export class SamayaSettingTab extends PluginSettingTab {
   constructor(app: App, private plugin: SamayaPlugin) { super(app, plugin); }
+
+  /** Where daily notes live: offer only the sources that are installed and enabled right now. */
+  private async renderDailyNotes(box: HTMLElement, changed: () => Promise<void>, folders: () => string[]) {
+    const s = this.plugin.settings;
+    const draw = async () => {
+      const avail = await journalSources(this.app); const loc = await journalLocation(this.app, s);
+      if (!box.isConnected) return; box.empty();
+      const names: Record<JournalSource, string> = { daily: "Daily notes (core plugin)", periodic: "Periodic Notes (community plugin)", custom: "Custom folder" };
+      const options = (["periodic", "daily"] as const).filter(k => avail[k]).map(k => k as JournalSource).concat("custom");
+      const preview = (l: { folder: string; format: string }) => "Today: " + journalPathFor(l, new Date().toLocaleDateString("sv"));
+      if (options.length > 1) {
+        new Setting(box).setName("Daily note location").setDesc("Where the planner reads and writes your daily notes.")
+          .addDropdown(d => { for (const k of options) d.addOption(k, names[k]); d.setValue(loc.source).onChange(async v => { s.journalSource = v as JournalSource; await changed(); void draw(); }); });
+      }
+      if (loc.source === "custom") {
+        const st = new Setting(box).setName(options.length > 1 ? "Folder" : "Daily note folder");
+        st.setDesc(options.length > 1 ? "" : "Enable the Daily notes core plugin or Periodic Notes and you can use their settings here instead.");
+        const pv = st.descEl.createDiv({ cls: "samaya-path-preview" });
+        const show = () => pv.setText(preview({ folder: s.journalFolder.trim(), format: s.journalFormat.trim() || "YYYY-MM-DD" }));
+        st.addText(t => { t.setValue(s.journalFolder).setPlaceholder("Journal").onChange(async v => { s.journalFolder = v.trim(); await changed(); show(); }); new PathSuggest(this.app, t.inputEl, folders); });
+        new Setting(box).setName("Date format").setDesc("moment.js format of the note name.").addText(t => t.setValue(s.journalFormat).setPlaceholder("YYYY-MM-DD").onChange(async v => { s.journalFormat = v.trim() || "YYYY-MM-DD"; await changed(); show(); }));
+        show();
+      } else {
+        const where = loc.source === "daily" ? "Settings › Daily notes" : "Settings › Periodic Notes";
+        const st = new Setting(box).setName("Folder and format").setDesc(`Taken from ${where}. Change them there.`);
+        st.descEl.createDiv({ cls: "samaya-path-preview", text: `${loc.folder || "(vault root)"} · ${loc.format}  →  ${preview(loc).slice(7)}` });
+      }
+    };
+    await draw();
+  }
 
   display(): void {
     const { containerEl: c } = this; c.empty(); c.addClass("samaya-settings");
@@ -196,7 +227,8 @@ export class SamayaSettingTab extends PluginSettingTab {
       label(b, "Startup & files");
       toggle(b, "Open planner on startup", "Open today's planner whenever Obsidian starts.", () => s.openOnStartup, v => (s.openOnStartup = v));
       text(b, "Planner base file", "The base file opened by the ribbon icon.", () => s.plannerFile, v => (s.plannerFile = v || "Planner.base"), { placeholder: "Planner.base" });
-      text(b, "Daily note folder (fallback)", "Daily notes follow Settings › Daily notes. This folder is only used while that plugin has no settings.", () => s.journalFolder, v => (s.journalFolder = v || "Journal"), { placeholder: "Journal", suggest: folders });
+      const dailyBox = b.createDiv(); // filled once we know which daily note sources exist
+      void this.renderDailyNotes(dailyBox, changed, folders);
     }
 
     {
@@ -289,7 +321,7 @@ export class SamayaSettingTab extends PluginSettingTab {
     {
       const b = card("Tickets", "Ticket notes imported from Jira and GitLab. Both share these settings. Appears when either is on.", { activeWhen: () => s.jiraOn || s.gitlabOn });
       label(b, "Notes & templates");
-      pathText(b, "Tickets path", "Where ticket notes are stored.", "ticketsPath", `May contain ticket variables (${vars(TICKET_VARIABLES)}), e.g. [Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}} ({{TICKET_SOURCE}} is “jira” or “gitlab”). With {{TICKET_STATUS}}, notes move when the ticket's status changes.`);
+      pathText(b, "Tickets path", "Where ticket notes are stored.", "ticketsPath", `May contain ticket variables (${vars(TICKET_VARIABLES)}), e.g. [Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}} ({{TICKET_SOURCE}} is JIRA or GITLAB). With {{TICKET_STATUS}}, notes move when the ticket's status changes.`);
       const fn = new Setting(b).setName("Ticket file name").setDesc("Ticket variables in double braces, plus {{TICKET_TITLE_SLUG}} (the title as a slug). Leave out “.md”.");
       const fnPreview = fn.descEl.createDiv({ cls: "samaya-path-preview" });
       const showFn = () => fnPreview.setText("Example: " + renderTicketFileName(s.ticketFileName, SAMPLE_TICKET) + ".md");

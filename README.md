@@ -22,7 +22,7 @@ Three settings can use ticket variables, always written in double braces, e.g. `
 | `{{TICKET_URL}}` | Link to the ticket |
 | `{{TICKET_DESCRIPTION}}` | Description as plain text (Jira) or Markdown (GitLab) |
 | `{{TICKET_PROJECT}}` | Jira project key, or GitLab `group/project` |
-| `{{TICKET_SOURCE}}` | Where the ticket comes from: `jira` or `gitlab` |
+| `{{TICKET_SOURCE}}` | Where the ticket comes from: `JIRA` or `GITLAB` |
 
 One extra variable is available: `{{TICKET_TITLE_SLUG}}` (the title as a lowercase slug, max 60 characters). Unknown variables are left as they are. Older `{{TASK_*}}` names still work in templates.
 
@@ -32,7 +32,7 @@ One extra variable is available: `{{TICKET_TITLE_SLUG}}` (the title as a lowerca
 | **Ticket file name** | all | `{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}` |
 | **Ticket note template** | all, plus `{{date}}` and `{{date:FORMAT}}` | `# {{TICKET_TITLE}}` and a link to the ticket |
 
-- **Tickets path** is a folder pattern. Date parts use [moment.js format](https://momentjs.com/docs/#/displaying/format); literal text goes in `[brackets]`. Example: the default `[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}` puts a Jira ticket with status "In Progress" in `Tickets/jira/In Progress/`. Values are made safe for folder names (an empty value becomes `None`). If the path contains `{{TICKET_STATUS}}`, a note moves to the new folder when the ticket's status changes.
+- **Tickets path** is a folder pattern. Date parts use [moment.js format](https://momentjs.com/docs/#/displaying/format); literal text goes in `[brackets]`. Example: the default `[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}` puts a Jira ticket with status "In Progress" in `Tickets/JIRA/In Progress/`. Values are made safe for folder names (an empty value becomes `None`). If the path contains `{{TICKET_STATUS}}`, a note moves to the new folder when the ticket's status changes.
 - **Ticket file name** has no `.md`; characters not allowed in file names are replaced. If a name is taken, ` 2`, ` 3`, ... is appended.
 - **Ticket note template** is the path of a template note in your vault, e.g. `Templates/Ticket`. Empty uses the built-in template. The template is only used when a note is created; later syncs update properties, not the body.
 

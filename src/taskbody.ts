@@ -66,7 +66,7 @@ export const TICKET_VARIABLES = "TICKET_ID, TICKET_TITLE, TICKET_TYPE, TICKET_ST
 
 function ticketVarMap(v: TicketVars): Record<string, string> {
   return { TICKET_ID: v.id, TICKET_TITLE: v.title, TICKET_TITLE_SLUG: slugify(v.title, "untitled"), TICKET_TYPE: v.type, TICKET_STATUS: v.status,
-    TICKET_ASSIGNEE: v.assignedTo, TICKET_ASSIGNEDTO: v.assignedTo, /* old name */ TICKET_URL: v.url, TICKET_DESCRIPTION: v.description, TICKET_SOURCE: v.source.toLowerCase(), /* "jira" | "gitlab" */ TICKET_PROJECT: v.project };
+    TICKET_ASSIGNEE: v.assignedTo, TICKET_ASSIGNEDTO: v.assignedTo, /* old name */ TICKET_URL: v.url, TICKET_DESCRIPTION: v.description, TICKET_SOURCE: v.source.toUpperCase(), /* "JIRA" | "GITLAB" */ TICKET_PROJECT: v.project };
 }
 /** Replace {{TICKET_*}} variables (unknown names are left untouched). `esc` post-processes each value. */
 export function fillTicketVars(tpl: string, v: TicketVars, esc: (x: string) => string = x => x): string {

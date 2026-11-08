@@ -57,17 +57,56 @@ export function readSection(text: string, heading: Section): string[] {
   return out.filter(x => x !== "None");
 }
 
-/** Path of the daily note, honouring Settings > Daily notes (folder + date format); falls back to our own settings. */
+export type JournalSource = "daily" | "periodic" | "custom";
+export interface JournalLoc { folder: string; format: string }
+const DEFAULT_FORMAT = "YYYY-MM-DD";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const readJson = async (app: App, path: string): Promise<any> => {
+  try { return JSON.parse(await app.vault.adapter.read(normalizePath(path))); } catch { return null; }
+};
+const cfg = (app: App, rel: string) => `${app.vault.configDir}/${rel}`;
+
+async function coreDailyEnabled(app: App): Promise<boolean> {
+  const live = (app as any).internalPlugins?.plugins?.["daily-notes"]?.enabled;
+  if (typeof live === "boolean") return live;
+  const j = await readJson(app, cfg(app, "core-plugins.json"));
+  return Array.isArray(j) ? j.includes("daily-notes") : !!j?.["daily-notes"];
+}
+async function periodicDailyConfig(app: App): Promise<JournalLoc | null> {
+  const live = (app as any).plugins?.enabledPlugins;
+  const on = live instanceof Set ? live.has("periodic-notes") : ((await readJson(app, cfg(app, "community-plugins.json"))) ?? []).includes("periodic-notes");
+  if (!on) return null;
+  const d = (await readJson(app, cfg(app, "plugins/periodic-notes/data.json")))?.daily;
+  if (!d || d.enabled === false) return null; // the plugin's daily notes are switched off
+  return { folder: String(d.folder ?? "").trim(), format: String(d.format || "").trim() || DEFAULT_FORMAT };
+}
+async function coreDailyConfig(app: App): Promise<JournalLoc | null> {
+  if (!(await coreDailyEnabled(app))) return null;
+  const j = await readJson(app, cfg(app, "daily-notes.json"));
+  return { folder: String(j?.folder ?? "").trim(), format: String(j?.format || "").trim() || DEFAULT_FORMAT };
+}
+
+/** Which daily note sources exist in this vault right now, with the folder / format each one prescribes. */
+export async function journalSources(app: App): Promise<{ daily: JournalLoc | null; periodic: JournalLoc | null }> {
+  return { daily: await coreDailyConfig(app), periodic: await periodicDailyConfig(app) };
+}
+/** The source in effect: the chosen one if available, else the first available (Periodic Notes, Daily notes), else custom. */
+export function pickJournalSource(avail: { daily: unknown; periodic: unknown }, wanted: string): JournalSource {
+  const order: JournalSource[] = wanted === "custom" ? [] : wanted === "daily" ? ["daily", "periodic"] : ["periodic", "daily"];
+  return order.find(k => avail[k as "daily" | "periodic"]) ?? "custom";
+}
+export async function journalLocation(app: App, s: SamayaSettings): Promise<JournalLoc & { source: JournalSource }> {
+  const avail = await journalSources(app); const source = pickJournalSource(avail, s.journalSource);
+  const loc = source === "custom" ? { folder: s.journalFolder.trim(), format: s.journalFormat.trim() || DEFAULT_FORMAT } : avail[source]!;
+  return { ...loc, source };
+}
+export function journalPathFor(loc: JournalLoc, date: string): string {
+  const name = momentFmt(new Date(date + "T12:00:00"), loc.format);
+  return normalizePath(loc.folder ? `${loc.folder}/${name}.md` : `${name}.md`);
+}
+/** Path of the daily note, from the chosen source (Daily notes, Periodic Notes or the custom folder). */
 export async function journalPath(app: App, s: SamayaSettings, date: string): Promise<string> {
-  let folder = s.journalFolder, format = "YYYY-MM-DD";
-  try {
-    const raw = await app.vault.adapter.read(normalizePath(`${app.vault.configDir}/daily-notes.json`));
-    const j = JSON.parse(raw) as { folder?: string; format?: string };
-    if (typeof j.folder === "string") folder = j.folder.trim();
-    if (j.format) format = j.format;
-  } catch { /* plugin not configured: defaults */ }
-  const name = momentFmt(new Date(date + "T12:00:00"), format);
-  return normalizePath(folder ? `${folder}/${name}.md` : `${name}.md`);
+  return journalPathFor(await journalLocation(app, s), date);
 }
 export async function readJournalSection(app: App, s: SamayaSettings, date: string, h: Section): Promise<string[]> {
   const f = app.vault.getAbstractFileByPath(await journalPath(app, s, date));

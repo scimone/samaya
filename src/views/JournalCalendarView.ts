@@ -36,7 +36,7 @@ export class JournalCalendarView extends ItemView {
     if (!same) await leaf.openFile(file);
     await this.app.workspace.revealLeaf(leaf);
   }
-  private async open(p: Period, date: string) {
+  private async openPeriod(p: Period, date: string) {
     const f = await openPeriodNote(this.app, this.plugin.settings, p, date);
     if (f) await this.show(f);
   }
@@ -64,7 +64,7 @@ export class JournalCalendarView extends ItemView {
     const title = head.createDiv("samaya-jcal-title");
     const link = (text: string, p: Period, date: string) => {
       const el = title.createSpan({ text });
-      if (locs[p]) { el.addClass("is-link"); el.toggleClass("has-note", exists(p, date)); el.onclick = () => { void this.open(p, date); }; }
+      if (locs[p]) { el.addClass("is-link"); el.toggleClass("has-note", exists(p, date)); el.onclick = () => { void this.openPeriod(p, date); }; }
     };
     link(new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long" }), "monthly", first);
     link(String(y), "yearly", `${y}-01-01`);
@@ -77,11 +77,11 @@ export class JournalCalendarView extends ItemView {
     for (let i = 0; i < 7; i++) grid.createDiv({ cls: "samaya-jcal-dow", text: new Date(`${addDays(mon, i)}T12:00:00`).toLocaleDateString(undefined, { weekday: "narrow" }) });
     for (const w of monthGrid(y, m - 1)) {
       const wk = grid.createDiv({ cls: "samaya-jcal-wk", text: String(w.week) });
-      if (locs.weekly) { wk.addClass("is-link"); wk.toggleClass("has-note", exists("weekly", w.start)); wk.onclick = () => { void this.open("weekly", w.start); }; }
+      if (locs.weekly) { wk.addClass("is-link"); wk.toggleClass("has-note", exists("weekly", w.start)); wk.onclick = () => { void this.openPeriod("weekly", w.start); }; }
       for (const d of w.days) {
         const c = grid.createDiv({ cls: "samaya-jcal-day", text: String(Number(d.date.slice(8))) });
         c.toggleClass("is-other", !d.inMonth); c.toggleClass("is-today", d.date === td); c.toggleClass("has-note", exists("daily", d.date));
-        c.onclick = () => { void this.open("daily", d.date); };
+        c.onclick = () => { void this.openPeriod("daily", d.date); };
       }
     }
   }

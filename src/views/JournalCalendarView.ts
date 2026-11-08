@@ -39,13 +39,14 @@ export class JournalCalendarView extends ItemView {
   }
   private async openPeriod(p: Period, date: string) {
     const s = this.plugin.settings;
-    const off = p !== "daily" && !s.journalNotes[p].on; // this kind of note is not switched on yet: offer to do so
-    const cfg = off && p !== "daily" ? { ...s, journalNotes: { ...s.journalNotes, [p]: { ...s.journalNotes[p], on: true } } } : s;
+    const k = p === "daily" ? null : p; // the periodic kind, if any
+    const off = !!k && !s.journalNotes[k].on; // this kind of note is not switched on yet: offer to do so
+    const cfg = k && off ? { ...s, journalNotes: { ...s.journalNotes, [k]: { ...s.journalNotes[k], on: true } } } : s;
     const hit = await periodNotePath(this.app, cfg, p, date); if (!hit) return;
     if (hit.file) { await this.showInMain(hit.file); return; }
     new ConfirmCreateModal(this.plugin, hit.path, () => {
       void (async () => {
-        if (off && p !== "daily") { s.journalNotes[p].on = true; await this.plugin.saveSettings(); this.plugin.bus.emit(); }
+        if (k && off) { s.journalNotes[k].on = true; await this.plugin.saveSettings(); this.plugin.bus.emit(); }
         const f = await openPeriodNote(this.app, s, p, date); if (f) await this.showInMain(f);
       })();
     }, off ? `${p[0].toUpperCase() + p.slice(1)} notes are switched off. Creating this note switches them on (see the Journal settings).` : "").open();

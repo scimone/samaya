@@ -10,7 +10,7 @@ import { syncTickets } from "./sync";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
 import { ShutdownModal, TextPromptModal, TicketSuggestModal } from "./modals";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
-import { allTasks, sortTasks, prefixOf, rootOf, ensureFolder } from "./model";
+import { allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask } from "./model";
 import { bulletLines, journalPath, readJournalSection, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
 import { Emitter, addDays, hmToMin, parseTitleEstimate as parseTitleEstimateSafe, today } from "./util";
 import { WorkdayManager } from "./workday";
@@ -165,8 +165,8 @@ export default class SamayaPlugin extends Plugin {
     } });
     this.addCommand({ id: "scaffold", name: "Create planner files", callback: () => this.scaffold(true) });
 
-    this.registerEvent(this.app.metadataCache.on("changed", f => { if (this.indexLunch(f)) this.bus.emit(); }));
-    const ref = this.app.metadataCache.on("resolved", () => { this.scanLunch(); this.app.metadataCache.offref(ref); });
+    this.registerEvent(this.app.metadataCache.on("changed", f => { if (this.indexLunch(f)) this.bus.emit(); void this.fileByPlanned(f); }));
+    const ref = this.app.metadataCache.on("resolved", () => { this.scanLunch(); void this.fileAllByPlanned(); this.app.metadataCache.offref(ref); });
     this.app.workspace.onLayoutReady(async () => {
       this.scanLunch();
       await this.scaffold(false);
@@ -175,6 +175,21 @@ export default class SamayaPlugin extends Plugin {
       this.registerInterval(window.setInterval(() => this.shutdownNudge(), 60000));
     });
   }
+
+  /** Keep task notes in the tasks-path subfolder of their scheduled (planned) date. Unscheduled tasks stay where they are. */
+  async fileByPlanned(f: TFile) {
+    if (f.extension !== "md" || !f.path.startsWith(prefixOf(this.settings.tasksPath))) return;
+    const { planned } = readTask(this.app, f); if (!planned) return;
+    const [y, m, d] = planned.split("-").map(Number);
+    const folder = folderFor(this.settings.tasksPath, new Date(y, m - 1, d));
+    const dir = f.parent?.path ?? "/";
+    if (normalizePath(dir) === folder) return;
+    let path = `${folder}/${f.name}`; let i = 2;
+    while (this.app.vault.getAbstractFileByPath(path)) path = `${folder}/${f.basename} ${i++}.${f.extension}`;
+    await ensureFolder(this.app, folder);
+    await this.app.fileManager.renameFile(f, path);
+  }
+  async fileAllByPlanned() { for (const f of [...this.app.vault.getMarkdownFiles()]) await this.fileByPlanned(f); }
 
   private nudged = "";
   private shutdownNudge() {

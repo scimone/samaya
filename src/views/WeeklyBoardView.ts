@@ -3,6 +3,8 @@ import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, createTask, placeInDay, readTask, sortTasks } from "../model";
 import { addDays, fmtDur, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
+import { calendarEnabled, calendarEvents } from "../calendar";
+import { Capacity, capacityMinutes } from "../worktime";
 import { bindCardDrop, bindZone, renderTaskCard } from "./common";
 
 export const WEEK_VIEW_TYPE = "samaya-week";
@@ -14,6 +16,7 @@ export class WeeklyBoardView extends BasesView {
   private scope = new DndScope();
   private pending = false;
   private timer = 0;
+  private token = 0;
 
   constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
     super(controller);
@@ -25,11 +28,16 @@ export class WeeklyBoardView extends BasesView {
   onDataUpdated(): void { this.schedule(); }
   private schedule() {
     if (this.scope.active) { this.pending = true; return; }
-    window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.render(), 30);
+    window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { void this.render(); }, 30);
   }
 
-  private render() {
+  private async render() {
+    const token = ++this.token; const s = this.plugin.settings;
     const weekends = this.config.get("showWeekends") === true;
+    const from = parseYmd(this.weekStart);
+    const events = calendarEnabled(s) ? (await calendarEvents(this.plugin, from, parseYmd(addDays(this.weekStart, 7))).catch(() => [])).filter(e => !e.allDay) : [];
+    if (token !== this.token) return;
+    if (this.scope.active) { this.pending = true; return; }
     const all = this.data.data.map(e => readTask(this.app, e.file));
     const cols = this.root.querySelector<HTMLElement>(".samaya-cols");
     const scrollX = cols?.scrollLeft ?? 0; const scrollsY = Array.from(this.root.querySelectorAll<HTMLElement>(".samaya-col-body")).map(e => e.scrollTop);
@@ -37,7 +45,7 @@ export class WeeklyBoardView extends BasesView {
 
     if (this.plugin.boardWeek !== this.weekStart) { this.plugin.boardWeek = this.weekStart; this.plugin.modeBus.emit(); }
     const head = this.root.createDiv("samaya-week-head");
-    const go = (w: string) => { this.weekStart = w; this.render(); };
+    const go = (w: string) => { this.weekStart = w; void this.render(); };
     head.createEl("button", { text: "‹" }).onclick = () => go(addDays(this.weekStart, -7));
     head.createEl("button", { text: "This week" }).onclick = () => go(startOfWeek(today()));
     head.createEl("button", { text: "›" }).onclick = () => go(addDays(this.weekStart, 7));
@@ -46,18 +54,23 @@ export class WeeklyBoardView extends BasesView {
 
     const cols2 = this.root.createDiv("samaya-cols");
     for (let i = 0; i < (weekends ? 7 : 5); i++) {
-      const date = addDays(this.weekStart, i);
-      this.column(cols2, parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }), "day", date, sortTasks(all.filter(t => t.planned === date)), date === today());
+      const date = addDays(this.weekStart, i); const dayMs = parseYmd(date).getTime();
+      const cap = capacityMinutes(s.capacityHours, this.plugin.lunchFor(date),
+        events.map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
+      this.column(cols2, parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }), "day", date, sortTasks(all.filter(t => t.planned === date)), date === today(), cap);
     }
     cols2.scrollLeft = scrollX;
     this.root.querySelectorAll<HTMLElement>(".samaya-col-body").forEach((e, i) => (e.scrollTop = scrollsY[i] ?? 0));
   }
 
-  private column(parent: HTMLElement, title: string, kind: "day", key: string, tasks: Task[], isToday: boolean) {
+  private column(parent: HTMLElement, title: string, kind: "day", key: string, tasks: Task[], isToday: boolean, cap: Capacity) {
     const col = parent.createDiv({ cls: "samaya-col" + (isToday ? " is-today" : "") });
     const h = col.createDiv("samaya-col-head");
     h.createSpan({ cls: "samaya-col-title", text: title });
-    h.createSpan({ cls: "samaya-col-total", text: fmtDur(tasks.filter(t => t.status !== "done").reduce((a, t) => a + t.estimate, 0)) });
+    const planned = tasks.reduce((a, t) => a + (t.estimate || 0), 0);
+    const sum = col.createDiv({ cls: "samaya-col-cap" + (planned > cap.free ? " is-over" : "") });
+    sum.createSpan({ text: `${fmtDur(planned)} planned` }); sum.createSpan({ text: `${fmtDur(cap.free)} free` });
+    sum.title = `Free to plan = ${fmtDur(cap.total)} work time - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`;
     const body = col.createDiv("samaya-col-body");
     tasks.forEach((t, idx) => {
       const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true });

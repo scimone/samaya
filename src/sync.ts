@@ -1,7 +1,7 @@
 import { Notice, normalizePath, requestUrl } from "obsidian";
 import type SamayaPlugin from "./main";
 import { Http, RawTicket, fetchGitlab, fetchJira } from "./tickets";
-import { allTickets, createTicketNote, patchTask, relocateTicket, varsOfRaw, varsOfTicket } from "./model";
+import { LEGACY_TICKET_PROPS, allTickets, createTicketNote, ticketProps, patchTask, relocateTicket, varsOfRaw, varsOfTicket } from "./model";
 
 const http: Http = async o => {
   const r = await requestUrl({ url: o.url, headers: o.headers });
@@ -20,13 +20,13 @@ export async function syncTickets(plugin: SamayaPlugin, only?: "jira" | "gitlab"
   for (const [source, run] of jobs) {
     try {
       const tickets = await run();
-      const existing = new Map(allTickets(app, s).filter(t => t.source === source).map(t => [t.id, t]));
+      const existing = new Map(allTickets(app, s).filter(t => t.source === source).map(t => [t.url, t]));
       let created = 0, closed = 0;
       for (const t of tickets) {
-        const fm = { type: "ticket", source, id: t.id, key: t.key, summary: t.summary, url: t.url, state: t.state, project: t.project, issue_type: t.type, assignee: t.assignee };
-        const hit = existing.get(t.id);
+        const fm = { ...ticketProps(source, varsOfRaw(t)), ...LEGACY_TICKET_PROPS };
+        const hit = existing.get(t.url);
         if (hit) {
-          await patchTask(app, hit.file, fm); existing.delete(t.id);
+          await patchTask(app, hit.file, fm); existing.delete(t.url);
           if (byStatus && hit.state !== t.state) await relocateTicket(app, s, hit, varsOfRaw(t)); // keep status folders in step
           continue;
         }
@@ -35,7 +35,7 @@ export async function syncTickets(plugin: SamayaPlugin, only?: "jira" | "gitlab"
       }
       // tickets we imported earlier that no longer appear are resolved / reassigned
       for (const gone of existing.values()) if (gone.state !== "closed") {
-        await patchTask(app, gone.file, { state: "closed" }); closed++;
+        await patchTask(app, gone.file, { status: "closed" }); closed++;
         if (byStatus) await relocateTicket(app, s, gone, { ...varsOfTicket(gone), status: "closed" });
       }
       new Notice(`${source === "jira" ? "Jira" : "GitLab"}: ${tickets.length} open tickets (${created} new, ${closed} closed)`);

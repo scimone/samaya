@@ -39,7 +39,7 @@ export function sortTasks(ts: Task[]): Task[] {
 }
 
 /** Patch frontmatter; undefined/null/"" removes the key. */
-export async function patchTask(app: App, file: TFile, patch: Record<string, string | number | null | undefined>): Promise<void> {
+export async function patchTask(app: App, file: TFile, patch: Record<string, string | number | string[] | null | undefined>): Promise<void> {
   await app.fileManager.processFrontMatter(file, fm => {
     for (const [k, v] of Object.entries(patch)) {
       if (v === undefined || v === null || v === "") delete fm[k]; else fm[k] = v;
@@ -141,8 +141,11 @@ export interface Ticket { file: TFile; id: string; key: string; source: string; 
 
 export function readTicket(app: App, file: TFile): Ticket {
   const fm = (app.metadataCache.getFileCache(file)?.frontmatter ?? {}) as Record<string, unknown>;
-  return { file, id: str(fm.id) || file.basename, key: str(fm.key) || file.basename, source: str(fm.source) || "manual",
-    summary: str(fm.summary), url: str(fm.url), state: str(fm.state), issueType: str(fm.issue_type), assignee: str(fm.assignee), project: str(fm.project) };
+  // Notes written by versions <= 0.1.3 used key / summary / state / issue_type (and type: ticket); still understood.
+  const type = str(fm.type);
+  return { file, id: str(fm.id) || file.basename, key: str(fm.key) || str(fm.id) || file.basename, source: str(fm.source) || "manual",
+    summary: str(fm.title) || str(fm.summary), url: str(fm.url), state: str(fm.status) || str(fm.state),
+    issueType: str(fm.issue_type) || (type === "ticket" ? "" : type), assignee: str(fm.assignee), project: str(fm.project) };
 }
 export function allTickets(app: App, s: SamayaSettings): Ticket[] {
   const prefix = prefixOf(s.ticketsPath);
@@ -163,6 +166,12 @@ export const varsOfTicket = (t: Ticket): TicketVars => ({ id: t.key, title: t.su
 /** Folder for a ticket note: the tickets path with {{TASK_*}} variables and date parts filled in. */
 export const ticketFolderFor = (s: SamayaSettings, v: TicketVars, d: Date): string => normalizePath(renderTicketPath(s.ticketsPath, v, d, momentFmt) || "/");
 
+/** Frontmatter of a ticket note. `url` is what sync matches on. */
+export const ticketProps = (source: string, v: TicketVars) =>
+  ({ source, id: v.id, title: v.title, project: v.project, status: v.status, type: v.type, assignee: v.assignedTo, url: v.url, aliases: v.id ? [v.id] : null });
+/** Properties from older versions, removed when a ticket is updated. */
+export const LEGACY_TICKET_PROPS = { key: null, summary: null, state: null, issue_type: null };
+
 /** New ticket note (path, file name and body from the ticket settings). Frontmatter is the caller's job. */
 export async function createTicketNote(app: App, s: SamayaSettings, v: TicketVars, body?: string): Promise<TFile> {
   const now = new Date(); const folder = ticketFolderFor(s, v, now);
@@ -181,7 +190,7 @@ export async function relocateTicket(app: App, s: SamayaSettings, t: Ticket, v: 
 export async function createManualTicket(app: App, s: SamayaSettings, key: string, summary: string): Promise<TFile> {
   const v: TicketVars = { id: key, title: summary, type: "", status: "open", assignedTo: "", url: "", description: "", source: "Manual", project: "" };
   const f = await createTicketNote(app, s, v, summary ? `# ${summary}\n` : "");
-  await patchTask(app, f, { type: "ticket", source: "manual", id: key, key, summary, state: "open" });
+  await patchTask(app, f, ticketProps("manual", v));
   return f;
 }
 

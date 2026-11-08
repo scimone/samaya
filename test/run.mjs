@@ -126,7 +126,7 @@ const tv = { id: "OPS-1", title: "Fix the Deploy!", type: "Bug", status: "In Pro
 assert.equal(renderTicketFileName("", tv), "OPS-1_fix-the-deploy");
 assert.equal(renderTicketFileName("{{TASK_ID}} {{TASK_TITLE}}", tv), "OPS-1 Fix the Deploy!");
 assert.equal(renderTicketPath("[Tickets]/[Jira]/{{TASK_STATUS}}", tv, new Date(2026, 10, 8), mfmt), "Tickets/Jira/In Progress");
-assert.equal(renderTicketPath("[Tickets]/YYYY/{{TASK_ASSIGNEDTO}}", tv, new Date(2026, 10, 8), mfmt), "Tickets/2026/Ada");
+assert.equal(renderTicketPath("[Tickets]/YYYY/{{TASK_ASSIGNEE}}", tv, new Date(2026, 10, 8), mfmt), "Tickets/2026/Ada");
 assert.equal(renderTicketPath("[T]/{{TASK_PROJECT}}", tv, new Date(2026, 10, 8), mfmt), "T/OPS");
 assert.equal(pathRoot("[Tickets]/[Jira]/{{TASK_STATUS}}", mfmt), "Tickets/Jira");
 assert.equal(renderTicketNote("", tv), "# Fix the Deploy!\n\n[Open in Jira](https://x/OPS-1)\n");

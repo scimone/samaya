@@ -203,7 +203,9 @@ console.log("all tests passed");
   assert.equal(migrateSettings({}).calendarOn, false);
   assert.equal(migrateSettings({ journalFolder: "Journal" }).journalFolder, "[Journal]");
   { const jn = migrateSettings({ journalNotes: { weekly: { on: true } } }).journalNotes;
-    assert.equal(jn.weekly.on, true); assert.equal(jn.weekly.format, "gggg-[W]ww"); assert.equal(jn.yearly.on, false); }
+    assert.equal(jn.weekly.on, true); assert.equal(jn.weekly.format, "YYYY-[W]ww"); assert.equal(jn.yearly.on, false); assert.equal(jn.quarterly.format, "[Q]Q"); assert.equal(jn.weekly.folder, "[Journal]/YYYY/[Weekly]");
+    const old = migrateSettings({ journalNotes: { weekly: { folder: "[Journal]/Weekly", format: "gggg-[W]ww" }, monthly: { folder: "[Mine]" } } }).journalNotes;
+    assert.equal(old.weekly.format, "YYYY-[W]ww"); assert.equal(old.monthly.folder, "[Mine]"); }
   assert.equal(migrateSettings({ tasksPath: "T" }).journalOn, true); // existing installs keep the journal
   assert.equal(migrateSettings({}).journalOn, false); // fresh installs start without it
   assert.equal(migrateSettings({ journalFolder: "[Journal]/YYYY" }).journalFolder, "[Journal]/YYYY");

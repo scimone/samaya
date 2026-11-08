@@ -62,7 +62,7 @@ export class JournalCalendarView extends ItemView {
     const s = this.plugin.settings; const root = this.contentEl;
     const locs: Record<Period, Awaited<ReturnType<typeof periodLocation>>> = {
       daily: await periodLocation(this.app, s, "daily"), weekly: await periodLocation(this.app, s, "weekly"),
-      monthly: await periodLocation(this.app, s, "monthly"), yearly: await periodLocation(this.app, s, "yearly"),
+      monthly: await periodLocation(this.app, s, "monthly"), quarterly: await periodLocation(this.app, s, "quarterly"), yearly: await periodLocation(this.app, s, "yearly"),
     };
     const exists = (p: Period, date: string) => { const l = locs[p]; return !!l && this.app.vault.getAbstractFileByPath(journalPathFor(l, date)) instanceof TFile; };
     root.empty();
@@ -80,6 +80,9 @@ export class JournalCalendarView extends ItemView {
     };
     link(new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long" }), "monthly", first);
     link(String(y), "yearly", `${y}-01-01`);
+    const q = Math.floor((m - 1) / 3);
+    const qEl = title.createSpan({ text: `Q${q + 1}`, cls: "is-link samaya-jcal-quarter" }); const qDate = `${y}-${String(q * 3 + 1).padStart(2, "0")}-01`;
+    qEl.toggleClass("has-note", exists("quarterly", qDate)); qEl.onclick = () => { void this.openPeriod("quarterly", qDate); };
     head.createEl("button", { text: "›", cls: "samaya-mini", attr: { title: "Next month" } }).onclick = () => go(1);
     head.createEl("button", { text: "»", cls: "samaya-mini", attr: { title: "Next year" } }).onclick = () => go(12);
     head.createEl("button", { text: "Today", cls: "samaya-mini" }).onclick = () => { this.shown = td.slice(0, 7); void this.render(); };

@@ -65,8 +65,10 @@ export function readSection(text: string, heading: Section): string[] {
 export type JournalSource = "daily" | "periodic" | "custom";
 /** `pattern`: the folder is a path pattern like "[Journal]/YYYY" (custom source only); Daily / Periodic Notes folders are plain. */
 export interface JournalLoc { folder: string; format: string; pattern?: boolean; /** template note path, from Daily / Periodic Notes */ template?: string }
-export type Period = "daily" | "weekly" | "monthly" | "yearly";
-export const PERIOD_DEFAULT_FORMAT: Record<Period, string> = { daily: "YYYY-MM-DD", weekly: "gggg-[W]ww", monthly: "YYYY-MM", yearly: "YYYY" };
+export const PERIODIC_KINDS = ["weekly", "monthly", "quarterly", "yearly"] as const;
+export type PeriodicKind = typeof PERIODIC_KINDS[number];
+export type Period = "daily" | PeriodicKind;
+export const PERIOD_DEFAULT_FORMAT: Record<Period, string> = { daily: "YYYY-MM-DD", weekly: "YYYY-[W]ww", monthly: "YYYY-MM", quarterly: "[Q]Q", yearly: "YYYY" };
 const DEFAULT_FORMAT = PERIOD_DEFAULT_FORMAT.daily;
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const readJson = async (app: App, path: string): Promise<any> => {
@@ -108,7 +110,7 @@ export async function journalLocation(app: App, s: SamayaSettings): Promise<Jour
   const loc = source === "custom" ? { folder: s.journalFolder.trim(), format: s.journalFormat.trim() || DEFAULT_FORMAT, pattern: true } : avail[source]!;
   return { ...loc, source };
 }
-/** Where weekly / monthly / yearly notes go (null when that kind is switched off); daily notes as journalLocation. */
+/** Where weekly / monthly / quarterly / yearly notes go (null when that kind is switched off); daily notes as journalLocation. */
 export async function periodLocation(app: App, s: SamayaSettings, p: Period): Promise<(JournalLoc & { source: JournalSource }) | null> {
   if (p === "daily") return journalLocation(app, s);
   const n = s.journalNotes[p]; if (!s.journalOn || !n.on) return null;

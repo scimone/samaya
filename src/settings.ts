@@ -3,7 +3,7 @@ import type SamayaPlugin from "./main";
 import { ticketFolderFor, folderFor } from "./model";
 import { MEETING_SYNC_AHEAD_DAYS, syncMeetingNotes } from "./meetings";
 import { TICKET_VARIABLES, renderTicketFileName, TicketVars } from "./taskbody";
-import { JournalLoc, JournalPart, JournalSource, PERIOD_DEFAULT_FORMAT, Period, journalLocation, journalPathFor, journalSources, pickJournalSource } from "./journal";
+import { JournalLoc, JournalPart, PERIODIC_KINDS, PeriodicKind, JournalSource, PERIOD_DEFAULT_FORMAT, Period, journalLocation, journalPathFor, journalSources, pickJournalSource } from "./journal";
 import { DEFAULT_EVENT_PATTERN, PATTERN_HELP, compilePattern } from "./eventnotes";
 
 export interface PeriodCfg { on: boolean; source: "auto" | JournalSource; folder: string; format: string; }
@@ -23,8 +23,8 @@ export interface SamayaSettings {
   /** journal module: write into the daily note, and which parts */
   journalOn: boolean; journalPlanned: boolean; journalObstacles: boolean; journalFinished: boolean; journalTomorrow: boolean;
   journalWorkTimes: boolean; journalBreaks: boolean; journalTracked: boolean;
-  /** weekly / monthly / yearly notes of the journal calendar */
-  journalNotes: Record<"weekly" | "monthly" | "yearly", PeriodCfg>;
+  /** weekly / monthly / quarterly / yearly notes of the journal calendar */
+  journalNotes: Record<PeriodicKind, PeriodCfg>;
   /** projects module: folder of project notes and the base that shows them */
   projectsOn: boolean; projectsPath: string; projectsBase: string;
 }
@@ -41,9 +41,10 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   journalOn: false, journalPlanned: true, journalObstacles: true, journalFinished: true, journalTomorrow: true,
   journalWorkTimes: true, journalBreaks: true, journalTracked: true,
   journalNotes: {
-    weekly: { on: false, source: "auto", folder: "[Journal]/Weekly", format: PERIOD_DEFAULT_FORMAT.weekly },
-    monthly: { on: false, source: "auto", folder: "[Journal]/Monthly", format: PERIOD_DEFAULT_FORMAT.monthly },
-    yearly: { on: false, source: "auto", folder: "[Journal]/Yearly", format: PERIOD_DEFAULT_FORMAT.yearly },
+    weekly: { on: false, source: "auto", folder: "[Journal]/YYYY/[Weekly]", format: PERIOD_DEFAULT_FORMAT.weekly },
+    monthly: { on: false, source: "auto", folder: "[Journal]/YYYY/YYYY-MM", format: PERIOD_DEFAULT_FORMAT.monthly },
+    quarterly: { on: false, source: "auto", folder: "[Journal]/YYYY/[Quarterly]", format: PERIOD_DEFAULT_FORMAT.quarterly },
+    yearly: { on: false, source: "auto", folder: "[Journal]/YYYY", format: PERIOD_DEFAULT_FORMAT.yearly },
   },
   projectsOn: false, projectsPath: "Projects", projectsBase: "Projects/Projects.base",
 };
@@ -65,7 +66,15 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<SamayaS
   // the daily note folder is a path pattern now: a plain name becomes a literal
   if (typeof o.journalFolder === "string" && o.journalFolder.trim() && !o.journalFolder.includes("[")) o.journalFolder = `[${o.journalFolder.trim().replace(/[[\]]/g, "")}]`;
   const dj = DEFAULT_SETTINGS.journalNotes; const sj = (o.journalNotes ?? {}) as Partial<typeof dj>;
-  o.journalNotes = { weekly: { ...dj.weekly, ...sj.weekly }, monthly: { ...dj.monthly, ...sj.monthly }, yearly: { ...dj.yearly, ...sj.yearly } };
+  // locations still at the first defaults (flat folders) move to the current defaults
+  const OLD: Record<string, [string, string]> = { weekly: ["[Journal]/Weekly", "gggg-[W]ww"], monthly: ["[Journal]/Monthly", "YYYY-MM"], yearly: ["[Journal]/Yearly", "YYYY"] };
+  const jn = {} as Record<string, PeriodCfg>;
+  for (const k of PERIODIC_KINDS) {
+    const c = { ...(sj[k] ?? {}) } as Partial<PeriodCfg>;
+    if (OLD[k] && c.folder === OLD[k][0] && c.format === OLD[k][1]) { delete c.folder; delete c.format; }
+    jn[k] = { ...dj[k], ...c };
+  }
+  o.journalNotes = jn;
   delete o.tasksFolder; delete o.ticketsFolder; delete o.meetingsFolder;
   return o as Partial<SamayaSettings>;
 }
@@ -105,7 +114,7 @@ export class SamayaSettingTab extends PluginSettingTab {
       ? { src: () => s.journalSource, setSrc: (v: "auto" | JournalSource) => { s.journalSource = v; }, folder: () => s.journalFolder, setFolder: (v: string) => { s.journalFolder = v; }, format: () => s.journalFormat, setFormat: (v: string) => { s.journalFormat = v; } }
       : (() => { const n = s.journalNotes[p]; return { src: () => n.source, setSrc: (v: "auto" | JournalSource) => { n.source = v; }, folder: () => n.folder, setFolder: (v: string) => { n.folder = v; }, format: () => n.format, setFormat: (v: string) => { n.format = v; } }; })();
     const dflt = PERIOD_DEFAULT_FORMAT[p];
-    const what = { daily: "daily", weekly: "weekly", monthly: "monthly", yearly: "yearly" }[p];
+    const what = p;
     const draw = async () => {
       const avail = await journalSources(this.app, p);
       const source = pickJournalSource(avail, f.src());
@@ -345,8 +354,8 @@ export class SamayaSettingTab extends PluginSettingTab {
       const changedJ = async () => { await changed(); this.plugin.bus.emit(); };
       void this.renderLocation(dailyBox, "daily", changedJ);
       label(b, "Periodic notes");
-      note(b, "The journal calendar in the right sidebar opens the daily note when you click a day. Switch on weekly, monthly and yearly notes to also open them from the week numbers, the month and the year.");
-      for (const [p, name, desc] of [["weekly", "Weekly notes", "Click a week number in the calendar."], ["monthly", "Monthly notes", "Click the month name in the calendar."], ["yearly", "Yearly notes", "Click the year in the calendar."]] as const) {
+      note(b, "The journal calendar in the right sidebar opens the daily note when you click a day. Switch on weekly, monthly, quarterly and yearly notes to also open them from the week numbers, the month, the quarter and the year.");
+      for (const [p, name, desc] of [["weekly", "Weekly notes", "Click a week number in the calendar."], ["monthly", "Monthly notes", "Click the month name in the calendar."], ["quarterly", "Quarterly notes", "Click the quarter (Q1-Q4) under the month in the calendar."], ["yearly", "Yearly notes", "Click the year in the calendar."]] as const) {
         const cfg = s.journalNotes[p];
         toggle(b, name, desc, () => cfg.on, v => { cfg.on = v; this.plugin.bus.emit(); });
         const box = b.createDiv(); void this.renderLocation(box, p, changedJ);

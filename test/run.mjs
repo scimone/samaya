@@ -8,7 +8,8 @@ await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.t
 const { parseIcs } = await import("./.ics.mjs");
 const { parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify } = await import("./.util.mjs");
 const { fmtEstimate, taskLines, bulletLines, upsertSection, readSection } = await import("./.journal.mjs");
-const { fetchJira, fetchGitlab } = await import("./.tickets.mjs");
+const { fetchJira, fetchGitlab, adfToText } = await import("./.tickets.mjs");
+const { renderTicketPath, renderTicketFileName, renderTicketNote, pathRoot: pathRoot2 } = await import("./.taskbody.mjs");
 
 // ---- ics
 const ics = `BEGIN:VCALENDAR
@@ -49,7 +50,7 @@ assert.equal(parseDuration("1:30"), 90); assert.equal(parseDuration("1.5h"), 90)
 assert.equal(slugify("Weekly Sync: Q4 Planning / Ärger!"), "weekly-sync-q4-planning-arger"); assert.equal(slugify("!!!"), "meeting");
 
 // ---- task body / templates / layout
-const { ensureSubtasksHeading, insertSubtask, renderTemplate, monthFolder, DEFAULT_TASK_TEMPLATE } = await import("./.taskbody.mjs");
+const { ensureSubtasksHeading, insertSubtask, renderTemplate, renderPath, pathRoot, DEFAULT_TASK_TEMPLATE } = await import("./.taskbody.mjs");
 const { layoutItems } = await import("./.timeline.mjs");
 let body = DEFAULT_TASK_TEMPLATE;
 body = insertSubtask(body, "one"); body = insertSubtask(body, "two");
@@ -59,7 +60,12 @@ assert.equal(ensureSubtasksHeading("plain"), "plain\n\n## Subtasks\n\n");
 assert.equal(insertSubtask("# T\n", "a"), "# T\n\n## Subtasks\n- [ ] a\n\n");
 const fmt = (d, f) => f === "YYYY" ? String(d.getFullYear()) : "X";
 assert.equal(renderTemplate("# {{title}} {{date:YYYY}} {{start}}-{{end}} {{ time }}", { title: "Sync", date: new Date(2026, 10, 3), start: "09:00", end: "10:00" }, fmt), "# Sync 2026 09:00-10:00 X");
-assert.equal(monthFolder("Tasks", new Date(2026, 10, 3)), "Tasks/2026/11");
+const mfmt = (d, f) => f.replace(/\[([^\]]*)\]|YYYY|MM/g, (m, lit) => lit ?? (m === "YYYY" ? String(d.getFullYear()) : String(d.getMonth() + 1).padStart(2, "0")));
+assert.equal(renderPath("[Meetings]/YYYY/YYYY-MM", new Date(2026, 10, 3), mfmt), "Meetings/2026/2026-11");
+assert.equal(pathRoot("[Meetings]/YYYY/YYYY-MM", mfmt), "Meetings");
+assert.equal(pathRoot("[Work]/[Tasks]/YYYY/MM", mfmt), "Work/Tasks");
+assert.equal(pathRoot("YYYY/[Tasks]", mfmt), "");
+assert.equal(pathRoot("[Tickets]", mfmt), "Tickets");
 const L = layoutItems([{ s: 0, dur: 60 }, { s: 30, dur: 60 }, { s: 120, dur: 30 }]);
 assert.deepEqual([...L.values()], [{ col: 0, n: 2 }, { col: 1, n: 2 }, { col: 0, n: 1 }]);
 
@@ -115,6 +121,16 @@ const glHttp = async o => o.url.endsWith("page=1")
 const gl = await fetchGitlab({ url: "https://gl", token: "t", scope: "assigned_to_me" }, glHttp);
 assert.deepEqual(gl.map(t => [t.id, t.key]), [["grp/proj#12", "proj#12"], ["grp/other#3", "other#3"]]);
 await assert.rejects(fetchJira({ flavor: "cloud", url: "", email: "", token: "", jql: "" }, jiraHttp));
+// ---- ticket templates
+const tv = { id: "OPS-1", title: "Fix the Deploy!", type: "Bug", status: "In Progress", assignedTo: "Ada", url: "https://x/OPS-1", description: "Desc", source: "Jira" };
+assert.equal(renderTicketFileName("", tv), "OPS-1_fix-the-deploy");
+assert.equal(renderTicketFileName("{{TASK_ID}} {{TASK_TITLE}}", tv), "OPS-1 Fix the Deploy!");
+assert.equal(renderTicketPath("[Tickets]/[Jira]/{{TASK_STATUS}}", tv, new Date(2026, 10, 8), mfmt), "Tickets/Jira/In Progress");
+assert.equal(renderTicketPath("[Tickets]/YYYY/{{TASK_ASSIGNEDTO}}", tv, new Date(2026, 10, 8), mfmt), "Tickets/2026/Ada");
+assert.equal(pathRoot("[Tickets]/[Jira]/{{TASK_STATUS}}", mfmt), "Tickets/Jira");
+assert.equal(renderTicketNote("", tv), "# Fix the Deploy!\n\n[Open in Jira](https://x/OPS-1)\n");
+assert.equal(renderTicketNote("{{TASK_TYPE}}|{{ TASK_STATUS }}|{{TASK_NOPE}}", tv), "Bug|In Progress|{{TASK_NOPE}}");
+assert.equal(adfToText({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "A" }] }, { type: "bulletList", content: [{ type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }] }] }] }), "A\n\n- x");
 // ---- event notes
 await bundle("src/eventnotes.ts", "test/.eventnotes.mjs");
 const { compilePattern, eventFromNote, parseClock } = await import("./.eventnotes.mjs");

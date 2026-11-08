@@ -29,8 +29,8 @@ export function parseDuration(raw: string): number | null {
   if ((m = s.match(/^(\d+)\s*(?:m|min)?$/))) return +m[1];
   return null;
 }
-export function slugify(s: string): string {
-  return s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60).replace(/-+$/, "") || "meeting";
+export function slugify(s: string, fallback = "meeting"): string {
+  return s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60).replace(/-+$/, "") || fallback;
 }
 
 export class Emitter {

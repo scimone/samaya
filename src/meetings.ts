@@ -1,14 +1,14 @@
 import { App, TFile, normalizePath } from "obsidian";
 import type { IcsEvent } from "./ics";
 import type { SamayaSettings } from "./settings";
-import { ensureFolder, loadTemplate, momentFmt, patchTask } from "./model";
-import { DEFAULT_MEETING_TEMPLATE, monthFolder, renderTemplate } from "./taskbody";
+import { ensureFolder, folderFor, rootOf, loadTemplate, momentFmt, patchTask } from "./model";
+import { DEFAULT_MEETING_TEMPLATE, renderTemplate } from "./taskbody";
 import { minToHm, slugify, ymd } from "./util";
 
-/** Find or create the note for a calendar meeting: `Meetings/YYYY/MM/yyyy-mm-dd_<title-slug>.md`. Never overwrites existing notes. */
+/** Find or create the note for a calendar meeting: `<meetings path>/yyyy-mm-dd_<title-slug>.md`. Never overwrites existing notes. */
 export async function ensureMeetingNote(app: App, s: SamayaSettings, ev: IcsEvent): Promise<TFile> {
   if (ev.notePath) { const f = app.vault.getAbstractFileByPath(ev.notePath); if (f instanceof TFile) return f; } // event already is a note
-  const root = normalizePath(s.meetingsFolder); const folder = monthFolder(root, ev.start);
+  const root = rootOf(s.meetingsPath); const folder = folderFor(s.meetingsPath, ev.start);
   const date = ymd(ev.start); const start = minToHm(ev.start.getHours() * 60 + ev.start.getMinutes());
   const end = minToHm(ev.end.getHours() * 60 + ev.end.getMinutes());
   const base = `${date}_${slugify(ev.title)}`;

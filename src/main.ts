@@ -1,5 +1,5 @@
 import { Editor, MarkdownView, Notice, Plugin, TFile, normalizePath } from "obsidian";
-import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab } from "./settings";
+import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FOCUS_VIEW_TYPE, FocusManager, FocusState, FocusView } from "./focus";
 import { IcsClient, assignTicket, createManualTicket, createTask } from "./model";
 import { DAILY_VIEW_TYPE, DailyPlannerView } from "./views/DailyPlannerView";
@@ -9,7 +9,7 @@ import { syncTickets } from "./sync";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
 import { ShutdownModal, TextPromptModal, TicketSuggestModal } from "./modals";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
-import { allTasks, sortTasks } from "./model";
+import { allTasks, sortTasks, prefixOf, rootOf, ensureFolder } from "./model";
 import { bulletLines, journalPath, readJournalSection, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
 import { Emitter, addDays, hmToMin, parseTitleEstimate as parseTitleEstimateSafe, today } from "./util";
 import { WorkdayManager } from "./workday";
@@ -81,7 +81,7 @@ export default class SamayaPlugin extends Plugin {
 
   async onload() {
     this.data = (await this.loadData()) ?? {};
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, this.data.settings);
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, migrateSettings(this.data.settings ?? {}));
     this.registerView(DASHBOARD_VIEW_TYPE, leaf => new DashboardView(leaf, this));
     this.registerView(TODAY_VIEW_TYPE, leaf => new TodayView(leaf, this));
     this.registerView(FOCUS_VIEW_TYPE, leaf => new FocusView(leaf, this));
@@ -120,7 +120,7 @@ export default class SamayaPlugin extends Plugin {
     this.addCommand({ id: "shutdown", name: "Start shutdown ritual", callback: () => this.startShutdown() });
     this.addCommand({ id: "new-task", name: "New task", callback: () => this.quickAdd() });
     this.addCommand({ id: "focus-current", name: "Focus on current note's task", checkCallback: c => {
-      const f = this.app.workspace.getActiveFile(); const ok2 = !!f && f.path.startsWith(normalizePath(this.settings.tasksFolder) + "/");
+      const f = this.app.workspace.getActiveFile(); const ok2 = !!f && f.path.startsWith(prefixOf(this.settings.tasksPath));
       if (ok2 && !c && f) void this.focus.start(f); return ok2;
     } });
     this.addCommand({ id: "focus-show", name: "Show focus timer", callback: () => { void this.focus.openView(); } });
@@ -132,7 +132,7 @@ export default class SamayaPlugin extends Plugin {
       const [key, ...rest] = v.split(/\s+/); void createManualTicket(this.app, this.settings, key, rest.join(" "));
     }).open() });
     this.addCommand({ id: "assign-ticket", name: "Assign current task note to a ticket", checkCallback: c => {
-      const f = this.app.workspace.getActiveFile(); const ok2 = !!f && f.path.startsWith(normalizePath(this.settings.tasksFolder) + "/");
+      const f = this.app.workspace.getActiveFile(); const ok2 = !!f && f.path.startsWith(prefixOf(this.settings.tasksPath));
       if (ok2 && !c && f) new TicketSuggestModal(this, t => { void assignTicket(this.app, f, t); }).open(); return ok2;
     } });
     this.addCommand({ id: "scaffold", name: "Create planner files", callback: () => this.scaffold(true) });
@@ -185,8 +185,8 @@ export default class SamayaPlugin extends Plugin {
   syncTickets(only?: "jira" | "gitlab") { return syncTickets(this, only); }
 
   async scaffold(announce: boolean) {
-    const folder = normalizePath(this.settings.tasksFolder);
-    if (!this.app.vault.getAbstractFileByPath(folder)) await this.app.vault.createFolder(folder);
+    const folder = rootOf(this.settings.tasksPath);
+    if (folder !== "/") await ensureFolder(this.app, folder);
     // Daily notes follow the core plugin; only seed its config when it has none
     const dn = normalizePath(`${this.app.vault.configDir}/daily-notes.json`);
     try {

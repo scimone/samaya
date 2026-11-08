@@ -1,4 +1,5 @@
 // Pure helpers for task / meeting note bodies and templates (no Obsidian imports, unit-tested).
+import { safeFileName, slugify } from "./util";
 export const DEFAULT_TASK_TEMPLATE = "## Subtasks\n\n## Notes\n";
 export const DEFAULT_MEETING_TEMPLATE = "# {{title}}\n\n## Meeting Summary\n\n";
 
@@ -40,6 +41,44 @@ export function renderTemplate(tpl: string, ctx: TplCtx, fmt: (d: Date, f: strin
   });
 }
 
-export function monthFolder(root: string, d: Date): string {
-  return `${root}/${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+type Fmt = (d: Date, f: string) => string;
+/** Render a path pattern like "[Meetings]/YYYY/YYYY-MM" (moment format) for a date. Slashes separate folders. */
+export function renderPath(pattern: string, d: Date, fmt: Fmt): string {
+  return pattern.split("/").map(seg => fmt(d, seg).trim()).filter(Boolean).join("/");
+}
+/** The leading folders of a pattern that do not depend on the date, e.g. "[Meetings]/YYYY/YYYY-MM" -> "Meetings". */
+export function pathRoot(pattern: string, fmt: Fmt): string {
+  const a = new Date(2024, 1, 3, 8, 9), b = new Date(2027, 10, 28, 21, 47);
+  const out: string[] = [];
+  for (const seg of pattern.split("/")) {
+    const x = fmt(a, seg).trim(), y = fmt(b, seg).trim();
+    if (seg.includes("{{") || x !== y) break; // ticket variables differ per note, so they are never part of the root
+    if (x) out.push(x);
+  }
+  return out.join("/");
+}
+
+// ---------- ticket notes (Jira / GitLab) ----------
+export interface TicketVars { id: string; title: string; type: string; status: string; assignedTo: string; url: string; description: string; source: string; }
+export const DEFAULT_TICKET_TEMPLATE = "# {{TASK_TITLE}}\n\n[Open in {{TASK_SOURCE}}]({{TASK_URL}})\n";
+export const DEFAULT_TICKET_FILENAME = "{{TASK_ID}}_{{TASK_TITLE_SLUG}}";
+export const TICKET_VARIABLES = "TASK_ID, TASK_TITLE, TASK_TYPE, TASK_STATUS, TASK_ASSIGNEDTO, TASK_URL, TASK_DESCRIPTION";
+
+function ticketVarMap(v: TicketVars): Record<string, string> {
+  return { TASK_ID: v.id, TASK_TITLE: v.title, TASK_TITLE_SLUG: slugify(v.title, "untitled"), TASK_TYPE: v.type, TASK_STATUS: v.status,
+    TASK_ASSIGNEDTO: v.assignedTo, TASK_URL: v.url, TASK_DESCRIPTION: v.description, TASK_SOURCE: v.source };
+}
+/** Replace {{TASK_*}} variables (unknown names are left untouched). `esc` post-processes each value. */
+export function fillTicketVars(tpl: string, v: TicketVars, esc: (x: string) => string = x => x): string {
+  const m = ticketVarMap(v);
+  return tpl.replace(/\{\{\s*(TASK_[A-Z_]+)\s*\}\}/g, (all, k: string) => (k in m ? esc(m[k]) : all));
+}
+/** Note body from a user template (or the built-in one). */
+export function renderTicketNote(tpl: string, v: TicketVars): string { return fillTicketVars(tpl || DEFAULT_TICKET_TEMPLATE, v); }
+/** File name (without ".md") from the file name template. */
+export function renderTicketFileName(tpl: string, v: TicketVars): string { return safeFileName(fillTicketVars(tpl.trim() || DEFAULT_TICKET_FILENAME, v)); }
+/** Folder pattern with {{TASK_*}} variables, e.g. "[Tickets]/[Jira]/{{TASK_STATUS}}". Values are inserted as moment literals. */
+export function renderTicketPath(pattern: string, v: TicketVars, d: Date, fmt: Fmt): string {
+  const part = (x: string) => `[${x.trim() ? safeFileName(x) : "None"}]`;
+  return renderPath(fillTicketVars(pattern, v, part), d, fmt);
 }

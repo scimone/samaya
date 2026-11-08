@@ -2,7 +2,8 @@ import { App, Notice, TFile, normalizePath, requestUrl } from "obsidian";
 import { IcsEvent, parseIcs } from "./ics";
 import type { SamayaSettings } from "./settings";
 import { safeFileName } from "./util";
-import { DEFAULT_TASK_TEMPLATE, ensureSubtasksHeading, insertSubtask, monthFolder, renderTemplate } from "./taskbody";
+import { DEFAULT_TASK_TEMPLATE, ensureSubtasksHeading, insertSubtask, renderPath, pathRoot, renderTemplate, TicketVars, DEFAULT_TICKET_TEMPLATE, renderTicketNote, renderTicketFileName, renderTicketPath } from "./taskbody";
+import type { RawTicket } from "./tickets";
 
 export interface Task {
   file: TFile; title: string; status: "todo" | "done";
@@ -30,7 +31,7 @@ export function readTask(app: App, file: TFile): Task {
 }
 
 export function allTasks(app: App, s: SamayaSettings): Task[] {
-  const prefix = normalizePath(s.tasksFolder) + "/";
+  const prefix = prefixOf(s.tasksPath);
   return app.vault.getMarkdownFiles().filter(f => f.path.startsWith(prefix)).map(f => readTask(app, f));
 }
 export function sortTasks(ts: Task[]): Task[] {
@@ -67,10 +68,16 @@ export async function loadTemplate(app: App, path: string, fallback: string): Pr
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const momentFmt = (d: Date, f: string): string => (window as any).moment(d).format(f);
+/** Folder for a path-pattern setting on a given date, e.g. "[Tasks]/YYYY/MM" -> "Tasks/2026/11". */
+export const folderFor = (pattern: string, d: Date): string => normalizePath(renderPath(pattern, d, momentFmt) || "/");
+/** Date-independent root of a path-pattern setting; every note managed by the pattern lives below it. */
+export const rootOf = (pattern: string): string => normalizePath(pathRoot(pattern, momentFmt) || "/");
+/** Vault-path prefix (with trailing slash) matching everything under the pattern's root; "" for the vault root. */
+export const prefixOf = (pattern: string): string => { const r = rootOf(pattern); return r === "/" ? "" : r + "/"; };
 
-/** New task note in Tasks/YYYY/MM/, body from the task template (with "## Subtasks" guaranteed). */
+/** New task note in the tasks path, body from the task template (with "## Subtasks" guaranteed). */
 export async function createTask(app: App, s: SamayaSettings, title: string, fm: Record<string, string | number>, body?: string): Promise<TFile> {
-  const now = new Date(); const folder = monthFolder(normalizePath(s.tasksFolder), now);
+  const now = new Date(); const folder = folderFor(s.tasksPath, now);
   await ensureFolder(app, folder);
   const base = safeFileName(title); let path = `${folder}/${base}.md`; let i = 2;
   while (app.vault.getAbstractFileByPath(path)) path = `${folder}/${base} ${i++}.md`;
@@ -130,15 +137,15 @@ export async function addSubtask(app: App, file: TFile, text: string): Promise<v
 }
 
 // ---------- tickets (Jira / GitLab / manual), stored as notes ----------
-export interface Ticket { file: TFile; id: string; key: string; source: string; summary: string; url: string; state: string; }
+export interface Ticket { file: TFile; id: string; key: string; source: string; summary: string; url: string; state: string; issueType: string; assignee: string; }
 
 export function readTicket(app: App, file: TFile): Ticket {
   const fm = (app.metadataCache.getFileCache(file)?.frontmatter ?? {}) as Record<string, unknown>;
   return { file, id: str(fm.id) || file.basename, key: str(fm.key) || file.basename, source: str(fm.source) || "manual",
-    summary: str(fm.summary), url: str(fm.url), state: str(fm.state) };
+    summary: str(fm.summary), url: str(fm.url), state: str(fm.state), issueType: str(fm.issue_type), assignee: str(fm.assignee) };
 }
 export function allTickets(app: App, s: SamayaSettings): Ticket[] {
-  const prefix = normalizePath(s.ticketsFolder) + "/";
+  const prefix = prefixOf(s.ticketsPath);
   return app.vault.getMarkdownFiles().filter(f => f.path.startsWith(prefix)).map(f => readTicket(app, f))
     .sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }));
 }
@@ -149,12 +156,31 @@ export function ticketPathOf(app: App, t: Task): string {
 export async function assignTicket(app: App, task: TFile, ticket: Ticket | null): Promise<void> {
   await patchTask(app, task, { ticket: ticket ? `[[${ticket.file.basename}]]` : null });
 }
+
+const SOURCE_NAMES: Record<string, string> = { jira: "Jira", gitlab: "GitLab", manual: "Manual" };
+export const varsOfRaw = (t: RawTicket): TicketVars => ({ id: t.key, title: t.summary, type: t.type, status: t.state, assignedTo: t.assignee, url: t.url, description: t.description, source: SOURCE_NAMES[t.source] ?? t.source });
+export const varsOfTicket = (t: Ticket): TicketVars => ({ id: t.key, title: t.summary, type: t.issueType, status: t.state, assignedTo: t.assignee, url: t.url, description: "", source: SOURCE_NAMES[t.source] ?? t.source });
+/** Folder for a ticket note: the tickets path with {{TASK_*}} variables and date parts filled in. */
+export const ticketFolderFor = (s: SamayaSettings, v: TicketVars, d: Date): string => normalizePath(renderTicketPath(s.ticketsPath, v, d, momentFmt) || "/");
+
+/** New ticket note (path, file name and body from the ticket settings). Frontmatter is the caller's job. */
+export async function createTicketNote(app: App, s: SamayaSettings, v: TicketVars, body?: string): Promise<TFile> {
+  const now = new Date(); const folder = ticketFolderFor(s, v, now);
+  await ensureFolder(app, folder);
+  const base = renderTicketFileName(s.ticketFileName, v); let path = `${folder}/${base}.md`; let i = 2;
+  while (app.vault.getAbstractFileByPath(path)) path = `${folder}/${base} ${i++}.md`;
+  const tpl = body ?? renderTemplate(renderTicketNote(await loadTemplate(app, s.ticketTemplate, DEFAULT_TICKET_TEMPLATE), v), { title: v.title, date: now }, momentFmt);
+  return app.vault.create(path, tpl);
+}
+/** Move a ticket note into the folder its variables now call for (e.g. after its status changed). */
+export async function relocateTicket(app: App, s: SamayaSettings, t: Ticket, v: TicketVars): Promise<void> {
+  const folder = ticketFolderFor(s, v, new Date()); const path = `${folder}/${t.file.name}`;
+  if (path === t.file.path || app.vault.getAbstractFileByPath(path)) return;
+  await ensureFolder(app, folder); await app.fileManager.renameFile(t.file, path);
+}
 export async function createManualTicket(app: App, s: SamayaSettings, key: string, summary: string): Promise<TFile> {
-  const folder = normalizePath(s.ticketsFolder);
-  if (!app.vault.getAbstractFileByPath(folder)) await app.vault.createFolder(folder);
-  let path = `${folder}/${safeFileName(key)}.md`; let i = 2;
-  while (app.vault.getAbstractFileByPath(path)) path = `${folder}/${safeFileName(key)} ${i++}.md`;
-  const f = await app.vault.create(path, summary ? `# ${summary}\n` : "");
+  const v: TicketVars = { id: key, title: summary, type: "", status: "open", assignedTo: "", url: "", description: "", source: "Manual" };
+  const f = await createTicketNote(app, s, v, summary ? `# ${summary}\n` : "");
   await patchTask(app, f, { type: "ticket", source: "manual", id: key, key, summary, state: "open" });
   return f;
 }

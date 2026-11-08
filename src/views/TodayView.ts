@@ -4,7 +4,7 @@ import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { DndScope } from "../dnd";
 import { ensureMeetingNote } from "../meetings";
-import { Task, allTasks, createTask, patchTask, placeInDay, readTask, setDone, sortTasks } from "../model";
+import { Task, prefixOf, allTasks, createTask, patchTask, placeInDay, readTask, setDone, sortTasks } from "../model";
 import { layoutItems } from "../timeline";
 import { addDays, fmtDur, hmToMin, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { bindZone, renderTaskCard } from "./common";
@@ -35,7 +35,7 @@ export class TodayView extends ItemView {
 
   async onOpen() {
     this.contentEl.addClass("samaya-today");
-    const under = (f: { path: string }) => f.path.startsWith(normalizePath(this.plugin.settings.tasksFolder) + "/") || inEventFolder(this.plugin.settings, f.path);
+    const under = (f: { path: string }) => f.path.startsWith(prefixOf(this.plugin.settings.tasksPath)) || inEventFolder(this.plugin.settings, f.path);
     this.registerEvent(this.app.metadataCache.on("changed", f => { if (under(f)) this.schedule(); }));
     this.registerEvent(this.app.vault.on("delete", f => { if (under(f)) this.schedule(); }));
     this.registerEvent(this.app.vault.on("rename", f => { if (under(f)) this.schedule(); }));

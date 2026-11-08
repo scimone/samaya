@@ -1,10 +1,12 @@
 import { App, Notice, PluginSettingTab, Setting } from "obsidian";
 import type SamayaPlugin from "./main";
+import { ticketFolderFor, folderFor } from "./model";
+import { TICKET_VARIABLES, renderTicketFileName, TicketVars } from "./taskbody";
 import { DEFAULT_EVENT_PATTERN, PATTERN_HELP, compilePattern } from "./eventnotes";
 
 export interface SamayaSettings {
-  tasksFolder: string; ticketsFolder: string; meetingsFolder: string; journalFolder: string; plannerFile: string;
-  taskTemplate: string; meetingTemplate: string;
+  tasksPath: string; ticketsPath: string; meetingsPath: string; journalFolder: string; plannerFile: string;
+  taskTemplate: string; meetingTemplate: string; ticketTemplate: string; ticketFileName: string;
   calendarSource: "ics" | "notes"; eventNotesFolder: string; eventNotePattern: string;
   icsUrls: string[]; icsRefreshMinutes: number;
   dayStartHour: number; dayEndHour: number; slotMinutes: number;
@@ -15,7 +17,7 @@ export interface SamayaSettings {
   lunchStart: string; lunchEnd: string; weeklyHours: number; workDays: number; autoLunch: boolean;
 }
 export const DEFAULT_SETTINGS: SamayaSettings = {
-  tasksFolder: "Tasks", ticketsFolder: "Tickets", meetingsFolder: "Meetings", journalFolder: "Journal", plannerFile: "Planner.base", taskTemplate: "", meetingTemplate: "",
+  tasksPath: "[Tasks]/YYYY/MM", ticketsPath: "[Tickets]", meetingsPath: "[Meetings]/YYYY/MM", journalFolder: "Journal", plannerFile: "Planner.base", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TASK_ID}}_{{TASK_TITLE_SLUG}}",
   calendarSource: "ics", eventNotesFolder: "Meetings", eventNotePattern: "{{date}}_{{title}}",
   icsUrls: [], icsRefreshMinutes: 15,
   dayStartHour: 7, dayEndHour: 20, slotMinutes: 15, defaultEstimate: 30, capacityHours: 6, shutdownTime: "17:30", openOnStartup: false,
@@ -24,6 +26,19 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   gitlabUrl: "https://gitlab.com", gitlabToken: "", gitlabScope: "assigned_to_me", syncOnStartup: false,
   lunchStart: "12:00", lunchEnd: "13:00", weeklyHours: 40, workDays: 5, autoLunch: true,
 };
+
+/** Settings saved by older versions used plain folders; turn them into equivalent path patterns. */
+export function migrateSettings(saved: Record<string, unknown>): Partial<SamayaSettings> {
+  const o = { ...saved } as Record<string, unknown>;
+  const lit = (v: unknown) => `[${String(v).replace(/[[\]]/g, "")}]`;
+  if (o.tasksFolder != null && o.tasksPath == null) o.tasksPath = lit(o.tasksFolder) + "/YYYY/MM";
+  if (o.ticketsFolder != null && o.ticketsPath == null) o.ticketsPath = lit(o.ticketsFolder);
+  if (o.meetingsFolder != null && o.meetingsPath == null) o.meetingsPath = lit(o.meetingsFolder) + "/YYYY/MM";
+  delete o.tasksFolder; delete o.ticketsFolder; delete o.meetingsFolder;
+  return o as Partial<SamayaSettings>;
+}
+
+const SAMPLE_TICKET: TicketVars = { id: "OPS-12", title: "Fix the deploy pipeline", type: "Bug", status: "In Progress", assignedTo: "Ada", url: "", description: "", source: "Jira" };
 
 export class SamayaSettingTab extends PluginSettingTab {
   constructor(app: App, private plugin: SamayaPlugin) { super(app, plugin); }
@@ -37,12 +52,26 @@ export class SamayaSettingTab extends PluginSettingTab {
       new Setting(c).setName(name).setDesc(desc).addText(t => t.setValue(String(get())).onChange(async v => { const n = Number(v); if (!isNaN(n) && n > 0) { set(n); await save(); } }));
 
     new Setting(c).setName("Folders").setHeading();
-    text("Tasks folder", "One note per task.", () => s.tasksFolder, v => (s.tasksFolder = v || "Tasks"));
-    text("Tickets folder", "One note per imported Jira / GitLab ticket.", () => s.ticketsFolder, v => (s.ticketsFolder = v || "Tickets"));
-    text("Meetings folder", "One note per calendar meeting (named yyyy-mm-dd_title).", () => s.meetingsFolder, v => (s.meetingsFolder = v || "Meetings"));
+    const pathText = (name: string, desc: string, key: "tasksPath" | "ticketsPath" | "meetingsPath") => {
+      const st = new Setting(c).setName(name);
+      st.descEl.appendText(desc + " Date parts use moment.js format; put literal text in [brackets], e.g. [Meetings]/YYYY/YYYY-MM. ");
+      st.descEl.createEl("a", { text: "Syntax Reference", href: "https://momentjs.com/docs/#/displaying/format" });
+      const preview = st.descEl.createDiv({ cls: "samaya-path-preview" });
+      const show = () => { preview.setText("Today: " + ((key === "ticketsPath" ? ticketFolderFor(s, SAMPLE_TICKET, new Date()) : folderFor(s[key], new Date())) || "(vault root)")); };
+      st.addText(t => { t.setValue(s[key]).onChange(async v => { s[key] = v.trim() || DEFAULT_SETTINGS[key]; await save(); show(); }); });
+      show();
+    };
+    pathText("Tasks path", "Folder for task notes (one note per task).", "tasksPath");
+    pathText("Tickets path", `Folder for imported Jira / GitLab ticket notes. May contain ticket variables in double braces (${TICKET_VARIABLES.split(", ").map(v => `{{${v}}}`).join(" ")}), e.g. [Tickets]/[Jira]/{{TASK_STATUS}}. With {{TASK_STATUS}}, notes move when the ticket's status changes.`, "ticketsPath");
+    pathText("Meetings path", "Folder for meeting notes created from calendar events (named yyyy-mm-dd_title).", "meetingsPath");
     text("Journal folder (fallback)", "Daily notes use Settings > Daily notes (folder and date format). This folder is only used while that plugin has no settings.", () => s.journalFolder, v => (s.journalFolder = v || "Journal"));
     text("Task note template", "Path of a template note, e.g. Templates/Task. Variables: {{title}} {{date}} {{date:FORMAT}} {{time}}. A '## Subtasks' heading is added if missing. Empty = built-in.", () => s.taskTemplate, v => (s.taskTemplate = v));
     text("Meeting note template", "Path of a template note, e.g. Templates/Meeting. Variables: {{title}} {{date}} {{start}} {{end}}. Empty = built-in.", () => s.meetingTemplate, v => (s.meetingTemplate = v));
+    text("Ticket note template", `Path of a template note, e.g. Templates/Ticket. Variables: ${TICKET_VARIABLES.split(", ").map(v => `{{${v}}}`).join(" ")} {{TASK_SOURCE}} {{date}}. Empty = built-in.`, () => s.ticketTemplate, v => (s.ticketTemplate = v));
+    const fn = new Setting(c).setName("Ticket file name").setDesc("Variables in double braces, plus {{TASK_TITLE_SLUG}} (the title as a slug). Leave out \".md\". Default: {{TASK_ID}}_{{TASK_TITLE_SLUG}}");
+    const fnPreview = fn.descEl.createDiv({ cls: "samaya-path-preview" });
+    const showFn = () => fnPreview.setText("Example: " + renderTicketFileName(s.ticketFileName, SAMPLE_TICKET) + ".md");
+    fn.addText(t => t.setValue(s.ticketFileName).onChange(async v => { s.ticketFileName = v.trim() || DEFAULT_SETTINGS.ticketFileName; await save(); showFn(); })); showFn();
     text("Planner base file", "Base file opened by the ribbon icon.", () => s.plannerFile, v => (s.plannerFile = v || "Planner.base"));
 
     new Setting(c).setName("Planner").setHeading();

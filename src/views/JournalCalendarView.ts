@@ -26,7 +26,7 @@ export class JournalCalendarView extends ItemView {
   async onClose() { window.clearTimeout(this.timer); }
 
   /** Open in the main area: reuse a tab already showing the file, else the first note tab, else a new tab. */
-  private async show(file: TFile) {
+  private async showInMain(file: TFile) {
     let same: WorkspaceLeaf | null = null, note: WorkspaceLeaf | null = null;
     this.app.workspace.iterateRootLeaves(l => {
       if ((l.view as { file?: TFile }).file?.path === file.path) same = l;
@@ -38,7 +38,7 @@ export class JournalCalendarView extends ItemView {
   }
   private async openPeriod(p: Period, date: string) {
     const f = await openPeriodNote(this.app, this.plugin.settings, p, date);
-    if (f) await this.show(f);
+    if (f) await this.showInMain(f);
   }
 
   private async render() {

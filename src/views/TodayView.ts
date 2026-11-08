@@ -74,7 +74,7 @@ export class TodayView extends ItemView {
     const wkStart = this.plugin.boardWeek || startOfWeek(today()); this.shownWeek = this.plugin.boardWeek;
     const events: IcsEvent[] = !lists && calendarEnabled(s) ? await calendarEvents(this.plugin, parseYmd(date), new Date(parseYmd(date).getTime() + 86400000)) : [];
     const notes = new Map<IcsEvent, TFile>();
-    for (const ev of (lists ? [] : events.filter(e => !e.allDay))) { try { notes.set(ev, await ensureMeetingNote(this.app, s, ev)); } catch { /* ignore */ } }
+    for (const ev of (lists ? [] : events.filter(e => !e.allDay))) { try { notes.set(ev, await ensureMeetingNote(this.app, s, ev, events)); } catch { /* ignore */ } }
     if (token !== this.token) return;
     if (this.dnd.active) { this.pending = true; return; }
 

@@ -66,7 +66,7 @@ export class DailyPlannerView extends BasesView {
       ? await calendarEvents(this.plugin, parseYmd(this.date), parseYmd(addDays(this.date, 1))) : [];
     const meetingNotes = new Map<IcsEvent, TFile>();
     for (const ev of events.filter(e => !e.allDay)) { // sequential: same-titled meetings must not race
-      try { meetingNotes.set(ev, await ensureMeetingNote(this.app, this.plugin.settings, ev)); } catch (e) { console.warn("Samaya: meeting note failed", e); }
+      try { meetingNotes.set(ev, await ensureMeetingNote(this.app, this.plugin.settings, ev, events)); } catch (e) { console.warn("Samaya: meeting note failed", e); }
     }
     this.meetingNotes = meetingNotes;
     if (token !== this.token || this.scope.active) { if (this.scope.active) this.pending = true; return; }

@@ -7,6 +7,7 @@ import { WEEK_VIEW_TYPE, WeeklyBoardView } from "./views/WeeklyBoardView";
 import { WTL_VIEW_TYPE, WeeklyTimelineView } from "./views/WeeklyTimelineView";
 import { BACKLOG_VIEW_TYPE, BacklogView } from "./views/BacklogView";
 import { syncTickets } from "./sync";
+import { syncMeetingNotes } from "./meetings";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
 import { ShutdownModal, TextPromptModal, TicketSuggestModal } from "./modals";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
@@ -173,7 +174,15 @@ export default class SamayaPlugin extends Plugin {
       if (this.settings.syncOnStartup && (this.settings.jiraOn || this.settings.gitlabOn)) void this.syncTickets();
       if (this.settings.openOnStartup) await this.openPlanner();
       this.registerInterval(window.setInterval(() => this.shutdownNudge(), 60000));
+      void this.meetingSyncLoop();
     });
+  }
+
+  /** Fetch the calendar and create/update meeting notes now, then again after every refresh interval (the setting may change meanwhile). */
+  private async meetingSyncLoop() {
+    try { if ((await syncMeetingNotes(this)) > 0) this.bus.emit(); } catch (e) { console.warn("Samaya: meeting sync failed", e); }
+    const t = window.setTimeout(() => { void this.meetingSyncLoop(); }, Math.max(1, this.settings.icsRefreshMinutes) * 60000);
+    this.register(() => window.clearTimeout(t));
   }
 
   /** Keep task notes in the tasks-path subfolder of their scheduled (planned) date; unscheduled ones go to "Unscheduled". */

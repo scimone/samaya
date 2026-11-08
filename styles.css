@@ -471,3 +471,6 @@ body { --samaya-green: #2fa862; }
 .samaya-kb-card:hover { border-color: var(--interactive-accent); }
 .samaya-kb-title { margin-top: 4px; font-size: var(--font-ui-small); }
 .samaya-kb-meta { font-size: var(--font-ui-smaller); color: var(--text-muted); margin-top: 2px; }
+.samaya-kb-card { touch-action: none; }
+.samaya-kb-card.is-dragging { opacity: 0.35; }
+.samaya-kb-cell.is-drop { outline: 2px dashed var(--interactive-accent); background: var(--background-modifier-hover); }

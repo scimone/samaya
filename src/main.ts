@@ -426,7 +426,7 @@ export default class SamayaPlugin extends Plugin {
     await this.app.vault.create(bp, JOURNAL_BASE_TEMPLATE(root === "/" ? "Journal" : root)); if (announce) new Notice("Created " + bp);
   }
   private marking = false; private markAgain = false;
-  /** Per open note tab: toggle `samaya-hide-props` and show / remove the navigation bar, for journal notes. Runs one at a time. */
+  /** Per open note tab: mark journal notes with `samaya-journal-note` (hides their title and properties, styles.css) and show / remove the navigation bar. Runs one at a time. */
   async markJournalNotes() {
     if (this.marking) { this.markAgain = true; return; }
     this.marking = true;
@@ -437,8 +437,7 @@ export default class SamayaPlugin extends Plugin {
         for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
           const file = (leaf.view as { file?: TFile }).file; const el = leaf.view.containerEl;
           const id = s.journalOn && !!file ? await identifyNote(this.app, s, file) : null;
-          el.toggleClass("samaya-hide-props", s.journalHideProps && !!id);
-          el.toggleClass("samaya-journal-note", !!id);
+          el.toggleClass("samaya-journal-note", s.journalHideProps && !!id);
           await this.renderJournalBar(el, s.journalNavBar && file && id ? { file, ...id } : null);
         }
       } while (this.markAgain);

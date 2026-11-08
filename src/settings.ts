@@ -25,7 +25,7 @@ export interface SamayaSettings {
   journalWorkTimes: boolean; journalBreaks: boolean; journalTracked: boolean;
   /** weekly / monthly / quarterly / yearly notes of the journal calendar */
   journalNotes: Record<PeriodicKind, PeriodCfg>;
-  /** hide the properties block in journal notes */
+  /** hide the title and properties block in journal notes */
   journalHideProps: boolean;
   /** navigation bar above journal notes */
   journalNavBar: boolean;
@@ -405,7 +405,7 @@ export class SamayaSettingTab extends PluginSettingTab {
         enabled: { get: () => s.journalOn, set: v => { s.journalOn = v; if (v) void this.plugin.scaffoldJournal(false); this.plugin.bus.emit(); } },
         status: () => { const n = JOURNAL_PARTS.filter(([k]) => s[k]).length; return n ? [`${n} of ${JOURNAL_PARTS.length} items`, "ok"] : ["Nothing selected", "warn"]; },
       });
-      toggle(b, "Hide properties in journal notes", "Hides the properties block at the top of your daily, weekly, monthly, quarterly and yearly notes. The properties are still there (work times are stored in them); turn this off to see and edit them.", () => s.journalHideProps, v => { s.journalHideProps = v; this.plugin.bus.emit(); });
+      toggle(b, "Hide title and properties in journal notes", "Hides the note title and the properties block at the top of your daily, weekly, monthly, quarterly and yearly notes. The properties are still there (work times are stored in them); turn this off to see and edit them.", () => s.journalHideProps, v => { s.journalHideProps = v; this.plugin.bus.emit(); });
       toggle(b, "Navigation bar in journal notes", "Shows a bar above your daily, weekly, monthly, quarterly and yearly notes to jump to the previous / next note, to today, or to the note of another period.", () => s.journalNavBar, v => { s.journalNavBar = v; this.plugin.bus.emit(); });
       label(b, "Write into the daily note");
       for (const [k, name, desc] of JOURNAL_PARTS) toggle(b, name, desc, () => s[k], v => (s[k] = v));

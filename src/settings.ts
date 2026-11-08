@@ -38,7 +38,7 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<SamayaS
   return o as Partial<SamayaSettings>;
 }
 
-const SAMPLE_TICKET: TicketVars = { id: "OPS-12", title: "Fix the deploy pipeline", type: "Bug", status: "In Progress", assignedTo: "Ada", url: "", description: "", source: "Jira" };
+const SAMPLE_TICKET: TicketVars = { id: "OPS-12", title: "Fix the deploy pipeline", type: "Bug", status: "In Progress", assignedTo: "Ada", url: "", description: "", source: "Jira", project: "OPS" };
 
 export class SamayaSettingTab extends PluginSettingTab {
   constructor(app: App, private plugin: SamayaPlugin) { super(app, plugin); }

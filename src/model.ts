@@ -137,12 +137,12 @@ export async function addSubtask(app: App, file: TFile, text: string): Promise<v
 }
 
 // ---------- tickets (Jira / GitLab / manual), stored as notes ----------
-export interface Ticket { file: TFile; id: string; key: string; source: string; summary: string; url: string; state: string; issueType: string; assignee: string; }
+export interface Ticket { file: TFile; id: string; key: string; source: string; summary: string; url: string; state: string; issueType: string; assignee: string; project: string; }
 
 export function readTicket(app: App, file: TFile): Ticket {
   const fm = (app.metadataCache.getFileCache(file)?.frontmatter ?? {}) as Record<string, unknown>;
   return { file, id: str(fm.id) || file.basename, key: str(fm.key) || file.basename, source: str(fm.source) || "manual",
-    summary: str(fm.summary), url: str(fm.url), state: str(fm.state), issueType: str(fm.issue_type), assignee: str(fm.assignee) };
+    summary: str(fm.summary), url: str(fm.url), state: str(fm.state), issueType: str(fm.issue_type), assignee: str(fm.assignee), project: str(fm.project) };
 }
 export function allTickets(app: App, s: SamayaSettings): Ticket[] {
   const prefix = prefixOf(s.ticketsPath);
@@ -158,8 +158,8 @@ export async function assignTicket(app: App, task: TFile, ticket: Ticket | null)
 }
 
 const SOURCE_NAMES: Record<string, string> = { jira: "Jira", gitlab: "GitLab", manual: "Manual" };
-export const varsOfRaw = (t: RawTicket): TicketVars => ({ id: t.key, title: t.summary, type: t.type, status: t.state, assignedTo: t.assignee, url: t.url, description: t.description, source: SOURCE_NAMES[t.source] ?? t.source });
-export const varsOfTicket = (t: Ticket): TicketVars => ({ id: t.key, title: t.summary, type: t.issueType, status: t.state, assignedTo: t.assignee, url: t.url, description: "", source: SOURCE_NAMES[t.source] ?? t.source });
+export const varsOfRaw = (t: RawTicket): TicketVars => ({ id: t.key, title: t.summary, type: t.type, status: t.state, assignedTo: t.assignee, url: t.url, description: t.description, source: SOURCE_NAMES[t.source] ?? t.source, project: t.project });
+export const varsOfTicket = (t: Ticket): TicketVars => ({ id: t.key, title: t.summary, type: t.issueType, status: t.state, assignedTo: t.assignee, url: t.url, description: "", source: SOURCE_NAMES[t.source] ?? t.source, project: t.project });
 /** Folder for a ticket note: the tickets path with {{TASK_*}} variables and date parts filled in. */
 export const ticketFolderFor = (s: SamayaSettings, v: TicketVars, d: Date): string => normalizePath(renderTicketPath(s.ticketsPath, v, d, momentFmt) || "/");
 
@@ -179,7 +179,7 @@ export async function relocateTicket(app: App, s: SamayaSettings, t: Ticket, v: 
   await ensureFolder(app, folder); await app.fileManager.renameFile(t.file, path);
 }
 export async function createManualTicket(app: App, s: SamayaSettings, key: string, summary: string): Promise<TFile> {
-  const v: TicketVars = { id: key, title: summary, type: "", status: "open", assignedTo: "", url: "", description: "", source: "Manual" };
+  const v: TicketVars = { id: key, title: summary, type: "", status: "open", assignedTo: "", url: "", description: "", source: "Manual", project: "" };
   const f = await createTicketNote(app, s, v, summary ? `# ${summary}\n` : "");
   await patchTask(app, f, { type: "ticket", source: "manual", id: key, key, summary, state: "open" });
   return f;

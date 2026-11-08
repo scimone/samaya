@@ -122,11 +122,12 @@ const gl = await fetchGitlab({ url: "https://gl", token: "t", scope: "assigned_t
 assert.deepEqual(gl.map(t => [t.id, t.key]), [["grp/proj#12", "proj#12"], ["grp/other#3", "other#3"]]);
 await assert.rejects(fetchJira({ flavor: "cloud", url: "", email: "", token: "", jql: "" }, jiraHttp));
 // ---- ticket templates
-const tv = { id: "OPS-1", title: "Fix the Deploy!", type: "Bug", status: "In Progress", assignedTo: "Ada", url: "https://x/OPS-1", description: "Desc", source: "Jira" };
+const tv = { id: "OPS-1", title: "Fix the Deploy!", type: "Bug", status: "In Progress", assignedTo: "Ada", url: "https://x/OPS-1", description: "Desc", source: "Jira", project: "OPS" };
 assert.equal(renderTicketFileName("", tv), "OPS-1_fix-the-deploy");
 assert.equal(renderTicketFileName("{{TASK_ID}} {{TASK_TITLE}}", tv), "OPS-1 Fix the Deploy!");
 assert.equal(renderTicketPath("[Tickets]/[Jira]/{{TASK_STATUS}}", tv, new Date(2026, 10, 8), mfmt), "Tickets/Jira/In Progress");
 assert.equal(renderTicketPath("[Tickets]/YYYY/{{TASK_ASSIGNEDTO}}", tv, new Date(2026, 10, 8), mfmt), "Tickets/2026/Ada");
+assert.equal(renderTicketPath("[T]/{{TASK_PROJECT}}", tv, new Date(2026, 10, 8), mfmt), "T/OPS");
 assert.equal(pathRoot("[Tickets]/[Jira]/{{TASK_STATUS}}", mfmt), "Tickets/Jira");
 assert.equal(renderTicketNote("", tv), "# Fix the Deploy!\n\n[Open in Jira](https://x/OPS-1)\n");
 assert.equal(renderTicketNote("{{TASK_TYPE}}|{{ TASK_STATUS }}|{{TASK_NOPE}}", tv), "Bug|In Progress|{{TASK_NOPE}}");

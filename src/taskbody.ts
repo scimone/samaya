@@ -59,14 +59,14 @@ export function pathRoot(pattern: string, fmt: Fmt): string {
 }
 
 // ---------- ticket notes (Jira / GitLab) ----------
-export interface TicketVars { id: string; title: string; type: string; status: string; assignedTo: string; url: string; description: string; source: string; }
+export interface TicketVars { id: string; title: string; type: string; status: string; assignedTo: string; url: string; description: string; source: string; project: string; }
 export const DEFAULT_TICKET_TEMPLATE = "# {{TASK_TITLE}}\n\n[Open in {{TASK_SOURCE}}]({{TASK_URL}})\n";
 export const DEFAULT_TICKET_FILENAME = "{{TASK_ID}}_{{TASK_TITLE_SLUG}}";
-export const TICKET_VARIABLES = "TASK_ID, TASK_TITLE, TASK_TYPE, TASK_STATUS, TASK_ASSIGNEDTO, TASK_URL, TASK_DESCRIPTION";
+export const TICKET_VARIABLES = "TASK_ID, TASK_TITLE, TASK_TYPE, TASK_STATUS, TASK_ASSIGNEDTO, TASK_URL, TASK_DESCRIPTION, TASK_PROJECT";
 
 function ticketVarMap(v: TicketVars): Record<string, string> {
   return { TASK_ID: v.id, TASK_TITLE: v.title, TASK_TITLE_SLUG: slugify(v.title, "untitled"), TASK_TYPE: v.type, TASK_STATUS: v.status,
-    TASK_ASSIGNEDTO: v.assignedTo, TASK_URL: v.url, TASK_DESCRIPTION: v.description, TASK_SOURCE: v.source };
+    TASK_ASSIGNEDTO: v.assignedTo, TASK_URL: v.url, TASK_DESCRIPTION: v.description, TASK_SOURCE: v.source, TASK_PROJECT: v.project };
 }
 /** Replace {{TASK_*}} variables (unknown names are left untouched). `esc` post-processes each value. */
 export function fillTicketVars(tpl: string, v: TicketVars, esc: (x: string) => string = x => x): string {

@@ -426,3 +426,31 @@ body { --samaya-green: #2fa862; }
 .samaya-week-backlog.is-drop { outline: 2px dashed var(--interactive-accent); outline-offset: -2px; }
 .samaya-wtl-head { min-height: 44px; }
 .samaya-wtl-head.is-drop { outline: 2px dashed var(--interactive-accent); outline-offset: -2px; background: color-mix(in srgb, var(--interactive-accent) 8%, var(--background-primary)); }
+
+/* ---- projects: gantt */
+.samaya-chip-project { background: var(--background-modifier-hover); }
+.samaya-gantt { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.samaya-gantt-head { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--background-modifier-border); }
+.samaya-gantt-scroll { flex: 1; overflow: auto; position: relative; }
+.samaya-gantt-chart { position: relative; min-height: 100%; }
+.samaya-gantt-row { display: flex; height: 34px; border-bottom: 1px solid var(--background-modifier-border); }
+.samaya-gantt-hrow { height: 44px; position: sticky; top: 0; z-index: 4; background: var(--background-primary); }
+.samaya-gantt-name { flex: 0 0 200px; position: sticky; left: 0; z-index: 3; background: var(--background-primary); display: flex; align-items: center; gap: 6px; padding: 0 10px; border-right: 1px solid var(--background-modifier-border); overflow: hidden; }
+.samaya-gantt-hrow .samaya-gantt-name { z-index: 5; }
+.samaya-gantt-link { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.samaya-gantt-link:hover { color: var(--text-accent); }
+.samaya-gantt-count { margin-left: auto; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.samaya-gantt-track { position: relative; flex: none; background-image: linear-gradient(to right, var(--background-modifier-border) 1px, transparent 1px); background-size: calc(var(--day) * 7) 100%; }
+.samaya-gantt-hrow .samaya-gantt-track { background-image: none; }
+.samaya-gantt-month, .samaya-gantt-week { position: absolute; font-size: var(--font-ui-smaller); color: var(--text-muted); white-space: nowrap; overflow: hidden; padding-left: 4px; }
+.samaya-gantt-month { top: 4px; font-weight: 600; color: var(--text-normal); }
+.samaya-gantt-week { top: 24px; border-left: 1px solid var(--background-modifier-border); }
+.samaya-gantt-bar { position: absolute; top: 6px; height: 22px; border-radius: 5px; background: color-mix(in srgb, var(--interactive-accent) 35%, var(--background-primary)); border: 1px solid var(--interactive-accent); cursor: grab; overflow: hidden; touch-action: none; user-select: none; }
+.samaya-gantt-bar.is-done { opacity: 0.5; filter: grayscale(0.6); }
+.samaya-gantt-bar.is-dragging { cursor: grabbing; }
+.samaya-gantt-fill { position: absolute; inset: 0 auto 0 0; background: var(--interactive-accent); opacity: 0.55; pointer-events: none; }
+.samaya-gantt-label { position: relative; padding: 0 8px; line-height: 20px; font-size: var(--font-ui-smaller); color: var(--text-normal); white-space: nowrap; pointer-events: none; }
+.samaya-gantt-handle { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
+.samaya-gantt-handle.is-start { left: 0; } .samaya-gantt-handle.is-end { right: 0; }
+.samaya-gantt-nodates { padding: 0 12px; line-height: 34px; color: var(--text-faint); font-size: var(--font-ui-smaller); }
+.samaya-gantt-today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text-error); opacity: 0.6; pointer-events: none; z-index: 2; }

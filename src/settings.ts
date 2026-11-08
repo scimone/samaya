@@ -22,6 +22,8 @@ export interface SamayaSettings {
   /** journal module: write into the daily note, and which parts */
   journalOn: boolean; journalPlanned: boolean; journalObstacles: boolean; journalFinished: boolean; journalTomorrow: boolean;
   journalWorkTimes: boolean; journalBreaks: boolean; journalTracked: boolean;
+  /** projects module: folder of project notes and the base that shows them */
+  projectsOn: boolean; projectsPath: string; projectsBase: string;
 }
 export const DEFAULT_SETTINGS: SamayaSettings = {
   tasksPath: "[Tasks]/YYYY/MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", meetingsPath: "[Meetings]/YYYY/MM", journalSource: "auto", journalFolder: "[Journal]", journalFormat: "YYYY-MM-DD", plannerFile: "Planner/Planner.base", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
@@ -35,6 +37,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   calendarOn: false, jiraOn: false, gitlabOn: false,
   journalOn: false, journalPlanned: true, journalObstacles: true, journalFinished: true, journalTomorrow: true,
   journalWorkTimes: true, journalBreaks: true, journalTracked: true,
+  projectsOn: false, projectsPath: "Projects", projectsBase: "Projects/Projects.base",
 };
 
 /** Settings saved by older versions used plain folders; turn them into equivalent path patterns. */
@@ -322,6 +325,18 @@ export class SamayaSettingTab extends PluginSettingTab {
       label(b, "Daily note location");
       const dailyBox = b.createDiv(); // filled once we know which daily note sources exist
       void this.renderDailyNotes(dailyBox, changed);
+    }
+
+    {
+      const b = card("Projects", "Group tasks and tickets into projects, and plan them on a Gantt chart.", {
+        enabled: { get: () => s.projectsOn, set: v => { s.projectsOn = v; if (v) void this.plugin.scaffoldProjects(true); this.plugin.bus.emit(); } },
+        status: () => s.projectsPath.trim() ? ["On", "ok"] : ["Needs a folder", "warn"],
+      });
+      text(b, "Projects folder", "One note per project, with start, end and status properties.", () => s.projectsPath, v => (s.projectsPath = v.replace(/\/+$/, "") || "Projects"), { placeholder: "Projects", suggest: folders });
+      text(b, "Projects base file", "The base with the Gantt chart and the Add project button.", () => s.projectsBase, v => (s.projectsBase = v || "Projects/Projects.base"), { placeholder: "Projects/Projects.base" });
+      new Setting(b).setName("Create and open").setDesc("Create the folder and base if they are missing, then open the base.")
+        .addButton(bt => bt.setButtonText("Open projects").onClick(async () => { await this.plugin.openProjects(); }));
+      note(b, "Assign a task from its right-click menu in the planner, or any task or ticket note with the “Assign to a project” command. The link is stored in the samaya_project property.");
     }
 
     const secrets = "Tokens are stored unencrypted in this plugin's data.json inside the vault. Don't sync that file to places you don't trust.";

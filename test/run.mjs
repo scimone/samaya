@@ -5,7 +5,7 @@ await bundle("src/ics.ts", "test/.ics.mjs"); await bundle("src/util.ts", "test/.
 await bundle("src/worktime.ts", "test/.worktime.mjs");
 await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timeline.ts", "test/.timeline.mjs");
 await bundle("src/settings.ts", "test/.settings.mjs");
-await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
+await bundle("src/gantt.ts", "test/.gantt.mjs"); await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
 const { parseIcs } = await import("./.ics.mjs");
 const { parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify } = await import("./.util.mjs");
 const { fmtEstimate, taskLines, bulletLines, upsertSection, readSection, pickJournalSource: pick } = await import("./.journal.mjs");
@@ -91,6 +91,21 @@ assert.equal(wk.rows[1].delta, 8 * 60 + 30 - 55 - 480); assert.equal(wk.rows[2].
 assert.equal(wk.target, 2400); assert.equal(wk.balance, (8 * 60 + 30 - 55 - 480) + 0);
 assert.equal(W.totalBalance(logs, 40, 5), (8 * 60 + 30 - 55 - 480) + 0);
 assert.equal(W.fmtSigned(-18), "-0:18"); assert.equal(W.fmtSigned(75), "+1:15");
+
+// ---- gantt
+{
+  const { parseSpan, ganttRange, dragSpan, monthMarks, daysBetween } = await import("./.gantt.mjs");
+  assert.deepEqual(parseSpan("2026-11-02", "2026-11-09"), { start: "2026-11-02", end: "2026-11-09" });
+  assert.deepEqual(parseSpan("2026-11-02", undefined), { start: "2026-11-02", end: "2026-11-02" });
+  assert.deepEqual(parseSpan("2026-11-02", "2026-10-01"), { start: "2026-11-02", end: "2026-11-02" });
+  assert.equal(parseSpan("", "2026-11-09"), null);
+  const r = ganttRange([{ start: "2026-11-11", end: "2026-12-01" }], "2026-11-08");
+  assert.equal(r.from, "2026-10-26"); assert.equal(r.days % 7, 0); assert.ok(daysBetween(r.from, "2026-12-01") < r.days);
+  assert.deepEqual(dragSpan({ start: "2026-11-02", end: "2026-11-05" }, "move", 3), { start: "2026-11-05", end: "2026-11-08" });
+  assert.deepEqual(dragSpan({ start: "2026-11-02", end: "2026-11-05" }, "start", 9), { start: "2026-11-05", end: "2026-11-05" });
+  assert.deepEqual(dragSpan({ start: "2026-11-02", end: "2026-11-05" }, "end", -9), { start: "2026-11-02", end: "2026-11-02" });
+  const mm = monthMarks("2026-10-26", 14); assert.equal(mm.length, 2); assert.equal(mm[1].offset, 6); assert.equal(mm[0].span + mm[1].span, 14);
+}
 
 // ---- journal
 {

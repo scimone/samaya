@@ -2,7 +2,8 @@ import { App, Menu, TFile } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, addSubtask, assignTicket, patchTask, readSubtasks, readTicket, setDone, ticketPathOf, toggleSubtask } from "../model";
-import { TicketSuggestModal } from "../modals";
+import { ProjectSuggestModal, TicketSuggestModal } from "../modals";
+import { assignProject, projectPathOf } from "../projects";
 import { fmtHm, parseDuration, startOfWeek, today } from "../util";
 
 export interface CardOpts {
@@ -27,6 +28,10 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   if (tp) {
     const tf = app.vault.getAbstractFileByPath(tp);
     if (tf instanceof TFile) { const tk = readTicket(app, tf); meta.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}`, text: tk.key, attr: { title: tk.summary } }); }
+  }
+  if (plugin.settings.projectsOn) {
+    const pp = projectPathOf(app, t.file);
+    if (pp) meta.createSpan({ cls: "samaya-chip samaya-chip-project", text: pp.split("/").pop()!.replace(/\.md$/, "") });
   }
   if (t.channel) meta.createSpan({ cls: "samaya-chip samaya-chip-channel", text: t.channel });
   o.actions?.forEach(([label, fn]) => { const b = meta.createEl("button", { cls: "samaya-mini", text: label }); b.addEventListener("click", fn); });
@@ -60,6 +65,11 @@ export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent) {
   m.addItem(i => i.setTitle("Start focus").setIcon("timer").onClick(() => { void plugin.focus.start(t.file); }));
   m.addItem(i => i.setTitle(tp ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void assignTicket(app, t.file, tk); }).open()));
   if (tp) m.addItem(i => i.setTitle("Remove ticket").setIcon("unlink").onClick(() => { void assignTicket(app, t.file, null); }));
+  if (plugin.settings.projectsOn) {
+    const has = !!projectPathOf(app, t.file);
+    m.addItem(i => i.setTitle(has ? "Change project…" : "Assign project…").setIcon("folder-kanban").onClick(() => new ProjectSuggestModal(plugin, pr => { void assignProject(app, t.file, pr); }).open()));
+    if (has) m.addItem(i => i.setTitle("Remove project").setIcon("unlink").onClick(() => { void assignProject(app, t.file, null); }));
+  }
   m.addSeparator();
   m.addItem(i => i.setTitle("Plan for today").setIcon("sun").onClick(() => { void patchTask(app, t.file, { planned: today(), week: null }); }));
   m.addItem(i => i.setTitle("Plan for this week").setIcon("calendar-range").onClick(() => { void patchTask(app, t.file, { planned: null, start: null, week: startOfWeek(today()) }); }));

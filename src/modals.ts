@@ -1,5 +1,6 @@
 import { FuzzySuggestModal, Modal, Notice } from "obsidian";
 import type SamayaPlugin from "./main";
+import { Project, allProjects } from "./projects";
 import { Task, Ticket, allTasks, allTickets, patchTask, setDone, sortTasks } from "./model";
 import { journalWants, taskLines, toJournalTasks, writeSection } from "./journal";
 import { addDays, fmtDur, startOfWeek, today } from "./util";
@@ -22,6 +23,13 @@ export class TicketSuggestModal extends FuzzySuggestModal<Ticket | null> {
   getItems() { return allTickets(this.app, this.plugin.settings).filter(t => t.state !== "closed"); }
   getItemText(t: Ticket | null) { return t ? `${t.key}  ${t.summary}` : "(no ticket)"; }
   onChooseItem(t: Ticket | null) { this.choose(t); }
+}
+
+export class ProjectSuggestModal extends FuzzySuggestModal<Project> {
+  constructor(private plugin: SamayaPlugin, private choose: (p: Project) => void) { super(plugin.app); this.setPlaceholder("Assign to project…"); }
+  getItems() { return allProjects(this.app, this.plugin.settings).filter(p => !p.done); }
+  getItemText(p: Project) { return p.name; }
+  onChooseItem(p: Project) { this.choose(p); }
 }
 
 abstract class Stepper extends Modal {

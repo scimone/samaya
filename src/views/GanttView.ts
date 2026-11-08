@@ -27,7 +27,7 @@ export class GanttView extends BasesView {
 
   private render() {
     const s = this.plugin.settings; const dayW = Number(this.config.get("dayWidth")) || 22;
-    const projects: Project[] = this.data.data.map(e => readProject(this.app, e.file)).sort((a, b) => (a.span?.start ?? "9").localeCompare(b.span?.start ?? "9") || a.name.localeCompare(b.name));
+    const projects: Project[] = this.data.data.filter(e => e.file.extension === "md").map(e => readProject(this.app, e.file)).sort((a, b) => (a.span?.start ?? "9").localeCompare(b.span?.start ?? "9") || a.name.localeCompare(b.name));
     const stats = projectStats(this.app, prefixOf(s.tasksPath), prefixOf(s.ticketsPath));
     const prev = this.root.querySelector<HTMLElement>(".samaya-gantt-scroll");
     const keep = prev ? { x: prev.scrollLeft, y: prev.scrollTop } : null;

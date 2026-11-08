@@ -5,7 +5,7 @@ await bundle("src/ics.ts", "test/.ics.mjs"); await bundle("src/util.ts", "test/.
 await bundle("src/worktime.ts", "test/.worktime.mjs");
 await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timeline.ts", "test/.timeline.mjs");
 await bundle("src/settings.ts", "test/.settings.mjs");
-await bundle("src/gantt.ts", "test/.gantt.mjs"); await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
+await bundle("src/kanban.ts", "test/.kanban.mjs"); await bundle("src/gantt.ts", "test/.gantt.mjs"); await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
 const { parseIcs } = await import("./.ics.mjs");
 const { parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify } = await import("./.util.mjs");
 const { fmtEstimate, taskLines, bulletLines, upsertSection, readSection, pickJournalSource: pick } = await import("./.journal.mjs");
@@ -91,6 +91,15 @@ assert.equal(wk.rows[1].delta, 8 * 60 + 30 - 55 - 480); assert.equal(wk.rows[2].
 assert.equal(wk.target, 2400); assert.equal(wk.balance, (8 * 60 + 30 - 55 - 480) + 0);
 assert.equal(W.totalBalance(logs, 40, 5), (8 * 60 + 30 - 55 - 480) + 0);
 assert.equal(W.fmtSigned(-18), "-0:18"); assert.equal(W.fmtSigned(75), "+1:15");
+
+// ---- kanban
+{
+  const { orderStatuses, groupTickets } = await import("./.kanban.mjs");
+  assert.deepEqual(orderStatuses(["Done", "In Progress", "To Do", "Review", "Blocked"]), ["To Do", "Blocked", "In Progress", "Review", "Done"]);
+  const g = groupTickets([{ state: "Done", project: "B" }, { state: "To Do", project: "" }, { state: "To Do", project: "A" }, { state: "Done", project: "A" }]);
+  assert.deepEqual(g.columns, ["To Do", "Done"]); assert.deepEqual(g.lanes.map(l => l.project), ["A", "B", "No project"]);
+  assert.equal(g.lanes[0].cells.get("To Do").length, 1);
+}
 
 // ---- gantt
 {

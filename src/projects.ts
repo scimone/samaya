@@ -60,6 +60,7 @@ export async function createProject(app: App, s: SamayaSettings, name: string): 
 export const PROJECTS_BASE_TEMPLATE = (folder: string, ganttType: string) => `filters:
   and:
     - file.inFolder("${folder}")
+    - file.ext == "md"
 properties:
   note.start:
     displayName: Start

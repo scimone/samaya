@@ -11,6 +11,7 @@ import { syncMeetingNotes } from "./meetings";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
 import { ProjectSuggestModal, ShutdownModal, TextPromptModal, TicketSuggestModal } from "./modals";
 import { GANTT_VIEW_TYPE, GanttView } from "./views/GanttView";
+import { KANBAN_VIEW_TYPE, KanbanView } from "./views/KanbanView";
 import { PROJECTS_BASE_TEMPLATE, assignProject, createProject } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask } from "./model";
@@ -39,6 +40,23 @@ views:
     name: Weekly Board
   - type: ${WTL_VIEW_TYPE}
     name: Weekly Timeline
+`;
+
+const TICKETS_BASE_TEMPLATE = (folder: string) => `filters:
+  and:
+    - file.inFolder("${folder}")
+    - file.ext == "md"
+views:
+  - type: ${KANBAN_VIEW_TYPE}
+    name: Board
+  - type: table
+    name: All tickets
+    order:
+      - file.name
+      - title
+      - status
+      - project
+      - assignee
 `;
 
 const TASKS_BASE_TEMPLATE = (folder: string) => `filters:
@@ -137,7 +155,10 @@ export default class SamayaPlugin extends Plugin {
     const e = ok(GANTT_VIEW_TYPE, "Gantt", "lucide-gantt-chart",
       (ct, el) => new GanttView(ct, el, this),
       () => [{ type: "slider", key: "dayWidth", displayName: "Day width (px)", min: 8, max: 48, step: 2, default: 22 }]);
-    if (!a || !b || !c || !d || !e) new Notice("Samaya: could not register Bases views. Enable the core Bases plugin and use Obsidian 1.10+.");
+    const f = ok(KANBAN_VIEW_TYPE, "Ticket board", "lucide-kanban",
+      (ct, el) => new KanbanView(ct, el, this),
+      () => [{ type: "toggle", key: "hideDone", displayName: "Hide done / closed tickets", default: false }]);
+    if (!a || !b || !c || !d || !e || !f) new Notice("Samaya: could not register Bases views. Enable the core Bases plugin and use Obsidian 1.10+.");
 
     this.addRibbonIcon("calendar-clock", "Open Samaya planner", () => { void this.openPlanner(); });
     this.focus.init(this.addStatusBarItem(), this.data.focus ?? null);
@@ -173,6 +194,11 @@ export default class SamayaPlugin extends Plugin {
     this.addCommand({ id: "new-project", name: "New project", checkCallback: c => {
       if (!this.settings.projectsOn) return false;
       if (!c) new TextPromptModal(this, "New project name", n => { void createProject(this.app, this.settings, n).then(() => this.bus.emit()); }).open();
+      return true;
+    } });
+    this.addCommand({ id: "open-tickets", name: "Open ticket board", checkCallback: c => {
+      if (!this.settings.jiraOn && !this.settings.gitlabOn) return false;
+      if (!c) void this.scaffoldTickets(false).then(() => { const r = rootOf(this.settings.ticketsPath); const f = this.app.vault.getAbstractFileByPath(normalizePath(r === "/" ? "Tickets.base" : `${r}/Tickets.base`)); if (f instanceof TFile) return this.app.workspace.getLeaf("tab").openFile(f); });
       return true;
     } });
     this.addCommand({ id: "open-projects", name: "Open projects", checkCallback: c => { if (!this.settings.projectsOn) return false; if (!c) void this.openProjects(); return true; } });
@@ -267,6 +293,15 @@ export default class SamayaPlugin extends Plugin {
     await this.app.vault.create(bp, PROJECTS_BASE_TEMPLATE(folder, GANTT_VIEW_TYPE));
     if (announce) new Notice("Created " + bp);
   }
+  /** Tickets/Tickets.base: a kanban board of the imported tickets (only while Jira or GitLab is on). */
+  async scaffoldTickets(announce: boolean) {
+    if (!this.settings.jiraOn && !this.settings.gitlabOn) return;
+    const folder = rootOf(this.settings.ticketsPath);
+    if (folder !== "/") await ensureFolder(this.app, folder);
+    const bp = normalizePath(folder === "/" ? "Tickets.base" : `${folder}/Tickets.base`);
+    if (this.app.vault.getAbstractFileByPath(bp)) { if (announce) new Notice("Tickets base already exists."); return; }
+    await this.app.vault.create(bp, TICKETS_BASE_TEMPLATE(folder)); if (announce) new Notice("Created " + bp);
+  }
   async openProjects() {
     await this.scaffoldProjects(false);
     const f = this.app.vault.getAbstractFileByPath(normalizePath(this.settings.projectsBase.trim() || "Projects/Projects.base"));
@@ -274,7 +309,7 @@ export default class SamayaPlugin extends Plugin {
   }
 
   async scaffold(announce: boolean) {
-    await this.scaffoldProjects(announce);
+    await this.scaffoldProjects(announce); await this.scaffoldTickets(announce);
     const folder = rootOf(this.settings.tasksPath);
     if (folder !== "/") await ensureFolder(this.app, folder);
     // Daily notes follow the core plugin; only seed its config when it has none

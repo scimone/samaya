@@ -345,7 +345,7 @@ export class SamayaSettingTab extends PluginSettingTab {
 
     {
       const b = card("Jira", "Import the issues assigned to you as ticket notes.", {
-        enabled: { get: () => s.jiraOn, set: v => { s.jiraOn = v; } },
+        enabled: { get: () => s.jiraOn, set: v => { s.jiraOn = v; if (v) void this.plugin.scaffoldTickets(false); } },
         status: () => (s.jiraUrl && s.jiraToken && (s.jiraFlavor === "server" || s.jiraEmail)) ? ["Configured", "ok"] : ["Needs setup", "warn"],
       });
       label(b, "Connection");
@@ -364,7 +364,7 @@ export class SamayaSettingTab extends PluginSettingTab {
 
     {
       const b = card("GitLab", "Import GitLab issues as ticket notes.", {
-        enabled: { get: () => s.gitlabOn, set: v => { s.gitlabOn = v; } },
+        enabled: { get: () => s.gitlabOn, set: v => { s.gitlabOn = v; if (v) void this.plugin.scaffoldTickets(false); } },
         status: () => (s.gitlabUrl && s.gitlabToken) ? ["Configured", "ok"] : ["Needs setup", "warn"],
       });
       label(b, "Connection");
@@ -378,6 +378,7 @@ export class SamayaSettingTab extends PluginSettingTab {
 
     {
       const b = card("Tickets", "Ticket notes imported from Jira and GitLab. Both share these settings. Appears when either is on.", { activeWhen: () => s.jiraOn || s.gitlabOn });
+      note(b, "A kanban board of all tickets (columns: status, rows: Jira / GitLab project) lives in Tickets.base inside the tickets folder.");
       label(b, "Notes & templates");
       pathText(b, "Tickets path", "Where ticket notes are stored.", "ticketsPath", `May contain ticket variables (${vars(TICKET_VARIABLES)}), e.g. [Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}} ({{TICKET_SOURCE}} is JIRA or GITLAB). With {{TICKET_STATUS}}, notes move when the ticket's status changes.`);
       const fn = new Setting(b).setName("Ticket file name").setDesc("Ticket variables in double braces, plus {{TICKET_TITLE_SLUG}} (the title as a slug). Leave out “.md”.");

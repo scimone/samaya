@@ -392,5 +392,8 @@ body { --samaya-green: #2fa862; }
 .samaya-pathresult-dir { color: var(--text-muted); }
 .samaya-pathresult-file { color: var(--text-accent); font-weight: var(--font-semibold); }
 
-.samaya-col-cap { display: flex; justify-content: space-between; gap: 6px; font-size: var(--font-ui-smaller); color: var(--text-muted); font-variant-numeric: tabular-nums; margin: -2px 0 6px; padding-bottom: 4px; border-bottom: 1px solid var(--background-modifier-border); }
+.samaya-col-cap { font-size: var(--font-ui-smaller); font-weight: 400; color: var(--text-faint); font-variant-numeric: tabular-nums; }
 .samaya-col-cap.is-over { color: var(--text-error); }
+.samaya-col-bar { height: 4px; border-radius: 2px; background: var(--background-modifier-border); overflow: hidden; margin-bottom: 6px; order: -1; }
+.samaya-col-bar-fill { height: 100%; background: var(--samaya-green, #2fa862); }
+.samaya-col-bar.is-over .samaya-col-bar-fill { background: var(--text-error); }

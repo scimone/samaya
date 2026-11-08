@@ -68,8 +68,9 @@ export class WeeklyBoardView extends BasesView {
     const h = col.createDiv("samaya-col-head");
     h.createSpan({ cls: "samaya-col-title", text: title });
     const planned = tasks.reduce((a, t) => a + (t.estimate || 0), 0);
-    const sum = col.createDiv({ cls: "samaya-col-cap" + (planned > cap.free ? " is-over" : "") });
-    sum.createSpan({ text: `${fmtDur(planned)} planned` }); sum.createSpan({ text: `${fmtDur(cap.free)} free` });
+    const bar = col.createDiv({ cls: "samaya-col-bar" + (planned > cap.free ? " is-over" : "") });
+    bar.createDiv("samaya-col-bar-fill").style.width = `${planned > cap.free || cap.free <= 0 ? (planned > 0 ? 100 : 0) : (planned / cap.free) * 100}%`;
+    const sum = h.createSpan({ cls: "samaya-col-cap" + (planned > cap.free ? " is-over" : ""), text: `${fmtDur(planned)}/${fmtDur(cap.free)}` });
     sum.title = `Free to plan = ${fmtDur(cap.total)} work time - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`;
     const body = col.createDiv("samaya-col-body");
     tasks.forEach((t, idx) => {

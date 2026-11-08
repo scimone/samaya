@@ -26,28 +26,17 @@ export class JournalCalendarView extends ItemView {
   }
   async onClose() { window.clearTimeout(this.timer); }
 
-  /** Open in the main area: reuse a tab already showing the file, else the first note tab, else a new tab. */
-  private async showInMain(file: TFile) {
-    let same: WorkspaceLeaf | null = null, note: WorkspaceLeaf | null = null;
-    this.app.workspace.iterateRootLeaves(l => {
-      if ((l.view as { file?: TFile }).file?.path === file.path) same = l;
-      else if (!note && l.view.getViewType() === "markdown") note = l;
-    });
-    const leaf: WorkspaceLeaf = same ?? note ?? this.app.workspace.getLeaf("tab");
-    if (!same) await leaf.openFile(file);
-    await this.app.workspace.revealLeaf(leaf);
-  }
   private async openPeriod(p: Period, date: string) {
     const s = this.plugin.settings;
     const k = p === "daily" ? null : p; // the periodic kind, if any
     const off = !!k && !s.journalNotes[k].on; // this kind of note is not switched on yet: offer to do so
     const cfg = k && off ? { ...s, journalNotes: { ...s.journalNotes, [k]: { ...s.journalNotes[k], on: true } } } : s;
     const hit = await periodNotePath(this.app, cfg, p, date); if (!hit) return;
-    if (hit.file) { await this.showInMain(hit.file); return; }
+    if (hit.file) { await this.plugin.openNoteInMain(hit.file); return; }
     new ConfirmCreateModal(this.plugin, hit.path, () => {
       void (async () => {
         if (k && off) { s.journalNotes[k].on = true; await this.plugin.saveSettings(); this.plugin.bus.emit(); }
-        const f = await openPeriodNote(this.app, s, p, date); if (f) await this.showInMain(f);
+        const f = await openPeriodNote(this.app, s, p, date); if (f) await this.plugin.openNoteInMain(f);
       })();
     }, off ? `${p[0].toUpperCase() + p.slice(1)} notes are switched off. Creating this note switches them on (see the Journal settings).` : "").open();
   }

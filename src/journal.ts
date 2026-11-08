@@ -2,7 +2,8 @@
 import { App, TFile, normalizePath } from "obsidian";
 import type { SamayaSettings } from "./settings";
 import { renderPath, renderTemplate } from "./taskbody";
-import { Task, ensureFolder, loadTemplate, momentFmt, readSubtasks } from "./model";
+import { Task, ensureFolder, loadTemplate, momentFmt, readSubtasks, rootOf } from "./model";
+import { today } from "./util";
 
 export type JournalPart = "journalPlanned" | "journalObstacles" | "journalFinished" | "journalTomorrow" | "journalWorkTimes" | "journalBreaks" | "journalTracked";
 /** Whether the journal module is on and the given part of it is enabled. */
@@ -123,6 +124,22 @@ export async function periodNotePath(app: App, s: SamayaSettings, p: Period, dat
   const loc = await periodLocation(app, s, p); if (!loc) return null;
   const path = journalPathFor(loc, date); const f = app.vault.getAbstractFileByPath(path);
   return { path, file: f instanceof TFile ? f : null };
+}
+/** The item with the latest date that is not after `limit` (YYYY-MM-DD). Pure. */
+export function latestOnOrBefore<T extends { date: string }>(items: T[], limit: string): T | null {
+  return items.filter(i => i.date <= limit).sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
+}
+/** The most recent existing note of a kind up to today, found by parsing file names with the configured format. */
+export async function findLatestPeriodNote(app: App, s: SamayaSettings, p: Period): Promise<TFile | null> {
+  const loc = await periodLocation(app, s, p); if (!loc) return null;
+  const root = loc.pattern ? rootOf(loc.folder) : normalizePath(loc.folder || "/"); const prefix = root === "/" ? "" : root + "/";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const moment = (window as any).moment; const items: Array<{ file: TFile; date: string }> = [];
+  for (const f of app.vault.getMarkdownFiles()) {
+    if (!f.path.startsWith(prefix)) continue;
+    const m = moment(f.basename, loc.format, true); if (m.isValid()) items.push({ file: f, date: m.format("YYYY-MM-DD") });
+  }
+  return latestOnOrBefore(items, today())?.file ?? null;
 }
 /** The note of a period containing `date`, created (from the configured template) when missing. */
 export async function openPeriodNote(app: App, s: SamayaSettings, p: Period, date: string): Promise<TFile | null> {

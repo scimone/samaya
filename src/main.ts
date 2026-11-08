@@ -9,12 +9,12 @@ import { BACKLOG_VIEW_TYPE, BacklogView } from "./views/BacklogView";
 import { syncTickets } from "./sync";
 import { syncMeetingNotes } from "./meetings";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
-import { ProjectSuggestModal, ShutdownModal, TextPromptModal, TicketSuggestModal } from "./modals";
+import { ConfirmCreateModal, ProjectSuggestModal, ShutdownModal, TextPromptModal, TicketSuggestModal } from "./modals";
 import { GANTT_VIEW_TYPE, GanttView } from "./views/GanttView";
 import { KANBAN_VIEW_TYPE, KanbanView } from "./views/KanbanView";
 import { JOURNAL_CAL_TYPE, JournalCalendarView } from "./views/JournalCalendarView";
 import { JOURNAL_BASE_VIEW_TYPE, JournalBaseView } from "./views/JournalBaseView";
-import { journalLocation } from "./journal";
+import { findLatestPeriodNote, journalLocation, openPeriodNote, periodNotePath } from "./journal";
 import { PROJECTS_BASE_TEMPLATE, assignProject, createProject } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask } from "./model";
@@ -335,6 +335,26 @@ export default class SamayaPlugin extends Plugin {
     if (this.app.vault.getAbstractFileByPath(bp)) { if (announce) new Notice("Journal base already exists."); return; }
     await ensureFolder(this.app, "Journal");
     await this.app.vault.create(bp, JOURNAL_BASE_TEMPLATE(root === "/" ? "Journal" : root)); if (announce) new Notice("Created " + bp);
+  }
+  /** Open a note in the main area: reuse a tab already showing it, else the first note tab, else a new tab. */
+  async openNoteInMain(file: TFile) {
+    let same: import("obsidian").WorkspaceLeaf | null = null, note: import("obsidian").WorkspaceLeaf | null = null;
+    this.app.workspace.iterateRootLeaves(l => {
+      if ((l.view as { file?: TFile }).file?.path === file.path) same = l;
+      else if (!note && l.view.getViewType() === "markdown") note = l;
+    });
+    const leaf = same ?? note ?? this.app.workspace.getLeaf("tab");
+    if (!same) await (leaf as import("obsidian").WorkspaceLeaf).openFile(file);
+    await this.app.workspace.revealLeaf(leaf as import("obsidian").WorkspaceLeaf);
+  }
+  /** When the Journal base opens: the calendar, plus today's daily note, else the latest daily, else the latest weekly note, else ask to create today's. */
+  async openJournalDefault() {
+    const s = this.settings; if (!s.journalOn) return;
+    await this.openJournalCalendar();
+    const daily = await periodNotePath(this.app, s, "daily", today()); if (!daily) return;
+    const file = daily.file ?? await findLatestPeriodNote(this.app, s, "daily") ?? await findLatestPeriodNote(this.app, s, "weekly");
+    if (file) { await this.openNoteInMain(file); return; }
+    new ConfirmCreateModal(this, daily.path, () => { void openPeriodNote(this.app, s, "daily", today()).then(f => { if (f) return this.openNoteInMain(f); }); }, "No daily or weekly notes exist yet.").open();
   }
   async openJournalCalendar() {
     const ws = this.app.workspace; let leaf = ws.getLeavesOfType(JOURNAL_CAL_TYPE)[0];

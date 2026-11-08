@@ -125,9 +125,12 @@ export default class SamayaPlugin extends Plugin {
     } });
     this.addCommand({ id: "focus-show", name: "Show focus timer", callback: () => { void this.focus.openView(); } });
     this.addCommand({ id: "convert-checkbox", name: "Convert checkbox line to task note", editorCallback: (ed, v) => this.convertCheckbox(ed, v as MarkdownView) });
-    this.addCommand({ id: "sync-tickets", name: "Sync Jira and GitLab tickets", callback: () => this.syncTickets() });
-    this.addCommand({ id: "sync-jira", name: "Sync Jira tickets", callback: () => this.syncTickets("jira") });
-    this.addCommand({ id: "sync-gitlab", name: "Sync GitLab issues", callback: () => this.syncTickets("gitlab") });
+    // sync commands only show while their module is switched on
+    const gated = (id: string, name: string, on: () => boolean, only?: "jira" | "gitlab") =>
+      this.addCommand({ id, name, checkCallback: c => { if (!on()) return false; if (!c) void this.syncTickets(only); return true; } });
+    gated("sync-tickets", "Sync Jira and GitLab tickets", () => this.settings.jiraOn || this.settings.gitlabOn);
+    gated("sync-jira", "Sync Jira tickets", () => this.settings.jiraOn, "jira");
+    gated("sync-gitlab", "Sync GitLab issues", () => this.settings.gitlabOn, "gitlab");
     this.addCommand({ id: "new-ticket", name: "New manual ticket", callback: () => new TextPromptModal(this, "New ticket (key and summary, e.g. “OPS-12 Fix deploy”)", v => {
       const [key, ...rest] = v.split(/\s+/); void createManualTicket(this.app, this.settings, key, rest.join(" "));
     }).open() });
@@ -142,7 +145,7 @@ export default class SamayaPlugin extends Plugin {
     this.app.workspace.onLayoutReady(async () => {
       this.scanLunch();
       await this.scaffold(false);
-      if (this.settings.syncOnStartup) void this.syncTickets();
+      if (this.settings.syncOnStartup && (this.settings.jiraOn || this.settings.gitlabOn)) void this.syncTickets();
       if (this.settings.openOnStartup) await this.openPlanner();
       this.registerInterval(window.setInterval(() => this.shutdownNudge(), 60000));
     });

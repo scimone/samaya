@@ -43,7 +43,7 @@ export class BacklogView extends BasesView {
     head.createEl("h2", { text: "Backlog" });
     const search = head.createEl("input", { type: "search", cls: "samaya-search", attr: { placeholder: "Filter…" } }); search.value = this.filter;
     search.addEventListener("input", () => { this.filter = search.value; this.render(); });
-    head.createEl("button", { text: "Sync tickets" }).onclick = () => { void this.plugin.syncTickets(); };
+    if (s.jiraOn || s.gitlabOn) head.createEl("button", { text: "Sync tickets" }).onclick = () => { void this.plugin.syncTickets(); };
     head.createEl("button", { text: "+ Ticket" }).onclick = () => new TextPromptModal(this.plugin, "New ticket (key and summary, e.g. “OPS-12 Fix deploy”)", v => {
       const [key, ...rest] = v.split(/\s+/); void createManualTicket(app, s, key, rest.join(" "));
     }).open();

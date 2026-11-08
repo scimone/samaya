@@ -4,6 +4,7 @@ const bundle = async (entry, out) => esbuild.build({ entryPoints: [entry], bundl
 await bundle("src/ics.ts", "test/.ics.mjs"); await bundle("src/util.ts", "test/.util.mjs");
 await bundle("src/worktime.ts", "test/.worktime.mjs");
 await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timeline.ts", "test/.timeline.mjs");
+await bundle("src/settings.ts", "test/.settings.mjs");
 await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
 const { parseIcs } = await import("./.ics.mjs");
 const { parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify } = await import("./.util.mjs");
@@ -148,3 +149,14 @@ assert.equal(eventFromNote({ start: "10:00", end: "11:00" }, {}, "x"), null); //
 const e2 = eventFromNote({ date: "2026-11-10", title: "T", start: "23:00", end: "01:00" }, {}, "x"); assert.equal((e2.end - e2.start) / 60000, 120);
 assert.ok(eventFromNote({ allday: true }, { date: "2026-11-09", title: "Off" }, "x").allDay);
 console.log("all tests passed");
+
+// ---- settings migration: optional modules that were already set up stay on
+{
+  const { migrateSettings, DEFAULT_SETTINGS } = await import("./.settings.mjs");
+  assert.equal(DEFAULT_SETTINGS.jiraOn, false);
+  const m = migrateSettings({ jiraUrl: "https://x.atlassian.net", jiraToken: "t", gitlabToken: "", icsUrls: ["https://c/ics"] });
+  assert.deepEqual([m.jiraOn, m.gitlabOn, m.calendarOn], [true, false, true]);
+  assert.equal(migrateSettings({ calendarSource: "notes", eventNotesFolder: "Meetings" }).calendarOn, true);
+  assert.equal(migrateSettings({}).calendarOn, false);
+  assert.equal(migrateSettings({ jiraOn: false, jiraUrl: "u", jiraToken: "t" }).jiraOn, false); // explicit choice wins
+}

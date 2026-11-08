@@ -350,3 +350,28 @@ body { --samaya-green: #2fa862; }
 .samaya-day-nav { padding: 2px; height: auto; flex: none; }
 .samaya-today-title .samaya-mini { margin-left: auto; }
 .samaya-subs { margin-left: 18px; }
+
+/* ---- settings tab: modules */
+.samaya-settings .samaya-section { margin-top: 28px; }
+.samaya-settings .samaya-section:first-child { margin-top: 0; }
+.samaya-mod { border: 1px solid var(--background-modifier-border); border-radius: var(--radius-l); background: var(--background-primary-alt); margin-top: 12px; padding: 0 16px; transition: opacity .2s; }
+.samaya-mod-head.setting-item { border-top: 0; padding: 14px 0; }
+.samaya-mod-head .setting-item-name { display: flex; align-items: center; gap: 8px; font-weight: var(--font-semibold); font-size: var(--font-ui-medium); }
+.samaya-mod-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .25s ease; }
+.samaya-mod-inner { overflow: hidden; min-height: 0; padding-bottom: 8px; }
+.samaya-mod.is-off { background: transparent; }
+.samaya-mod.is-off .samaya-mod-body { grid-template-rows: 0fr; }
+.samaya-mod.is-off .samaya-mod-inner { padding-bottom: 0; visibility: hidden; transition: visibility 0s .25s; }
+.samaya-mod.is-off .samaya-mod-head .setting-item-name { color: var(--text-muted); }
+.samaya-group-label { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--background-modifier-border); font-size: var(--font-ui-smaller); font-weight: var(--font-semibold); letter-spacing: .05em; text-transform: uppercase; color: var(--text-faint); }
+.samaya-mod-inner > .samaya-group-label:first-child { margin-top: 0; }
+.samaya-mod-inner .setting-item { border-top: 0; padding: 10px 0; }
+.samaya-pill { font-size: var(--font-ui-smaller); font-weight: var(--font-normal); padding: 1px 8px; border-radius: 999px; background: var(--background-modifier-border); color: var(--text-muted); }
+.samaya-pill.is-ok { background: rgba(var(--color-green-rgb), .18); color: var(--color-green); }
+.samaya-pill.is-warn { background: rgba(var(--color-orange-rgb), .18); color: var(--color-orange); }
+.samaya-note { margin: 4px 0 8px; padding: 8px 10px; border-radius: var(--radius-s); background: var(--background-secondary); color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.samaya-path-preview { margin-top: 4px; font-family: var(--font-monospace); font-size: var(--font-ui-smaller); color: var(--text-accent); }
+.samaya-settings input.is-invalid { border-color: var(--text-error); }
+.samaya-settings input.samaya-num { width: 90px; text-align: right; }
+.samaya-settings textarea.samaya-wide { width: 100%; min-width: 260px; }
+@media (prefers-reduced-motion: reduce) { .samaya-mod-body { transition: none; } }

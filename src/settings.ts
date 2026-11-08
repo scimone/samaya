@@ -1,4 +1,4 @@
-import { App, Notice, PluginSettingTab, Setting } from "obsidian";
+import { AbstractInputSuggest, App, PluginSettingTab, Setting } from "obsidian";
 import type SamayaPlugin from "./main";
 import { ticketFolderFor, folderFor } from "./model";
 import { TICKET_VARIABLES, renderTicketFileName, TicketVars } from "./taskbody";
@@ -15,6 +15,8 @@ export interface SamayaSettings {
   gitlabUrl: string; gitlabToken: string; gitlabScope: "assigned_to_me" | "created_by_me" | "all";
   syncOnStartup: boolean;
   lunchStart: string; lunchEnd: string; weeklyHours: number; workDays: number; autoLunch: boolean;
+  /** optional modules; off by default for new installs */
+  calendarOn: boolean; jiraOn: boolean; gitlabOn: boolean;
 }
 export const DEFAULT_SETTINGS: SamayaSettings = {
   tasksPath: "[Tasks]/YYYY/MM", ticketsPath: "[Tickets]", meetingsPath: "[Meetings]/YYYY/MM", journalFolder: "Journal", plannerFile: "Planner.base", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TASK_ID}}_{{TASK_TITLE_SLUG}}",
@@ -25,6 +27,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   jiraJql: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
   gitlabUrl: "https://gitlab.com", gitlabToken: "", gitlabScope: "assigned_to_me", syncOnStartup: false,
   lunchStart: "12:00", lunchEnd: "13:00", weeklyHours: 40, workDays: 5, autoLunch: true,
+  calendarOn: false, jiraOn: false, gitlabOn: false,
 };
 
 /** Settings saved by older versions used plain folders; turn them into equivalent path patterns. */
@@ -34,92 +37,241 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<SamayaS
   if (o.tasksFolder != null && o.tasksPath == null) o.tasksPath = lit(o.tasksFolder) + "/YYYY/MM";
   if (o.ticketsFolder != null && o.ticketsPath == null) o.ticketsPath = lit(o.ticketsFolder);
   if (o.meetingsFolder != null && o.meetingsPath == null) o.meetingsPath = lit(o.meetingsFolder) + "/YYYY/MM";
+  // optional modules were implicit before: keep the ones that were already set up
+  if (o.calendarOn == null) o.calendarOn = (o.calendarSource === "notes" && !!o.eventNotesFolder) || (Array.isArray(o.icsUrls) && o.icsUrls.length > 0);
+  if (o.jiraOn == null) o.jiraOn = !!(o.jiraUrl && o.jiraToken);
+  if (o.gitlabOn == null) o.gitlabOn = !!o.gitlabToken;
   delete o.tasksFolder; delete o.ticketsFolder; delete o.meetingsFolder;
   return o as Partial<SamayaSettings>;
 }
 
 const SAMPLE_TICKET: TicketVars = { id: "OPS-12", title: "Fix the deploy pipeline", type: "Bug", status: "In Progress", assignedTo: "Ada", url: "", description: "", source: "Jira", project: "OPS" };
+const HM = /^\d{1,2}:\d{2}$/;
+const vars = (names: string) => names.split(", ").map(v => `{{${v}}}`).join(" ");
+
+/** Autocomplete for a text input: pick from a list of vault paths. */
+class PathSuggest extends AbstractInputSuggest<string> {
+  constructor(app: App, private el: HTMLInputElement, private list: () => string[]) { super(app, el); }
+  getSuggestions(q: string) { const l = q.toLowerCase(); return this.list().filter(p => p.toLowerCase().includes(l)).slice(0, 50); }
+  renderSuggestion(v: string, el: HTMLElement) { el.setText(v); }
+  selectSuggestion(v: string) { this.el.value = v; this.el.dispatchEvent(new Event("input")); this.close(); }
+}
+
+type Pill = [text: string, kind: "ok" | "warn" | "off"];
+interface CardOpts { enabled?: { get: () => boolean; set: (v: boolean) => void | Promise<void> }; status?: () => Pill }
 
 export class SamayaSettingTab extends PluginSettingTab {
   constructor(app: App, private plugin: SamayaPlugin) { super(app, plugin); }
+
   display(): void {
-    const { containerEl: c } = this; c.empty();
+    const { containerEl: c } = this; c.empty(); c.addClass("samaya-settings");
     const s = this.plugin.settings;
     const save = async () => { await this.plugin.saveSettings(); };
-    const text = (name: string, desc: string, get: () => string, set: (v: string) => void, secret = false) =>
-      new Setting(c).setName(name).setDesc(desc).addText(t => { t.setValue(get()).onChange(async v => { set(v.trim()); await save(); }); if (secret) t.inputEl.type = "password"; });
-    const num = (name: string, desc: string, get: () => number, set: (v: number) => void) =>
-      new Setting(c).setName(name).setDesc(desc).addText(t => t.setValue(String(get())).onChange(async v => { const n = Number(v); if (!isNaN(n) && n > 0) { set(n); await save(); } }));
+    const refreshers: Array<() => void> = []; // status pills etc., re-run after any change
+    const changed = async () => { await save(); refreshers.forEach(f => f()); };
 
-    new Setting(c).setName("Folders").setHeading();
-    const pathText = (name: string, desc: string, key: "tasksPath" | "ticketsPath" | "meetingsPath") => {
-      const st = new Setting(c).setName(name);
+    // ---- building blocks
+    const label = (el: HTMLElement, text: string) => el.createDiv({ cls: "samaya-group-label", text });
+    const note = (el: HTMLElement, text: string, cls = "") => el.createDiv({ cls: "samaya-note " + cls, text });
+
+    /** One module: a header (with an on/off switch when optional) and a body that folds away while it is off. */
+    const card = (title: string, desc: string, opts: CardOpts = {}) => {
+      const el = c.createDiv("samaya-mod");
+      const head = new Setting(el).setName(title).setDesc(desc);
+      head.settingEl.addClass("samaya-mod-head");
+      const pill = opts.status ? head.nameEl.createSpan("samaya-pill") : null;
+      const inner = el.createDiv("samaya-mod-body").createDiv("samaya-mod-inner");
+      const sync = () => {
+        const on = opts.enabled ? opts.enabled.get() : true;
+        el.toggleClass("is-off", !on); inner.parentElement?.toggleAttribute("inert", !on);
+        if (pill && opts.status) { const [t, k] = on ? opts.status() : ["Off", "off" as const]; pill.setText(t); pill.className = "samaya-pill is-" + k; }
+      };
+      if (opts.enabled) head.addToggle(t => { t.setValue(opts.enabled!.get()).setTooltip("Enable " + title).onChange(async v => { await opts.enabled!.set(v); await changed(); }); });
+      refreshers.push(sync); sync();
+      return inner;
+    };
+
+    const text = (el: HTMLElement, name: string, desc: string, get: () => string, set: (v: string) => void, o: { secret?: boolean; placeholder?: string; time?: boolean; suggest?: () => string[]; after?: () => void } = {}) => {
+      const st = new Setting(el).setName(name).setDesc(desc);
+      st.addText(t => {
+        t.setValue(get()).setPlaceholder(o.placeholder ?? "");
+        if (o.time) t.inputEl.type = "time";
+        t.onChange(async v => {
+          v = v.trim();
+          if (o.time && !HM.test(v)) { t.inputEl.addClass("is-invalid"); return; }
+          t.inputEl.removeClass("is-invalid"); set(v); await changed(); o.after?.();
+        });
+        if (o.secret) {
+          t.inputEl.type = "password"; t.inputEl.autocomplete = "off";
+          st.addExtraButton(b => b.setIcon("eye").setTooltip("Show / hide").onClick(() => {
+            const show = t.inputEl.type === "password"; t.inputEl.type = show ? "text" : "password"; b.setIcon(show ? "eye-off" : "eye");
+          }));
+        }
+        if (o.suggest) new PathSuggest(this.app, t.inputEl, o.suggest);
+      });
+      return st;
+    };
+
+    const num = (el: HTMLElement, name: string, desc: string, get: () => number, set: (v: number) => void, o: { min?: number; max?: number; step?: number; int?: boolean } = {}) =>
+      new Setting(el).setName(name).setDesc(desc).addText(t => {
+        t.inputEl.type = "number"; t.inputEl.addClass("samaya-num");
+        if (o.min != null) t.inputEl.min = String(o.min); if (o.max != null) t.inputEl.max = String(o.max); t.inputEl.step = String(o.step ?? (o.int ? 1 : "any"));
+        t.setValue(String(get())).onChange(async v => {
+          const n = Number(v);
+          const bad = !!(v.trim() === "" || isNaN(n) || (o.min != null && n < o.min) || (o.max != null && n > o.max) || (o.int && !Number.isInteger(n)));
+          t.inputEl.toggleClass("is-invalid", bad); if (bad) return;
+          set(n); await changed();
+        });
+      });
+
+    const toggle = (el: HTMLElement, name: string, desc: string, get: () => boolean, set: (v: boolean) => void) =>
+      new Setting(el).setName(name).setDesc(desc).addToggle(t => t.setValue(get()).onChange(async v => { set(v); await changed(); }));
+
+    const dropdown = <T extends string>(el: HTMLElement, name: string, desc: string, opts: Record<T, string>, get: () => T, set: (v: T) => void | Promise<void>) =>
+      new Setting(el).setName(name).setDesc(desc).addDropdown(d => { for (const k in opts) d.addOption(k, opts[k]); d.setValue(get()).onChange(async v => { await set(v as T); await changed(); }); });
+
+    /** A path pattern with a live "Today: ..." preview. */
+    const pathText = (el: HTMLElement, name: string, desc: string, key: "tasksPath" | "ticketsPath" | "meetingsPath", extra = "") => {
+      const st = new Setting(el).setName(name);
       st.descEl.appendText(desc + " Date parts use moment.js format; put literal text in [brackets], e.g. [Meetings]/YYYY/YYYY-MM. ");
-      st.descEl.createEl("a", { text: "Syntax Reference", href: "https://momentjs.com/docs/#/displaying/format" });
+      st.descEl.createEl("a", { text: "Syntax reference", href: "https://momentjs.com/docs/#/displaying/format" });
+      if (extra) st.descEl.createDiv({ text: extra });
       const preview = st.descEl.createDiv({ cls: "samaya-path-preview" });
-      const show = () => { preview.setText("Today: " + ((key === "ticketsPath" ? ticketFolderFor(s, SAMPLE_TICKET, new Date()) : folderFor(s[key], new Date())) || "(vault root)")); };
-      st.addText(t => { t.setValue(s[key]).onChange(async v => { s[key] = v.trim() || DEFAULT_SETTINGS[key]; await save(); show(); }); });
+      const show = () => preview.setText("Today: " + ((key === "ticketsPath" ? ticketFolderFor(s, SAMPLE_TICKET, new Date()) : folderFor(s[key], new Date())) || "(vault root)"));
+      st.addText(t => t.setValue(s[key]).onChange(async v => { s[key] = v.trim() || DEFAULT_SETTINGS[key]; await changed(); show(); }));
       show();
     };
-    pathText("Tasks path", "Folder for task notes (one note per task).", "tasksPath");
-    pathText("Tickets path", `Folder for imported Jira / GitLab ticket notes. May contain ticket variables in double braces (${TICKET_VARIABLES.split(", ").map(v => `{{${v}}}`).join(" ")}), e.g. [Tickets]/[Jira]/{{TASK_STATUS}}. With {{TASK_STATUS}}, notes move when the ticket's status changes.`, "ticketsPath");
-    pathText("Meetings path", "Folder for meeting notes created from calendar events (named yyyy-mm-dd_title).", "meetingsPath");
-    text("Journal folder (fallback)", "Daily notes use Settings > Daily notes (folder and date format). This folder is only used while that plugin has no settings.", () => s.journalFolder, v => (s.journalFolder = v || "Journal"));
-    text("Task note template", "Path of a template note, e.g. Templates/Task. Variables: {{title}} {{date}} {{date:FORMAT}} {{time}}. A '## Subtasks' heading is added if missing. Empty = built-in.", () => s.taskTemplate, v => (s.taskTemplate = v));
-    text("Meeting note template", "Path of a template note, e.g. Templates/Meeting. Variables: {{title}} {{date}} {{start}} {{end}}. Empty = built-in.", () => s.meetingTemplate, v => (s.meetingTemplate = v));
-    text("Ticket note template", `Path of a template note, e.g. Templates/Ticket. Variables: ${TICKET_VARIABLES.split(", ").map(v => `{{${v}}}`).join(" ")} {{TASK_SOURCE}} {{date}}. Empty = built-in.`, () => s.ticketTemplate, v => (s.ticketTemplate = v));
-    const fn = new Setting(c).setName("Ticket file name").setDesc("Variables in double braces, plus {{TASK_TITLE_SLUG}} (the title as a slug). Leave out \".md\". Default: {{TASK_ID}}_{{TASK_TITLE_SLUG}}");
-    const fnPreview = fn.descEl.createDiv({ cls: "samaya-path-preview" });
-    const showFn = () => fnPreview.setText("Example: " + renderTicketFileName(s.ticketFileName, SAMPLE_TICKET) + ".md");
-    fn.addText(t => t.setValue(s.ticketFileName).onChange(async v => { s.ticketFileName = v.trim() || DEFAULT_SETTINGS.ticketFileName; await save(); showFn(); })); showFn();
-    text("Planner base file", "Base file opened by the ribbon icon.", () => s.plannerFile, v => (s.plannerFile = v || "Planner.base"));
+    const mdFiles = () => this.app.vault.getMarkdownFiles().map(f => f.path.replace(/\.md$/, "")).sort();
+    const folders = () => this.app.vault.getAllFolders(false).map(f => f.path).sort();
+    const template = (el: HTMLElement, name: string, desc: string, key: "taskTemplate" | "meetingTemplate" | "ticketTemplate") =>
+      text(el, name, desc + " Leave empty for the built-in template.", () => s[key], v => (s[key] = v), { placeholder: "Templates/…", suggest: mdFiles });
 
-    new Setting(c).setName("Planner").setHeading();
-    num("Day start hour", "First hour on the timeboxing grid (0-23).", () => s.dayStartHour, v => (s.dayStartHour = Math.min(23, Math.floor(v))));
-    num("Day end hour", "Last hour on the grid (1-24).", () => s.dayEndHour, v => (s.dayEndHour = Math.min(24, Math.floor(v))));
-    num("Snap size (minutes)", "Timeboxing granularity.", () => s.slotMinutes, v => (s.slotMinutes = v));
-    num("Default estimate (minutes)", "Used for new tasks and unestimated tasks dropped on the grid.", () => s.defaultEstimate, v => (s.defaultEstimate = v));
-    num("Daily capacity (hours)", "Total plannable hours. Free capacity = this minus lunch break minus calendar meetings.", () => s.capacityHours, v => (s.capacityHours = v));
-    text("Shutdown time", "HH:mm - a reminder to run the shutdown ritual.", () => s.shutdownTime, v => { if (/^\d{1,2}:\d{2}$/.test(v)) s.shutdownTime = v; });
-    new Setting(c).setName("Open planner on startup").addToggle(t => t.setValue(s.openOnStartup).onChange(async v => { s.openOnStartup = v; await save(); }));
+    // ======================================================================== core modules
+    new Setting(c).setName("Core modules").setHeading().setDesc("Always on. They make up the planner itself.").settingEl.addClass("samaya-section");
 
-    new Setting(c).setName("Work time").setHeading();
-    const hm = (v: string) => /^\d{1,2}:\d{2}$/.test(v);
-    text("Lunch break starts", "HH:mm. Marked in the calendar and subtracted from capacity.", () => s.lunchStart, v => { if (hm(v)) s.lunchStart = v; });
-    text("Lunch break ends", "HH:mm", () => s.lunchEnd, v => { if (hm(v)) s.lunchEnd = v; });
-    num("Required hours per week", "Used by the work time dashboard for overtime.", () => s.weeklyHours, v => (s.weeklyHours = v));
-    num("Working days per week", "Counted from Monday (5 = Mon-Fri). Work on other days is all overtime.", () => s.workDays, v => (s.workDays = Math.min(7, Math.round(v))));
-    new Setting(c).setName("Add the default lunch automatically").setDesc("When you end the day without having logged a lunch break, subtract the lunch window above.").addToggle(t => t.setValue(s.autoLunch).onChange(async v => { s.autoLunch = v; await save(); }));
-
-    new Setting(c).setName("Calendar events").setHeading();
-    new Setting(c).setName("Event source").setDesc("Show events from a read-only ICS feed, or from notes that already exist in your vault.")
-      .addDropdown(d => d.addOption("ics", "ICS feed").addOption("notes", "Notes in my vault").setValue(s.calendarSource).onChange(async v => { s.calendarSource = v as SamayaSettings["calendarSource"]; await save(); this.plugin.bus.emit(); this.display(); }));
-    if (s.calendarSource === "notes") {
-      text("Event notes folder", "Searched recursively. Only notes whose file name matches the pattern below are used.", () => s.eventNotesFolder, v => (s.eventNotesFolder = v || "Meetings"));
-      text("File name pattern", `${PATTERN_HELP}. Leave out ".md".`, () => s.eventNotePattern, v => { if (compilePattern(v || DEFAULT_EVENT_PATTERN)) s.eventNotePattern = v || DEFAULT_EVENT_PATTERN; });
-      c.createEl("p", { cls: "setting-item-description", text: "Each event note needs these properties: start and end (hh:mm, or yyyy-mm-dd hh:mm for events over midnight). The day comes from a date property (yyyy-mm-dd) or from {{date}} in the file name. Optional: title (otherwise {{title}} from the file name) and allday: true (then only the date is needed). Example: file '2026-11-09_Sprint planning.md' with start: 10:00 and end: 11:00." });
-    } else {
-      new Setting(c).setName("ICS URLs").setDesc("One per line (Google Calendar 'secret address in iCal format', Outlook, ...).")
-        .addTextArea(t => { t.setValue(s.icsUrls.join("\n")).onChange(async v => { s.icsUrls = v.split("\n").map(x => x.trim().replace(/^webcal:/, "https:")).filter(Boolean); await save(); this.plugin.ics.clear(); }); t.inputEl.rows = 3; t.inputEl.cols = 40; });
-      num("ICS refresh (minutes)", "How long fetched calendars are cached.", () => s.icsRefreshMinutes, v => (s.icsRefreshMinutes = v));
+    {
+      const b = card("Planner", "The timeboxing grid and your daily rhythm.");
+      label(b, "Day grid");
+      num(b, "Day start hour", "First hour on the grid (0–23).", () => s.dayStartHour, v => (s.dayStartHour = v), { min: 0, max: 23, int: true });
+      num(b, "Day end hour", "Last hour on the grid (1–24).", () => s.dayEndHour, v => (s.dayEndHour = v), { min: 1, max: 24, int: true });
+      num(b, "Snap size (minutes)", "Timeboxing granularity.", () => s.slotMinutes, v => (s.slotMinutes = v), { min: 1, max: 120, int: true });
+      label(b, "Capacity & rituals");
+      num(b, "Daily capacity (hours)", "Plannable hours per day. Free capacity = this minus the lunch break minus calendar meetings.", () => s.capacityHours, v => (s.capacityHours = v), { min: 0.5, max: 24, step: 0.5 });
+      text(b, "Shutdown time", "A reminder to run the shutdown ritual.", () => s.shutdownTime, v => (s.shutdownTime = v), { time: true });
+      toggle(b, "Open planner on startup", "Open today's planner whenever Obsidian starts.", () => s.openOnStartup, v => (s.openOnStartup = v));
+      label(b, "Files");
+      text(b, "Planner base file", "The base file opened by the ribbon icon.", () => s.plannerFile, v => (s.plannerFile = v || "Planner.base"), { placeholder: "Planner.base" });
+      text(b, "Daily note folder (fallback)", "Daily notes follow Settings › Daily notes. This folder is only used while that plugin has no settings.", () => s.journalFolder, v => (s.journalFolder = v || "Journal"), { placeholder: "Journal", suggest: folders });
     }
 
-    new Setting(c).setName("Jira").setHeading();
-    c.createEl("p", { cls: "setting-item-description", text: "Tokens are stored unencrypted in this plugin's data.json inside the vault. Don't sync that file to places you don't trust." });
-    new Setting(c).setName("Flavor").setDesc("Cloud: email + API token. Server/Data Center: personal access token.")
-      .addDropdown(d => d.addOption("cloud", "Jira Cloud").addOption("server", "Server / Data Center").setValue(s.jiraFlavor).onChange(async v => { s.jiraFlavor = v as SamayaSettings["jiraFlavor"]; await save(); }));
-    text("Base URL", "e.g. https://yourteam.atlassian.net", () => s.jiraUrl, v => (s.jiraUrl = v.replace(/\/+$/, "")));
-    text("Email", "Jira Cloud only.", () => s.jiraEmail, v => (s.jiraEmail = v));
-    text("API token", "", () => s.jiraToken, v => (s.jiraToken = v), true);
-    text("JQL", "Which issues to import.", () => s.jiraJql, v => (s.jiraJql = v));
+    {
+      const b = card("Tasks", "One note per task, created from the planner, the backlog or a checkbox.");
+      num(b, "Default estimate (minutes)", "Used for new tasks, and for unestimated tasks dropped on the grid.", () => s.defaultEstimate, v => (s.defaultEstimate = v), { min: 1, max: 1440, int: true });
+      label(b, "Notes & templates");
+      pathText(b, "Tasks path", "Where task notes are stored.", "tasksPath");
+      template(b, "Task note template", "Path of a template note. Variables: {{title}} {{date}} {{date:FORMAT}} {{time}}. A “## Subtasks” heading is added if missing.", "taskTemplate");
+    }
 
-    new Setting(c).setName("GitLab").setHeading();
-    text("Base URL", "https://gitlab.com or your self-hosted URL.", () => s.gitlabUrl, v => (s.gitlabUrl = v.replace(/\/+$/, "")));
-    text("Personal access token", "Scope: read_api.", () => s.gitlabToken, v => (s.gitlabToken = v), true);
-    new Setting(c).setName("Issues to import").addDropdown(d => d.addOption("assigned_to_me", "Assigned to me").addOption("created_by_me", "Created by me").addOption("all", "All I can see").setValue(s.gitlabScope).onChange(async v => { s.gitlabScope = v as SamayaSettings["gitlabScope"]; await save(); }));
+    {
+      const b = card("Tickets", "Backlog tickets, entered by hand or imported from Jira and GitLab. Both share these notes.");
+      label(b, "Notes & templates");
+      pathText(b, "Tickets path", "Where ticket notes are stored.", "ticketsPath", `May contain ticket variables (${vars(TICKET_VARIABLES)}), e.g. [Tickets]/[Jira]/{{TASK_STATUS}}. With {{TASK_STATUS}}, notes move when the ticket's status changes.`);
+      const fn = new Setting(b).setName("Ticket file name").setDesc("Ticket variables in double braces, plus {{TASK_TITLE_SLUG}} (the title as a slug). Leave out “.md”.");
+      const fnPreview = fn.descEl.createDiv({ cls: "samaya-path-preview" });
+      const showFn = () => fnPreview.setText("Example: " + renderTicketFileName(s.ticketFileName, SAMPLE_TICKET) + ".md");
+      fn.addText(t => t.setValue(s.ticketFileName).setPlaceholder(DEFAULT_SETTINGS.ticketFileName).onChange(async v => { s.ticketFileName = v.trim() || DEFAULT_SETTINGS.ticketFileName; await changed(); showFn(); })); showFn();
+      template(b, "Ticket note template", `Path of a template note. Variables: ${vars(TICKET_VARIABLES)} {{TASK_SOURCE}} {{date}}.`, "ticketTemplate");
+      const syncBox = b.createDiv();
+      const renderSync = () => {
+        syncBox.empty(); if (!s.jiraOn && !s.gitlabOn) return;
+        label(syncBox, "Sync");
+        toggle(syncBox, "Sync on startup", "Import tickets from the enabled integrations when Obsidian starts.", () => s.syncOnStartup, v => (s.syncOnStartup = v));
+      };
+      renderSync(); refreshers.push(() => { if (!!syncBox.firstChild !== (s.jiraOn || s.gitlabOn)) renderSync(); });
+    }
 
-    new Setting(c).setName("Sync").setHeading();
-    new Setting(c).setName("Sync tickets on startup").addToggle(t => t.setValue(s.syncOnStartup).onChange(async v => { s.syncOnStartup = v; await save(); }));
-    new Setting(c).setName("Sync now").addButton(b => b.setButtonText("Sync Jira + GitLab").setCta().onClick(async () => { new Notice("Syncing tickets..."); await this.plugin.syncTickets(); }));
+    {
+      const b = card("Work time", "Tracks your workday and overtime.");
+      label(b, "Lunch break");
+      text(b, "Starts", "Marked in the calendar and subtracted from capacity.", () => s.lunchStart, v => (s.lunchStart = v), { time: true });
+      text(b, "Ends", "", () => s.lunchEnd, v => (s.lunchEnd = v), { time: true });
+      toggle(b, "Add the default lunch automatically", "When you end the day without a logged lunch break, subtract the window above.", () => s.autoLunch, v => (s.autoLunch = v));
+      label(b, "Contract");
+      num(b, "Required hours per week", "Used by the work time dashboard for overtime.", () => s.weeklyHours, v => (s.weeklyHours = v), { min: 1, max: 168, step: 0.5 });
+      num(b, "Working days per week", "Counted from Monday (5 = Mon–Fri). Work on other days is all overtime.", () => s.workDays, v => (s.workDays = v), { min: 1, max: 7, int: true });
+    }
+
+    // ======================================================================== optional modules
+    new Setting(c).setName("Optional modules").setHeading().setDesc("Switch on what you use. Settings of a module you turn off are kept.").settingEl.addClass("samaya-section");
+
+    {
+      const ics = () => s.icsUrls.length;
+      const b = card("Calendar", "Show meetings in the planner and create a note for each one.", {
+        enabled: { get: () => s.calendarOn, set: v => { s.calendarOn = v; this.plugin.bus.emit(); } },
+        status: () => s.calendarSource === "notes"
+          ? (s.eventNotesFolder ? ["Notes", "ok"] : ["Needs a folder", "warn"])
+          : (ics() ? [`${ics()} feed${ics() > 1 ? "s" : ""}`, "ok"] : ["Needs a feed URL", "warn"]),
+      });
+      label(b, "Events");
+      dropdown(b, "Event source", "Read-only ICS feed, or notes that already exist in your vault.", { ics: "ICS feed", notes: "Notes in my vault" }, () => s.calendarSource, async v => { s.calendarSource = v; this.plugin.bus.emit(); });
+      const srcBox = b.createDiv();
+      const renderSrc = () => {
+        srcBox.empty();
+        if (s.calendarSource === "notes") {
+          text(srcBox, "Event notes folder", "Searched recursively. Only notes whose file name matches the pattern below are used.", () => s.eventNotesFolder, v => (s.eventNotesFolder = v || "Meetings"), { placeholder: "Meetings", suggest: folders, after: () => this.plugin.bus.emit() });
+          text(srcBox, "File name pattern", `${PATTERN_HELP}. Leave out “.md”.`, () => s.eventNotePattern, v => { if (compilePattern(v || DEFAULT_EVENT_PATTERN)) s.eventNotePattern = v || DEFAULT_EVENT_PATTERN; }, { placeholder: DEFAULT_EVENT_PATTERN });
+          note(srcBox, "Each event note needs start and end properties (hh:mm, or yyyy-mm-dd hh:mm for events over midnight). The day comes from a date property (yyyy-mm-dd) or from {{date}} in the file name. Optional: title (otherwise {{title}} from the file name) and allday: true (then only the date is needed). Example: “2026-11-09_Sprint planning.md” with start: 10:00 and end: 11:00.");
+        } else {
+          new Setting(srcBox).setName("ICS URLs").setDesc("One per line: Google Calendar “secret address in iCal format”, Outlook, …")
+            .addTextArea(t => { t.setValue(s.icsUrls.join("\n")).setPlaceholder("https://calendar.google.com/…/basic.ics").onChange(async v => { s.icsUrls = v.split("\n").map(x => x.trim().replace(/^webcal:/, "https:")).filter(Boolean); this.plugin.ics.clear(); await changed(); }); t.inputEl.rows = 3; t.inputEl.addClass("samaya-wide"); });
+          num(srcBox, "Refresh interval (minutes)", "How long fetched calendars are cached.", () => s.icsRefreshMinutes, v => (s.icsRefreshMinutes = v), { min: 1, max: 1440, int: true });
+          new Setting(srcBox).setName("Refresh now").setDesc("Fetch the feeds again right away.").addButton(bt => bt.setButtonText("Refresh").onClick(() => { this.plugin.ics.clear(); this.plugin.bus.emit(); bt.setButtonText("Refreshed ✓"); window.setTimeout(() => bt.setButtonText("Refresh"), 1500); }));
+          note(srcBox, "The feed URL is private. It is stored unencrypted in this plugin's data.json; don't sync that file to places you don't trust.");
+        }
+      };
+      renderSrc();
+      // the source dropdown changes which fields apply: rebuild only this block, not the page
+      let shown = s.calendarSource; refreshers.push(() => { if (shown !== s.calendarSource) { shown = s.calendarSource; renderSrc(); } });
+      label(b, "Meeting notes");
+      pathText(b, "Meetings path", "Where notes for calendar events are created (named yyyy-mm-dd_title).", "meetingsPath");
+      template(b, "Meeting note template", "Path of a template note. Variables: {{title}} {{date}} {{start}} {{end}}.", "meetingTemplate");
+    }
+
+    const secrets = "Tokens are stored unencrypted in this plugin's data.json inside the vault. Don't sync that file to places you don't trust.";
+    const syncBtn = (el: HTMLElement, which: "jira" | "gitlab", name: string) =>
+      new Setting(el).setName("Import now").setDesc(`Fetch your ${name} issues into the tickets path.`).addButton(bt => bt.setButtonText(`Sync ${name}`).setCta().onClick(async () => { bt.setDisabled(true); try { await this.plugin.syncTickets(which); } finally { bt.setDisabled(false); } }));
+
+    {
+      const b = card("Jira", "Import the issues assigned to you as ticket notes.", {
+        enabled: { get: () => s.jiraOn, set: v => { s.jiraOn = v; } },
+        status: () => (s.jiraUrl && s.jiraToken && (s.jiraFlavor === "server" || s.jiraEmail)) ? ["Configured", "ok"] : ["Needs setup", "warn"],
+      });
+      label(b, "Connection");
+      dropdown(b, "Flavor", "Cloud: email + API token. Server / Data Center: personal access token.", { cloud: "Jira Cloud", server: "Server / Data Center" }, () => s.jiraFlavor, v => { s.jiraFlavor = v; renderEmail(); });
+      text(b, "Base URL", "e.g. https://yourteam.atlassian.net", () => s.jiraUrl, v => (s.jiraUrl = v.replace(/\/+$/, "")), { placeholder: "https://yourteam.atlassian.net" });
+      const emailBox = b.createDiv();
+      const renderEmail = () => { emailBox.empty(); if (s.jiraFlavor === "cloud") text(emailBox, "Email", "The account the API token belongs to.", () => s.jiraEmail, v => (s.jiraEmail = v), { placeholder: "you@company.com" }); };
+      renderEmail();
+      text(b, "Token", "Cloud: API token. Server / Data Center: personal access token.", () => s.jiraToken, v => (s.jiraToken = v), { secret: true });
+      note(b, secrets);
+      label(b, "Import");
+      text(b, "JQL", "Which issues to import.", () => s.jiraJql, v => (s.jiraJql = v), { placeholder: DEFAULT_SETTINGS.jiraJql });
+      syncBtn(b, "jira", "Jira");
+      refreshers.push(() => { if (!!emailBox.firstChild !== (s.jiraFlavor === "cloud")) renderEmail(); });
+    }
+
+    {
+      const b = card("GitLab", "Import GitLab issues as ticket notes.", {
+        enabled: { get: () => s.gitlabOn, set: v => { s.gitlabOn = v; } },
+        status: () => (s.gitlabUrl && s.gitlabToken) ? ["Configured", "ok"] : ["Needs setup", "warn"],
+      });
+      label(b, "Connection");
+      text(b, "Base URL", "https://gitlab.com or your self-hosted URL.", () => s.gitlabUrl, v => (s.gitlabUrl = v.replace(/\/+$/, "")), { placeholder: "https://gitlab.com" });
+      text(b, "Personal access token", "Scope: read_api.", () => s.gitlabToken, v => (s.gitlabToken = v), { secret: true });
+      note(b, secrets);
+      label(b, "Import");
+      dropdown(b, "Issues to import", "", { assigned_to_me: "Assigned to me", created_by_me: "Created by me", all: "All I can see" }, () => s.gitlabScope, v => { s.gitlabScope = v; });
+      syncBtn(b, "gitlab", "GitLab");
+    }
   }
 }

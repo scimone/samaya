@@ -11,9 +11,9 @@ const http: Http = async o => {
 export async function syncTickets(plugin: SamayaPlugin, only?: "jira" | "gitlab"): Promise<void> {
   const s = plugin.settings; const app = plugin.app;
   const jobs: Array<["jira" | "gitlab", () => Promise<RawTicket[]>]> = [];
-  if ((!only || only === "jira") && s.jiraUrl && s.jiraToken) jobs.push(["jira", () => fetchJira({ flavor: s.jiraFlavor, url: s.jiraUrl, email: s.jiraEmail, token: s.jiraToken, jql: s.jiraJql }, http)]);
-  if ((!only || only === "gitlab") && s.gitlabUrl && s.gitlabToken) jobs.push(["gitlab", () => fetchGitlab({ url: s.gitlabUrl, token: s.gitlabToken, scope: s.gitlabScope }, http)]);
-  if (!jobs.length) { new Notice("Samaya: configure Jira and/or GitLab in the plugin settings first."); return; }
+  if ((!only || only === "jira") && s.jiraOn && s.jiraUrl && s.jiraToken) jobs.push(["jira", () => fetchJira({ flavor: s.jiraFlavor, url: s.jiraUrl, email: s.jiraEmail, token: s.jiraToken, jql: s.jiraJql }, http)]);
+  if ((!only || only === "gitlab") && s.gitlabOn && s.gitlabUrl && s.gitlabToken) jobs.push(["gitlab", () => fetchGitlab({ url: s.gitlabUrl, token: s.gitlabToken, scope: s.gitlabScope }, http)]);
+  if (!jobs.length) { new Notice("Samaya: enable and configure Jira and/or GitLab in the plugin settings first."); return; }
 
   const byStatus = s.ticketsPath.includes("TASK_STATUS");
 

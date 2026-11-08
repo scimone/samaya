@@ -4,8 +4,8 @@ import type { IcsEvent } from "./ics";
 import type { SamayaSettings } from "./settings";
 import { DEFAULT_EVENT_PATTERN, compilePattern, eventFromNote } from "./eventnotes";
 
-export const calendarEnabled = (s: SamayaSettings) => s.calendarSource === "notes" ? !!s.eventNotesFolder : s.icsUrls.length > 0;
-export const inEventFolder = (s: SamayaSettings, path: string) => s.calendarSource === "notes" && path.startsWith(normalizePath(s.eventNotesFolder) + "/");
+export const calendarEnabled = (s: SamayaSettings) => s.calendarOn && (s.calendarSource === "notes" ? !!s.eventNotesFolder : s.icsUrls.length > 0);
+export const inEventFolder = (s: SamayaSettings, path: string) => s.calendarOn && s.calendarSource === "notes" && path.startsWith(normalizePath(s.eventNotesFolder) + "/");
 
 /** Events overlapping [from, to) from the configured source (ICS feed or existing notes). */
 export async function calendarEvents(plugin: SamayaPlugin, from: Date, to: Date): Promise<IcsEvent[]> {

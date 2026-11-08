@@ -190,7 +190,7 @@ export default class SamayaPlugin extends Plugin {
     // Daily notes follow the core plugin; only seed its config when it has none
     const dn = normalizePath(`${this.app.vault.configDir}/daily-notes.json`);
     try {
-      if (!(await this.app.vault.adapter.exists(dn))) await this.app.vault.adapter.write(dn, JSON.stringify({ folder: this.settings.journalFolder, format: "YYYY-MM-DD" }, null, 2));
+      if (!(await this.app.vault.adapter.exists(dn))) await this.app.vault.adapter.write(dn, JSON.stringify({ folder: rootOf(this.settings.journalFolder).replace(/^\/$/, ""), format: "YYYY-MM-DD" }, null, 2));
     } catch (e) { console.warn("Samaya: could not seed daily-notes.json", e); }
 
     const bp = normalizePath(this.settings.plannerFile);

@@ -168,6 +168,8 @@ console.log("all tests passed");
   assert.deepEqual([m.jiraOn, m.gitlabOn, m.calendarOn], [true, false, true]);
   assert.equal(migrateSettings({ calendarSource: "notes", eventNotesFolder: "Meetings" }).calendarOn, true);
   assert.equal(migrateSettings({}).calendarOn, false);
+  assert.equal(migrateSettings({ journalFolder: "Journal" }).journalFolder, "[Journal]");
+  assert.equal(migrateSettings({ journalFolder: "[Journal]/YYYY" }).journalFolder, "[Journal]/YYYY");
   assert.equal(migrateSettings({ ticketsPath: "[T]/{{TASK_STATUS}}", ticketFileName: "{{TASK_ID}}" }).ticketsPath, "[T]/{{TICKET_STATUS}}");
   assert.equal(migrateSettings({ jiraOn: false, jiraUrl: "u", jiraToken: "t" }).jiraOn, false); // explicit choice wins
 }

@@ -1,6 +1,7 @@
 // Daily note ("Journal") sections written by the planning and shutdown rituals.
 import { App, TFile, normalizePath } from "obsidian";
 import type { SamayaSettings } from "./settings";
+import { renderPath } from "./taskbody";
 import { Task, ensureFolder, momentFmt, readSubtasks } from "./model";
 
 export const SECTIONS = ["Planned today", "Obstacles in my way", "Finished today", "Planned for tomorrow"] as const;
@@ -58,7 +59,8 @@ export function readSection(text: string, heading: Section): string[] {
 }
 
 export type JournalSource = "daily" | "periodic" | "custom";
-export interface JournalLoc { folder: string; format: string }
+/** `pattern`: the folder is a path pattern like "[Journal]/YYYY" (custom source only); Daily / Periodic Notes folders are plain. */
+export interface JournalLoc { folder: string; format: string; pattern?: boolean }
 const DEFAULT_FORMAT = "YYYY-MM-DD";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const readJson = async (app: App, path: string): Promise<any> => {
@@ -97,12 +99,13 @@ export function pickJournalSource(avail: { daily: unknown; periodic: unknown }, 
 }
 export async function journalLocation(app: App, s: SamayaSettings): Promise<JournalLoc & { source: JournalSource }> {
   const avail = await journalSources(app); const source = pickJournalSource(avail, s.journalSource);
-  const loc = source === "custom" ? { folder: s.journalFolder.trim(), format: s.journalFormat.trim() || DEFAULT_FORMAT } : avail[source]!;
+  const loc = source === "custom" ? { folder: s.journalFolder.trim(), format: s.journalFormat.trim() || DEFAULT_FORMAT, pattern: true } : avail[source]!;
   return { ...loc, source };
 }
 export function journalPathFor(loc: JournalLoc, date: string): string {
-  const name = momentFmt(new Date(date + "T12:00:00"), loc.format);
-  return normalizePath(loc.folder ? `${loc.folder}/${name}.md` : `${name}.md`);
+  const d = new Date(date + "T12:00:00"); const name = momentFmt(d, loc.format);
+  const folder = loc.pattern ? renderPath(loc.folder, d, momentFmt) : loc.folder;
+  return normalizePath(folder ? `${folder}/${name}.md` : `${name}.md`);
 }
 /** Path of the daily note, from the chosen source (Daily notes, Periodic Notes or the custom folder). */
 export async function journalPath(app: App, s: SamayaSettings, date: string): Promise<string> {

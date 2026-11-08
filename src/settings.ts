@@ -2,7 +2,7 @@ import { AbstractInputSuggest, App, PluginSettingTab, Setting } from "obsidian";
 import type SamayaPlugin from "./main";
 import { ticketFolderFor, folderFor } from "./model";
 import { TICKET_VARIABLES, renderTicketFileName, TicketVars } from "./taskbody";
-import { JournalSource, journalLocation, journalPathFor, journalSources } from "./journal";
+import { JournalLoc, JournalSource, journalLocation, journalPathFor, journalSources } from "./journal";
 import { DEFAULT_EVENT_PATTERN, PATTERN_HELP, compilePattern } from "./eventnotes";
 
 export interface SamayaSettings {
@@ -20,7 +20,7 @@ export interface SamayaSettings {
   calendarOn: boolean; jiraOn: boolean; gitlabOn: boolean;
 }
 export const DEFAULT_SETTINGS: SamayaSettings = {
-  tasksPath: "[Tasks]/YYYY/MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", meetingsPath: "[Meetings]/YYYY/MM", journalSource: "auto", journalFolder: "Journal", journalFormat: "YYYY-MM-DD", plannerFile: "Planner.base", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
+  tasksPath: "[Tasks]/YYYY/MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", meetingsPath: "[Meetings]/YYYY/MM", journalSource: "auto", journalFolder: "[Journal]", journalFormat: "YYYY-MM-DD", plannerFile: "Planner.base", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
   calendarSource: "ics", eventNotesFolder: "Meetings", eventNotePattern: "{{date}}_{{title}}",
   icsUrls: [], icsRefreshMinutes: 15,
   dayStartHour: 7, dayEndHour: 20, slotMinutes: 15, defaultEstimate: 30, capacityHours: 6, shutdownTime: "17:30", openOnStartup: false,
@@ -44,6 +44,8 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<SamayaS
   if (o.gitlabOn == null) o.gitlabOn = !!o.gitlabToken;
   // ticket variables were called TASK_* before
   for (const k of ["ticketsPath", "ticketFileName"]) if (typeof o[k] === "string") o[k] = (o[k] as string).replace(/\bTASK_/g, "TICKET_");
+  // the daily note folder is a path pattern now: a plain name becomes a literal
+  if (typeof o.journalFolder === "string" && o.journalFolder.trim() && !o.journalFolder.includes("[")) o.journalFolder = `[${o.journalFolder.trim().replace(/[[\]]/g, "")}]`;
   delete o.tasksFolder; delete o.ticketsFolder; delete o.meetingsFolder;
   return o as Partial<SamayaSettings>;
 }
@@ -67,24 +69,26 @@ export class SamayaSettingTab extends PluginSettingTab {
   constructor(app: App, private plugin: SamayaPlugin) { super(app, plugin); }
 
   /** Where daily notes live: offer only the sources that are installed and enabled right now. */
-  private async renderDailyNotes(box: HTMLElement, changed: () => Promise<void>, folders: () => string[]) {
+  private async renderDailyNotes(box: HTMLElement, changed: () => Promise<void>) {
     const s = this.plugin.settings;
     const draw = async () => {
       const avail = await journalSources(this.app); const loc = await journalLocation(this.app, s);
       if (!box.isConnected) return; box.empty();
       const names: Record<JournalSource, string> = { daily: "Daily notes (core plugin)", periodic: "Periodic Notes (community plugin)", custom: "Custom folder" };
       const options = (["periodic", "daily"] as const).filter(k => avail[k]).map(k => k as JournalSource).concat("custom");
-      const preview = (l: { folder: string; format: string }) => "Today: " + journalPathFor(l, new Date().toLocaleDateString("sv"));
+      const preview = (l: JournalLoc) => "Today: " + journalPathFor(l, new Date().toLocaleDateString("sv"));
       if (options.length > 1) {
         new Setting(box).setName("Daily note location").setDesc("Where the planner reads and writes your daily notes.")
           .addDropdown(d => { for (const k of options) d.addOption(k, names[k]); d.setValue(loc.source).onChange(async v => { s.journalSource = v as JournalSource; await changed(); void draw(); }); });
       }
       if (loc.source === "custom") {
         const st = new Setting(box).setName(options.length > 1 ? "Folder" : "Daily note folder");
-        st.setDesc(options.length > 1 ? "" : "Enable the Daily notes core plugin or Periodic Notes and you can use their settings here instead.");
+        st.descEl.appendText("A folder pattern. Date parts use moment.js format; put literal text in [brackets], e.g. [Journal]/YYYY. ");
+        st.descEl.createEl("a", { text: "Syntax reference", href: "https://momentjs.com/docs/#/displaying/format" });
+        if (options.length === 1) st.descEl.createDiv({ text: "Enable the Daily notes core plugin or Periodic Notes and you can use their settings here instead." });
         const pv = st.descEl.createDiv({ cls: "samaya-path-preview" });
-        const show = () => pv.setText(preview({ folder: s.journalFolder.trim(), format: s.journalFormat.trim() || "YYYY-MM-DD" }));
-        st.addText(t => { t.setValue(s.journalFolder).setPlaceholder("Journal").onChange(async v => { s.journalFolder = v.trim(); await changed(); show(); }); new PathSuggest(this.app, t.inputEl, folders); });
+        const show = () => pv.setText(preview({ folder: s.journalFolder.trim(), format: s.journalFormat.trim() || "YYYY-MM-DD", pattern: true }));
+        st.addText(t => t.setValue(s.journalFolder).setPlaceholder("[Journal]/YYYY").onChange(async v => { s.journalFolder = v.trim(); await changed(); show(); }));
         new Setting(box).setName("Date format").setDesc("moment.js format of the note name.").addText(t => t.setValue(s.journalFormat).setPlaceholder("YYYY-MM-DD").onChange(async v => { s.journalFormat = v.trim() || "YYYY-MM-DD"; await changed(); show(); }));
         show();
       } else {
@@ -228,7 +232,7 @@ export class SamayaSettingTab extends PluginSettingTab {
       toggle(b, "Open planner on startup", "Open today's planner whenever Obsidian starts.", () => s.openOnStartup, v => (s.openOnStartup = v));
       text(b, "Planner base file", "The base file opened by the ribbon icon.", () => s.plannerFile, v => (s.plannerFile = v || "Planner.base"), { placeholder: "Planner.base" });
       const dailyBox = b.createDiv(); // filled once we know which daily note sources exist
-      void this.renderDailyNotes(dailyBox, changed, folders);
+      void this.renderDailyNotes(dailyBox, changed);
     }
 
     {

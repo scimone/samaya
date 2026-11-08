@@ -4,6 +4,7 @@ import { FOCUS_VIEW_TYPE, FocusManager, FocusState, FocusView } from "./focus";
 import { IcsClient, assignTicket, createTask } from "./model";
 import { DAILY_VIEW_TYPE, DailyPlannerView } from "./views/DailyPlannerView";
 import { WEEK_VIEW_TYPE, WeeklyBoardView } from "./views/WeeklyBoardView";
+import { WTL_VIEW_TYPE, WeeklyTimelineView } from "./views/WeeklyTimelineView";
 import { BACKLOG_VIEW_TYPE, BacklogView } from "./views/BacklogView";
 import { syncTickets } from "./sync";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
@@ -45,6 +46,8 @@ views:
     name: Daily Planner
   - type: ${WEEK_VIEW_TYPE}
     name: Weekly Board
+  - type: ${WTL_VIEW_TYPE}
+    name: Weekly Timeline
   - type: ${BACKLOG_VIEW_TYPE}
     name: Backlog
     filters:
@@ -102,10 +105,18 @@ export default class SamayaPlugin extends Plugin {
     const b = ok(WEEK_VIEW_TYPE, "Weekly Board", "lucide-columns-3",
       (c, el) => new WeeklyBoardView(c, el, this),
       () => [{ type: "toggle", key: "showWeekends", displayName: "Show weekends", default: false }]);
+    const d = ok(WTL_VIEW_TYPE, "Weekly Timeline", "lucide-calendar-range",
+      (c, el) => new WeeklyTimelineView(c, el, this),
+      () => [
+        { type: "slider", key: "dayStart", displayName: "Day starts (hour)", min: 0, max: 23, step: 1, default: this.settings.dayStartHour },
+        { type: "slider", key: "dayEnd", displayName: "Day ends (hour)", min: 1, max: 24, step: 1, default: this.settings.dayEndHour },
+        { type: "toggle", key: "showWeekends", displayName: "Show weekends", default: false },
+        { type: "toggle", key: "showIcs", displayName: "Show calendar events", default: true },
+      ]);
     const c = ok(BACKLOG_VIEW_TYPE, "Backlog", "lucide-inbox",
       (ct, el) => new BacklogView(ct, el, this),
       () => [{ type: "toggle", key: "hideEmptyTickets", displayName: "Hide tickets without tasks", default: false }]);
-    if (!a || !b || !c) new Notice("Samaya: could not register Bases views. Enable the core Bases plugin and use Obsidian 1.10+.");
+    if (!a || !b || !c || !d) new Notice("Samaya: could not register Bases views. Enable the core Bases plugin and use Obsidian 1.10+.");
 
     this.addRibbonIcon("calendar-clock", "Open Samaya planner", () => { void this.openPlanner(); });
     this.focus.init(this.addStatusBarItem(), this.data.focus ?? null);
@@ -205,6 +216,11 @@ export default class SamayaPlugin extends Plugin {
         await this.app.vault.modify(bf, txt.replace(OLD_BACKLOG, `  - type: ${BACKLOG_VIEW_TYPE}\n    name: Backlog\n    filters:\n      and:\n        - planned.isEmpty()\n        - status != "done"\n`));
         new Notice("Samaya: upgraded the Backlog view in " + bp);
       } else if (announce) new Notice("Planner files already exist.");
+      txt = await this.app.vault.read(bf);
+      if (!txt.includes(WTL_VIEW_TYPE)) {
+        const next = txt.replace(new RegExp(`(  - type: ${WEEK_VIEW_TYPE}\\n    name: [^\\n]*\\n)`), `$1  - type: ${WTL_VIEW_TYPE}\n    name: Weekly Timeline\n`);
+        if (next !== txt) { await this.app.vault.modify(bf, next); new Notice("Samaya: added the Weekly Timeline view to " + bp); }
+      }
     }
   }
 

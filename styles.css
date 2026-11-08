@@ -394,6 +394,28 @@ body { --samaya-green: #2fa862; }
 
 .samaya-col-cap { font-size: var(--font-ui-smaller); font-weight: 400; color: var(--text-faint); font-variant-numeric: tabular-nums; }
 .samaya-col-cap.is-over { color: var(--text-error); }
-.samaya-col-bar { height: 4px; border-radius: 2px; background: var(--background-modifier-border); overflow: hidden; margin-bottom: 6px; order: -1; }
+.samaya-col-bar { height: 4px; border-radius: 2px; background: var(--background-modifier-border); overflow: hidden; margin-bottom: 6px; }
 .samaya-col-bar-fill { height: 100%; background: var(--samaya-green, #2fa862); }
 .samaya-col-bar.is-over .samaya-col-bar-fill { background: var(--text-error); }
+
+/* weekly timeline */
+.samaya-wtl { display: flex; flex-direction: column; height: 100%; padding: 12px; }
+.samaya-wtl-scroll { flex: 1; overflow-y: auto; margin-top: 10px; position: relative; }
+.samaya-wtl-heads { display: flex; position: sticky; top: 0; z-index: 5; background: var(--background-primary); border-bottom: 1px solid var(--background-modifier-border); }
+.samaya-wtl-axis-spacer, .samaya-wtl-axis { flex: 0 0 48px; }
+.samaya-wtl-head { flex: 1 1 0; min-width: 0; padding: 4px 4px 6px; display: flex; flex-direction: column; gap: 3px; border-left: 1px solid var(--background-modifier-border); }
+.samaya-wtl-day { font-weight: 600; }
+.samaya-wtl-head.is-today .samaya-wtl-day { color: var(--interactive-accent); }
+.samaya-wtl-chip { font-size: var(--font-ui-smaller); padding: 1px 6px; border-radius: var(--radius-s); background: color-mix(in srgb, var(--interactive-accent) 16%, var(--background-secondary)); border-left: 3px solid var(--interactive-accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: grab; user-select: none; }
+.samaya-wtl-chip.is-event { background: var(--background-modifier-hover); border-left-color: var(--text-muted); cursor: default; color: var(--text-muted); }
+.samaya-wtl-body { display: flex; position: relative; }
+.samaya-wtl-axis { position: relative; }
+.samaya-wtl-hour-label { position: absolute; right: 6px; transform: translateY(-50%); font-size: 10px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.samaya-wtl-col { flex: 1 1 0; min-width: 0; position: relative; border-left: 1px solid var(--background-modifier-border); }
+.samaya-wtl-col.is-today { background: color-mix(in srgb, var(--interactive-accent) 5%, transparent); }
+.samaya-wtl-hour { position: absolute; left: 0; right: 0; border-top: 1px solid color-mix(in srgb, var(--background-modifier-border) 60%, transparent); }
+.samaya-wtl .samaya-block { background: color-mix(in srgb, var(--interactive-accent) 20%, var(--background-primary)); color: var(--text-normal); border-left: 3px solid var(--interactive-accent); border-radius: 6px; }
+.samaya-wtl .samaya-block-time { color: var(--text-muted); font-size: 10px; }
+.samaya-wtl .samaya-block.is-done { background: color-mix(in srgb, var(--text-muted) 12%, var(--background-primary)); border-left-color: var(--text-faint); color: var(--text-muted); }
+.samaya-wtl .samaya-block.is-done .samaya-block-state { background: var(--text-faint); border-color: var(--text-faint); opacity: 1; }
+.samaya-wtl .samaya-event { cursor: default; }

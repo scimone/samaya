@@ -16,6 +16,22 @@ export class TextPromptModal extends Modal {
   }
 }
 
+/** "X does not exist yet - create it?" */
+export class ConfirmCreateModal extends Modal {
+  constructor(plugin: SamayaPlugin, private path: string, private onCreate: () => void) { super(plugin.app); }
+  onOpen() {
+    this.titleEl.setText("Note does not exist yet");
+    this.contentEl.createEl("p", { text: "This note has not been created yet:" });
+    this.contentEl.createEl("code", { text: this.path });
+    this.contentEl.createEl("p", { text: "Do you want to create it?" });
+    const nav = this.contentEl.createDiv("samaya-ritual-nav");
+    nav.createEl("button", { text: "Cancel" }).onclick = () => this.close();
+    const ok = nav.createEl("button", { text: "Create", cls: "mod-cta" });
+    ok.onclick = () => { this.close(); this.onCreate(); };
+    ok.focus();
+  }
+}
+
 export class TicketSuggestModal extends FuzzySuggestModal<Ticket | null> {
   constructor(private plugin: SamayaPlugin, private choose: (t: Ticket | null) => void) {
     super(plugin.app); this.setPlaceholder("Assign to ticket…");

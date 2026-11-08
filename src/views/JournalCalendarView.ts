@@ -1,6 +1,7 @@
 import { ItemView, TFile, WorkspaceLeaf } from "obsidian";
 import type SamayaPlugin from "../main";
-import { Period, openPeriodNote, periodLocation, journalPathFor } from "../journal";
+import { Period, openPeriodNote, periodLocation, periodNotePath, journalPathFor } from "../journal";
+import { ConfirmCreateModal } from "../modals";
 import { monthGrid } from "../monthgrid";
 import { addDays, startOfWeek, today } from "../util";
 
@@ -37,8 +38,11 @@ export class JournalCalendarView extends ItemView {
     await this.app.workspace.revealLeaf(leaf);
   }
   private async openPeriod(p: Period, date: string) {
-    const f = await openPeriodNote(this.app, this.plugin.settings, p, date);
-    if (f) await this.showInMain(f);
+    const s = this.plugin.settings; const hit = await periodNotePath(this.app, s, p, date); if (!hit) return;
+    if (hit.file) { await this.showInMain(hit.file); return; }
+    new ConfirmCreateModal(this.plugin, hit.path, () => {
+      void openPeriodNote(this.app, s, p, date).then(f => { if (f) return this.showInMain(f); });
+    }).open();
   }
 
   private async render() {

@@ -116,6 +116,12 @@ export async function periodLocation(app: App, s: SamayaSettings, p: Period): Pr
   const loc = source === "custom" ? { folder: n.folder.trim(), format: n.format.trim() || PERIOD_DEFAULT_FORMAT[p], pattern: true } : avail[source]!;
   return { ...loc, source };
 }
+/** Vault path of the note of a period containing `date` (null when that kind is switched off) and whether it exists yet. */
+export async function periodNotePath(app: App, s: SamayaSettings, p: Period, date: string): Promise<{ path: string; file: TFile | null } | null> {
+  const loc = await periodLocation(app, s, p); if (!loc) return null;
+  const path = journalPathFor(loc, date); const f = app.vault.getAbstractFileByPath(path);
+  return { path, file: f instanceof TFile ? f : null };
+}
 /** The note of a period containing `date`, created (from the configured template) when missing. */
 export async function openPeriodNote(app: App, s: SamayaSettings, p: Period, date: string): Promise<TFile | null> {
   const loc = await periodLocation(app, s, p); if (!loc) return null;

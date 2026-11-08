@@ -219,4 +219,11 @@ export async function setJournalProps(app: App, s: SamayaSettings, date: string,
     for (const [k, v] of Object.entries(patch)) { if (v === null || (Array.isArray(v) && !v.length)) delete fm[k]; else fm[k] = v; }
   });
 }
-export const PERIODS_ALL: Period[] = ["daily", "weekly", "monthly", "quarterly", "yearly"];
+/** Human title of a note for the navigation bar, plus the label of the "jump to now" button. */
+export const PERIOD_UI: Record<Period, { title: string; now: string; noun: string }> = {
+  daily: { title: "dddd, D MMMM YYYY", now: "Today", noun: "day" },
+  weekly: { title: "[Week] W, GGGG", now: "This week", noun: "week" },
+  monthly: { title: "MMMM YYYY", now: "This month", noun: "month" },
+  quarterly: { title: "[Q]Q YYYY", now: "This quarter", noun: "quarter" },
+  yearly: { title: "YYYY", now: "This year", noun: "year" },
+};

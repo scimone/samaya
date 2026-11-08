@@ -1,7 +1,7 @@
-import { Editor, MarkdownView, Notice, Plugin, TFile, normalizePath } from "obsidian";
+import { Editor, MarkdownView, Notice, Plugin, TFile, normalizePath, setIcon } from "obsidian";
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FOCUS_VIEW_TYPE, FocusManager, FocusState, FocusView } from "./focus";
-import { IcsClient, assignTicket, createTask } from "./model";
+import { IcsClient, assignTicket, createTask, momentFmt } from "./model";
 import { DAILY_VIEW_TYPE, DailyPlannerView } from "./views/DailyPlannerView";
 import { WEEK_VIEW_TYPE, WeeklyBoardView } from "./views/WeeklyBoardView";
 import { WTL_VIEW_TYPE, WeeklyTimelineView } from "./views/WeeklyTimelineView";
@@ -15,7 +15,7 @@ import { KANBAN_VIEW_TYPE, KanbanView } from "./views/KanbanView";
 import { JOURNAL_CAL_TYPE, JournalCalendarView } from "./views/JournalCalendarView";
 import { JOURNAL_BASE_VIEW_TYPE, JournalBaseView } from "./views/JournalBaseView";
 import type { Period } from "./journal";
-import { PERIODS_ALL, identifyNote, findLatestPeriodNote, listPeriodNotes, neighbours, journalLocation, openPeriodNote, periodNotePath } from "./journal";
+import { PERIOD_UI, identifyNote, findLatestPeriodNote, listPeriodNotes, neighbours, journalLocation, openPeriodNote, periodNotePath } from "./journal";
 import { PROJECTS_BASE_TEMPLATE, assignProject, createProject } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { HOME_VIEW_TYPE, HomeView } from "./views/HomeView";
@@ -425,42 +425,48 @@ export default class SamayaPlugin extends Plugin {
     await ensureFolder(this.app, "Journal");
     await this.app.vault.create(bp, JOURNAL_BASE_TEMPLATE(root === "/" ? "Journal" : root)); if (announce) new Notice("Created " + bp);
   }
-  /** Per open note tab: toggle `samaya-hide-props` and show / remove the navigation bar, for journal notes. */
+  private marking = false; private markAgain = false;
+  /** Per open note tab: toggle `samaya-hide-props` and show / remove the navigation bar, for journal notes. Runs one at a time. */
   async markJournalNotes() {
-    const s = this.settings; const leaves = this.app.workspace.getLeavesOfType("markdown");
-    for (const leaf of leaves) {
-      const file = (leaf.view as { file?: TFile }).file; const el = leaf.view.containerEl;
-      const id = s.journalOn && !!file ? await identifyNote(this.app, s, file) : null;
-      el.toggleClass("samaya-hide-props", s.journalHideProps && !!id);
-      await this.renderJournalBar(leaf.view.containerEl, s.journalNavBar && file && id ? { file, ...id } : null);
-    }
+    if (this.marking) { this.markAgain = true; return; }
+    this.marking = true;
+    try {
+      do {
+        this.markAgain = false;
+        const s = this.settings;
+        for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
+          const file = (leaf.view as { file?: TFile }).file; const el = leaf.view.containerEl;
+          const id = s.journalOn && !!file ? await identifyNote(this.app, s, file) : null;
+          el.toggleClass("samaya-hide-props", s.journalHideProps && !!id);
+          await this.renderJournalBar(el, s.journalNavBar && file && id ? { file, ...id } : null);
+        }
+      } while (this.markAgain);
+    } finally { this.marking = false; }
   }
   private async renderJournalBar(el: HTMLElement, cur: { file: TFile; p: Period; date: string } | null) {
-    const old = el.querySelector(":scope > .samaya-journal-bar");
-    if (!cur) { old?.remove(); return; }
-    const s = this.settings; const kinds: Period[] = [];
-    for (const k of PERIODS_ALL) if (await periodNotePath(this.app, s, k, cur.date)) kinds.push(k);
+    const bars = () => Array.from(el.querySelectorAll<HTMLElement>(":scope > .samaya-journal-bar"));
+    if (!cur) { bars().forEach(b => b.remove()); return; }
+    const s = this.settings; const ui = PERIOD_UI[cur.p];
     const { prev, next } = neighbours(await listPeriodNotes(this.app, s, cur.p), cur.date);
-    const key = JSON.stringify([cur.file.path, cur.p, cur.date, kinds, prev?.file.path, next?.file.path, today()]);
-    if (old && (old as HTMLElement).dataset.key === key) return;
-    old?.remove();
+    const nowNote = await periodNotePath(this.app, s, cur.p, today());
+    const isNow = nowNote?.path === cur.file.path;
+    const key = JSON.stringify([cur.file.path, cur.p, cur.date, prev?.file.path, next?.file.path, isNow]);
+    const existing = bars(); // no await below: check, clean up and insert in one go
+    if (existing.length === 1 && existing[0].dataset.key === key) return;
+    existing.forEach(b => b.remove());
     const content = el.querySelector(":scope > .view-content"); if (!content) return;
     const bar = createDiv({ cls: "samaya-journal-bar" }); bar.dataset.key = key;
-    const btn = (parent: HTMLElement, text: string, title: string, go: (() => void) | null, cls = "") => {
-      const b = parent.createEl("button", { text, cls: "samaya-jb-btn " + cls, attr: { "aria-label": title } });
-      if (go) b.addEventListener("click", go); else b.disabled = true; return b;
-    };
     const open = (f: TFile | null) => { if (f) void this.openNoteInMain(f); };
-    const step = bar.createDiv({ cls: "samaya-jb-step" });
-    btn(step, "‹", "Previous note", prev ? () => open(prev.file) : null);
-    step.createSpan({ cls: "samaya-jb-label", text: cur.file.basename });
-    btn(step, "›", "Next note", next ? () => open(next.file) : null);
-    btn(bar, "Today", "Open today's note of this kind", () => { void openPeriodNote(this.app, s, cur.p, today()).then(open); });
-    const kindsEl = bar.createDiv({ cls: "samaya-jb-kinds" });
-    for (const k of kinds) {
-      const b = btn(kindsEl, k[0].toUpperCase() + k.slice(1), `Open the ${k} note for this date`, k === cur.p ? null : () => { void openPeriodNote(this.app, s, k, cur.date).then(open); });
-      if (k === cur.p) b.addClass("is-active");
-    }
+    const nav = bar.createDiv({ cls: "samaya-jb-nav" });
+    const arrow = (icon: string, dir: string, target: { file: TFile } | null) => {
+      const b = nav.createEl("button", { cls: "samaya-jb-arrow", attr: { "aria-label": target ? `${dir} ${ui.noun}: ${target.file.basename}` : `No ${dir} ${ui.noun}` } });
+      setIcon(b, icon); if (target) b.addEventListener("click", () => open(target.file)); else b.disabled = true;
+    };
+    arrow("chevron-left", "Previous", prev);
+    nav.createSpan({ cls: "samaya-jb-title", text: momentFmt(new Date(cur.date + "T12:00:00"), ui.title) });
+    arrow("chevron-right", "Next", next);
+    const now = bar.createEl("button", { cls: "samaya-jb-now", text: ui.now, attr: { "aria-label": `Go to ${ui.now.toLowerCase()}` } });
+    if (isNow) now.disabled = true; else now.addEventListener("click", () => { void openPeriodNote(this.app, s, cur.p, today()).then(open); });
     el.insertBefore(bar, content);
   }
   /** Open a note in the main area: reuse a tab already showing it, else the first note tab, else a new tab. */

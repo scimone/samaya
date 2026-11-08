@@ -141,17 +141,18 @@ export async function findLatestPeriodNote(app: App, s: SamayaSettings, p: Perio
   }
   return latestOnOrBefore(items, today())?.file ?? null;
 }
-/** Which note of the journal a file is (kind and a date inside its period), or null. */
+/** Which note of the journal a file is (kind and a date inside its period), or null. Matches by file name format inside the kind's folder, wherever in it the file sits. */
 export async function identifyNote(app: App, s: SamayaSettings, file: TFile): Promise<{ p: Period; date: string } | null> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const moment = (window as any).moment;
   const yr = file.path.match(/(?:^|\/)((?:19|20)\d{2})(?:\/|-|$)/)?.[1]; // formats without a year (e.g. [Q]Q) take it from the path
   for (const p of ["daily", "weekly", "monthly", "quarterly", "yearly"] as Period[]) {
     const loc = await periodLocation(app, s, p); if (!loc) continue;
+    const root = loc.pattern ? rootOf(loc.folder) : normalizePath(loc.folder || "/"); const prefix = root === "/" ? "" : root + "/";
+    if (!file.path.startsWith(prefix)) continue;
     const m = moment(file.basename, loc.format, true); if (!m.isValid()) continue;
-    for (const cand of yr && m.year() !== Number(yr) ? [m.format("YYYY-MM-DD"), m.clone().year(Number(yr)).format("YYYY-MM-DD")] : [m.format("YYYY-MM-DD")]) {
-      if (journalPathFor(loc, cand) === file.path) return { p, date: cand };
-    }
+    if (yr && !/[YyGg]/.test(loc.format.replace(/\[[^\]]*\]/g, ""))) m.year(Number(yr));
+    return { p, date: m.format("YYYY-MM-DD") };
   }
   return null;
 }

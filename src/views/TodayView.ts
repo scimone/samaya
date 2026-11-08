@@ -112,6 +112,14 @@ export class TodayView extends ItemView {
       title.createSpan({ cls: "samaya-today-date", text: new Date().toLocaleDateString(undefined, { day: "numeric", month: "short" }) });
     }
     if (this.mode === "week") { this.renderWeek(c, all, wkStart); return; }
+    const guide = lists ? this.plugin.guide : null;
+    if (guide) { // plan my day: no workday strip, progress or day title, just the current phase
+      head.remove();
+      if (guide.step === 0) this.renderReview(c, all);
+      else if (guide.step === 1) this.renderLists(c, all, day);
+      else c.createDiv({ cls: "samaya-guide-hint", text: "Timebox: drag the tasks in the list on the left onto the timeline, so each one gets a time slot. The ones still without a time stay highlighted. Drag the start and finish lines to set your working day, then press “Start my day”." });
+      return;
+    }
     renderWorkdayCard(this.plugin, head.createDiv(), { compact: true });
     const dayMs = parseYmd(date).getTime();
     renderDoneBar(head, day.filter(t => t.status === "done").length, day.length);
@@ -263,6 +271,23 @@ export class TodayView extends ItemView {
         d.createDiv({ cls: "samaya-week-day", text: parseYmd(t.planned!).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }) });
       });
     }
+  }
+
+  /** Plan my day, Review: unfinished tasks of earlier days as full cards (with subtasks). */
+  private renderReview(c: HTMLElement, all: Task[]) {
+    const overdue = sortTasks(all.filter(t => t.planned && t.planned < today() && t.status !== "done"));
+    c.createDiv({ cls: "samaya-today-label", text: `Left over · ${overdue.length}` });
+    const panel = c.createDiv("samaya-today-lists is-guided");
+    const list = panel.createDiv("samaya-today-cards");
+    if (!overdue.length) list.createDiv({ cls: "samaya-today-empty", text: "Nothing left over - clean slate." });
+    overdue.forEach(t => renderTaskCard(this.plugin, list, t, {
+      scope: this.dnd,
+      actions: [
+        ["Today", () => { void patchTask(this.app, t.file, { planned: today(), start: null }); }],
+        ["Backlog", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: null }); }],
+        ["Done", () => { void setDone(this.app, t, true); }],
+      ],
+    }));
   }
 
   /** This week / Backlog tabs with all their task cards (shown while the Daily Planner is open). */

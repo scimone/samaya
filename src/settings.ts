@@ -13,7 +13,7 @@ export interface SamayaSettings {
   calendarSource: "ics" | "notes"; eventNotesFolder: string; eventNotePattern: string;
   icsUrls: string[]; icsRefreshMinutes: number;
   dayStartHour: number; dayEndHour: number; slotMinutes: number;
-  defaultEstimate: number; capacityHours: number; shutdownTime: string; openOnStartup: boolean;
+  defaultEstimate: number; capacityHours: number; shutdownTime: string; dayStartTime: string; openOnStartup: boolean;
   jiraFlavor: "cloud" | "server"; jiraUrl: string; jiraEmail: string; jiraToken: string; jiraJql: string;
   gitlabUrl: string; gitlabToken: string; gitlabScope: "assigned_to_me" | "created_by_me" | "all";
   syncOnStartup: boolean;
@@ -21,7 +21,7 @@ export interface SamayaSettings {
   /** optional modules; off by default for new installs */
   calendarOn: boolean; jiraOn: boolean; gitlabOn: boolean;
   /** journal module: write into the daily note, and which parts */
-  journalOn: boolean; journalPlanned: boolean; journalObstacles: boolean; journalFinished: boolean; journalTomorrow: boolean;
+  journalOn: boolean; journalPlanned: boolean; journalFinished: boolean; journalTomorrow: boolean;
   journalWorkTimes: boolean; journalBreaks: boolean; journalTracked: boolean;
   /** weekly / monthly / quarterly / yearly notes of the journal calendar */
   journalNotes: Record<PeriodicKind, PeriodCfg>;
@@ -38,13 +38,13 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   tasksPath: "[Tasks]/YYYY/MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", meetingsPath: "[Meetings]/YYYY/MM", journalSource: "auto", journalFolder: "[Journal]/YYYY/YYYY-MM", journalFormat: "YYYY-MM-DD", plannerFile: "Planner/Planner.base", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
   calendarSource: "ics", eventNotesFolder: "Meetings", eventNotePattern: "{{date}}_{{title}}",
   icsUrls: [], icsRefreshMinutes: 15,
-  dayStartHour: 7, dayEndHour: 20, slotMinutes: 15, defaultEstimate: 30, capacityHours: 6, shutdownTime: "17:30", openOnStartup: false,
+  dayStartHour: 7, dayEndHour: 20, slotMinutes: 15, defaultEstimate: 30, capacityHours: 6, shutdownTime: "17:30", dayStartTime: "09:00", openOnStartup: false,
   jiraFlavor: "cloud", jiraUrl: "", jiraEmail: "", jiraToken: "",
   jiraJql: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
   gitlabUrl: "https://gitlab.com", gitlabToken: "", gitlabScope: "assigned_to_me", syncOnStartup: false,
   lunchStart: "12:00", lunchEnd: "13:00", weeklyHours: 40, workDays: 5, autoLunch: true,
   calendarOn: false, jiraOn: false, gitlabOn: false,
-  journalOn: false, journalPlanned: true, journalObstacles: true, journalFinished: true, journalTomorrow: true,
+  journalOn: false, journalPlanned: true, journalFinished: true, journalTomorrow: true,
   journalWorkTimes: true, journalBreaks: true, journalTracked: true,
   journalHideProps: true, journalNavBar: true,
   journalNotes: {
@@ -89,7 +89,6 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<SamayaS
 
 const JOURNAL_PARTS: Array<[JournalPart, string, string]> = [
   ["journalPlanned", "Planned tasks", "“Planned today” section, written when you finish the morning planning."],
-  ["journalObstacles", "Obstacles", "“Obstacles in my way” section, and the reflection step in the morning planning."],
   ["journalFinished", "Finished tasks", "“Finished today” section, written at shutdown (with the tracked time per task)."],
   ["journalTomorrow", "Tomorrow's plan", "“Planned for tomorrow” section, written at shutdown."],
   ["journalWorkTimes", "Work start & end", "work_start and work_end properties."],
@@ -330,7 +329,8 @@ export class SamayaSettingTab extends PluginSettingTab {
         [() => s.lunchStart, v => (s.lunchStart = v)], [() => s.lunchEnd, v => (s.lunchEnd = v)]);
       toggle(b, "Add the default lunch automatically", "When you end the day without a logged lunch break, subtract the window above.", () => s.autoLunch, v => (s.autoLunch = v));
       num(b, "Daily capacity (hours)", "Plannable hours per day. Free capacity = this minus lunch minus calendar meetings.", () => s.capacityHours, v => (s.capacityHours = v), { min: 0.5, max: 24, step: 0.5 });
-      text(b, "Shutdown reminder", "A nudge to run the shutdown ritual.", () => s.shutdownTime, v => (s.shutdownTime = v), { time: true });
+      text(b, "Day start line", "Where the start line sits in the planner timeline. Drag it there to change it.", () => s.dayStartTime, v => (s.dayStartTime = v), { time: true });
+      text(b, "Shutdown reminder", "A nudge to run the shutdown ritual. Also the finish line in the planner timeline.", () => s.shutdownTime, v => (s.shutdownTime = v), { time: true });
       label(b, "Week");
       num(b, "Required hours per week", "Used by the work time dashboard for overtime.", () => s.weeklyHours, v => (s.weeklyHours = v), { min: 1, max: 168, step: 0.5 });
       num(b, "Working days per week", "Counted from Monday (5 = Mon–Fri). Work on other days is all overtime.", () => s.workDays, v => (s.workDays = v), { min: 1, max: 7, int: true });

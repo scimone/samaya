@@ -166,11 +166,10 @@ assert.equal(taskLines([{ title: "Task A", minutes: 20, subtasks: [] }, { title:
   "- [[Task A]] • *20 min*\n- [[Task B]] • *2 hr*\n    - Subtask 1\n    - Subtask 2");
 assert.equal(bulletLines(["", "- a", "b "]), "- a\n- b");
 let note = upsertSection("", "Planned today", "- [[A]]");
-note = upsertSection(note, "Obstacles in my way", "- meetings");
 note = upsertSection(note, "Planned for tomorrow", "- [[C]]");
 note = upsertSection(note, "Finished today", "- [[A]] • *5 min*"); // must land before "Planned for tomorrow"
 const order = note.split("\n").filter(l => l.startsWith("## "));
-assert.deepEqual(order, ["## Planned today", "## Obstacles in my way", "## Finished today", "## Planned for tomorrow"]);
+assert.deepEqual(order, ["## Planned today", "## Finished today", "## Planned for tomorrow"]);
 note = upsertSection(note, "Planned today", "- [[A]]\n- [[B]]"); // replaces, doesn't duplicate
 assert.equal(note.split("## Planned today").length, 2);
 assert.deepEqual(readSection(note, "Planned today"), ["[[A]]", "[[B]]"]);

@@ -3,7 +3,7 @@ import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, createTask, patchTask, placeInDay, readTask, setDone, sortTasks } from "../model";
 import { addDays, fmtDur, hmToMin, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
-import { bindCardDrop, bindZone, renderTaskCard } from "./common";
+import { bindCardDrop, bindZone, renderTaskCard, showTaskMenu } from "./common";
 import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { ensureMeetingNote } from "../meetings";
@@ -11,6 +11,7 @@ import { layoutItems } from "../timeline";
 import { addBands } from "./bands";
 import { renderDoneBar } from "./doneBar";
 import { renderGuide } from "./guide";
+import { renderLoadBar } from "./loadBar";
 import { renderWorkdayCard } from "./workdayCard";
 import { capacityMinutes, Capacity } from "../worktime";
 
@@ -86,23 +87,27 @@ export class DailyPlannerView extends BasesView {
     const plannedAll = day.reduce((a, t) => a + (t.estimate || 0), 0);
 
     const left = this.root.createDiv("samaya-left");
-    this.renderHeader(left, day, cap, plannedAll, isToday);
     const g = isToday ? this.plugin.guide : null; const step = g?.step ?? -1;
-    if (g) renderGuide(this.plugin, left, { overdue: overdue.length, planned: plannedAll, free: cap.free });
+    this.renderHeader(left, day, cap, plannedAll, isToday, !!g);
+    if (g) {
+      renderGuide(this.plugin, left, { overdue: overdue.length });
+      if (step >= 1) renderLoadBar(left, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
+    }
 
-    if (overdue.length) {
+    if (overdue.length && !g) { // during the guide the left over tasks live in the sidebar
       const act = (t: Task): Array<[string, () => void]> => [
         ["Today", () => { void patchTask(this.app, t.file, { planned: today(), start: null }); }],
         ["Backlog", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: null }); }],
         ["Done", () => { void setDone(this.app, t, true); }],
       ];
-      this.section(left, `Left over (${overdue.length})`, overdue, true, null, { actions: act, guided: step === 0 });
+      this.section(left, `Left over (${overdue.length})`, overdue, true, null, { actions: act });
     }
 
-    const list = left.createDiv("samaya-list");
+    const list = left.createDiv("samaya-list" + (step === 2 ? " is-timebox" : ""));
     if (!day.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned. Drag tasks here or add one below." });
     day.forEach((t, idx) => {
       const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true });
+      c.toggleClass("is-timed", !!t.start);
       bindCardDrop(this.scope, c, (path, after) => { void placeInDay(this.app, this.plugin.settings, path, this.date, idx + (after ? 1 : 0)); });
     });
     bindZone(this.scope, list, path => { void placeInDay(this.app, this.plugin.settings, path, this.date, day.length); });
@@ -119,17 +124,17 @@ export class DailyPlannerView extends BasesView {
     const right = this.root.createDiv("samaya-right" + (step === 2 ? " is-guided" : ""));
     this.renderTimeline(right, day, events);
     if (!this.announced || this.plugin.plannerDate !== this.date) { this.announced = true; this.plugin.plannerDate = this.date; this.plugin.modeBus.emit(); }
-    if (g && step === 0) requestAnimationFrame(() => left.querySelector(".is-guided")?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
   }
 
   private fileOf(path: string): TFile { return this.app.vault.getAbstractFileByPath(path) as TFile; }
 
-  private renderHeader(left: HTMLElement, day: Task[], cap: Capacity, plannedAll: number, isToday: boolean) {
+  private renderHeader(left: HTMLElement, day: Task[], cap: Capacity, plannedAll: number, isToday: boolean, guided: boolean) {
     const head = left.createDiv("samaya-head samaya-top");
     const row = head.createDiv("samaya-top-row");
     const d = parseYmd(this.date);
     const title = row.createEl("h2", { text: isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" }) });
     title.createSpan({ cls: "samaya-date", text: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) });
+    if (guided) return; // plan my day: no day navigation, workday strip, totals or progress here
     const nav = row.createDiv("samaya-nav samaya-nav-min");
     const go = (x: string) => { this.date = x; this.scrolledFor = ""; void this.render(); };
     nav.createEl("button", { text: "‹", cls: "samaya-link-btn" }).onclick = () => go(addDays(this.date, -1));
@@ -218,6 +223,7 @@ export class DailyPlannerView extends BasesView {
       bt.createSpan({ text: t.title });
       b.createDiv({ cls: "samaya-block-time", text: `${t.start}–${minToHm(s + dur)} · ${fmtDur(dur)}` });
       b.addEventListener("dblclick", () => { void this.app.workspace.getLeaf("tab").openFile(t.file); });
+      b.addEventListener("contextmenu", e => showTaskMenu(this.plugin, t, e));
       this.scope.draggable(b, t.file.path);
       const handle = b.createDiv("samaya-resize");
       handle.addEventListener("pointerdown", e => {
@@ -235,6 +241,8 @@ export class DailyPlannerView extends BasesView {
       });
     });
 
+    this.renderDayLines(lane, grid, o, minToPx);
+
     if (this.date === today()) {
       const nl = lane.createDiv("samaya-now"); nl.dataset.startH = String(o.startH); this.updateNowLine(nl);
     }
@@ -245,6 +253,43 @@ export class DailyPlannerView extends BasesView {
       this.gridScroll = nl ? Math.max(0, parseFloat(nl.style.top) - 150) : Math.max(0, (8 - o.startH) * HOUR_H);
     }
     scroll.scrollTop = this.gridScroll;
+  }
+
+  /** Draggable start and finish lines of the working day (settings dayStartTime / shutdownTime). */
+  private renderDayLines(lane: HTMLElement, grid: HTMLElement, o: { startH: number; endH: number; slot: number }, minToPx: (m: number) => number) {
+    const s = this.plugin.settings; const lo = o.startH * 60, hi = o.endH * 60;
+    const val = { start: hmToMin(s.dayStartTime || "09:00"), end: hmToMin(s.shutdownTime || "17:30") };
+    const shadeTop = lane.createDiv("samaya-dayshade"); shadeTop.style.top = "0px";
+    const shadeBot = lane.createDiv("samaya-dayshade");
+    const mk = (key: "start" | "end", label: string) => {
+      const el = lane.createDiv("samaya-dayline is-" + key);
+      const lab = el.createSpan({ cls: "samaya-dayline-label", attr: { title: `Drag to move the ${label.toLowerCase()} line` } });
+      const paint = () => {
+        const clamped = Math.max(lo, Math.min(hi, val[key]));
+        el.style.top = `${minToPx(clamped)}px`; lab.setText(`${label} ${minToHm(val[key])}`);
+        shadeTop.style.height = `${Math.max(0, minToPx(Math.max(lo, Math.min(hi, val.start))))}px`;
+        const endPx = minToPx(Math.max(lo, Math.min(hi, val.end)));
+        shadeBot.style.top = `${endPx}px`; shadeBot.style.height = `${Math.max(0, grid.clientHeight - endPx)}px`;
+      };
+      lab.addEventListener("pointerdown", e => {
+        e.preventDefault(); e.stopPropagation();
+        const y0 = e.clientY, m0 = Math.max(lo, Math.min(hi, val[key]));
+        const move = (ev: PointerEvent) => {
+          const m = Math.round((m0 + ((ev.clientY - y0) / HOUR_H) * 60) / o.slot) * o.slot;
+          val[key] = key === "start" ? Math.max(lo, Math.min(val.end - o.slot, m)) : Math.min(hi, Math.max(val.start + o.slot, m));
+          paint();
+        };
+        const up = () => {
+          window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
+          if (key === "start") s.dayStartTime = minToHm(val.start); else s.shutdownTime = minToHm(val.end);
+          void this.plugin.saveSettings();
+        };
+        window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+      });
+      return paint;
+    };
+    const p1 = mk("start", "Start"), p2 = mk("end", "Finish");
+    p1(); p2();
   }
 
   private updateNowLine(el?: HTMLElement) {

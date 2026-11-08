@@ -26,7 +26,7 @@ import { WorkdayManager } from "./workday";
 import type { DayLog } from "./worktime";
 
 interface PluginData { settings?: Partial<SamayaSettings>; focus?: FocusState | null; workday?: DayLog | null; }
-export interface GuideState { step: number; obstacles: string | null; shutdown: string; fresh: boolean; }
+export interface GuideState { step: number; /** the Review step exists (there were unfinished overdue tasks) */ review: boolean; fresh: boolean; }
 
 const BASE_TEMPLATE = (folder: string) => `filters:
   and:
@@ -558,18 +558,14 @@ export default class SamayaPlugin extends Plugin {
   }
   /** Interactive planning: opens the daily planner and walks through it (see views/guide.ts). */
   async startGuide() {
-    this.guide = { step: 0, obstacles: null, shutdown: this.settings.shutdownTime, fresh: true };
+    const overdue = allTasks(this.app, this.settings).some(t => t.planned && t.planned < today() && t.status !== "done");
+    this.guide = { step: overdue ? 0 : 1, review: overdue, fresh: true };
     await this.openPlanner(); this.bus.emit();
   }
   async finishGuide() {
     const g = this.guide; if (!g) return; const s = this.settings; const td = today();
-    s.shutdownTime = g.shutdown; await this.saveSettings();
     const day = sortTasks(allTasks(this.app, s).filter(t => t.planned === td));
     if (journalWants(s, "journalPlanned")) await writeSection(this.app, s, td, "Planned today", taskLines(await toJournalTasks(this.app, day)));
-    if (journalWants(s, "journalObstacles")) {
-      const prior = g.obstacles ?? (await readJournalSection(this.app, s, td, "Obstacles in my way")).join("\n");
-      await writeSection(this.app, s, td, "Obstacles in my way", bulletLines(prior.split("\n")));
-    }
     await this.workday.startDay();
     this.guide = null; this.bus.emit();
     new Notice(`Day planned and started.${s.journalOn ? " Saved to your journal." : ""}`);

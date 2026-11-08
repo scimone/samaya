@@ -399,14 +399,16 @@ body { --samaya-green: #2fa862; }
 .samaya-col-bar.is-over .samaya-col-bar-fill { background: var(--text-error); }
 
 /* weekly timeline */
-.samaya-wtl { display: flex; flex-direction: column; height: 100%; padding: 12px; }
-.samaya-wtl-scroll { flex: 1; overflow-y: auto; margin-top: 10px; position: relative; }
+.samaya-wtl { display: flex; flex-direction: column; height: 100%; width: 100%; box-sizing: border-box; padding: 12px; overflow: hidden; }
+.samaya-wtl-scroll { flex: 1; min-height: 0; overflow-y: auto; margin-top: 10px; position: relative; }
 .samaya-wtl-heads { display: flex; position: sticky; top: 0; z-index: 5; background: var(--background-primary); border-bottom: 1px solid var(--background-modifier-border); }
 .samaya-wtl-axis-spacer, .samaya-wtl-axis { flex: 0 0 48px; }
 .samaya-wtl-head { flex: 1 1 0; min-width: 0; padding: 4px 4px 6px; display: flex; flex-direction: column; gap: 3px; border-left: 1px solid var(--background-modifier-border); }
 .samaya-wtl-day { font-weight: 600; }
 .samaya-wtl-head.is-today .samaya-wtl-day { color: var(--interactive-accent); }
-.samaya-wtl-chip { font-size: var(--font-ui-smaller); padding: 1px 6px; border-radius: var(--radius-s); background: color-mix(in srgb, var(--interactive-accent) 16%, var(--background-secondary)); border-left: 3px solid var(--interactive-accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: grab; user-select: none; }
+.samaya-wtl-chip { font-size: var(--font-ui-smaller); padding: 1px 6px; border-radius: var(--radius-s); background: color-mix(in srgb, var(--interactive-accent) 16%, var(--background-secondary)); border-left: 3px solid var(--interactive-accent); display: flex; gap: 6px; justify-content: space-between; cursor: grab; user-select: none; }
+.samaya-wtl-chip-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.samaya-wtl-chip-est { flex: none; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .samaya-wtl-chip.is-event { background: var(--background-modifier-hover); border-left-color: var(--text-muted); cursor: default; color: var(--text-muted); }
 .samaya-wtl-body { display: flex; position: relative; }
 .samaya-wtl-axis { position: relative; }

@@ -233,7 +233,7 @@ export class TodayView extends ItemView {
     const scheduled = sortTasks(open.filter(t => t.planned && t.planned >= wk && t.planned <= end));
     const backlog = sortTasks(open.filter(t => !t.planned && t.week !== wk));
     const tabs = c.createDiv("samaya-tabs");
-    ([["week", "Unscheduled", unscheduled.length], ["backlog", "Backlog", backlog.length]] as const).forEach(([key, label, n]) => {
+    ([["week", "Weekly Tasks", unscheduled.length], ["backlog", "Backlog", backlog.length]] as const).forEach(([key, label, n]) => {
       const b = tabs.createEl("button", { cls: "samaya-tab" + (this.tab === key ? " is-active" : ""), text: `${label} ${n}` });
       b.onclick = () => { this.tab = key; void this.render(); };
     });

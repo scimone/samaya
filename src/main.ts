@@ -438,6 +438,7 @@ export default class SamayaPlugin extends Plugin {
           const file = (leaf.view as { file?: TFile }).file; const el = leaf.view.containerEl;
           const id = s.journalOn && !!file ? await identifyNote(this.app, s, file) : null;
           el.toggleClass("samaya-hide-props", s.journalHideProps && !!id);
+          el.toggleClass("samaya-journal-note", !!id);
           await this.renderJournalBar(el, s.journalNavBar && file && id ? { file, ...id } : null);
         }
       } while (this.markAgain);

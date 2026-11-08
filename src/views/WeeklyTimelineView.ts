@@ -6,7 +6,7 @@ import { addDays, fmtDur, hmToMin, minToHm, parseYmd, startOfWeek, today } from 
 import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { layoutItems } from "../timeline";
-import { bindZone } from "./common";
+import { bindZone, showTaskMenu } from "./common";
 import { addBands } from "./bands";
 
 export const WTL_VIEW_TYPE = "samaya-week-timeline";
@@ -95,7 +95,7 @@ export class WeeklyTimelineView extends BasesView {
         const c = h.createDiv({ cls: "samaya-wtl-chip", attr: { title: "No time slot yet - drag onto the calendar" } });
         c.createSpan({ cls: "samaya-wtl-chip-title", text: t.title });
         c.createSpan({ cls: "samaya-wtl-chip-est", text: fmtDur(t.estimate || s.defaultEstimate) });
-        c.addEventListener("dblclick", () => open(t.file)); this.scope.draggable(c, t.file.path);
+        c.addEventListener("dblclick", () => open(t.file)); c.addEventListener("contextmenu", e => showTaskMenu(this.plugin, t, e)); this.scope.draggable(c, t.file.path);
       });
 
       bindZone(this.scope, h, path => { // drop here = keep the day, remove the time slot
@@ -155,6 +155,7 @@ export class WeeklyTimelineView extends BasesView {
         bt.createSpan({ text: t.title });
         b.createDiv({ cls: "samaya-block-time", text: `${minToHm(it.s)}–${minToHm(it.s + it.dur)} · ${fmtDur(it.dur)}` });
         b.addEventListener("dblclick", () => open(t.file));
+        b.addEventListener("contextmenu", e => showTaskMenu(this.plugin, t, e));
         this.scope.draggable(b, t.file.path);
       });
       if (isToday) { const nl = lane.createDiv("samaya-now"); nl.dataset.startH = String(startH); }

@@ -47,23 +47,27 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   if (!o.compact) void renderSubtasks(plugin, el.createDiv("samaya-subs"), t.file);
   else el.addClass("is-compact");
 
-  el.addEventListener("contextmenu", e => {
-    e.preventDefault(); const m = new Menu();
-    m.addItem(i => i.setTitle("Start focus").setIcon("timer").onClick(() => { void plugin.focus.start(t.file); }));
-    m.addItem(i => i.setTitle(tp ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void assignTicket(app, t.file, tk); }).open()));
-    if (tp) m.addItem(i => i.setTitle("Remove ticket").setIcon("unlink").onClick(() => { void assignTicket(app, t.file, null); }));
-    m.addSeparator();
-    m.addItem(i => i.setTitle("Plan for today").setIcon("sun").onClick(() => { void patchTask(app, t.file, { planned: today(), week: null }); }));
-    m.addItem(i => i.setTitle("Plan for this week").setIcon("calendar-range").onClick(() => { void patchTask(app, t.file, { planned: null, start: null, week: startOfWeek(today()) }); }));
-    if (t.start) m.addItem(i => i.setTitle("Remove from timeline").setIcon("x").onClick(() => { void patchTask(app, t.file, { start: null }); }));
-    if (t.planned || t.week) m.addItem(i => i.setTitle("Move to backlog").setIcon("inbox").onClick(() => { void patchTask(app, t.file, { planned: null, start: null, week: null }); }));
-    m.addSeparator();
-    m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { void app.workspace.getLeaf("tab").openFile(t.file); }));
-    m.showAtMouseEvent(e);
-  });
+  el.addEventListener("contextmenu", e => showTaskMenu(plugin, t, e));
 
   o.scope.draggable(el, t.file.path);
   return el;
+}
+
+/** The right-click menu shared by task cards and timeline blocks. */
+export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent) {
+  const app: App = plugin.app; const tp = ticketPathOf(app, t);
+  e.preventDefault(); const m = new Menu();
+  m.addItem(i => i.setTitle("Start focus").setIcon("timer").onClick(() => { void plugin.focus.start(t.file); }));
+  m.addItem(i => i.setTitle(tp ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void assignTicket(app, t.file, tk); }).open()));
+  if (tp) m.addItem(i => i.setTitle("Remove ticket").setIcon("unlink").onClick(() => { void assignTicket(app, t.file, null); }));
+  m.addSeparator();
+  m.addItem(i => i.setTitle("Plan for today").setIcon("sun").onClick(() => { void patchTask(app, t.file, { planned: today(), week: null }); }));
+  m.addItem(i => i.setTitle("Plan for this week").setIcon("calendar-range").onClick(() => { void patchTask(app, t.file, { planned: null, start: null, week: startOfWeek(today()) }); }));
+  if (t.start) m.addItem(i => i.setTitle("Remove from timeline").setIcon("x").onClick(() => { void patchTask(app, t.file, { start: null }); }));
+  if (t.planned || t.week) m.addItem(i => i.setTitle("Move to backlog").setIcon("inbox").onClick(() => { void patchTask(app, t.file, { planned: null, start: null, week: null }); }));
+  m.addSeparator();
+  m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { void app.workspace.getLeaf("tab").openFile(t.file); }));
+  m.showAtMouseEvent(e);
 }
 
 export async function renderSubtasks(plugin: SamayaPlugin, host: HTMLElement, file: TFile) {

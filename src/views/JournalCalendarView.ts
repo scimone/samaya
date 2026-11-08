@@ -42,12 +42,17 @@ export class JournalCalendarView extends ItemView {
   }
 
   private async render() {
+    try { await this.draw(); } catch (e) {
+      console.error("Samaya: journal calendar failed", e);
+      this.contentEl.empty(); this.contentEl.createDiv({ cls: "samaya-note", text: "The calendar could not be drawn: " + (e as Error).message });
+    }
+  }
+  private async draw() {
     const s = this.plugin.settings; const root = this.contentEl;
     const locs: Record<Period, Awaited<ReturnType<typeof periodLocation>>> = {
       daily: await periodLocation(this.app, s, "daily"), weekly: await periodLocation(this.app, s, "weekly"),
       monthly: await periodLocation(this.app, s, "monthly"), yearly: await periodLocation(this.app, s, "yearly"),
     };
-    if (!root.isConnected) return;
     const exists = (p: Period, date: string) => { const l = locs[p]; return !!l && this.app.vault.getAbstractFileByPath(journalPathFor(l, date)) instanceof TFile; };
     root.empty();
     const [y, m] = this.shown.split("-").map(Number); const td = today();

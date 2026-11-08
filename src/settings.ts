@@ -1,4 +1,4 @@
-import { AbstractInputSuggest, App, PluginSettingTab, Setting } from "obsidian";
+import { AbstractInputSuggest, App, PluginSettingTab, Setting, setIcon } from "obsidian";
 import type SamayaPlugin from "./main";
 import { ticketFolderFor, folderFor } from "./model";
 import { MEETING_SYNC_AHEAD_DAYS, syncMeetingNotes } from "./meetings";
@@ -107,6 +107,7 @@ type Pill = [text: string, kind: "ok" | "warn" | "off"];
 interface CardOpts { /** folds away unless true, without a switch of its own */ activeWhen?: () => boolean; enabled?: { get: () => boolean; set: (v: boolean) => void | Promise<void> }; status?: () => Pill }
 
 export class SamayaSettingTab extends PluginSettingTab {
+  private activeTab = "planner";
   constructor(app: App, private plugin: SamayaPlugin) { super(app, plugin); }
 
   /** Where notes of one kind live: offer only the sources that are installed and enabled right now. */
@@ -166,6 +167,27 @@ export class SamayaSettingTab extends PluginSettingTab {
     const s = this.plugin.settings;
     const save = async () => { await this.plugin.saveSettings(); };
     const refreshers: Array<() => void> = []; // status pills etc., re-run after any change
+
+    // ---- tabs: one panel per module, only the active one is shown
+    const bar = c.createDiv({ cls: "samaya-tabs", attr: { role: "tablist" } });
+    const tabs: Array<{ id: string; btn: HTMLElement; panel: HTMLElement }> = [];
+    let cur: HTMLElement = c;
+    const select = (id: string) => {
+      this.activeTab = id;
+      for (const t of tabs) { const on = t.id === id; t.btn.toggleClass("is-active", on); t.btn.setAttribute("aria-selected", String(on)); t.btn.tabIndex = on ? 0 : -1; t.panel.toggleClass("is-active", on); }
+    };
+    const tabDivider = () => bar.createDiv("samaya-tabs-sep");
+    const tab = (id: string, name: string, icon: string) => {
+      const btn = bar.createEl("button", { cls: "samaya-tab", attr: { role: "tab", type: "button" } });
+      setIcon(btn.createSpan("samaya-tab-icon"), icon); btn.createSpan({ cls: "samaya-tab-name", text: name });
+      const panel = c.createDiv({ cls: "samaya-panel", attr: { role: "tabpanel" } });
+      btn.addEventListener("click", () => select(id));
+      btn.addEventListener("keydown", e => {
+        const i = tabs.findIndex(t => t.id === id), d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0; if (!d) return;
+        const n = tabs[(i + d + tabs.length) % tabs.length]; select(n.id); n.btn.focus(); e.preventDefault();
+      });
+      tabs.push({ id, btn, panel }); cur = panel; return btn;
+    };
     const changed = async () => { await save(); refreshers.forEach(f => f()); };
 
     // ---- building blocks
@@ -174,7 +196,8 @@ export class SamayaSettingTab extends PluginSettingTab {
 
     /** One module: a header (with an on/off switch when optional) and a body that folds away while it is off. */
     const card = (title: string, desc: string, opts: CardOpts = {}) => {
-      const el = c.createDiv("samaya-mod");
+      const el = cur.createDiv("samaya-mod");
+      const dot = opts.status || opts.activeWhen ? tabs[tabs.length - 1].btn.createSpan("samaya-tab-dot") : null;
       const head = new Setting(el).setName(title).setDesc(desc);
       head.settingEl.addClass("samaya-mod-head");
       const pill = opts.status ? head.nameEl.createSpan("samaya-pill") : null;
@@ -182,7 +205,8 @@ export class SamayaSettingTab extends PluginSettingTab {
       const sync = () => {
         const on = opts.enabled ? opts.enabled.get() : opts.activeWhen ? opts.activeWhen() : true;
         el.toggleClass("is-off", !on); inner.parentElement?.toggleAttribute("inert", !on);
-        if (pill && opts.status) { const [t, k] = on ? opts.status() : ["Off", "off" as const]; pill.setText(t); pill.className = "samaya-pill is-" + k; }
+        if (pill && opts.status) { const [t, k] = on ? opts.status() : ["Off", "off" as const]; pill.setText(t); pill.className = "samaya-pill is-" + k; if (dot) dot.className = "samaya-tab-dot is-" + k; }
+        else if (dot) dot.className = "samaya-tab-dot is-" + (on ? "ok" : "off");
       };
       if (opts.enabled) head.addToggle(t => { t.setValue(opts.enabled!.get()).setTooltip("Enable " + title).onChange(async v => { await opts.enabled!.set(v); await changed(); }); });
       refreshers.push(sync); sync();
@@ -268,7 +292,7 @@ export class SamayaSettingTab extends PluginSettingTab {
       text(el, name, desc + " Leave empty for the built-in template.", () => s[key], v => (s[key] = v), { placeholder: "Templates/…", suggest: mdFiles });
 
     // ======================================================================== core modules
-    new Setting(c).setName("Core modules").setHeading().setDesc("Always on. They make up the planner itself.").settingEl.addClass("samaya-section");
+    tab("planner", "Planner", "layout-dashboard");
 
     {
       const b = card("Planner", "How your workday is shaped: when you work, how much you plan, and what counts as overtime.");
@@ -294,6 +318,7 @@ export class SamayaSettingTab extends PluginSettingTab {
       text(b, "Planner base file", "The base file opened by the ribbon icon.", () => s.plannerFile, v => (s.plannerFile = v || "Planner/Planner.base"), { placeholder: "Planner/Planner.base" });
     }
 
+    tab("tasks", "Tasks", "check-square");
     {
       const b = card("Tasks", "One note per task, created from the planner, the backlog or a checkbox.");
       num(b, "Default estimate (minutes)", "Used for new tasks, and for unestimated tasks dropped on the grid.", () => s.defaultEstimate, v => (s.defaultEstimate = v), { min: 1, max: 1440, int: true });
@@ -303,7 +328,8 @@ export class SamayaSettingTab extends PluginSettingTab {
     }
 
     // ======================================================================== optional modules
-    new Setting(c).setName("Optional modules").setHeading().setDesc("Switch on what you use. Settings of a module you turn off are kept.").settingEl.addClass("samaya-section");
+    tabDivider();
+    tab("calendar", "Calendar", "calendar");
 
     {
       const ics = () => s.icsUrls.length;
@@ -344,6 +370,7 @@ export class SamayaSettingTab extends PluginSettingTab {
       renderMeet();
     }
 
+    tab("journal", "Journal", "book-open");
     {
       const b = card("Journal", "Write your day into your daily (periodic) note: plans, results and work times.", {
         enabled: { get: () => s.journalOn, set: v => { s.journalOn = v; if (v) void this.plugin.scaffoldJournal(false); this.plugin.bus.emit(); } },
@@ -367,6 +394,7 @@ export class SamayaSettingTab extends PluginSettingTab {
       }
     }
 
+    tab("projects", "Projects", "folder-kanban");
     {
       const b = card("Projects", "Group tasks and tickets into projects, and plan them on a Gantt chart.", {
         enabled: { get: () => s.projectsOn, set: v => { s.projectsOn = v; if (v) void this.plugin.scaffoldProjects(true); this.plugin.bus.emit(); } },
@@ -383,6 +411,8 @@ export class SamayaSettingTab extends PluginSettingTab {
     const syncBtn = (el: HTMLElement, which: "jira" | "gitlab", name: string) =>
       new Setting(el).setName("Import now").setDesc(`Fetch your ${name} issues into the tickets path.`).addButton(bt => bt.setButtonText(`Sync ${name}`).setCta().onClick(async () => { bt.setDisabled(true); try { await this.plugin.syncTickets(which); } finally { bt.setDisabled(false); } }));
 
+    tabDivider();
+    tab("jira", "Jira", "ticket");
     {
       const b = card("Jira", "Import the issues assigned to you as ticket notes.", {
         enabled: { get: () => s.jiraOn, set: v => { s.jiraOn = v; if (v) void this.plugin.scaffoldTickets(false); } },
@@ -402,6 +432,7 @@ export class SamayaSettingTab extends PluginSettingTab {
       refreshers.push(() => { if (!!emailBox.firstChild !== (s.jiraFlavor === "cloud")) renderEmail(); });
     }
 
+    tab("gitlab", "GitLab", "git-merge");
     {
       const b = card("GitLab", "Import GitLab issues as ticket notes.", {
         enabled: { get: () => s.gitlabOn, set: v => { s.gitlabOn = v; if (v) void this.plugin.scaffoldTickets(false); } },
@@ -416,6 +447,7 @@ export class SamayaSettingTab extends PluginSettingTab {
       syncBtn(b, "gitlab", "GitLab");
     }
 
+    tab("tickets", "Tickets", "list-checks");
     {
       const b = card("Tickets", "Ticket notes imported from Jira and GitLab. Both share these settings. Appears when either is on.", { activeWhen: () => s.jiraOn || s.gitlabOn });
       note(b, "A kanban board of all tickets (columns: status, rows: Jira / GitLab project) lives in Tickets.base inside the tickets folder.");
@@ -429,5 +461,6 @@ export class SamayaSettingTab extends PluginSettingTab {
       label(b, "Sync");
       toggle(b, "Sync on startup", "Import tickets from the enabled integrations when Obsidian starts.", () => s.syncOnStartup, v => (s.syncOnStartup = v));
     }
+    select(tabs.some(t => t.id === this.activeTab) ? this.activeTab : tabs[0].id);
   }
 }

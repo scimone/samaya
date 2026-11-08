@@ -507,3 +507,19 @@ body { --samaya-green: #2fa862; }
 .samaya-hide-props .metadata-container,
 .samaya-hide-props .metadata-properties-heading,
 .samaya-hide-props .metadata-properties { display: none !important; }
+
+/* settings tabs */
+.samaya-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; padding-bottom: 0; margin-bottom: 4px; border-bottom: 1px solid var(--background-modifier-border); }
+.samaya-tabs-sep { width: 1px; height: 18px; margin: 0 6px; background: var(--background-modifier-border); }
+.samaya-tab { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; margin-bottom: -1px; background: transparent; box-shadow: none; border: 0; border-bottom: 2px solid transparent; border-radius: var(--radius-s) var(--radius-s) 0 0; color: var(--text-muted); font-size: var(--font-ui-small); cursor: pointer; height: auto; }
+.samaya-tab:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+.samaya-tab.is-active { color: var(--text-normal); border-bottom-color: var(--interactive-accent); font-weight: var(--font-semibold); background: transparent; }
+.samaya-tab-icon { display: inline-flex; } .samaya-tab-icon svg { width: 15px; height: 15px; }
+.samaya-tab-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--background-modifier-border-hover); }
+.samaya-tab-dot.is-ok { background: var(--color-green); }
+.samaya-tab-dot.is-warn { background: var(--color-orange); }
+.samaya-tab-dot.is-off { background: var(--background-modifier-border-hover); }
+.samaya-panel { display: none; }
+.samaya-panel.is-active { display: block; }
+.samaya-panel > .samaya-mod:first-child { margin-top: 16px; }
+@media (max-width: 600px) { .samaya-tab-name { display: none; } .samaya-tab.is-active .samaya-tab-name { display: inline; } }

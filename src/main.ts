@@ -14,7 +14,7 @@ import { GANTT_VIEW_TYPE, GanttView } from "./views/GanttView";
 import { KANBAN_VIEW_TYPE, KanbanView } from "./views/KanbanView";
 import { JOURNAL_CAL_TYPE, JournalCalendarView } from "./views/JournalCalendarView";
 import { JOURNAL_BASE_VIEW_TYPE, JournalBaseView } from "./views/JournalBaseView";
-import { findLatestPeriodNote, journalLocation, openPeriodNote, periodNotePath } from "./journal";
+import { identifyNote, findLatestPeriodNote, journalLocation, openPeriodNote, periodNotePath } from "./journal";
 import { PROJECTS_BASE_TEMPLATE, assignProject, createProject } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask } from "./model";
@@ -233,10 +233,15 @@ export default class SamayaPlugin extends Plugin {
     } });
     this.addCommand({ id: "scaffold", name: "Create planner files", callback: () => this.scaffold(true) });
 
+    // journal notes get a class that hides their properties block (styles.css)
+    const marks = () => { void this.markJournalNotes(); };
+    this.registerEvent(this.app.workspace.on("file-open", marks)); this.registerEvent(this.app.workspace.on("layout-change", marks)); this.registerEvent(this.app.workspace.on("active-leaf-change", marks));
+    this.register(this.bus.on(marks));
     this.registerEvent(this.app.metadataCache.on("changed", f => { if (this.indexLunch(f)) this.bus.emit(); void this.fileByPlanned(f); }));
     const ref = this.app.metadataCache.on("resolved", () => { this.scanLunch(); void this.fileAllByPlanned(); this.app.metadataCache.offref(ref); });
     this.app.workspace.onLayoutReady(async () => {
       this.scanLunch();
+      void this.markJournalNotes();
       await this.scaffold(false);
       if (this.settings.syncOnStartup && (this.settings.jiraOn || this.settings.gitlabOn)) void this.syncTickets();
       if (this.settings.openOnStartup) await this.openPlanner();
@@ -335,6 +340,15 @@ export default class SamayaPlugin extends Plugin {
     if (this.app.vault.getAbstractFileByPath(bp)) { if (announce) new Notice("Journal base already exists."); return; }
     await ensureFolder(this.app, "Journal");
     await this.app.vault.create(bp, JOURNAL_BASE_TEMPLATE(root === "/" ? "Journal" : root)); if (announce) new Notice("Created " + bp);
+  }
+  /** Toggle `samaya-hide-props` on every open note tab that is a journal note (while the setting asks for it). */
+  async markJournalNotes() {
+    const s = this.settings; const leaves = this.app.workspace.getLeavesOfType("markdown");
+    for (const leaf of leaves) {
+      const file = (leaf.view as { file?: TFile }).file; const el = leaf.view.containerEl;
+      const hide = s.journalOn && s.journalHideProps && !!file && !!(await identifyNote(this.app, s, file));
+      el.toggleClass("samaya-hide-props", hide);
+    }
   }
   /** Open a note in the main area: reuse a tab already showing it, else the first note tab, else a new tab. */
   async openNoteInMain(file: TFile) {

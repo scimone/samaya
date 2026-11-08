@@ -25,6 +25,8 @@ export interface SamayaSettings {
   journalWorkTimes: boolean; journalBreaks: boolean; journalTracked: boolean;
   /** weekly / monthly / quarterly / yearly notes of the journal calendar */
   journalNotes: Record<PeriodicKind, PeriodCfg>;
+  /** hide the properties block in journal notes */
+  journalHideProps: boolean;
   /** projects module: folder of project notes and the base that shows them */
   projectsOn: boolean; projectsPath: string; projectsBase: string;
 }
@@ -40,6 +42,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   calendarOn: false, jiraOn: false, gitlabOn: false,
   journalOn: false, journalPlanned: true, journalObstacles: true, journalFinished: true, journalTomorrow: true,
   journalWorkTimes: true, journalBreaks: true, journalTracked: true,
+  journalHideProps: true,
   journalNotes: {
     weekly: { on: false, source: "auto", folder: "[Journal]/YYYY/[Weekly]", format: PERIOD_DEFAULT_FORMAT.weekly },
     monthly: { on: false, source: "auto", folder: "[Journal]/YYYY/YYYY-MM", format: PERIOD_DEFAULT_FORMAT.monthly },
@@ -346,6 +349,7 @@ export class SamayaSettingTab extends PluginSettingTab {
         enabled: { get: () => s.journalOn, set: v => { s.journalOn = v; if (v) void this.plugin.scaffoldJournal(false); this.plugin.bus.emit(); } },
         status: () => { const n = JOURNAL_PARTS.filter(([k]) => s[k]).length; return n ? [`${n} of ${JOURNAL_PARTS.length} items`, "ok"] : ["Nothing selected", "warn"]; },
       });
+      toggle(b, "Hide properties in journal notes", "Hides the properties block at the top of your daily, weekly, monthly, quarterly and yearly notes. The properties are still there (work times are stored in them); turn this off to see and edit them.", () => s.journalHideProps, v => { s.journalHideProps = v; this.plugin.bus.emit(); });
       label(b, "Write into the daily note");
       for (const [k, name, desc] of JOURNAL_PARTS) toggle(b, name, desc, () => s[k], v => (s[k] = v));
       note(b, "The work time dashboard and per-day lunch overrides read work times, breaks and lunch from the daily notes. Turn those items off and the dashboard shows nothing new, and a lunch changed on the grid lasts only until Obsidian restarts.");

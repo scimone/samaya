@@ -502,3 +502,6 @@ body { --samaya-green: #2fa862; }
 .samaya-jcal-info-label { color: var(--text-muted); }
 .samaya-jcal-info-rows .is-neg { color: var(--text-error); } .samaya-jcal-info-rows .is-pos { color: var(--text-success); }
 .samaya-jcal-info-empty { color: var(--text-faint); font-size: var(--font-ui-small); }
+
+/* journal notes: properties hidden by default (setting "Hide properties in journal notes") */
+.samaya-hide-props .metadata-container { display: none; }

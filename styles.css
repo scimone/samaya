@@ -2,7 +2,7 @@
 .samaya-left { flex: 1 1 440px; max-width: 520px; min-width: 300px; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; border-right: 1px solid var(--background-modifier-border); }
 .samaya-right { flex: 0 1 380px; display: flex; flex-direction: column; min-width: 260px; padding-left: 8px; }
 .samaya-head h2 { margin: 8px 0 2px; }
-.samaya-date { color: var(--text-muted); font-weight: 400; font-size: 0.7em; }
+.samaya-date { color: var(--text-muted); font-weight: 400; font-size: 0.7em; margin-left: 0.6em; }
 .samaya-nav, .samaya-head-buttons, .samaya-week-head { display: flex; gap: 6px; align-items: center; }
 .samaya-head-buttons { margin: 8px 0 12px; }
 .samaya-total { color: var(--text-muted); font-size: var(--font-ui-small); margin: 4px 0; }

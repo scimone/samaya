@@ -58,7 +58,7 @@ class PathSuggest extends AbstractInputSuggest<string> {
 }
 
 type Pill = [text: string, kind: "ok" | "warn" | "off"];
-interface CardOpts { enabled?: { get: () => boolean; set: (v: boolean) => void | Promise<void> }; status?: () => Pill }
+interface CardOpts { /** folds away unless true, without a switch of its own */ activeWhen?: () => boolean; enabled?: { get: () => boolean; set: (v: boolean) => void | Promise<void> }; status?: () => Pill }
 
 export class SamayaSettingTab extends PluginSettingTab {
   constructor(app: App, private plugin: SamayaPlugin) { super(app, plugin); }
@@ -82,7 +82,7 @@ export class SamayaSettingTab extends PluginSettingTab {
       const pill = opts.status ? head.nameEl.createSpan("samaya-pill") : null;
       const inner = el.createDiv("samaya-mod-body").createDiv("samaya-mod-inner");
       const sync = () => {
-        const on = opts.enabled ? opts.enabled.get() : true;
+        const on = opts.enabled ? opts.enabled.get() : opts.activeWhen ? opts.activeWhen() : true;
         el.toggleClass("is-off", !on); inner.parentElement?.toggleAttribute("inert", !on);
         if (pill && opts.status) { const [t, k] = on ? opts.status() : ["Off", "off" as const]; pill.setText(t); pill.className = "samaya-pill is-" + k; }
       };
@@ -173,24 +173,6 @@ export class SamayaSettingTab extends PluginSettingTab {
     }
 
     {
-      const b = card("Tickets", "Ticket notes imported from Jira and GitLab. Both share these settings.");
-      label(b, "Notes & templates");
-      pathText(b, "Tickets path", "Where ticket notes are stored.", "ticketsPath", `May contain ticket variables (${vars(TICKET_VARIABLES)}), e.g. [Tickets]/[Jira]/{{TASK_STATUS}}. With {{TASK_STATUS}}, notes move when the ticket's status changes.`);
-      const fn = new Setting(b).setName("Ticket file name").setDesc("Ticket variables in double braces, plus {{TASK_TITLE_SLUG}} (the title as a slug). Leave out “.md”.");
-      const fnPreview = fn.descEl.createDiv({ cls: "samaya-path-preview" });
-      const showFn = () => fnPreview.setText("Example: " + renderTicketFileName(s.ticketFileName, SAMPLE_TICKET) + ".md");
-      fn.addText(t => t.setValue(s.ticketFileName).setPlaceholder(DEFAULT_SETTINGS.ticketFileName).onChange(async v => { s.ticketFileName = v.trim() || DEFAULT_SETTINGS.ticketFileName; await changed(); showFn(); })); showFn();
-      template(b, "Ticket note template", `Path of a template note. Variables: ${vars(TICKET_VARIABLES)} {{TASK_SOURCE}} {{date}}.`, "ticketTemplate");
-      const syncBox = b.createDiv();
-      const renderSync = () => {
-        syncBox.empty(); if (!s.jiraOn && !s.gitlabOn) return;
-        label(syncBox, "Sync");
-        toggle(syncBox, "Sync on startup", "Import tickets from the enabled integrations when Obsidian starts.", () => s.syncOnStartup, v => (s.syncOnStartup = v));
-      };
-      renderSync(); refreshers.push(() => { if (!!syncBox.firstChild !== (s.jiraOn || s.gitlabOn)) renderSync(); });
-    }
-
-    {
       const b = card("Work time", "Tracks your workday and overtime.");
       label(b, "Lunch break");
       text(b, "Starts", "Marked in the calendar and subtracted from capacity.", () => s.lunchStart, v => (s.lunchStart = v), { time: true });
@@ -272,6 +254,19 @@ export class SamayaSettingTab extends PluginSettingTab {
       label(b, "Import");
       dropdown(b, "Issues to import", "", { assigned_to_me: "Assigned to me", created_by_me: "Created by me", all: "All I can see" }, () => s.gitlabScope, v => { s.gitlabScope = v; });
       syncBtn(b, "gitlab", "GitLab");
+    }
+
+    {
+      const b = card("Tickets", "Ticket notes imported from Jira and GitLab. Both share these settings. Appears when either is on.", { activeWhen: () => s.jiraOn || s.gitlabOn });
+      label(b, "Notes & templates");
+      pathText(b, "Tickets path", "Where ticket notes are stored.", "ticketsPath", `May contain ticket variables (${vars(TICKET_VARIABLES)}), e.g. [Tickets]/[Jira]/{{TASK_STATUS}}. With {{TASK_STATUS}}, notes move when the ticket's status changes.`);
+      const fn = new Setting(b).setName("Ticket file name").setDesc("Ticket variables in double braces, plus {{TASK_TITLE_SLUG}} (the title as a slug). Leave out “.md”.");
+      const fnPreview = fn.descEl.createDiv({ cls: "samaya-path-preview" });
+      const showFn = () => fnPreview.setText("Example: " + renderTicketFileName(s.ticketFileName, SAMPLE_TICKET) + ".md");
+      fn.addText(t => t.setValue(s.ticketFileName).setPlaceholder(DEFAULT_SETTINGS.ticketFileName).onChange(async v => { s.ticketFileName = v.trim() || DEFAULT_SETTINGS.ticketFileName; await changed(); showFn(); })); showFn();
+      template(b, "Ticket note template", `Path of a template note. Variables: ${vars(TICKET_VARIABLES)} {{TASK_SOURCE}} {{date}}.`, "ticketTemplate");
+      label(b, "Sync");
+      toggle(b, "Sync on startup", "Import tickets from the enabled integrations when Obsidian starts.", () => s.syncOnStartup, v => (s.syncOnStartup = v));
     }
   }
 }

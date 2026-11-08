@@ -23,11 +23,7 @@ export class DashboardView extends ItemView {
   onClose() { window.clearTimeout(this.timer); return Promise.resolve(); }
   private schedule() { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.render(), 150); }
 
-  private logs(): DayLog[] {
-    const logs = readLogs(this.app).filter(l => l.date !== this.plugin.workday.log?.date);
-    if (this.plugin.workday.log?.start) logs.push(this.plugin.workday.log); // live state wins for today
-    return logs;
-  }
+  private logs(): DayLog[] { return this.plugin.workday.allLogs(); }
 
   render() {
     const c = this.contentEl; c.empty(); const s = this.plugin.settings;

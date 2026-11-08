@@ -141,6 +141,20 @@ export async function findLatestPeriodNote(app: App, s: SamayaSettings, p: Perio
   }
   return latestOnOrBefore(items, today())?.file ?? null;
 }
+/** Which note of the journal a file is (kind and a date inside its period), or null. */
+export async function identifyNote(app: App, s: SamayaSettings, file: TFile): Promise<{ p: Period; date: string } | null> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const moment = (window as any).moment;
+  const yr = file.path.match(/(?:^|\/)((?:19|20)\d{2})(?:\/|-|$)/)?.[1]; // formats without a year (e.g. [Q]Q) take it from the path
+  for (const p of ["daily", "weekly", "monthly", "quarterly", "yearly"] as Period[]) {
+    const loc = await periodLocation(app, s, p); if (!loc) continue;
+    const m = moment(file.basename, loc.format, true); if (!m.isValid()) continue;
+    for (const cand of yr && m.year() !== Number(yr) ? [m.format("YYYY-MM-DD"), m.clone().year(Number(yr)).format("YYYY-MM-DD")] : [m.format("YYYY-MM-DD")]) {
+      if (journalPathFor(loc, cand) === file.path) return { p, date: cand };
+    }
+  }
+  return null;
+}
 /** The note of a period containing `date`, created (from the configured template) when missing. */
 export async function openPeriodNote(app: App, s: SamayaSettings, p: Period, date: string): Promise<TFile | null> {
   const loc = await periodLocation(app, s, p); if (!loc) return null;

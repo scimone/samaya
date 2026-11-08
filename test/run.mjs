@@ -93,6 +93,19 @@ assert.equal(wk.target, 2400); assert.equal(wk.balance, (8 * 60 + 30 - 55 - 480)
 assert.equal(W.totalBalance(logs, 40, 5), (8 * 60 + 30 - 55 - 480) + 0);
 assert.equal(W.fmtSigned(-18), "-0:18"); assert.equal(W.fmtSigned(75), "+1:15");
 
+// ---- period stats
+{
+  const { periodRange, periodStats } = await import("./.worktime.mjs");
+  assert.deepEqual(periodRange("weekly", "2026-11-08"), { from: "2026-11-02", to: "2026-11-08" });
+  assert.deepEqual(periodRange("monthly", "2026-02-10"), { from: "2026-02-01", to: "2026-02-28" });
+  assert.deepEqual(periodRange("quarterly", "2026-11-08"), { from: "2026-10-01", to: "2026-12-31" });
+  assert.deepEqual(periodRange("yearly", "2026-11-08"), { from: "2026-01-01", to: "2026-12-31" });
+  const L = (date, start, end, br = []) => ({ date, start, end, breaks: br, open: null });
+  const st = periodStats([L("2026-11-02", "08:00", "17:00", [{ start: "12:00", end: "13:00", kind: "lunch" }]), L("2026-11-03", "09:00", "18:00", [{ start: "12:00", end: "13:00", kind: "lunch" }]), L("2026-11-04", "09:00", null), L("2026-10-30", "08:00", "12:00")], "2026-11-02", "2026-11-08", 40, 5);
+  assert.equal(st.days, 2); assert.equal(st.avgStart, "08:30"); assert.equal(st.avgEnd, "17:30"); assert.equal(st.worked, 960); assert.equal(st.target, 960); assert.equal(st.balance, 0);
+  assert.equal(periodStats([], "2026-11-02", "2026-11-08", 40, 5).avgStart, null);
+}
+
 // ---- latest note
 {
   const it = [{ date: "2026-11-01" }, { date: "2026-11-07" }, { date: "2026-11-20" }];

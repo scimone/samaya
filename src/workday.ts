@@ -27,6 +27,12 @@ export class WorkdayManager {
   constructor(private plugin: SamayaPlugin) {}
   private get s() { return this.plugin.settings; }
 
+  /** All logged days from the daily notes; today's live state wins. */
+  allLogs(): DayLog[] {
+    const logs = readLogs(this.plugin.app).filter(l => l.date !== this.log?.date);
+    if (this.log?.start) logs.push(this.log);
+    return logs;
+  }
   get started(): boolean { return !!this.log?.start && !this.log.end; }
   get onBreak(): boolean { return !!this.log?.open; }
   worked(): number { return workedMinutes(this.log, nowMin()); }

@@ -495,3 +495,10 @@ body { --samaya-green: #2fa862; }
 .samaya-journal-page { padding: 16px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .samaya-jcal-title { flex-wrap: wrap; }
 .samaya-jcal-quarter { flex-basis: 100%; font-size: var(--font-ui-smaller); font-weight: normal; color: var(--text-muted); }
+.samaya-jcal-day.is-selected:not(.is-today), .samaya-jcal-wk.is-selected { outline: 1px solid var(--interactive-accent); border-radius: 6px; }
+.samaya-jcal-info { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--background-modifier-border); }
+.samaya-jcal-info-title { font-weight: 600; margin-bottom: 6px; }
+.samaya-jcal-info-rows { display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; font-size: var(--font-ui-small); }
+.samaya-jcal-info-label { color: var(--text-muted); }
+.samaya-jcal-info-rows .is-neg { color: var(--text-error); } .samaya-jcal-info-rows .is-pos { color: var(--text-success); }
+.samaya-jcal-info-empty { color: var(--text-faint); font-size: var(--font-ui-small); }

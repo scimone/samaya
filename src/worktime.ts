@@ -1,5 +1,5 @@
 // Pure work-time logic: workday log, breaks, capacity, weekly balance. No Obsidian imports (unit-tested).
-import { addDays, hmToMin, minToHm, parseYmd } from "./util";
+import { addDays, hmToMin, minToHm, parseYmd, startOfWeek } from "./util";
 
 export type BreakKind = "lunch" | "break";
 export interface Break { start: string; end: string; kind: BreakKind; }
@@ -77,4 +77,28 @@ export function totalBalance(logs: DayLog[], weeklyHours: number, workdays: numb
 export function fmtSigned(min: number): string {
   const sign = min < 0 ? "-" : "+"; const m = Math.abs(Math.round(min));
   return `${sign}${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
+}
+
+export type PeriodKind = "daily" | "weekly" | "monthly" | "quarterly" | "yearly";
+/** First and last day (YYYY-MM-DD) of the period containing `date`. */
+export function periodRange(kind: PeriodKind, date: string): { from: string; to: string } {
+  const [y, m] = date.split("-").map(Number); const pad2 = (n: number) => String(n).padStart(2, "0");
+  const lastDay = (yy: number, mm: number) => new Date(yy, mm, 0).getDate(); // mm: 1-12
+  switch (kind) {
+    case "daily": return { from: date, to: date };
+    case "weekly": { const from = startOfWeek(date); return { from, to: addDays(from, 6) }; }
+    case "monthly": return { from: `${y}-${pad2(m)}-01`, to: `${y}-${pad2(m)}-${pad2(lastDay(y, m))}` };
+    case "quarterly": { const q0 = Math.floor((m - 1) / 3) * 3 + 1; return { from: `${y}-${pad2(q0)}-01`, to: `${y}-${pad2(q0 + 2)}-${pad2(lastDay(y, q0 + 2))}` }; }
+    default: return { from: `${y}-01-01`, to: `${y}-12-31` };
+  }
+}
+export interface PeriodStats { days: number; avgStart: string | null; avgEnd: string | null; worked: number; avgWorked: number; target: number; balance: number; }
+/** Aggregates over the finished days (start and end logged) between from and to: averages, totals and overtime (worked - required). */
+export function periodStats(logs: DayLog[], from: string, to: string, weeklyHours: number, workdays: number): PeriodStats {
+  const done = logs.filter(l => l.start && l.end && l.date >= from && l.date <= to);
+  const n = done.length; if (!n) return { days: 0, avgStart: null, avgEnd: null, worked: 0, avgWorked: 0, target: 0, balance: 0 };
+  const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+  const worked = done.reduce((a, l) => a + workedMinutes(l, 1440), 0);
+  const target = done.reduce((a, l) => a + dailyTarget(weeklyHours, workdays, l.date), 0);
+  return { days: n, avgStart: minToHm(mean(done.map(l => hmToMin(l.start!)))), avgEnd: minToHm(mean(done.map(l => hmToMin(l.end!)))), worked, avgWorked: worked / n, target, balance: worked - target };
 }

@@ -228,7 +228,7 @@ export default class SamayaPlugin extends Plugin {
 
     const bp = normalizePath(this.settings.plannerFile);
     const bf = this.app.vault.getAbstractFileByPath(bp);
-    if (!bf) { await this.app.vault.create(bp, BASE_TEMPLATE(folder)); if (announce) new Notice("Created " + bp); }
+    if (!bf) { const dir = bp.split("/").slice(0, -1).join("/"); if (dir) await ensureFolder(this.app, dir); await this.app.vault.create(bp, BASE_TEMPLATE(folder)); if (announce) new Notice("Created " + bp); }
     else if (bf instanceof TFile) {
       let txt = await this.app.vault.read(bf);
       if (/file\.folder == "/.test(txt)) { txt = txt.replace(/file\.folder == "([^"]*)"/, 'file.inFolder("$1")'); await this.app.vault.modify(bf, txt); } // tasks now live in year/month subfolders

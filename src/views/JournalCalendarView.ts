@@ -64,7 +64,8 @@ export class JournalCalendarView extends ItemView {
 
     const head = root.createDiv("samaya-jcal-head");
     const go = (n: number) => { const d = new Date(y, m - 1 + n, 1); this.shown = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; void this.render(); };
-    head.createEl("button", { text: "‹", cls: "samaya-mini" }).onclick = () => go(-1);
+    head.createEl("button", { text: "«", cls: "samaya-mini", attr: { title: "Previous year" } }).onclick = () => go(-12);
+    head.createEl("button", { text: "‹", cls: "samaya-mini", attr: { title: "Previous month" } }).onclick = () => go(-1);
     const title = head.createDiv("samaya-jcal-title");
     const link = (text: string, p: Period, date: string) => {
       const el = title.createSpan({ text });
@@ -72,7 +73,8 @@ export class JournalCalendarView extends ItemView {
     };
     link(new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: "long" }), "monthly", first);
     link(String(y), "yearly", `${y}-01-01`);
-    head.createEl("button", { text: "›", cls: "samaya-mini" }).onclick = () => go(1);
+    head.createEl("button", { text: "›", cls: "samaya-mini", attr: { title: "Next month" } }).onclick = () => go(1);
+    head.createEl("button", { text: "»", cls: "samaya-mini", attr: { title: "Next year" } }).onclick = () => go(12);
     head.createEl("button", { text: "Today", cls: "samaya-mini" }).onclick = () => { this.shown = td.slice(0, 7); void this.render(); };
 
     const grid = root.createDiv("samaya-jcal-grid");

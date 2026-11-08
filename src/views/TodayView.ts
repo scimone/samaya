@@ -103,7 +103,9 @@ export class TodayView extends ItemView {
     }
     if (this.mode === "week") {
       const fmt = (x: string) => parseYmd(x).toLocaleDateString(undefined, { day: "numeric", month: "short" });
-      title.createSpan({ cls: "samaya-today-dow", text: "This week" });
+      const cur = startOfWeek(today());
+      const wkTitle = wkStart === cur ? "This week" : wkStart === addDays(cur, 7) ? "Next week" : wkStart === addDays(cur, -7) ? "Last week" : "Week of";
+      title.createSpan({ cls: "samaya-today-dow", text: wkTitle });
       title.createSpan({ cls: "samaya-today-date", text: `${fmt(wkStart)} – ${fmt(addDays(wkStart, 6))}` });
     } else if (lists) {
       title.createSpan({ cls: "samaya-today-dow", text: new Date().toLocaleDateString(undefined, { weekday: "long" }) });

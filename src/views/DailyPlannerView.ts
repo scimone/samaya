@@ -122,12 +122,14 @@ export class DailyPlannerView extends BasesView {
     });
     bindZone(this.scope, list, path => { void placeInDay(this.app, this.plugin.settings, path, this.date, day.length); });
 
-    const add = body.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
-    add.addEventListener("keydown", e => {
-      if (e.key !== "Enter" || !add.value.trim()) return;
-      const p = parseTitleEstimate(add.value); add.value = "";
-      void createTask(this.app, this.plugin.settings, p.title, { planned: this.date, estimate: p.estimate ?? this.plugin.settings.defaultEstimate, order: day.length });
-    });
+    if (!g) { // (no quick add while planning my day)
+      const add = body.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
+      add.addEventListener("keydown", e => {
+        if (e.key !== "Enter" || !add.value.trim()) return;
+        const p = parseTitleEstimate(add.value); add.value = "";
+        void createTask(this.app, this.plugin.settings, p.title, { planned: this.date, estimate: p.estimate ?? this.plugin.settings.defaultEstimate, order: day.length });
+      });
+    }
 
     left.scrollTop = this.leftScroll;
 

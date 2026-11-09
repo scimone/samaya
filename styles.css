@@ -619,3 +619,9 @@ body { --samaya-green: #2fa862; }
 .samaya-leftover-list { display: flex; flex-direction: column; gap: 8px; }
 .samaya-leftover .samaya-mini { padding: 4px 12px; font-size: var(--font-ui-small); }
 .samaya-guide-stepno { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.samaya-guide { padding: 8px 12px; margin: 4px 0 8px; }
+.samaya-guide-body { display: flex; align-items: center; gap: 12px; margin-top: 2px; }
+.samaya-guide-info { flex: 1; min-width: 0; }
+.samaya-guide h3 { margin: 0; font-size: var(--font-ui-medium); }
+.samaya-guide-status { margin-top: 2px; }
+.samaya-guide-nav { margin-top: 0; flex: none; }

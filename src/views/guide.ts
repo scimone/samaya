@@ -20,14 +20,16 @@ export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideC
   head.createSpan({ cls: "samaya-guide-stepno", text: `Step ${g.step + 1 - first} of ${GUIDE_STEPS.length - first}` });
   head.createEl("button", { cls: "samaya-mini", text: "Cancel" }).onclick = () => { plugin.guide = null; plugin.bus.emit(); };
   const step = GUIDE_STEPS[g.step];
-  box.createEl("h3", { text: step.title });
-  box.createDiv({ cls: "samaya-guide-text", text: step.text });
+  const row = box.createDiv("samaya-guide-body");
+  const info = row.createDiv("samaya-guide-info");
+  info.createEl("h3", { text: step.title });
+  info.createDiv({ cls: "samaya-guide-text", text: step.text });
 
   if (g.step === 0) {
-    box.createDiv({ cls: "samaya-guide-status", text: ctx.overdue ? `${ctx.overdue} unfinished task${ctx.overdue > 1 ? "s" : ""} from earlier days (see below)` : "All cleared." });
+    info.createDiv({ cls: "samaya-guide-status", text: ctx.overdue ? `${ctx.overdue} unfinished task${ctx.overdue > 1 ? "s" : ""} from earlier days (see below)` : "All cleared." });
   }
 
-  const nav = box.createDiv("samaya-guide-nav");
+  const nav = row.createDiv("samaya-guide-nav");
   if (g.step > first) nav.createEl("button", { text: "Back" }).onclick = () => { g.step--; plugin.bus.emit(); };
   const last = g.step === GUIDE_STEPS.length - 1;
   nav.createEl("button", { text: last ? "Start my day" : "Next", cls: "mod-cta" }).onclick = () => { if (last) void plugin.finishGuide(); else { g.step++; plugin.bus.emit(); } };

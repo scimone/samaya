@@ -158,7 +158,6 @@ export class DailyPlannerView extends BasesView {
         ["Today", () => { void patchTask(this.app, t.file, { planned: today(), start: null }); }],
         ["Tomorrow", () => { void patchTask(this.app, t.file, { planned: tomorrow, start: null }); }],
         ["Backlog", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: null }); }],
-        ["Done", () => { void setDone(this.app, t, true); }],
       ],
     }));
   }

@@ -601,7 +601,6 @@ body { --samaya-green: #2fa862; }
 .samaya-loadbar .samaya-col-bar { margin-bottom: 0; height: 5px; }
 .samaya-list.is-timebox .samaya-card.is-timed { opacity: 0.45; }
 .samaya-list.is-timebox .samaya-card.is-timed:hover { opacity: 0.8; }
-.samaya-list.is-timebox .samaya-card:not(.is-timed):not(.is-done) { border-left: 3px solid var(--interactive-accent); }
 .samaya-guide-hint { color: var(--text-muted); font-size: var(--font-ui-small); padding: 12px 4px; line-height: 1.5; }
 .samaya-dayline { position: absolute; left: 0; right: 0; height: 0; z-index: 3; pointer-events: none; border-top: 2px dashed var(--interactive-accent); }
 .samaya-dayline-label { position: absolute; right: 6px; z-index: 4; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: var(--text-on-accent); background: var(--interactive-accent); padding: 0 6px; border-radius: 3px; cursor: ns-resize; pointer-events: auto; touch-action: none; user-select: none; }
@@ -640,9 +639,18 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-review-cols > .samaya-guide .samaya-guide-nav { justify-content: flex-end; }
 .samaya-review-cols > .samaya-guide { border: none; }
 .samaya-guide { background: none; }
-.samaya-review-cols > .samaya-guide { display: flex; flex-direction: column; min-height: 260px; }
-.samaya-review-cols > .samaya-guide .samaya-guide-body { flex: 1; justify-content: space-between; }
 .samaya-guide-back.is-hidden { visibility: hidden; }
 .samaya-guide-next { min-width: 110px; }
 .samaya-colhint { font-style: italic; margin: 0 14px; }
 .samaya-plancol > .samaya-loadbar { margin: 4px 14px 10px; }
+.samaya-guide-titlerow { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0 4px; }
+.samaya-guide-titlerow .samaya-guide-nav { margin: 0; }
+.samaya-plancol > .samaya-colhead { margin: 0 14px; }
+.samaya-colhead-tab { display: flex; align-items: center; gap: 8px; background: none !important; box-shadow: none !important; border: none; padding: 0 !important; height: auto; cursor: pointer; color: var(--text-faint); }
+.samaya-colhead-tab .samaya-colhead-title { font-weight: 600; }
+.samaya-colhead-tab .samaya-colhead-count { background: var(--background-modifier-border); color: var(--text-muted); }
+.samaya-colhead-tab:hover { color: var(--text-muted); }
+.samaya-colhead-tab.is-active { color: var(--text-normal); }
+.samaya-colhead-tab.is-active .samaya-colhead-title { font-weight: 700; }
+.samaya-colhead-tab.is-active .samaya-colhead-count { background: var(--interactive-accent); color: var(--text-on-accent); }
+.samaya-pick > .samaya-colhead { gap: 18px; }

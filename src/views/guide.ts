@@ -21,15 +21,12 @@ export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideC
   head.createSpan({ cls: "samaya-guide-stepno", text: `Step ${g.step + 1 - first} of ${GUIDE_STEPS.length - first}` });
   head.createEl("button", { cls: "samaya-mini", text: "Cancel" }).onclick = () => plugin.closeGuide();
   const step = GUIDE_STEPS[g.step];
-  const row = box.createDiv("samaya-guide-body");
-  const info = row.createDiv("samaya-guide-info");
-  info.createEl("h3", { text: step.title });
-  richText(info.createDiv("samaya-guide-text"), step.text);
-
-
-  const nav = row.createDiv("samaya-guide-nav");
+  const titleRow = box.createDiv("samaya-guide-titlerow"); // buttons next to the title: always in the same place, close to the text
+  titleRow.createEl("h3", { text: step.title });
+  const nav = titleRow.createDiv("samaya-guide-nav");
   const back = nav.createEl("button", { text: "Back", cls: "samaya-guide-back" }); // always there, so Next never moves
   if (g.step > first) back.onclick = () => { g.step--; plugin.bus.emit(); }; else back.addClass("is-hidden");
+  richText(box.createDiv("samaya-guide-text"), step.text);
   const last = g.step === GUIDE_STEPS.length - 1;
   nav.createEl("button", { text: last ? "Start my day" : "Next", cls: "mod-cta samaya-guide-next" }).onclick = () => { if (last) void plugin.finishGuide(); else { g.step++; plugin.bus.emit(); } };
 }

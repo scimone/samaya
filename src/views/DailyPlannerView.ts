@@ -103,7 +103,7 @@ export class DailyPlannerView extends BasesView {
         if (review) this.renderLeftOver(cols, overdue); else if (pick) this.renderPick(cols);
         body = cols.createDiv("samaya-plancol samaya-review-main");
       }
-      this.colHead(body, "Planned for today", day.length, review ? "Drag left over tasks here, or press `Today` on one." : pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
+      this.colHead(body, "Today", day.length, review ? "Drag overdue tasks here, or press `Today` on one." : pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
       renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
     }
 
@@ -113,11 +113,11 @@ export class DailyPlannerView extends BasesView {
         ["Backlog", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: null }); }],
         ["Done", () => { void setDone(this.app, t, true); }],
       ];
-      this.section(left, `Left over (${overdue.length})`, overdue, true, null, { actions: act });
+      this.section(left, `Overdue (${overdue.length})`, overdue, true, null, { actions: act });
     }
 
     const list = body.createDiv("samaya-list" + (step === 2 ? " is-timebox" : ""));
-    if (!day.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned. Drag tasks here or add one below." });
+    if (!day.length) list.createDiv({ cls: "samaya-empty", text: this.plugin.guide ? "Nothing planned yet." : "Nothing planned. Drag tasks here or add one below." });
     // Timebox: tasks without a time slot always first
     const shown = step === 2 ? [...day.filter(t => !t.start && t.status !== "done"), ...day.filter(t => t.start || t.status === "done")] : day;
     shown.forEach(t => {
@@ -128,7 +128,7 @@ export class DailyPlannerView extends BasesView {
     });
     bindZone(this.scope, list, (path, i) => { void this.place(path, day.length, i.fromTimeline); });
 
-    if (!review) { // (no quick add in the Review step)
+    if (!review && step !== 2) { // (no quick add in Review and Timebox: go back to Pick to add tasks)
       const add = body.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
       add.addEventListener("keydown", e => {
         if (e.key !== "Enter" || !add.value.trim()) return;
@@ -168,12 +168,13 @@ export class DailyPlannerView extends BasesView {
     const week = sortTasks(open.filter(t => t.week === wk)), backlog = sortTasks(open.filter(t => t.week !== wk));
     const col = host.createDiv("samaya-plancol samaya-pick");
     const tasks = this.pickTab === "week" ? week : backlog;
-    this.colHead(col, "Pick your tasks", tasks.length, "Press `Today` on a task, or drag it into today's list.");
-    const tabs = col.createDiv("samaya-tabs");
+    const head = col.createDiv("samaya-colhead");
     ([["week", "This week", week.length], ["backlog", "Backlog", backlog.length]] as const).forEach(([key, label, n]) => {
-      const b = tabs.createEl("button", { cls: "samaya-tab" + (this.pickTab === key ? " is-active" : ""), text: `${label} ${n}` });
+      const b = head.createEl("button", { cls: "samaya-colhead-tab" + (this.pickTab === key ? " is-active" : "") });
+      b.createSpan({ cls: "samaya-colhead-title", text: label }); b.createSpan({ cls: "samaya-colhead-count", text: String(n) });
       b.onclick = () => { this.pickTab = key; void this.render(); };
     });
+    richText(col.createDiv("samaya-guide-text samaya-colhint"), "Press `Today` on a task, or drag it into today's list.");
     const list = col.createDiv("samaya-leftover-list");
     if (!tasks.length) list.createDiv({ cls: "samaya-empty", text: this.pickTab === "week" ? "Nothing planned for this week yet." : "Backlog is empty." });
     tasks.forEach(t => renderTaskCard(this.plugin, list, t, {
@@ -195,9 +196,9 @@ export class DailyPlannerView extends BasesView {
 
   private renderLeftOver(host: HTMLElement, overdue: Task[]) {
     const col = host.createDiv("samaya-plancol samaya-leftover");
-    this.colHead(col, "Left over from earlier days", overdue.length, "Press `Today`, `Tomorrow`, `This week` or `Backlog`, or drag a task into today's list.");
+    this.colHead(col, "Overdue", overdue.length, "Press `Today`, `Tomorrow`, `This week` or `Backlog`, or drag a task into today's list.");
     const list = col.createDiv("samaya-leftover-list");
-    if (!overdue.length) list.createDiv({ cls: "samaya-empty", text: "All cleared - nothing left over." });
+    if (!overdue.length) list.createDiv({ cls: "samaya-empty", text: "Nothing overdue." });
     const tomorrow = addDays(today(), 1);
     overdue.forEach(t => renderTaskCard(this.plugin, list, t, {
       scope: this.scope,

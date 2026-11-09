@@ -108,7 +108,7 @@ export class DailyPlannerView extends BasesView {
     }
 
     const list = body.createDiv("samaya-list" + (step === 2 ? " is-timebox" : ""));
-    if (!day.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned" });
+    if (!day.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned." });
     // Timebox: tasks without a time slot always first
     const shown = step === 2 ? [...day.filter(t => !t.start && t.status !== "done"), ...day.filter(t => t.start || t.status === "done")] : day;
     shown.forEach(t => {
@@ -119,7 +119,7 @@ export class DailyPlannerView extends BasesView {
     });
     bindZone(this.scope, list, (path, i) => { void this.place(path, day.length, i.fromTimeline); });
 
-    if (!review && step !== 2) { // (no quick add in Review and Timebox: go back to Pick to add tasks)
+    if (!review && step !== 2 && this.date >= today()) { // (no quick add in Review and Timebox: go back to Pick to add tasks)
       const add = body.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
       this.bindAdd(add, () => ({ planned: this.date, order: day.length }));
     }

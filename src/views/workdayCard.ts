@@ -24,8 +24,9 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
         sub = `${l.start}–${l.end ?? (end ? end + "?" : "…")}` + (breakMinutes(l) ? ` · ${fmtDur(breakMinutes(l))} break` : "") + (target ? ` · ${fmtSigned(worked - target)}` : "");
       }
     } else if (!l || !l.start) {
-      state = "Day not started"; sub = "Plan your day, or just start the clock.";
-      buttons.push(["Plan my day", () => plugin.startGuide(), true], ["Just start", () => { void wd.startDay(); }]);
+      state = "Day not started";
+      if (o.panel) { sub = "Start the clock when you begin working."; buttons.push(["Start day", () => { void wd.startDay(); }, true]); }
+      else { sub = "Plan your day, or just start the clock."; buttons.push(["Plan my day", () => plugin.startGuide(), true], ["Just start", () => { void wd.startDay(); }]); }
     } else if (l.end) {
       const worked = workedMinutes(l, 1440);
       state = "Day finished"; big = fmtDur(worked); sub = `${l.start}–${l.end}${target ? ` · ${fmtSigned(worked - target)}` : ""}`;

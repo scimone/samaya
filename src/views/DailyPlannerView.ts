@@ -92,14 +92,16 @@ export class DailyPlannerView extends BasesView {
     this.root.toggleClass("is-review", review);
     const left = this.root.createDiv("samaya-left");
     this.renderHeader(left, day, cap, plannedAll, isToday, !!g);
+    let body = left; // where today's planned list goes
     if (g) {
-      if (review) {
-        const band = left.createDiv("samaya-review-band");
-        renderGuide(this.plugin, band, { overdue: overdue.length });
-        this.renderLeftOver(band, overdue);
-      } else renderGuide(this.plugin, left, { overdue: overdue.length });
-      if (step >= 1) renderLoadBar(left, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
-      left.createDiv({ cls: "samaya-today-label", text: `Planned for today · ${day.length}` });
+      renderGuide(this.plugin, left, { overdue: overdue.length });
+      if (review) { // guide across the top, then today's tasks (left) next to the left over tasks (right)
+        const cols = left.createDiv("samaya-review-cols");
+        body = cols.createDiv("samaya-review-main");
+        this.renderLeftOver(cols, overdue);
+      }
+      renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
+      body.createDiv({ cls: "samaya-today-label", text: `Planned for today · ${day.length}` });
     }
 
     if (overdue.length && !g) { // during the guide the left over tasks live in the sidebar
@@ -111,7 +113,7 @@ export class DailyPlannerView extends BasesView {
       this.section(left, `Left over (${overdue.length})`, overdue, true, null, { actions: act });
     }
 
-    const list = left.createDiv("samaya-list" + (step === 2 ? " is-timebox" : ""));
+    const list = body.createDiv("samaya-list" + (step === 2 ? " is-timebox" : ""));
     if (!day.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned. Drag tasks here or add one below." });
     day.forEach((t, idx) => {
       const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true });
@@ -120,7 +122,7 @@ export class DailyPlannerView extends BasesView {
     });
     bindZone(this.scope, list, path => { void placeInDay(this.app, this.plugin.settings, path, this.date, day.length); });
 
-    const add = left.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
+    const add = body.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
     add.addEventListener("keydown", e => {
       if (e.key !== "Enter" || !add.value.trim()) return;
       const p = parseTitleEstimate(add.value); add.value = "";

@@ -126,9 +126,6 @@ export class TodayView extends ItemView {
         else c.createDiv({ cls: "samaya-guide-hint", text: "Timebox: drag the tasks in the list on the left onto the timeline, so each one gets a time slot. The ones still without a time stay highlighted. Drag the start and finish lines to set your working day, then press “Start my day”." });
         return;
       }
-      const cap = capacityMinutes(s.capacityHours, this.plugin.lunchFor(date),
-        events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
-      renderLoadBar(c, day.reduce((a, t) => a + (t.estimate || 0), 0), cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
     } else {
       renderWorkdayCard(this.plugin, head.createDiv(), { compact: true });
       renderDoneBar(head, day.filter(t => t.status === "done").length, day.length);
@@ -136,6 +133,7 @@ export class TodayView extends ItemView {
     }
     events.filter(e => e.allDay).forEach(e => c.createDiv({ cls: "samaya-allday", text: e.title }));
 
+    if (!tl) { // (not during Review: nothing is dragged onto the timeline then)
     // ---- unscheduled cards (drop here to unschedule)
     const unscheduled = day.filter(t => !t.start && t.status !== "done");
     const usec = c.createDiv("samaya-today-unsched");
@@ -148,6 +146,8 @@ export class TodayView extends ItemView {
       const f = this.app.vault.getAbstractFileByPath(path);
       if (f instanceof TFile) void patchTask(this.app, f, { planned: date, week: null, start: null });
     });
+
+    }
 
     // ---- timeline
     const startH = s.dayStartHour, endH = s.dayEndHour, slot = s.slotMinutes; const dayStartMs = dayMs;
@@ -170,6 +170,7 @@ export class TodayView extends ItemView {
     const durOf = (path: string) => byPath.get(path)?.estimate || s.defaultEstimate;
 
     let preview: HTMLElement | null = null;
+    if (!tl) {
     // target = the visible scroll box (the lane itself extends beyond it when scrolled)
     this.dnd.target(scroll, {
       over: i => {
@@ -186,6 +187,8 @@ export class TodayView extends ItemView {
         void patchTask(this.app, f, { planned: date, week: null, start: minToHm(startFor(i, dur)), estimate: dur });
       },
     });
+
+    }
 
     interface Item { s: number; dur: number; task?: Task; ev?: IcsEvent; }
     const items: Item[] = [];
@@ -215,6 +218,7 @@ export class TodayView extends ItemView {
       const t = it.task!;
       b.addEventListener("dblclick", () => open(t.file));
       b.addEventListener("contextmenu", e => showTaskMenu(this.plugin, t, e));
+      if (tl) return; // read-only while reviewing
       this.dnd.draggable(b, t.file.path);
       const handle = b.createDiv("samaya-resize");
       handle.addEventListener("pointerdown", e => {

@@ -1,9 +1,10 @@
 import type SamayaPlugin from "../main";
+import { richText } from "./common";
 
 export const GUIDE_STEPS = [
-  { title: "Review", text: "Unfinished tasks from earlier days: move them to today, tomorrow or this week, back to the backlog, or mark them done." },
-  { title: "Pick", text: "Choose what you want to do today from This week or Backlog: press Today on a card, or drag it into the list. You can also add new tasks here, or drag a planned task back to This week or Backlog to swap it out." },
-  { title: "Timebox", text: "Drag your tasks onto the timeline to give them a time slot. Move the start and finish lines to set your day." },
+  { title: "Review", text: "Unfinished tasks from earlier days: move them to `Today`, `Tomorrow` or `This week`, back to the `Backlog`, or mark them done." },
+  { title: "Pick", text: "Choose what you want to do today from `This week` or `Backlog`: press `Today` on a card, or drag it into the list. You can also add new tasks here, or drag a planned task back to `This week` or `Backlog` to swap it out." },
+  { title: "Timebox", text: "Drag your tasks onto the timeline to give them a time slot. Move the start and finish lines to set your day, then press `Start my day`." },
 ];
 
 export interface GuideCtx { overdue: number; }
@@ -23,7 +24,7 @@ export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideC
   const row = box.createDiv("samaya-guide-body");
   const info = row.createDiv("samaya-guide-info");
   info.createEl("h3", { text: step.title });
-  info.createDiv({ cls: "samaya-guide-text", text: step.text });
+  richText(info.createDiv("samaya-guide-text"), step.text);
 
 
   const nav = row.createDiv("samaya-guide-nav");

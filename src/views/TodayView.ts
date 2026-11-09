@@ -7,7 +7,7 @@ import { ensureMeetingNote } from "../meetings";
 import { Task, prefixOf, allTasks, createTask, patchTask, placeInDay, readTask, setDone, sortTasks } from "../model";
 import { layoutItems } from "../timeline";
 import { addDays, fmtDur, hmToMin, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
-import { bindZone, renderTaskCard, showTaskMenu } from "./common";
+import { bindZone, renderTaskCard, richText, showTaskMenu } from "./common";
 import { renderLoadBar } from "./loadBar";
 import { renderDayLines } from "./dayLines";
 import { capacityMinutes } from "../worktime";
@@ -125,7 +125,7 @@ export class TodayView extends ItemView {
     if (guide) { // plan my day: no workday strip, progress or day title, just the current phase
       head.remove();
       if (!tl) {
-        c.createDiv({ cls: "samaya-guide-hint", text: "Timebox: drag the tasks in the list on the left onto the timeline, so each one gets a time slot. The ones still without a time stay highlighted. Drag the start and finish lines to set your working day, then press “Start my day”." });
+        richText(c.createDiv("samaya-guide-hint"), "Timebox: drag the tasks in the list on the left onto the timeline, so each one gets a time slot. The ones still without a time stay highlighted. Drag the start and finish lines to set your working day, then press `Start my day`.");
         return;
       }
     } else {

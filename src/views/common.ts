@@ -11,6 +11,24 @@ export interface CardOpts {
   /** extra quick-action buttons (label, handler) */ actions?: Array<[string, () => void]>;
 }
 
+/** Fill `el` with text where `backticked` words (button names) are shown as inline code. */
+export function richText(el: HTMLElement, text: string) {
+  text.split("`").forEach((part, i) => { if (!part) return; if (i % 2) el.createEl("code", { cls: "samaya-btn-ref", text: part }); else el.appendText(part); });
+}
+
+/** Ticket id chip: click opens the ticket note, hover previews it (Page preview), otherwise shows the full ticket title. */
+function ticketChip(plugin: SamayaPlugin, host: HTMLElement, tf: TFile) {
+  const app: App = plugin.app; const tk = readTicket(app, tf);
+  const chip = host.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}`, text: tk.key });
+  const preview = !!(app as unknown as { internalPlugins?: { plugins?: Record<string, { enabled?: boolean }> } }).internalPlugins?.plugins?.["page-preview"]?.enabled;
+  if (preview) {
+    const parent = { hoverPopover: null };
+    chip.addEventListener("mouseover", e => { app.workspace.trigger("hover-link", { event: e, source: "preview", hoverParent: parent, targetEl: chip, linktext: tf.path }); });
+  } else chip.title = tk.summary ? `${tk.key}: ${tk.summary}` : tk.key;
+  chip.addEventListener("click", e => { e.stopPropagation(); void app.workspace.getLeaf(e.ctrlKey || e.metaKey ? "tab" : false).openFile(tf); });
+  chip.addEventListener("pointerdown", e => e.stopPropagation());
+}
+
 export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Task, o: CardOpts): HTMLElement {
   const app: App = plugin.app;
   const el = parent.createDiv({ cls: "samaya-card" + (t.status === "done" ? " is-done" : "") });
@@ -27,7 +45,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   const tp = ticketPathOf(app, t);
   if (tp) {
     const tf = app.vault.getAbstractFileByPath(tp);
-    if (tf instanceof TFile) { const tk = readTicket(app, tf); line.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}`, text: tk.key, attr: { title: tk.summary } }); }
+    if (tf instanceof TFile) ticketChip(plugin, title, tf); // inside the title, so it follows the last word when the title wraps
   }
   if (plugin.settings.projectsOn) {
     const pp = projectPathOf(app, t.file);

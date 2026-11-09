@@ -3,7 +3,7 @@ import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, allTasks, createTask, patchTask, placeInDay, readTask, setDone, sortTasks } from "../model";
 import { addDays, fmtDur, hmToMin, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
-import { bindCardDrop, bindZone, renderTaskCard, showTaskMenu } from "./common";
+import { bindCardDrop, bindZone, renderTaskCard, richText, showTaskMenu } from "./common";
 import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { ensureMeetingNote } from "../meetings";
@@ -102,7 +102,7 @@ export class DailyPlannerView extends BasesView {
         if (review) this.renderLeftOver(cols, overdue); else this.renderPick(cols);
         body = cols.createDiv("samaya-panel samaya-review-main");
       }
-      this.colHead(body, "Planned for today", day.length, review ? "Drag left over tasks here, or press Today on one." : pick ? "Drag tasks here, or press Today on a task." : "Give these tasks a time slot on the timeline.");
+      this.colHead(body, "Planned for today", day.length, review ? "Drag left over tasks here, or press `Today` on one." : pick ? "Drag tasks here, or press `Today` on a task." : "Give these tasks a time slot on the timeline.");
       renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
     }
 
@@ -147,7 +147,7 @@ export class DailyPlannerView extends BasesView {
     const h = host.createDiv("samaya-colhead");
     h.createSpan({ cls: "samaya-colhead-title", text: title });
     h.createSpan({ cls: "samaya-colhead-count", text: String(count) });
-    host.createDiv({ cls: "samaya-guide-text", text: hint });
+    richText(host.createDiv("samaya-guide-text"), hint);
   }
 
   /** Pick step: This week / Backlog with full task cards. Press Today or drag a card into today's list; new tasks can be added here too. */
@@ -157,7 +157,7 @@ export class DailyPlannerView extends BasesView {
     const week = sortTasks(open.filter(t => t.week === wk)), backlog = sortTasks(open.filter(t => t.week !== wk));
     const col = host.createDiv("samaya-panel samaya-pick is-guided");
     const tasks = this.pickTab === "week" ? week : backlog;
-    this.colHead(col, "Pick your tasks", tasks.length, "Press Today on a task, or drag it into today's list.");
+    this.colHead(col, "Pick your tasks", tasks.length, "Press `Today` on a task, or drag it into today's list.");
     const tabs = col.createDiv("samaya-tabs");
     ([["week", "This week", week.length], ["backlog", "Backlog", backlog.length]] as const).forEach(([key, label, n]) => {
       const b = tabs.createEl("button", { cls: "samaya-tab" + (this.pickTab === key ? " is-active" : ""), text: `${label} ${n}` });
@@ -184,7 +184,7 @@ export class DailyPlannerView extends BasesView {
 
   private renderLeftOver(host: HTMLElement, overdue: Task[]) {
     const col = host.createDiv("samaya-panel samaya-leftover is-guided");
-    this.colHead(col, "Left over from earlier days", overdue.length, "Pick a button, or drag a task into today's list.");
+    this.colHead(col, "Left over from earlier days", overdue.length, "Press `Today`, `Tomorrow`, `This week` or `Backlog`, or drag a task into today's list.");
     const list = col.createDiv("samaya-leftover-list");
     if (!overdue.length) list.createDiv({ cls: "samaya-empty", text: "All cleared - nothing left over." });
     const tomorrow = addDays(today(), 1);

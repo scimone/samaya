@@ -625,5 +625,6 @@ body { --samaya-green: #2fa862; }
 .samaya-guide h3 { margin: 0; font-size: var(--font-ui-medium); }
 .samaya-guide-status { margin-top: 2px; }
 .samaya-guide-nav { margin-top: 0; flex: none; }
-.samaya-card-line .samaya-chip-ticket { margin-left: 6px; flex: none; align-self: center; }
-.samaya-card-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
+.samaya-card-title .samaya-chip-ticket { margin-left: 6px; vertical-align: middle; cursor: pointer; white-space: nowrap; }
+code.samaya-btn-ref { font-size: 0.92em; font-weight: 600; font-style: italic; padding: 0 5px; border-radius: 4px; color: var(--text-normal); background: var(--background-modifier-hover); }
+.samaya-card-side { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: none; }

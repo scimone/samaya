@@ -186,6 +186,12 @@ assert.ok(upsertSection("# My day\nfree text\n", "Planned today", "- x").startsW
   assert.deepEqual(S.planSegments(670, 30, busy, 1200, 15), [{ s: 780, dur: 30 }]); // dropped on the meeting: moves behind it
   assert.deepEqual(S.planSegments(650, 60, busy, 1200, 15), [{ s: 780, dur: 60 }]); // gap of 10 min is too small
   assert.equal(S.planSegments(1100, 180, busy, 1200, 15), null); // does not fit before the end
+  // window 08:00-17:00: a task that does not fit before the finish line moves parts into earlier gaps first
+  assert.deepEqual(S.planInWindow(960, 120, [], 480, 1020, 0, 1200, 15), [{ s: 900, dur: 120 }]); // 16:00 + 2h -> 15:00-17:00
+  assert.deepEqual(S.planInWindow(960, 120, [[900, 960]], 480, 1020, 0, 1200, 15), [{ s: 840, dur: 60 }, { s: 960, dur: 60 }]); // meeting 15-16: 14:00-15:00 + 16:00-17:00
+  assert.deepEqual(S.planInWindow(960, 120, [], 480, 1020, 930, 1200, 15), [{ s: 930, dur: 120 }]); // now = 15:30: only 30 min before, the rest crosses 17:00
+  assert.deepEqual(S.planInWindow(300, 60, [], 480, 1020, 0, 1200, 15), [{ s: 480, dur: 60 }]); // before the start line: moves to it
+  assert.deepEqual(S.planInWindow(600, 120, [[660, 720]], 480, 1020, 0, 1200, 15), [{ s: 600, dur: 60 }, { s: 720, dur: 60 }]); // plain split
   const segs = [{ s: 600, dur: 60 }, { s: 780, dur: 60 }];
   assert.deepEqual(S.mergeOffer([{ s: 600, dur: 60 }, { s: 660, dur: 60 }], 1, busy, 1200), { at: 600 }); // touching
   assert.deepEqual(S.mergeOffer([{ s: 600, dur: 60 }, { s: 900, dur: 60 }], 1, busy, 1200), { at: 900 }); // open block for all 120 min

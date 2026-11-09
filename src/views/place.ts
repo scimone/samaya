@@ -2,16 +2,17 @@ import type SamayaPlugin from "../main";
 import type { IcsEvent } from "../ics";
 import { Task, patchTask, readTask } from "../model";
 import { MergeSegmentsModal } from "../modals";
-import { Seg, fmtSegments, mergeOffer, planSegments, segsTotal } from "../segments";
-import { hmToMin, minToHm, parseYmd } from "../util";
+import { Seg, fmtSegments, mergeOffer, planInWindow, segsTotal } from "../segments";
+import { hmToMin, minToHm, parseYmd, today } from "../util";
+import { nowMin } from "../workday";
 import type { TFile } from "obsidian";
 
-/** Meetings, lunch and the time outside the day start/finish lines as [start, end] minutes: what a task flows around. */
-export function busyIntervals(plugin: SamayaPlugin, date: string, events: IcsEvent[]): Array<[number, number]> {
+/** Meetings and lunch of a day as [start, end] minutes (with `borders`: also the time outside the day start/finish lines). */
+export function busyIntervals(plugin: SamayaPlugin, date: string, events: IcsEvent[], borders = false): Array<[number, number]> {
   const dayMs = parseYmd(date).getTime();
   const iv = events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]);
   iv.push(plugin.lunchFor(date));
-  const [from, to] = plugin.workWindowFor(date); iv.push([0, from], [to, 1440]); // the day lines are borders too
+  if (borders) { const [from, to] = plugin.workWindowFor(date); iv.push([0, from], [to, 1440]); }
   return iv;
 }
 
@@ -43,7 +44,7 @@ export async function dropOnTimeline(plugin: SamayaPlugin, file: TFile, date: st
   const base = { planned: date, week: null };
   const single = (at: number, dur: number) => patchTask(app, file, { ...base, start: minToHm(at), estimate: dur, segments: null });
   const split = (segs: Seg[]) => patchTask(app, file, { ...base, start: minToHm(segs[0].s), estimate: segsTotal(segs), segments: fmtSegments(segs) });
-  const busy = busyIntervals(plugin, date, events);
+  const busy = busyIntervals(plugin, date, events, true);
   if (seg !== null && t.segments.length > 1) {
     const segs = t.segments.map(g => ({ ...g })); const moved = segs[seg]; moved.s = startMin; segs.sort((a, b) => a.s - b.s);
     const offer = mergeOffer(segs, segs.indexOf(moved), busy, limit);
@@ -51,7 +52,8 @@ export async function dropOnTimeline(plugin: SamayaPlugin, file: TFile, date: st
     await split(segs); return;
   }
   const dur = t.estimate || dflt;
-  const plan = planSegments(startMin, dur, busy, limit, slot);
+  const [from, to] = plugin.workWindowFor(date); const earliest = date === today() ? nowMin() : 0; // today: nothing before the current time
+  const plan = planInWindow(startMin, dur, busyIntervals(plugin, date, events), from, to, earliest, limit, slot);
   if (plan && plan.length > 1) await split(plan); else await single(plan ? plan[0].s : startMin, dur);
 }
 

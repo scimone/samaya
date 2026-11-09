@@ -88,6 +88,8 @@ export class WorkdayManager {
     if (this.started) return;
     if (this.log && this.log.date === today() && this.log.end) return this.reopenDay();
     this.log = { date: today(), start: at, end: null, breaks: [], open: null, seen: at };
+    const fin = this.plugin.workWindowFor(today())[1]; // the timeline's start line follows the time the day was started
+    if (hmToMin(at) < fin) await this.plugin.setWorkWindow(today(), [at, minToHm(fin)]);
     await this.commit(); new Notice(`Workday started at ${at}`);
   }
   async startBreak(kind: BreakKind = "break", at = nowHm()) {

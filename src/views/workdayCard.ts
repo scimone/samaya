@@ -1,7 +1,7 @@
 import type SamayaPlugin from "../main";
 import { fmtDur, hmToMin, minToHm, today } from "../util";
 import { nowMin } from "../workday";
-import { breakMinutes, dailyTarget, fmtSigned, workedMinutes } from "../worktime";
+import { breakMinutes, fmtSigned, workedMinutes } from "../worktime";
 
 /** Workday status with actions: a minimal one-liner, or (`panel`) a card with the time worked in large type. Repaints itself until removed from the DOM. */
 export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { compact?: boolean; panel?: boolean; /** another day than today: a read-only summary from its log */ date?: string } = {}) {
@@ -11,7 +11,7 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
     if (!host.isConnected) { off(); window.clearInterval(timer); return; }
     host.empty();
     const other = !!o.date && o.date !== today();
-    const l = other ? wd.allLogs().find(x => x.date === o.date) ?? null : wd.log; const target = dailyTarget(s.weeklyHours, s.workDays, o.date ?? today());
+    const l = other ? wd.allLogs().find(x => x.date === o.date) ?? null : wd.log; const [winStart, winEnd] = plugin.workWindowFor(o.date ?? today()); const target = Math.max(0, winEnd - winStart); // work time to aim for: finish line minus start line
     const strip = host.createDiv({ cls: "samaya-wd" + (o.panel ? " samaya-wd-panel" : "") + (l?.open ? " is-break" : l?.start && !l.end ? " is-work" : "") });
     // what to show: a state label, the main figure, a detail line and the actions
     let state = "", big = "", sub = "", sub2 = ""; let progress = -1;
@@ -37,7 +37,7 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
     } else {
       const worked = workedMinutes(l, nowMin());
       state = "Working"; big = fmtDur(worked);
-      sub = `Started ${l.start} · finish line ${minToHm(plugin.workWindowFor(o.date ?? today())[1])}`; // the finish line of the timeline, which can be moved per day
+      sub = `Start time ${l.start} · Finish time ${minToHm(winEnd)}`; // the finish line of the timeline, which can be moved per day
       if (target) sub2 = worked < target ? `${fmtDur(target - worked)} left of ${fmtDur(target)}` : `Target of ${fmtDur(target)} reached (+${fmtDur(worked - target)})`;
       if (target) progress = Math.min(1, worked / target);
       buttons.push(["Break", () => { void wd.startBreak(); }], ["End day", () => plugin.startShutdown()]);

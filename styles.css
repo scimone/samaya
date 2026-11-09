@@ -608,10 +608,11 @@ body { --samaya-green: #2fa862; }
 .samaya-dayline.is-start .samaya-dayline-label { top: 1px; }
 .samaya-dayline.is-end .samaya-dayline-label { bottom: 1px; }
 .samaya-dayshade { position: absolute; left: 0; right: 0; z-index: 1; pointer-events: none; background: color-mix(in srgb, var(--background-modifier-border) 45%, transparent); }
-.samaya-daily.is-review { max-width: 1100px; }
+.samaya-daily.is-review { max-width: none; }
 .samaya-daily.is-review .samaya-left { flex: 1 1 auto; max-width: none; border-right: none; }
-.samaya-review-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
-@media (max-width: 700px) { .samaya-review-cols { grid-template-columns: 1fr; } }
+.samaya-review-cols { display: grid; grid-template-columns: minmax(230px, 300px) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.samaya-review-cols.is-two { grid-template-columns: minmax(230px, 300px) minmax(0, 1fr); }
+@media (max-width: 900px) { .samaya-review-cols, .samaya-review-cols.is-two { grid-template-columns: 1fr; } }
 .samaya-panel { min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: var(--radius-l); border: 1px solid var(--background-modifier-border); }
 .samaya-colhead { display: flex; align-items: center; gap: 8px; }
 .samaya-colhead-title { font-weight: 700; font-size: var(--font-ui-medium); }
@@ -630,8 +631,10 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-card-side { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: none; }
 .samaya-sub-row { align-items: flex-start; } .samaya-sub-row span { min-width: 0; overflow-wrap: anywhere; }
 .samaya-card-body > .samaya-subs { margin-top: 4px; }
-.samaya-review-cols.is-single { grid-template-columns: minmax(0, calc(50% - 8px)); justify-content: center; }
-@media (max-width: 700px) { .samaya-review-cols.is-single { grid-template-columns: 1fr; } }
 /* timeline: tasks and meetings see-through so the day lines show; the current time line is above everything */
 .samaya-lane .samaya-block:not(.is-done):not(.is-dragging), .samaya-lane .samaya-event { opacity: 0.78; }
 .samaya-lane .samaya-now { z-index: 6; }
+.samaya-review-cols > .samaya-guide { margin: 0; }
+.samaya-review-cols > .samaya-guide .samaya-guide-head { flex-wrap: wrap; row-gap: 4px; }
+.samaya-review-cols > .samaya-guide .samaya-guide-body { flex-direction: column; align-items: stretch; gap: 10px; margin-top: 6px; }
+.samaya-review-cols > .samaya-guide .samaya-guide-nav { justify-content: flex-end; }

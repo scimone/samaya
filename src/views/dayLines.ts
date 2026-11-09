@@ -5,7 +5,7 @@ import { hmToMin, minToHm } from "../util";
 export function renderDayLines(plugin: SamayaPlugin, lane: HTMLElement, grid: HTMLElement, o: { startH: number; endH: number; slot: number }, hourH: number, minToPx: (m: number) => number) {
   const s = plugin.settings; const lo = o.startH * 60, hi = o.endH * 60;
   const clamp = (m: number) => Math.max(lo, Math.min(hi, m));
-  const val = { start: hmToMin(s.dayStartTime || "09:00"), end: hmToMin(s.shutdownTime || "17:30") };
+  const val = { start: hmToMin(s.dayStartTime), end: hmToMin(s.shutdownTime) };
   const shadeTop = lane.createDiv("samaya-dayshade"); shadeTop.style.top = "0px";
   const shadeBot = lane.createDiv("samaya-dayshade");
   const paints: Array<() => void> = [];

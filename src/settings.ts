@@ -325,11 +325,11 @@ export class SamayaSettingTab extends PluginSettingTab {
     {
       const b = card("Planner", "How your workday is shaped: when you work, how much you plan, and what counts as overtime.");
       label(b, "Workday");
+      range(b, "Workday", "Start and end of your plannable day. Free capacity = start to end, minus lunch and meetings. The end is also when the shutdown reminder appears. Drag the start and finish lines in the planner timeline to change it.", "time",
+        [() => s.dayStartTime, v => (s.dayStartTime = v)], [() => s.shutdownTime, v => (s.shutdownTime = v)]);
       range(b, "Lunch break", "Marked in the calendar and subtracted from capacity.", "time",
         [() => s.lunchStart, v => (s.lunchStart = v)], [() => s.lunchEnd, v => (s.lunchEnd = v)]);
       toggle(b, "Add the default lunch automatically", "When you end the day without a logged lunch break, subtract the window above.", () => s.autoLunch, v => (s.autoLunch = v));
-      text(b, "Day start line", "Start of your plannable day. Free capacity = start to finish, minus lunch and meetings. Drag the line in the planner timeline to change it.", () => s.dayStartTime, v => (s.dayStartTime = v), { time: true });
-      text(b, "Shutdown reminder", "A nudge to run the shutdown ritual. Also the finish line in the planner timeline.", () => s.shutdownTime, v => (s.shutdownTime = v), { time: true });
       label(b, "Week");
       num(b, "Required hours per week", "Used by the work time dashboard for overtime.", () => s.weeklyHours, v => (s.weeklyHours = v), { min: 1, max: 168, step: 0.5 });
       num(b, "Working days per week", "Counted from Monday (5 = Mon–Fri). Work on other days is all overtime.", () => s.workDays, v => (s.workDays = v), { min: 1, max: 7, int: true });

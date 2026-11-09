@@ -55,7 +55,7 @@ export class WeeklyBoardView extends BasesView {
     const cols2 = this.root.createDiv("samaya-cols");
     for (let i = 0; i < (weekends ? 7 : 5); i++) {
       const date = addDays(this.weekStart, i); const dayMs = parseYmd(date).getTime();
-      const cap = capacityWindow(hmToMin(s.dayStartTime || "09:00"), hmToMin(s.shutdownTime || "17:30"), this.plugin.lunchFor(date),
+      const cap = capacityWindow(hmToMin(s.dayStartTime), hmToMin(s.shutdownTime), this.plugin.lunchFor(date),
         events.map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
       this.column(cols2, parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }), "day", date, sortTasks(all.filter(t => t.planned === date)), date === today(), cap);
     }

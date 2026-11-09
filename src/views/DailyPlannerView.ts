@@ -84,7 +84,7 @@ export class DailyPlannerView extends BasesView {
 
     // free capacity = capacity - lunch - calendar meetings
     const s = this.plugin.settings; const dayMs = parseYmd(this.date).getTime();
-    const cap = capacityWindow(hmToMin(s.dayStartTime || "09:00"), hmToMin(s.shutdownTime || "17:30"), this.plugin.lunchFor(this.date),
+    const cap = capacityWindow(hmToMin(s.dayStartTime), hmToMin(s.shutdownTime), this.plugin.lunchFor(this.date),
       events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
     const plannedAll = day.reduce((a, t) => a + (t.estimate || 0), 0);
 
@@ -96,9 +96,9 @@ export class DailyPlannerView extends BasesView {
     this.renderHeader(left, day, cap, plannedAll, isToday, !!g);
     let body = left; // where today's planned list goes
     if (g) {
-      renderGuide(this.plugin, left, { overdue: overdue.length });
-      if (side) { // guide across the top, then the source tasks (left) next to today's tasks (right); Timebox: only today's tasks, centered
-        const cols = left.createDiv("samaya-review-cols" + (step === 2 ? " is-single" : ""));
+      if (side) { // columns: guide | source tasks (Review: left over, Pick: this week/backlog) | today's tasks
+        const cols = left.createDiv("samaya-review-cols" + (step === 2 ? " is-two" : ""));
+        renderGuide(this.plugin, cols, { overdue: overdue.length });
         if (review) this.renderLeftOver(cols, overdue); else if (pick) this.renderPick(cols);
         body = cols.createDiv("samaya-panel samaya-review-main");
       }

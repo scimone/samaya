@@ -237,22 +237,7 @@ body { --samaya-green: #2fa862; }
 .samaya-wd-buttons { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 
 /* ---------- planning guide ---------- */
-.samaya-guide { margin: 8px 0 12px; padding: 12px 14px; border-radius: var(--radius-l); border: 2px solid var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 8%, var(--background-primary)); }
-.samaya-guide-head { display: flex; align-items: center; gap: 10px; }
-.samaya-guide-kicker { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; color: var(--interactive-accent); }
-.samaya-guide-dots { display: flex; gap: 5px; margin-right: auto; }
-.samaya-guide-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--background-modifier-border); }
-.samaya-guide-dot.is-active { background: var(--interactive-accent); transform: scale(1.3); }
-.samaya-guide-dot.is-done { background: var(--samaya-green); }
-.samaya-guide h3 { margin: 6px 0 2px; }
 .samaya-guide-text { color: var(--text-muted); font-size: var(--font-ui-small); }
-.samaya-guide-status { margin-top: 8px; font-weight: 600; font-size: var(--font-ui-small); }
-.samaya-guide-status.is-over { color: var(--text-error); }
-.samaya-guide label { display: block; margin-top: 8px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
-.samaya-guide-row { display: flex; align-items: center; gap: 8px; }
-.samaya-guide-row label { margin: 0; }
-.samaya-guide-nav { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
-.samaya-guide .samaya-reflection { width: 100%; }
 .samaya-backlog.is-guided { border-radius: var(--radius-m); box-shadow: 0 0 0 2px var(--interactive-accent); animation: samaya-glow 2.2s ease-in-out infinite; }
 @keyframes samaya-glow { 0%, 100% { box-shadow: 0 0 0 2px var(--interactive-accent); } 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--interactive-accent) 35%, transparent); } }
 
@@ -612,13 +597,6 @@ body { --samaya-green: #2fa862; }
 .samaya-colhead-count { font-size: var(--font-ui-smaller); font-weight: 700; padding: 0 7px; border-radius: 10px; background: var(--interactive-accent); color: var(--text-on-accent); }
 .samaya-leftover-list { display: flex; flex-direction: column; gap: 8px; }
 .samaya-leftover .samaya-mini { padding: 4px 12px; font-size: var(--font-ui-small); }
-.samaya-guide-stepno { font-size: var(--font-ui-smaller); color: var(--text-muted); }
-.samaya-guide { padding: 8px 12px; margin: 4px 0 8px; }
-.samaya-guide-body { display: flex; align-items: center; gap: 12px; margin-top: 2px; }
-.samaya-guide-info { flex: 1; min-width: 0; }
-.samaya-guide h3 { margin: 0; font-size: var(--font-ui-medium); }
-.samaya-guide-status { margin-top: 2px; }
-.samaya-guide-nav { margin-top: 0; flex: none; }
 .samaya-card-title .samaya-chip-ticket { margin-left: 6px; vertical-align: middle; cursor: pointer; white-space: nowrap; }
 code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; color: var(--text-normal); background: var(--background-modifier-hover); }
 .samaya-card-side { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: none; }
@@ -627,18 +605,8 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 /* timeline: tasks and meetings see-through so the day lines show; the current time line is above everything */
 .samaya-lane .samaya-block:not(.is-done):not(.is-dragging), .samaya-lane .samaya-event { opacity: 0.78; }
 .samaya-lane .samaya-now { z-index: 6; }
-.samaya-review-cols > .samaya-guide { margin: 0; }
-.samaya-review-cols > .samaya-guide .samaya-guide-head { flex-wrap: wrap; row-gap: 4px; }
-.samaya-review-cols > .samaya-guide .samaya-guide-body { flex-direction: column; align-items: stretch; gap: 10px; margin-top: 6px; }
-.samaya-review-cols > .samaya-guide .samaya-guide-nav { justify-content: flex-end; }
-.samaya-review-cols > .samaya-guide { border: none; }
-.samaya-guide { background: none; }
-.samaya-guide-back.is-hidden { visibility: hidden; }
-.samaya-guide-next { min-width: 110px; }
 .samaya-colhint { font-style: italic; margin: 0 14px; }
 .samaya-plancol > .samaya-loadbar { margin: 4px 14px 10px; }
-.samaya-guide-titlerow { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0 4px; }
-.samaya-guide-titlerow .samaya-guide-nav { margin: 0; }
 .samaya-plancol > .samaya-colhead { margin: 0 14px; }
 .samaya-colhead-tab { display: flex; align-items: center; gap: 8px; background: none !important; box-shadow: none !important; border: none; padding: 0 !important; height: auto; cursor: pointer; color: var(--text-faint); }
 .samaya-colhead-tab .samaya-colhead-title { font-weight: 600; }
@@ -698,3 +666,29 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-tasks-count.is-complete { background: color-mix(in srgb, var(--samaya-green) 18%, transparent); color: var(--samaya-green); }
 .samaya-tasks-head .samaya-donebar { margin-top: 12px; }
 .samaya-tasks-head .samaya-donebar-track { height: 6px; border-radius: 3px; }
+
+/* Plan my day: guide column (vertical stepper) */
+.samaya-plan { display: flex; flex-direction: column; gap: 14px; padding: 4px 6px 4px 2px; }
+.samaya-plan-top { display: flex; align-items: center; justify-content: space-between; }
+.samaya-plan-kicker { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--interactive-accent); }
+.samaya-plan-cancel { width: 24px; height: 24px; padding: 0; color: var(--text-faint); }
+.samaya-plan-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.samaya-plan-step { position: relative; display: flex; gap: 12px; padding-bottom: 18px; }
+.samaya-plan-step:last-child { padding-bottom: 0; }
+.samaya-plan-step:not(:last-child)::before { content: ""; position: absolute; left: 13px; top: 28px; bottom: 2px; width: 2px; border-radius: 1px; background: var(--background-modifier-border); }
+.samaya-plan-step.is-done:not(:last-child)::before { background: var(--samaya-green); }
+.samaya-plan-marker { flex: none; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: var(--font-ui-small); font-weight: 700; border: 2px solid var(--background-modifier-border); color: var(--text-faint); background: var(--background-primary); box-sizing: border-box; }
+.samaya-plan-marker svg { width: 14px; height: 14px; stroke-width: 3; }
+.samaya-plan-step.is-active .samaya-plan-marker { background: var(--interactive-accent); border-color: var(--interactive-accent); color: var(--text-on-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--interactive-accent) 20%, transparent); }
+.samaya-plan-step.is-done .samaya-plan-marker { background: var(--samaya-green); border-color: var(--samaya-green); color: #fff; }
+.samaya-plan-main { min-width: 0; flex: 1; padding-top: 3px; }
+.samaya-plan-title { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-faint); }
+.samaya-plan-step.is-active .samaya-plan-title { font-size: var(--font-ui-medium); font-weight: 700; color: var(--text-normal); }
+.samaya-plan-step.is-done .samaya-plan-title { color: var(--text-muted); }
+.samaya-plan-step.is-link { cursor: pointer; }
+.samaya-plan-step.is-link:hover .samaya-plan-title { color: var(--text-normal); }
+.samaya-plan-badge { font-size: var(--font-ui-smaller); font-weight: 700; padding: 0 7px; border-radius: 10px; background: var(--color-orange); color: #fff; }
+.samaya-plan-text { margin-top: 6px; color: var(--text-muted); font-size: var(--font-ui-small); line-height: 1.5; }
+.samaya-plan-nav { display: flex; gap: 8px; padding-top: 4px; }
+.samaya-plan-next { flex: 1; height: 34px; }
+.samaya-plan-back { height: 34px; }

@@ -1,3 +1,4 @@
+import { setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { richText } from "./common";
 
@@ -9,24 +10,34 @@ export const GUIDE_STEPS = [
 
 export interface GuideCtx { overdue: number; }
 
-/** Interactive "plan my day" guide shown on top of the daily planner. The Review step only exists when something is overdue. */
+/** Interactive "plan my day" guide: a vertical stepper (finished steps tick off, the current one opens with its instructions) with Back / Next underneath. The Review step only exists when something is overdue. */
 export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideCtx) {
   const g = plugin.guide; if (!g) return;
   const first = g.review ? 0 : 1; // first visible step
-  const box = host.createDiv("samaya-guide");
-  const head = box.createDiv("samaya-guide-head");
-  head.createSpan({ cls: "samaya-guide-kicker", text: "PLAN MY DAY" });
-  const dots = head.createDiv("samaya-guide-dots");
-  GUIDE_STEPS.forEach((_s, i) => { if (i >= first) dots.createSpan({ cls: "samaya-guide-dot" + (i === g.step ? " is-active" : i < g.step ? " is-done" : "") }); });
-  head.createSpan({ cls: "samaya-guide-stepno", text: `Step ${g.step + 1 - first} of ${GUIDE_STEPS.length - first}` });
-  head.createEl("button", { cls: "samaya-mini", text: "Cancel" }).onclick = () => plugin.closeGuide();
-  const step = GUIDE_STEPS[g.step];
-  const titleRow = box.createDiv("samaya-guide-titlerow"); // buttons next to the title: always in the same place, close to the text
-  titleRow.createEl("h3", { text: step.title });
-  const nav = titleRow.createDiv("samaya-guide-nav");
-  const back = nav.createEl("button", { text: "Back", cls: "samaya-guide-back" }); // always there, so Next never moves
-  if (g.step > first) back.onclick = () => { g.step--; plugin.bus.emit(); }; else back.addClass("is-hidden");
-  richText(box.createDiv("samaya-guide-text"), step.text);
+  const go = (to: number) => { g.step = to; plugin.bus.emit(); };
+  const box = host.createDiv("samaya-plan");
+
+  const top = box.createDiv("samaya-plan-top");
+  top.createSpan({ cls: "samaya-plan-kicker", text: "Plan my day" });
+  const x = top.createEl("button", { cls: "samaya-plan-cancel clickable-icon", attr: { "aria-label": "Cancel planning" } });
+  setIcon(x, "x"); x.onclick = () => plugin.closeGuide();
+
+  const list = box.createEl("ol", { cls: "samaya-plan-steps" });
+  GUIDE_STEPS.forEach((st, i) => {
+    if (i < first) return;
+    const state = i === g.step ? "is-active" : i < g.step ? "is-done" : "is-todo";
+    const li = list.createEl("li", { cls: `samaya-plan-step ${state}` });
+    const marker = li.createDiv("samaya-plan-marker");
+    if (i < g.step) setIcon(marker, "check"); else marker.setText(String(i + 1 - first));
+    const main = li.createDiv("samaya-plan-main");
+    const title = main.createDiv("samaya-plan-title"); title.createSpan({ text: st.title });
+    if (i === 0 && ctx.overdue && i >= g.step) title.createSpan({ cls: "samaya-plan-badge", text: String(ctx.overdue) });
+    if (i < g.step) { li.addClass("is-link"); li.onclick = () => go(i); li.setAttr("title", `Back to ${st.title}`); }
+    if (i === g.step) richText(main.createDiv("samaya-plan-text"), st.text);
+  });
+
+  const nav = box.createDiv("samaya-plan-nav");
+  if (g.step > first) nav.createEl("button", { text: "Back", cls: "samaya-plan-back" }).onclick = () => go(g.step - 1);
   const last = g.step === GUIDE_STEPS.length - 1;
-  nav.createEl("button", { text: last ? "Start my day" : "Next", cls: "mod-cta samaya-guide-next" }).onclick = () => { if (last) void plugin.finishGuide(); else { g.step++; plugin.bus.emit(); } };
+  nav.createEl("button", { text: last ? "Start my day" : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) void plugin.finishGuide(); else go(g.step + 1); };
 }

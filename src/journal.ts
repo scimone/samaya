@@ -28,11 +28,11 @@ export function taskLines(items: JournalTask[]): string {
     return [`- [[${t.title}]]${t.time ? ` • *${t.time}*` : ""}${est ? ` • *${est}*` : ""}`, ...t.subtasks.map(s => `    - ${s}`)].join("\n");
   }).join("\n");
 }
-/** One bullet per meeting: "HH:MM-HH:MM Title" (all-day events: "All day Title"). Pure. */
-export function meetingLines(events: Array<{ title: string; start: Date; end: Date; allDay: boolean }>): string {
+/** One bullet per meeting: "HH:MM-HH:MM Title" (linked to the meeting note when there is one; all-day events: "All day Title"). Pure. */
+export function meetingLines(events: Array<{ title: string; start: Date; end: Date; allDay: boolean; /** note basename to link to */ note?: string }>): string {
   if (!events.length) return "- None";
   const hm = (d: Date) => minToHm(d.getHours() * 60 + d.getMinutes());
-  return events.map(e => `- ${e.allDay ? "*All day*" : `*${hm(e.start)}-${hm(e.end)}*`} ${e.title}`).join("\n");
+  return events.map(e => `- ${e.allDay ? "*All day*" : `*${hm(e.start)}-${hm(e.end)}*`} ${e.note ? `[[${e.note}|${e.title}]]` : e.title}`).join("\n");
 }
 export function bulletLines(lines: string[]): string {
   const l = lines.map(x => x.trim().replace(/^[-*]\s+/, "")).filter(Boolean);

@@ -3,7 +3,7 @@ import { App, TFile, normalizePath } from "obsidian";
 import type { SamayaSettings } from "./settings";
 import { renderPath, renderTemplate } from "./taskbody";
 import { Task, ensureFolder, loadTemplate, momentFmt, readSubtasks, rootOf } from "./model";
-import { minToHm, today } from "./util";
+import { hmToMin, minToHm, today } from "./util";
 import { fmtSegments } from "./segments";
 
 export type JournalPart = "journalPlanned" | "journalFinished" | "journalTomorrow" | "journalWorkTimes" | "journalBreaks" | "journalTracked";
@@ -214,6 +214,12 @@ export function plannedTime(t: Pick<Task, "start" | "estimate" | "segments">): s
   if (!t.start) return "";
   const [h, m] = t.start.split(":").map(Number); const s = h * 60 + m;
   return t.estimate > 0 ? `${minToHm(s)}-${minToHm(s + t.estimate)}` : minToHm(s);
+}
+
+/** Scheduled tasks by start time, unscheduled ones (no start) after them in their original order. Stable, pure. */
+export function sortByStart<T extends { start: string }>(tasks: T[]): T[] {
+  const key = (t: T) => (t.start ? hmToMin(t.start) : Infinity);
+  return tasks.map((t, i) => ({ t, i })).sort((a, b) => (key(a.t) - key(b.t)) || (a.i - b.i)).map(x => x.t);
 }
 
 export async function toJournalTasks(app: App, tasks: Task[], useActual = false, withTime = false): Promise<JournalTask[]> {

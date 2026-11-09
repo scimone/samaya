@@ -9,7 +9,7 @@ await bundle("src/monthgrid.ts", "test/.monthgrid.mjs"); await bundle("src/kanba
 const { parseIcs } = await import("./.ics.mjs");
 const { parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify } = await import("./.util.mjs");
 const { latestOnOrBefore, neighbours } = await import("./.journal.mjs");
-const { fmtEstimate, meetingLines, taskLines, bulletLines, upsertSection, readSection, pickJournalSource: pick } = await import("./.journal.mjs");
+const { fmtEstimate, meetingLines, sortByStart, taskLines, bulletLines, upsertSection, readSection, pickJournalSource: pick } = await import("./.journal.mjs");
 const { fetchJira, fetchGitlab, adfToText } = await import("./.tickets.mjs");
 const { renderTicketPath, renderTicketFileName, renderTicketNote, pathRoot: pathRoot2 } = await import("./.taskbody.mjs");
 
@@ -166,6 +166,7 @@ assert.equal(taskLines([{ title: "Task A", minutes: 20, subtasks: [] }, { title:
   "- [[Task A]] • *20 min*\n- [[Task B]] • *2 hr*\n    - Subtask 1\n    - Subtask 2");
 assert.equal(taskLines([{ title: "T", minutes: 30, subtasks: [], time: "10:00-10:30" }]), "- [[T]] • *10:00-10:30* • *30 min*");
 assert.equal(meetingLines([{ title: "Sync", start: new Date(2026, 0, 1, 9, 30), end: new Date(2026, 0, 1, 10, 0), allDay: false, note: "2026-01-01_sync" }]), "- *09:30-10:00* [[2026-01-01_sync|Sync]]");
+assert.deepEqual(sortByStart([{ start: "" , n: 1 }, { start: "13:00", n: 2 }, { start: "9:30", n: 3 }, { start: "", n: 4 }]).map(x => x.n), [3, 2, 1, 4]);
 assert.equal(bulletLines(["", "- a", "b "]), "- a\n- b");
 let note = upsertSection("", "Planned tasks", "- [[A]]");
 note = upsertSection(note, "Planned for tomorrow", "- [[C]]");

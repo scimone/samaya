@@ -20,7 +20,7 @@ import { PROJECTS_BASE_TEMPLATE, assignProject, createProject } from "./projects
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { HOME_VIEW_TYPE, HomeView } from "./views/HomeView";
 import { allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask } from "./model";
-import { bulletLines, journalPath, journalWants, meetingLines, readJournalSection, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
+import { bulletLines, journalPath, journalWants, meetingLines, readJournalSection, sortByStart, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
 import { ensureMeetingNote } from "./meetings";
 import { calendarEnabled, calendarEvents } from "./calendar";
 import { Emitter, addDays, hmToMin, minToHm, parseTitleEstimate as parseTitleEstimateSafe, parseYmd, today } from "./util";
@@ -593,7 +593,7 @@ export default class SamayaPlugin extends Plugin {
       const from = parseYmd(td); const evs = await calendarEvents(this, from, parseYmd(addDays(td, 1))).catch(() => null);
       if (evs) await writeSection(this.app, s, td, "Meetings", meetingLines(await Promise.all(evs.map(async e => ({ ...e, note: e.allDay ? undefined : await ensureMeetingNote(this.app, s, e, evs).then(f => f.basename, () => undefined) })))));
     }
-    if (journalWants(s, "journalPlanned")) await writeSection(this.app, s, td, "Planned tasks", taskLines(await toJournalTasks(this.app, day, false, true)));
+    if (journalWants(s, "journalPlanned")) await writeSection(this.app, s, td, "Planned tasks", taskLines(await toJournalTasks(this.app, sortByStart(day), false, true)));
     const wasStarted = this.workday.started;
     await this.workday.startDay();
     this.closeGuide();

@@ -1,5 +1,5 @@
 .samaya-daily { display: flex; justify-content: flex-end; height: 100%; width: 100%; gap: 0; overflow: hidden; } /* the card column sits at the right edge, next to the timeline sidebar */
-.samaya-info { flex: 0 1 300px; min-width: 220px; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
+.samaya-info { flex: 0 1 300px; min-width: 220px; margin-right: auto; display: flex; flex-direction: column; padding: 16px 16px 16px 0; overflow-y: auto; }
 .samaya-left { flex: 0 1 520px; min-width: 300px; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
 .samaya-head h2 { margin: 8px 0 2px; }
 .samaya-date { color: var(--text-muted); font-weight: 400; font-size: 0.7em; margin-left: 0.6em; }

@@ -92,7 +92,8 @@ export class DailyPlannerView extends BasesView {
     if (!g) {
       const h = left.createDiv("samaya-colhead");
       h.createSpan({ cls: "samaya-colhead-title", text: "Tasks" });
-      h.createSpan({ cls: "samaya-colhead-count", text: String(day.length) });
+      h.createSpan({ cls: "samaya-colhead-count", text: `${day.filter(t => t.status === "done").length}/${day.length}` });
+      renderDoneBar(left, day.filter(t => t.status === "done").length, day.length, false);
     }
     if (g) {
       // columns: guide | source tasks (Review: left over, Pick: this week/backlog) | today's tasks
@@ -215,10 +216,8 @@ export class DailyPlannerView extends BasesView {
     nav.createEl("button", { text: "Today", cls: "samaya-link-btn" }).onclick = () => go(today());
     nav.createEl("button", { text: "›", cls: "samaya-link-btn" }).onclick = () => go(addDays(this.date, 1));
     if (isToday) renderWorkdayCard(this.plugin, head.createDiv());
-    const done = day.filter(t => t.status === "done").length;
     const tot = head.createDiv({ cls: "samaya-total" + (plannedAll > cap.free ? " is-over" : ""), text: `${fmtDur(plannedAll)} / ${fmtDur(cap.free)} planned` });
     tot.title = `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`;
-    renderDoneBar(head, done, day.length);
   }
 
 }

@@ -82,8 +82,16 @@ export async function createTask(app: App, s: SamayaSettings, title: string, fm:
   const base = safeFileName(title); let path = `${folder}/${base}.md`; let i = 2;
   while (app.vault.getAbstractFileByPath(path)) path = `${folder}/${base} ${i++}.md`;
   const tpl = body ?? renderTemplate(await loadTemplate(app, s.taskTemplate, DEFAULT_TASK_TEMPLATE), { title, date: now }, momentFmt);
-  const file = await app.vault.create(path, ensureSubtasksHeading(tpl));
-  await patchTask(app, file, { status: "todo", ...fm });
+  const props: Record<string, string | number> = { status: "todo", ...fm };
+  const body2 = ensureSubtasksHeading(tpl);
+  // Write the properties together with the note. Creating it bare and patching afterwards lets the "file by planned date"
+  // handler move it to Unscheduled in between, and the properties (day, estimate) could get lost.
+  if (!body2.trimStart().startsWith("---")) {
+    const yaml = Object.entries(props).map(([k, v]) => `${k}: ${typeof v === "number" || /^[\w.:-]+$/.test(v) ? v : JSON.stringify(v)}`).join("\n");
+    return app.vault.create(path, `---\n${yaml}\n---\n${body2}`);
+  }
+  const file = await app.vault.create(path, body2);
+  await patchTask(app, file, props);
   return file;
 }
 

@@ -110,18 +110,18 @@ export class HomeView extends BasesView {
         sub.setText([`${open.length} open today`, ev ? `${meeting} ${meetingIn}` : ""].filter(Boolean).join(" · "));
         cta("Start focus", () => { void p.focus.start(next.file); });
       } else { title.setText("Nothing left on today's list"); sub.setText(ev ? `Next: ${meeting} ${meetingIn}` : "Add a task below, or call it a day."); }
-      quiet("Break", () => { void wd.startBreak(); }); quiet("Shut down", () => p.startShutdown());
+      quiet("Plan my day", () => p.startGuide()); quiet("Break", () => { void wd.startBreak(); }); quiet("Shut down", () => p.startShutdown());
     } else if (moment === "break") {
       label.setText("On break");
       title.setText(l?.open ? fmtDur(Math.max(0, nowMin() - hmToMin(l.open.start))) : "On break");
       sub.setText(l?.open ? `since ${l.open.start}` : "");
-      cta("Back to work", () => { void wd.endBreak(); });
+      cta("Back to work", () => { void wd.endBreak(); }); quiet("Plan my day", () => p.startGuide());
     } else if (moment === "wrapup") {
       label.setText(`Working · ${fmtDur(wd.worked())}`);
       const allDone = day.length > 0 && open.length === 0;
       title.setText(allDone ? "Everything is done" : "Time to wrap up");
       sub.setText(allDone ? `${day.length} of ${day.length} tasks finished.` : `${open.length} task${open.length === 1 ? "" : "s"} still open - move them on, or finish them.`);
-      cta("Shut down", () => p.startShutdown()); quiet("Break", () => { void wd.startBreak(); });
+      cta("Shut down", () => p.startShutdown()); quiet("Plan my day", () => p.startGuide()); quiet("Break", () => { void wd.startBreak(); });
     } else {
       const worked = l ? workedMinutes(l, 1440) : 0;
       label.setText("Day finished");

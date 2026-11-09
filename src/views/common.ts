@@ -1,6 +1,6 @@
 import { App, Menu, TFile } from "obsidian";
 import type SamayaPlugin from "../main";
-import { DndScope } from "../dnd";
+import { DndScope, DropInfo } from "../dnd";
 import { Task, addSubtask, assignTicket, patchTask, readSubtasks, readTicket, setDone, ticketPathOf, toggleSubtask } from "../model";
 import { ProjectSuggestModal, TicketSuggestModal } from "../modals";
 import { assignProject, projectPathOf } from "../projects";
@@ -127,15 +127,15 @@ export async function renderSubtasks(plugin: SamayaPlugin, host: HTMLElement, fi
 }
 
 /** Highlight a container while hovered by a drag. */
-export function bindZone(scope: DndScope, el: HTMLElement, onDrop: (path: string) => void) {
-  scope.target(el, { over: () => el.addClass("is-drop"), leave: () => el.removeClass("is-drop"), drop: i => { el.removeClass("is-drop"); onDrop(i.path); } });
+export function bindZone(scope: DndScope, el: HTMLElement, onDrop: (path: string, i: DropInfo) => void) {
+  scope.target(el, { over: () => el.addClass("is-drop"), leave: () => el.removeClass("is-drop"), drop: i => { el.removeClass("is-drop"); onDrop(i.path, i); } });
 }
 /** Insert-before/after behaviour on a card. */
-export function bindCardDrop(scope: DndScope, card: HTMLElement, onDrop: (path: string, after: boolean) => void) {
+export function bindCardDrop(scope: DndScope, card: HTMLElement, onDrop: (path: string, after: boolean, i: DropInfo) => void) {
   const clear = () => { card.removeClass("drop-before"); card.removeClass("drop-after"); };
   const isAfter = (y: number) => { const r = card.getBoundingClientRect(); return y > r.top + r.height / 2; };
   scope.target(card, {
     over: i => { const a = isAfter(i.y); card.toggleClass("drop-after", a); card.toggleClass("drop-before", !a); },
-    leave: clear, drop: i => { const a = isAfter(i.y); clear(); onDrop(i.path, a); },
+    leave: clear, drop: i => { const a = isAfter(i.y); clear(); onDrop(i.path, a, i); },
   });
 }

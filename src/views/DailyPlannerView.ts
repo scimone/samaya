@@ -90,19 +90,19 @@ export class DailyPlannerView extends BasesView {
 
     const g = isToday ? this.plugin.guide : null; const step = g?.step ?? -1;
     const review = step === 0, pick = step === 1;
-    const side = review || pick; // Review and Pick: guide on top, two columns below, the timeline lives in the sidebar
+    const side = !!g; // plan my day: guide on top, columns below, the timeline lives in the sidebar
     this.root.toggleClass("is-review", side);
     const left = this.root.createDiv("samaya-left");
     this.renderHeader(left, day, cap, plannedAll, isToday, !!g);
     let body = left; // where today's planned list goes
     if (g) {
       renderGuide(this.plugin, left, { overdue: overdue.length });
-      if (side) { // guide across the top, then the source tasks (left) next to today's tasks (right)
-        const cols = left.createDiv("samaya-review-cols");
-        if (review) this.renderLeftOver(cols, overdue); else this.renderPick(cols);
+      if (side) { // guide across the top, then the source tasks (left) next to today's tasks (right); Timebox: only today's tasks, centered
+        const cols = left.createDiv("samaya-review-cols" + (step === 2 ? " is-single" : ""));
+        if (review) this.renderLeftOver(cols, overdue); else if (pick) this.renderPick(cols);
         body = cols.createDiv("samaya-panel samaya-review-main");
       }
-      this.colHead(body, "Planned for today", day.length, review ? "Drag left over tasks here, or press `Today` on one." : pick ? "Drag tasks here, or press `Today` on a task." : "Give these tasks a time slot on the timeline.");
+      this.colHead(body, "Planned for today", day.length, review ? "Drag left over tasks here, or press `Today` on one." : pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
       renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
     }
 
@@ -120,9 +120,9 @@ export class DailyPlannerView extends BasesView {
     day.forEach((t, idx) => {
       const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true });
       c.toggleClass("is-timed", !!t.start);
-      bindCardDrop(this.scope, c, (path, after) => { void placeInDay(this.app, this.plugin.settings, path, this.date, idx + (after ? 1 : 0)); });
+      bindCardDrop(this.scope, c, (path, after, i) => { void this.place(path, idx + (after ? 1 : 0), i.fromTimeline); });
     });
-    bindZone(this.scope, list, path => { void placeInDay(this.app, this.plugin.settings, path, this.date, day.length); });
+    bindZone(this.scope, list, (path, i) => { void this.place(path, day.length, i.fromTimeline); });
 
     if (!review) { // (no quick add in the Review step)
       const add = body.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
@@ -143,6 +143,13 @@ export class DailyPlannerView extends BasesView {
   }
 
   /** Review step: the left over tasks as a panel next to the guide. Decide with a button, or drag onto today's list or the sidebar timeline. */
+  /** Put a task into today's list at `index`; a task dragged off the timeline loses its time slot. */
+  private async place(path: string, index: number, unschedule: boolean) {
+    const f = this.app.vault.getAbstractFileByPath(path);
+    if (unschedule && f instanceof TFile) await patchTask(this.app, f, { start: null });
+    await placeInDay(this.app, this.plugin.settings, path, this.date, index);
+  }
+
   private colHead(host: HTMLElement, title: string, count: number, hint: string) {
     const h = host.createDiv("samaya-colhead");
     h.createSpan({ cls: "samaya-colhead-title", text: title });

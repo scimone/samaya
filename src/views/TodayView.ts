@@ -77,7 +77,8 @@ export class TodayView extends ItemView {
   async render() {
     const token = ++this.token; const s = this.plugin.settings;
     this.mode = this.currentMode(); const guide = this.mode === "lists" ? this.plugin.guide : null;
-    const tl = !!guide && guide.step <= 1; // plan my day, Review and Pick: the sidebar shows today's timeline (read-only)
+    const tl = !!guide; // plan my day: the sidebar shows today's timeline (read-only until Timebox)
+    const ro = !!guide && guide.step <= 1;
     const date = tl ? today() : this.viewDate || today();
     const lists = this.mode !== "timeline" && !tl; this.shownDate = this.plugin.plannerDate;
     const wkStart = this.plugin.boardWeek || startOfWeek(today()); this.shownWeek = this.plugin.boardWeek;
@@ -122,20 +123,15 @@ export class TodayView extends ItemView {
     }
     if (this.mode === "week") { this.renderWeek(c, all, wkStart); return; }
     const dayMs = parseYmd(date).getTime();
-    if (guide) { // plan my day: no workday strip, progress or day title, just the current phase
-      head.remove();
-      if (!tl) {
-        richText(c.createDiv("samaya-guide-hint"), "Timebox: drag the tasks in the list on the left onto the timeline, so each one gets a time slot. The ones still without a time stay highlighted. Drag the start and finish lines to set your working day, then press `Start my day`.");
-        return;
-      }
-    } else {
+    if (guide) head.remove(); // plan my day: no workday strip, progress or day title
+    else {
       renderWorkdayCard(this.plugin, head.createDiv(), { compact: true });
       renderDoneBar(head, day.filter(t => t.status === "done").length, day.length);
       if (lists) { this.renderLists(c, all, day); return; }
     }
     events.filter(e => e.allDay).forEach(e => c.createDiv({ cls: "samaya-allday", text: e.title }));
 
-    if (!tl) { // (not while reviewing or picking: nothing is dragged onto the timeline then)
+    if (!tl) { // (not while planning my day: the planned list in the main view is the source)
     // ---- unscheduled cards (drop here to unschedule)
     const unscheduled = day.filter(t => !t.start && t.status !== "done");
     const usec = c.createDiv("samaya-today-unsched");
@@ -175,7 +171,7 @@ export class TodayView extends ItemView {
     const durOf = (path: string) => byPath.get(path)?.estimate || s.defaultEstimate;
 
     let preview: HTMLElement | null = null;
-    if (!tl) {
+    if (!ro) { // drop target: give a task a time slot
     // target = the visible scroll box (the lane itself extends beyond it when scrolled)
     this.dnd.target(scroll, {
       over: i => {
@@ -223,7 +219,7 @@ export class TodayView extends ItemView {
       const t = it.task!;
       b.addEventListener("dblclick", () => open(t.file));
       b.addEventListener("contextmenu", e => showTaskMenu(this.plugin, t, e));
-      if (tl) return; // read-only while reviewing
+      if (ro) return; // read-only while reviewing and picking
       this.dnd.draggable(b, t.file.path);
       const handle = b.createDiv("samaya-resize");
       handle.addEventListener("pointerdown", e => {

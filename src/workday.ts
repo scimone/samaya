@@ -126,6 +126,7 @@ export class WorkdayManager {
       m.addItem(i => i.setTitle("Plan my day (guided)").onClick(() => p.startGuide()));
       m.addItem(i => i.setTitle("Start workday now").onClick(() => { void this.startDay(); }));
     } else {
+      m.addItem(i => i.setTitle("Plan my day (guided)").onClick(() => p.startGuide()));
       if (this.onBreak) m.addItem(i => i.setTitle("Back to work").onClick(() => { void this.endBreak(); }));
       else m.addItem(i => i.setTitle("Start break").onClick(() => { void this.startBreak(); }));
       m.addItem(i => i.setTitle("End workday (shutdown)").onClick(() => p.startShutdown()));

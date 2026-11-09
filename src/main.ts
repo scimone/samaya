@@ -566,9 +566,10 @@ export default class SamayaPlugin extends Plugin {
     const g = this.guide; if (!g) return; const s = this.settings; const td = today();
     const day = sortTasks(allTasks(this.app, s).filter(t => t.planned === td));
     if (journalWants(s, "journalPlanned")) await writeSection(this.app, s, td, "Planned today", taskLines(await toJournalTasks(this.app, day)));
+    const wasStarted = this.workday.started;
     await this.workday.startDay();
     this.guide = null; this.bus.emit();
-    new Notice(`Day planned and started.${s.journalOn ? " Saved to your journal." : ""}`);
+    new Notice(`Day planned${wasStarted ? "" : " and started"}.${s.journalOn ? " Saved to your journal." : ""}`);
   }
   startShutdown() { new ShutdownModal(this).open(); }
 

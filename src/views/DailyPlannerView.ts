@@ -87,7 +87,7 @@ export class DailyPlannerView extends BasesView {
     this.root.toggleClass("is-review", !!g); // plan my day: guide + columns; otherwise one column of task cards on the right
     const info = g ? null : this.root.createDiv("samaya-info"); // day title, workday, navigation, totals
     const left = this.root.createDiv("samaya-left");
-    this.renderHeader(info ?? left, day, cap, plannedAll, isToday, !!g);
+    if (info) this.renderHeader(info, day, cap, plannedAll, isToday); // (plan my day has no heading)
     let body = left; // where today's planned list goes
     if (!g) { // tasks heading: title, done count, progress
       const nd = day.filter(t => t.status === "done").length;
@@ -108,7 +108,7 @@ export class DailyPlannerView extends BasesView {
     }
 
     const list = body.createDiv("samaya-list" + (step === 2 ? " is-timebox" : ""));
-    if (!day.length) list.createDiv({ cls: "samaya-empty", text: this.plugin.guide ? "Nothing planned yet." : "Nothing planned. Drag tasks here or add one below." });
+    if (!day.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned" });
     // Timebox: tasks without a time slot always first
     const shown = step === 2 ? [...day.filter(t => !t.start && t.status !== "done"), ...day.filter(t => t.start || t.status === "done")] : day;
     shown.forEach(t => {
@@ -205,14 +205,8 @@ export class DailyPlannerView extends BasesView {
 
   private fileOf(path: string): TFile { return this.app.vault.getAbstractFileByPath(path) as TFile; }
 
-  private renderHeader(host: HTMLElement, day: Task[], cap: Capacity, plannedAll: number, isToday: boolean, guided: boolean) {
+  private renderHeader(host: HTMLElement, day: Task[], cap: Capacity, plannedAll: number, isToday: boolean) {
     const d = parseYmd(this.date);
-    if (guided) { // plan my day: only the title; no navigation, workday, totals or progress
-      const row = host.createDiv("samaya-head samaya-top").createDiv("samaya-top-row");
-      const title = row.createEl("h2", { text: isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" }) });
-      title.createSpan({ cls: "samaya-date", text: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) });
-      return;
-    }
     // day column: title + navigation, workday status, capacity, plan button
     const go = (x: string) => { this.date = x; void this.render(); };
     const hero = host.createDiv("samaya-info-hero");

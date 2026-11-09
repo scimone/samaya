@@ -232,7 +232,7 @@ export class DailyPlannerView extends BasesView {
     dateBtn.onclick = e => { if (e.target !== picker) { try { picker.showPicker(); } catch { picker.focus(); picker.click(); } } };
     arrow("chevron-right", "Next day", addDays(this.date, 1));
 
-    if (isToday) renderWorkdayCard(this.plugin, host.createDiv("samaya-info-card"), { panel: true });
+    renderWorkdayCard(this.plugin, host.createDiv("samaya-info-card"), { panel: true, date: this.date });
 
     const over = plannedAll > cap.free;
     const load = host.createDiv({ cls: "samaya-info-card samaya-info-load" + (over ? " is-over" : "") });

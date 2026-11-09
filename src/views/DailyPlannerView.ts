@@ -166,7 +166,8 @@ export class DailyPlannerView extends BasesView {
     const list = col.createDiv("samaya-leftover-list");
     if (!tasks.length) list.createDiv({ cls: "samaya-empty", text: this.pickTab === "week" ? "Nothing planned for this week yet." : "Backlog is empty." });
     tasks.forEach(t => renderTaskCard(this.plugin, list, t, {
-      scope: this.scope, ticketInline: true,
+      scope: this.scope,
+      actionsSide: true,
       actions: [["Today", () => { void placeInDay(this.app, s, t.file.path, this.date, 9999); }]],
     }));
     bindZone(this.scope, col, path => {
@@ -188,7 +189,7 @@ export class DailyPlannerView extends BasesView {
     if (!overdue.length) list.createDiv({ cls: "samaya-empty", text: "All cleared - nothing left over." });
     const tomorrow = addDays(today(), 1);
     overdue.forEach(t => renderTaskCard(this.plugin, list, t, {
-      scope: this.scope, ticketInline: true,
+      scope: this.scope,
       actions: [
         ["Today", () => { void patchTask(this.app, t.file, { planned: today(), start: null }); }],
         ["Tomorrow", () => { void patchTask(this.app, t.file, { planned: tomorrow, start: null }); }],

@@ -7,7 +7,7 @@ import { assignProject, projectPathOf } from "../projects";
 import { fmtHm, parseDuration, startOfWeek, today } from "../util";
 
 export interface CardOpts {
-  scope: DndScope; showTime?: boolean; /** ticket chip next to the title instead of below it */ ticketInline?: boolean; /** hide subtasks (sidebar) */ compact?: boolean;
+  scope: DndScope; showTime?: boolean; /** show the actions under the estimate on the right instead of below the title */ actionsSide?: boolean; /** hide subtasks (sidebar) */ compact?: boolean;
   /** extra quick-action buttons (label, handler) */ actions?: Array<[string, () => void]>;
 }
 
@@ -27,19 +27,20 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   const tp = ticketPathOf(app, t);
   if (tp) {
     const tf = app.vault.getAbstractFileByPath(tp);
-    if (tf instanceof TFile) { const tk = readTicket(app, tf); (o.ticketInline ? line : meta).createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}`, text: tk.key, attr: { title: tk.summary } }); }
+    if (tf instanceof TFile) { const tk = readTicket(app, tf); line.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}`, text: tk.key, attr: { title: tk.summary } }); }
   }
   if (plugin.settings.projectsOn) {
     const pp = projectPathOf(app, t.file);
     if (pp) meta.createSpan({ cls: "samaya-chip samaya-chip-project", text: pp.split("/").pop()!.replace(/\.md$/, "") });
   }
   if (t.channel) meta.createSpan({ cls: "samaya-chip samaya-chip-channel", text: t.channel });
-  o.actions?.forEach(([label, fn]) => { const b = meta.createEl("button", { cls: "samaya-mini", text: label }); b.addEventListener("click", fn); });
+  if (!o.actionsSide) o.actions?.forEach(([label, fn]) => { const b = meta.createEl("button", { cls: "samaya-mini", text: label }); b.addEventListener("click", fn); });
   if (!meta.childElementCount) meta.remove();
 
   // top right: [logged/]estimated as hh:mm
   const label = t.actual ? `${fmtHm(t.actual)}/${t.estimate ? fmtHm(t.estimate) : "--:--"}` : t.estimate ? fmtHm(t.estimate) : "--:--";
-  const est = row.createEl("button", { cls: "samaya-est", text: label, attr: { title: "Estimated time (hh:mm). Click to edit" } });
+  const side = row.createDiv("samaya-card-side");
+  const est = side.createEl("button", { cls: "samaya-est", text: label, attr: { title: "Estimated time (hh:mm). Click to edit" } });
   est.addEventListener("click", e => {
     e.stopPropagation();
     const input = createEl("input", { type: "text", cls: "samaya-est-input" }); input.value = fmtHm(t.estimate || plugin.settings.defaultEstimate);
@@ -48,6 +49,8 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
     input.addEventListener("blur", () => { if (done) return; done = true; const v = parseDuration(input.value); void patchTask(app, t.file, { estimate: v && v > 0 ? v : null }); });
     input.addEventListener("keydown", ev => { if (ev.key === "Enter") input.blur(); if (ev.key === "Escape") { done = true; input.replaceWith(est); } });
   });
+
+  if (o.actionsSide) o.actions?.forEach(([label, fn]) => { side.createEl("button", { cls: "samaya-mini", text: label }).addEventListener("click", fn); });
 
   if (!o.compact) void renderSubtasks(plugin, el.createDiv("samaya-subs"), t.file);
   else el.addClass("is-compact");

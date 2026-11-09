@@ -70,7 +70,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
 
   if (o.actionsSide) o.actions?.forEach(([label, fn]) => { side.createEl("button", { cls: "samaya-mini", text: label }).addEventListener("click", fn); });
 
-  if (!o.compact) void renderSubtasks(plugin, el.createDiv("samaya-subs"), t.file);
+  if (!o.compact) void renderSubtasks(plugin, (o.actionsSide ? body : el).createDiv("samaya-subs"), t.file); // beside the side column, so there is no gap and long subtasks wrap
   else el.addClass("is-compact");
 
   el.addEventListener("contextmenu", e => showTaskMenu(plugin, t, e));

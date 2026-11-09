@@ -122,7 +122,7 @@ export class DailyPlannerView extends BasesView {
     });
     bindZone(this.scope, list, path => { void placeInDay(this.app, this.plugin.settings, path, this.date, day.length); });
 
-    if (!g) { // (no quick add while planning my day)
+    if (!review) { // (no quick add in the Review step)
       const add = body.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
       add.addEventListener("keydown", e => {
         if (e.key !== "Enter" || !add.value.trim()) return;

@@ -16,7 +16,7 @@ import { renderWorkdayCard } from "./workdayCard";
 import { renderDoneBar } from "./doneBar";
 
 export const TODAY_VIEW_TYPE = "samaya-today";
-const HOUR_H = 52;
+const MIN_HOUR_H = 28;
 
 /** Right-sidebar timeline of today: unscheduled cards on top, draggable timeline below. */
 export class TodayView extends ItemView {
@@ -32,6 +32,7 @@ export class TodayView extends ItemView {
   private shownWeek = "";
   private viewDate = ""; // day shown on the timeline ("" = today)
   private listTop = 0;
+  private seenH = 0;
   constructor(leaf: WorkspaceLeaf, private plugin: SamayaPlugin) { super(leaf); this.dnd.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } }; }
   getViewType() { return TODAY_VIEW_TYPE; }
   getDisplayText() { return "Today"; }
@@ -50,6 +51,8 @@ export class TodayView extends ItemView {
     this.registerEvent(this.app.workspace.on("active-leaf-change", check));
     this.registerEvent(this.app.workspace.on("layout-change", check));
     this.register(this.plugin.modeBus.on(check));
+    const ro = new ResizeObserver(() => { if (this.contentEl.clientHeight !== this.seenH && this.mode !== "week") this.schedule(); });
+    ro.observe(this.contentEl); this.register(() => ro.disconnect());
     await this.render();
   }
   onClose() { window.clearTimeout(this.timer); this.dnd.dispose(); return Promise.resolve(); }
@@ -153,6 +156,9 @@ export class TodayView extends ItemView {
     const startH = s.dayStartHour, endH = s.dayEndHour, slot = s.slotMinutes; const dayStartMs = dayMs;
     c.createDiv({ cls: "samaya-today-label", text: "Timeline" });
     const scroll = c.createDiv("samaya-scroll");
+    // stretch the hours so the day fills the whole sidebar height
+    this.seenH = c.clientHeight;
+    const HOUR_H = Math.max(MIN_HOUR_H, Math.floor((scroll.clientHeight - 12) / (endH - startH)));
     const grid = scroll.createDiv("samaya-grid"); grid.style.height = `${(endH - startH) * HOUR_H}px`;
     for (let h = startH; h < endH; h++) {
       const row = grid.createDiv("samaya-hour"); row.style.top = `${(h - startH) * HOUR_H}px`; row.style.height = `${HOUR_H}px`;

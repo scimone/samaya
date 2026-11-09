@@ -95,13 +95,13 @@ export class DailyPlannerView extends BasesView {
     let body = left; // where today's planned list goes
     if (g) {
       renderGuide(this.plugin, left, { overdue: overdue.length });
-      if (review) { // guide across the top, then today's tasks (left) next to the left over tasks (right)
+      if (review) { // guide across the top, then the left over tasks (left) next to today's tasks (right)
         const cols = left.createDiv("samaya-review-cols");
-        body = cols.createDiv("samaya-review-main");
         this.renderLeftOver(cols, overdue);
+        body = cols.createDiv("samaya-panel samaya-review-main");
       }
+      this.colHead(body, "Planned for today", day.length, "Drag tasks here, or press Today on a left over task.");
       renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
-      body.createDiv({ cls: "samaya-today-label", text: `Planned for today · ${day.length}` });
     }
 
     if (overdue.length && !g) { // during the guide the left over tasks live in the sidebar
@@ -139,12 +139,16 @@ export class DailyPlannerView extends BasesView {
   }
 
   /** Review step: the left over tasks as a panel next to the guide. Decide with a button, or drag onto today's list or the sidebar timeline. */
+  private colHead(host: HTMLElement, title: string, count: number, hint: string) {
+    const h = host.createDiv("samaya-colhead");
+    h.createSpan({ cls: "samaya-colhead-title", text: title });
+    h.createSpan({ cls: "samaya-colhead-count", text: String(count) });
+    host.createDiv({ cls: "samaya-guide-text", text: hint });
+  }
+
   private renderLeftOver(host: HTMLElement, overdue: Task[]) {
-    const col = host.createDiv("samaya-leftover is-guided");
-    const head = col.createDiv("samaya-leftover-head");
-    head.createSpan({ cls: "samaya-leftover-title", text: "Left over from earlier days" });
-    head.createSpan({ cls: "samaya-leftover-count", text: String(overdue.length) });
-    col.createDiv({ cls: "samaya-guide-text", text: "Pick a button, or drag a task onto today's list or the timeline in the sidebar." });
+    const col = host.createDiv("samaya-panel samaya-leftover is-guided");
+    this.colHead(col, "Left over from earlier days", overdue.length, "Pick a button, or drag a task into today's list.");
     const list = col.createDiv("samaya-leftover-list");
     if (!overdue.length) list.createDiv({ cls: "samaya-empty", text: "All cleared - nothing left over." });
     const tomorrow = addDays(today(), 1);

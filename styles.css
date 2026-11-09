@@ -624,7 +624,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 
 /* Daily: left info column */
 .samaya-info { gap: 14px; }
-.samaya-info-hero { display: block; }
+.samaya-info-hero { display: block; margin-bottom: 10px; }
 .samaya-info-titles h2 { margin: 0; font-size: 1.8em; letter-spacing: -0.02em; line-height: 1.1; }
 .samaya-info-titlerow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .samaya-info-today { height: 24px; padding: 0 10px; border-radius: 999px; font-size: var(--font-ui-smaller); font-weight: 600; }
@@ -659,7 +659,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-info .samaya-wd-buttons { display: flex; gap: 6px; margin-top: 12px; }
 .samaya-info .samaya-wd-buttons button { flex: 1; height: 30px; }
 .samaya-info-card:has(.samaya-wd.is-break) { background: color-mix(in srgb, var(--color-orange) 10%, var(--background-secondary)); }
-.samaya-tasks-head { margin: 4px 6px 14px; padding-bottom: 14px; border-bottom: 1px solid var(--background-modifier-border); }
+.samaya-tasks-head { margin: 4px 6px 14px; }
 .samaya-tasks-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .samaya-tasks-row h3 { margin: 0; font-size: 1.8em; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
 .samaya-tasks-count { font-size: var(--font-ui-smaller); font-weight: 600; font-variant-numeric: tabular-nums; padding: 2px 10px; border-radius: 999px; background: var(--background-modifier-hover); color: var(--text-muted); white-space: nowrap; }

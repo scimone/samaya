@@ -11,7 +11,11 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
     if (!host.isConnected) { off(); window.clearInterval(timer); return; }
     host.empty();
     const other = !!o.date && o.date !== today();
-    const l = other ? wd.allLogs().find(x => x.date === o.date) ?? null : wd.log; const [winStart, winEnd] = plugin.workWindowFor(o.date ?? today()); const target = Math.max(0, winEnd - winStart); // work time to aim for: finish line minus start line
+    const l = other ? wd.allLogs().find(x => x.date === o.date) ?? null : wd.log; const [winStart, winEnd] = plugin.workWindowFor(o.date ?? today());
+    // work time to aim for: finish line minus start line, minus lunch and the other breaks taken
+    const [ls, le] = plugin.lunchFor(o.date ?? today()); const lunch = Math.max(0, Math.min(le, winEnd) - Math.max(ls, winStart));
+    const others = l ? l.breaks.filter(b => b.kind !== "lunch").reduce((a, b) => a + Math.max(0, hmToMin(b.end) - hmToMin(b.start)), 0) + (l.open && l.open.kind !== "lunch" && !other ? Math.max(0, nowMin() - hmToMin(l.open.start)) : 0) : 0;
+    const target = Math.max(0, winEnd - winStart - lunch - others);
     const strip = host.createDiv({ cls: "samaya-wd" + (o.panel ? " samaya-wd-panel" : "") + (l?.open ? " is-break" : l?.start && !l.end ? " is-work" : "") });
     // what to show: a state label, the main figure, a detail line and the actions
     let state = "", big = "", sub = "", sub2 = ""; let progress = -1;

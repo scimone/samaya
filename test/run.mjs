@@ -9,7 +9,7 @@ await bundle("src/monthgrid.ts", "test/.monthgrid.mjs"); await bundle("src/kanba
 const { parseIcs } = await import("./.ics.mjs");
 const { parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify } = await import("./.util.mjs");
 const { latestOnOrBefore, neighbours } = await import("./.journal.mjs");
-const { fmtEstimate, taskLines, bulletLines, upsertSection, readSection, pickJournalSource: pick } = await import("./.journal.mjs");
+const { fmtEstimate, meetingLines, taskLines, bulletLines, upsertSection, readSection, pickJournalSource: pick } = await import("./.journal.mjs");
 const { fetchJira, fetchGitlab, adfToText } = await import("./.tickets.mjs");
 const { renderTicketPath, renderTicketFileName, renderTicketNote, pathRoot: pathRoot2 } = await import("./.taskbody.mjs");
 
@@ -165,16 +165,17 @@ assert.equal(fmtEstimate(20), "20 min"); assert.equal(fmtEstimate(120), "2 hr");
 assert.equal(taskLines([{ title: "Task A", minutes: 20, subtasks: [] }, { title: "Task B", minutes: 120, subtasks: ["Subtask 1", "Subtask 2"] }]),
   "- [[Task A]] • *20 min*\n- [[Task B]] • *2 hr*\n    - Subtask 1\n    - Subtask 2");
 assert.equal(taskLines([{ title: "T", minutes: 30, subtasks: [], time: "10:00-10:30" }]), "- [[T]] • *10:00-10:30* • *30 min*");
+assert.equal(meetingLines([{ title: "Sync", start: new Date(2026, 0, 1, 9, 30), end: new Date(2026, 0, 1, 10, 0), allDay: false }]), "- *09:30-10:00* Sync");
 assert.equal(bulletLines(["", "- a", "b "]), "- a\n- b");
-let note = upsertSection("", "Planned today", "- [[A]]");
+let note = upsertSection("", "Planned tasks", "- [[A]]");
 note = upsertSection(note, "Planned for tomorrow", "- [[C]]");
-note = upsertSection(note, "Finished today", "- [[A]] • *5 min*"); // must land before "Planned for tomorrow"
+note = upsertSection(note, "Finished tasks", "- [[A]] • *5 min*"); // must land before "Planned for tomorrow"
 const order = note.split("\n").filter(l => l.startsWith("## "));
-assert.deepEqual(order, ["## Planned today", "## Finished today", "## Planned for tomorrow"]);
-note = upsertSection(note, "Planned today", "- [[A]]\n- [[B]]"); // replaces, doesn't duplicate
-assert.equal(note.split("## Planned today").length, 2);
-assert.deepEqual(readSection(note, "Planned today"), ["[[A]]", "[[B]]"]);
-assert.ok(upsertSection("# My day\nfree text\n", "Planned today", "- x").startsWith("# My day\nfree text"));
+assert.deepEqual(order, ["## Planned tasks", "## Finished tasks", "## Planned for tomorrow"]);
+note = upsertSection(note, "Planned tasks", "- [[A]]\n- [[B]]"); // replaces, doesn't duplicate
+assert.equal(note.split("## Planned tasks").length, 2);
+assert.deepEqual(readSection(note, "Planned tasks"), ["[[A]]", "[[B]]"]);
+assert.ok(upsertSection("# My day\nfree text\n", "Planned tasks", "- x").startsWith("# My day\nfree text"));
 
 // ---- split tasks
 {

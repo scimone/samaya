@@ -88,8 +88,8 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<SamayaS
 }
 
 const JOURNAL_PARTS: Array<[JournalPart, string, string]> = [
-  ["journalPlanned", "Planned tasks", "“Planned today” section, written when you finish the morning planning."],
-  ["journalFinished", "Finished tasks", "“Finished today” section, written at shutdown (with the tracked time per task)."],
+  ["journalPlanned", "Planned tasks", "“Planned tasks” section, written when you finish the morning planning."],
+  ["journalFinished", "Finished tasks", "“Finished tasks” section, written at shutdown (with the tracked time per task)."],
   ["journalTomorrow", "Tomorrow's plan", "“Planned for tomorrow” section, written at shutdown."],
   ["journalWorkTimes", "Work start & end", "work_start and work_end properties."],
   ["journalBreaks", "Breaks & lunch", "breaks, break_minutes and lunch properties."],

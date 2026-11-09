@@ -118,7 +118,7 @@ export class ShutdownModal extends Stepper {
     const all = allTasks(this.app, s);
     const finished = sortTasks(all.filter(t => t.status === "done" && t.planned === td));
     const tomorrow = sortTasks(all.filter(t => t.planned === tm && t.status !== "done"));
-    if (journalWants(s, "journalFinished")) await writeSection(this.app, s, td, "Finished today", taskLines(await toJournalTasks(this.app, finished, true)));
+    if (journalWants(s, "journalFinished")) await writeSection(this.app, s, td, "Finished tasks", taskLines(await toJournalTasks(this.app, finished, true)));
     if (journalWants(s, "journalTomorrow")) await writeSection(this.app, s, td, "Planned for tomorrow", taskLines(await toJournalTasks(this.app, tomorrow)));
     await this.plugin.workday.endDay();
     new Notice(`Shutdown complete${s.journalOn ? " - saved to your journal" : ""}. See you tomorrow.`);

@@ -20,8 +20,9 @@ import { PROJECTS_BASE_TEMPLATE, assignProject, createProject } from "./projects
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { HOME_VIEW_TYPE, HomeView } from "./views/HomeView";
 import { allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask } from "./model";
-import { bulletLines, journalPath, journalWants, readJournalSection, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
-import { Emitter, addDays, hmToMin, minToHm, parseTitleEstimate as parseTitleEstimateSafe, today } from "./util";
+import { bulletLines, journalPath, journalWants, meetingLines, readJournalSection, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
+import { calendarEnabled, calendarEvents } from "./calendar";
+import { Emitter, addDays, hmToMin, minToHm, parseTitleEstimate as parseTitleEstimateSafe, parseYmd, today } from "./util";
 import { WorkdayManager } from "./workday";
 import type { DayLog } from "./worktime";
 
@@ -587,7 +588,11 @@ export default class SamayaPlugin extends Plugin {
   async finishGuide() {
     const g = this.guide; if (!g) return; const s = this.settings; const td = today();
     const day = sortTasks(allTasks(this.app, s).filter(t => t.planned === td));
-    if (journalWants(s, "journalPlanned")) await writeSection(this.app, s, td, "Planned today", taskLines(await toJournalTasks(this.app, day, false, true)));
+    if (s.journalOn && calendarEnabled(s)) {
+      const from = parseYmd(td); const evs = await calendarEvents(this, from, parseYmd(addDays(td, 1))).catch(() => null);
+      if (evs) await writeSection(this.app, s, td, "Meetings", meetingLines(evs));
+    }
+    if (journalWants(s, "journalPlanned")) await writeSection(this.app, s, td, "Planned tasks", taskLines(await toJournalTasks(this.app, day, false, true)));
     const wasStarted = this.workday.started;
     await this.workday.startDay();
     this.closeGuide();

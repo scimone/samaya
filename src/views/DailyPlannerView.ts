@@ -214,20 +214,23 @@ export class DailyPlannerView extends BasesView {
       return;
     }
     // day column: title + navigation, workday status, capacity, plan button
+    const go = (x: string) => { this.date = x; void this.render(); };
     const hero = host.createDiv("samaya-info-hero");
     const titles = hero.createDiv("samaya-info-titles");
-    titles.createEl("h2", { text: isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" }) });
-    const dateBtn = titles.createEl("button", { cls: "samaya-info-date", attr: { "aria-label": "Pick a date" } });
+    const top = titles.createDiv("samaya-info-titlerow");
+    top.createEl("h2", { text: isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" }) });
+    if (!isToday) { const t = top.createEl("button", { text: "Today", cls: "samaya-info-today", attr: { "aria-label": "Jump to today" } }); t.onclick = () => go(today()); }
+    // ‹ date ›: step day by day, or click the date to pick one
+    const dr = titles.createDiv("samaya-info-daterow");
+    const arrow = (icon: string, label: string, to: string) => { const b = dr.createEl("button", { cls: "samaya-info-arrow clickable-icon", attr: { "aria-label": label } }); setIcon(b, icon); b.onclick = () => go(to); };
+    arrow("chevron-left", "Previous day", addDays(this.date, -1));
+    const dateBtn = dr.createEl("button", { cls: "samaya-info-date", attr: { "aria-label": "Pick a date" } });
     setIcon(dateBtn.createSpan("samaya-info-date-icon"), "calendar");
     dateBtn.createSpan({ text: d.toLocaleDateString(undefined, { weekday: isToday ? "long" : undefined, month: "long", day: "numeric" }) });
     const picker = dateBtn.createEl("input", { type: "date", cls: "samaya-info-datepick" }); picker.value = this.date; // sits invisibly over the button so the native calendar opens right there
-    picker.addEventListener("change", () => { if (picker.value) { this.date = picker.value; void this.render(); } });
+    picker.addEventListener("change", () => { if (picker.value) go(picker.value); });
     dateBtn.onclick = e => { if (e.target !== picker) { try { picker.showPicker(); } catch { picker.focus(); picker.click(); } } };
-    const nav = hero.createDiv("samaya-info-nav");
-    const go = (x: string) => { this.date = x; void this.render(); };
-    nav.createEl("button", { text: "‹", cls: "samaya-info-navbtn", attr: { "aria-label": "Previous day" } }).onclick = () => go(addDays(this.date, -1));
-    const t = nav.createEl("button", { text: "Today", cls: "samaya-info-navbtn", attr: { "aria-label": "Go to today" } }); t.disabled = isToday; t.onclick = () => go(today());
-    nav.createEl("button", { text: "›", cls: "samaya-info-navbtn", attr: { "aria-label": "Next day" } }).onclick = () => go(addDays(this.date, 1));
+    arrow("chevron-right", "Next day", addDays(this.date, 1));
 
     if (isToday) renderWorkdayCard(this.plugin, host.createDiv("samaya-info-card"), { panel: true });
 

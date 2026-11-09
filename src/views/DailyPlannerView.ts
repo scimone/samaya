@@ -85,9 +85,15 @@ export class DailyPlannerView extends BasesView {
     const g = isToday ? this.plugin.guide : null; const step = g?.step ?? -1;
     const review = step === 0, pick = step === 1;
     this.root.toggleClass("is-review", !!g); // plan my day: guide + columns; otherwise one column of task cards on the right
+    const info = g ? null : this.root.createDiv("samaya-info"); // day title, workday, navigation, totals
     const left = this.root.createDiv("samaya-left");
-    this.renderHeader(left, day, cap, plannedAll, isToday, !!g);
+    this.renderHeader(info ?? left, day, cap, plannedAll, isToday, !!g);
     let body = left; // where today's planned list goes
+    if (!g) {
+      const h = left.createDiv("samaya-colhead");
+      h.createSpan({ cls: "samaya-colhead-title", text: "Tasks" });
+      h.createSpan({ cls: "samaya-colhead-count", text: String(day.length) });
+    }
     if (g) {
       // columns: guide | source tasks (Review: left over, Pick: this week/backlog) | today's tasks
       const cols = left.createDiv("samaya-review-cols" + (step === 2 ? " is-two" : ""));
@@ -210,7 +216,7 @@ export class DailyPlannerView extends BasesView {
     nav.createEl("button", { text: "›", cls: "samaya-link-btn" }).onclick = () => go(addDays(this.date, 1));
     if (isToday) renderWorkdayCard(this.plugin, head.createDiv());
     const done = day.filter(t => t.status === "done").length;
-    const tot = head.createDiv({ cls: "samaya-total" + (plannedAll > cap.free ? " is-over" : ""), text: `${fmtDur(plannedAll)} planned · ${fmtDur(cap.free)} free` });
+    const tot = head.createDiv({ cls: "samaya-total" + (plannedAll > cap.free ? " is-over" : ""), text: `${fmtDur(plannedAll)} / ${fmtDur(cap.free)} planned` });
     tot.title = `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`;
     renderDoneBar(head, done, day.length);
   }

@@ -1,4 +1,5 @@
 .samaya-daily { display: flex; justify-content: flex-end; height: 100%; width: 100%; gap: 0; overflow: hidden; } /* the card column sits at the right edge, next to the timeline sidebar */
+.samaya-info { flex: 0 1 300px; min-width: 220px; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
 .samaya-left { flex: 0 1 520px; min-width: 300px; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
 .samaya-head h2 { margin: 8px 0 2px; }
 .samaya-date { color: var(--text-muted); font-weight: 400; font-size: 0.7em; margin-left: 0.6em; }
@@ -79,7 +80,7 @@
 .samaya-focus-subs { text-align: left; }
 .samaya-status { cursor: pointer; }
 
-@media (max-width: 700px) { .samaya-daily { flex-direction: column; overflow-y: auto; } .samaya-left { flex: none; } }
+@media (max-width: 700px) { .samaya-daily { flex-direction: column; overflow-y: auto; } .samaya-left, .samaya-info { flex: none; } }
 
 /* drag & drop */
 .samaya-ghost { position: fixed !important; left: 0 !important; top: 0 !important; margin: 0 !important; z-index: 10000; pointer-events: none; opacity: 0.92; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); transform-origin: 0 0; cursor: grabbing; }

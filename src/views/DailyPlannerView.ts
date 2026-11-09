@@ -94,7 +94,7 @@ export class DailyPlannerView extends BasesView {
       const head = left.createDiv("samaya-tasks-head");
       const row = head.createDiv("samaya-tasks-row");
       row.createEl("h3", { text: "Tasks" });
-      row.createSpan({ cls: "samaya-tasks-count" + (day.length && nd === day.length ? " is-complete" : ""), text: day.length ? `${nd} / ${day.length} done` : "none planned" });
+      row.createSpan({ cls: "samaya-tasks-count" + (day.length && nd === day.length ? " is-complete" : ""), text: day.length ? `${nd} / ${day.length} done` : "0" });
       renderDoneBar(head, nd, day.length, false);
     }
     if (g) {
@@ -103,7 +103,7 @@ export class DailyPlannerView extends BasesView {
       renderGuide(this.plugin, cols, { overdue: overdue.length });
       if (review) this.renderLeftOver(cols, overdue); else if (pick) this.renderPick(cols);
       body = cols.createDiv("samaya-plancol samaya-review-main");
-      this.colHead(body, "Today", day.length, review ? "Drag overdue tasks here, or press `Today` on one." : pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
+      this.colHead(body, "Today", day.length, review || pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
       renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
     }
 
@@ -188,7 +188,7 @@ export class DailyPlannerView extends BasesView {
 
   private renderLeftOver(host: HTMLElement, overdue: Task[]) {
     const col = host.createDiv("samaya-plancol samaya-leftover");
-    this.colHead(col, "Overdue", overdue.length, "Press `Today`, `Tomorrow`, `This week` or `Backlog`, or drag a task into today's list.");
+    this.colHead(col, "Overdue", overdue.length, "Press one of the buttons to schedule a task, or drag the task directly into today's list on the right.");
     const list = col.createDiv("samaya-leftover-list");
     if (!overdue.length) list.createDiv({ cls: "samaya-empty", text: "Nothing overdue." });
     const tomorrow = addDays(today(), 1);

@@ -70,7 +70,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
 
   if (o.actionsSide) o.actions?.forEach(([label, fn]) => { side.createEl("button", { cls: "samaya-mini", text: label }).addEventListener("click", fn); });
 
-  if (!o.compact) void renderSubtasks(plugin, (o.actionsSide ? body : el).createDiv("samaya-subs"), t.file); // beside the side column, so there is no gap and long subtasks wrap
+  if (!o.compact) void renderSubtasks(plugin, (o.actionsSide ? body : el).createDiv("samaya-subs"), t.file, t.status !== "done"); // beside the side column, so there is no gap and long subtasks wrap
   else el.addClass("is-compact");
 
   el.addEventListener("contextmenu", e => showTaskMenu(plugin, t, e));
@@ -101,7 +101,7 @@ export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent) {
   m.showAtMouseEvent(e);
 }
 
-export async function renderSubtasks(plugin: SamayaPlugin, host: HTMLElement, file: TFile) {
+export async function renderSubtasks(plugin: SamayaPlugin, host: HTMLElement, file: TFile, canAdd = true) {
   const app = plugin.app;
   const paint = async () => {
     if (!host.isConnected) return;
@@ -113,6 +113,7 @@ export async function renderSubtasks(plugin: SamayaPlugin, host: HTMLElement, fi
       c.addEventListener("change", () => { void toggleSubtask(app, file, s.line, c.checked); });
       r.createSpan({ text: s.text });
     });
+    if (!canAdd) return; // checked-off tasks take no new subtasks
     const add = host.createEl("input", { type: "text", cls: "samaya-sub-add", attr: { placeholder: "+ Add subtask" } });
     add.addEventListener("keydown", e => {
       if (e.key !== "Enter" || !add.value.trim()) return;

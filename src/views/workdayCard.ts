@@ -14,7 +14,7 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
     const l = other ? wd.allLogs().find(x => x.date === o.date) ?? null : wd.log; const target = dailyTarget(s.weeklyHours, s.workDays, o.date ?? today());
     const strip = host.createDiv({ cls: "samaya-wd" + (o.panel ? " samaya-wd-panel" : "") + (l?.open ? " is-break" : l?.start && !l.end ? " is-work" : "") });
     // what to show: a state label, the main figure, a detail line and the actions
-    let state = "", big = "", sub = ""; let progress = -1;
+    let state = "", big = "", sub = "", sub2 = ""; let progress = -1;
     const buttons: Array<[string, () => void, boolean?]> = [];
     if (other) { // a past or future day: just what was logged
       if (!l || !l.start) { state = "Workday"; sub = o.date! > today() ? "Not started yet." : "No work time logged."; }
@@ -37,7 +37,8 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
     } else {
       const worked = workedMinutes(l, nowMin());
       state = "Working"; big = fmtDur(worked);
-      sub = `since ${l.start}` + (target ? (worked < target ? ` · done ~${minToHm(nowMin() + target - worked)}` : ` · +${fmtDur(worked - target)}`) : "");
+      sub = `Started ${l.start} · finish line ${minToHm(plugin.workWindowFor(o.date ?? today())[1])}`; // the finish line of the timeline, which can be moved per day
+      if (target) sub2 = worked < target ? `${fmtDur(target - worked)} left of ${fmtDur(target)}` : `Target of ${fmtDur(target)} reached (+${fmtDur(worked - target)})`;
       if (target) progress = Math.min(1, worked / target);
       buttons.push(["Break", () => { void wd.startBreak(); }], ["End day", () => plugin.startShutdown()]);
     }
@@ -46,6 +47,7 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
       strip.createDiv({ cls: "samaya-wd-state", text: state });
       if (big) strip.createDiv({ cls: "samaya-wd-figure", text: big });
       if (sub) strip.createDiv({ cls: "samaya-wd-sub", text: sub });
+      if (sub2) strip.createDiv({ cls: "samaya-wd-sub", text: sub2 });
       if (progress >= 0) strip.createDiv("samaya-wd-prog").createDiv("samaya-wd-prog-fill").style.width = `${progress * 100}%`;
       const row = strip.createDiv("samaya-wd-buttons");
       buttons.forEach(([label, fn, cta]) => { row.createEl("button", { text: label, cls: cta ? "mod-cta" : "" }).onclick = fn; });

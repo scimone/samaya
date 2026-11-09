@@ -1,5 +1,5 @@
 .samaya-daily { display: flex; justify-content: flex-end; height: 100%; width: 100%; gap: 0; overflow: hidden; } /* the card column sits at the right edge, next to the timeline sidebar */
-.samaya-info { flex: 0 1 300px; min-width: 220px; margin-right: auto; display: flex; flex-direction: column; padding: 16px 16px 16px 0; overflow-y: auto; }
+.samaya-info { flex: 0 1 300px; min-width: 220px; margin-right: auto; display: flex; flex-direction: column; padding: 16px 20px 16px 24px; overflow-y: auto; }
 .samaya-left { flex: 0 1 520px; min-width: 300px; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
 .samaya-head h2 { margin: 8px 0 2px; }
 .samaya-date { color: var(--text-muted); font-weight: 400; font-size: 0.7em; margin-left: 0.6em; }
@@ -653,3 +653,35 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-today .samaya-block.is-split { border-left: 3px dashed var(--interactive-accent) !important; }
 .samaya-block.is-split .samaya-block-title::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: currentColor; opacity: 0.8; vertical-align: middle; }
 .samaya-lane .samaya-block.is-linked:not(.is-done) { opacity: 1; outline: 2px solid var(--interactive-accent); outline-offset: 1px; z-index: 3; }
+
+/* Daily: left info column */
+.samaya-info { gap: 14px; }
+.samaya-info-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.samaya-info-titles h2 { margin: 0; font-size: 1.8em; letter-spacing: -0.02em; line-height: 1.1; }
+.samaya-info-date { margin-top: 4px; color: var(--text-muted); font-size: var(--font-ui-small); }
+.samaya-info-nav { display: flex; flex: none; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); overflow: hidden; }
+.samaya-info-navbtn { background: transparent !important; box-shadow: none !important; border: none; border-radius: 0; height: 26px; padding: 0 9px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.samaya-info-navbtn + .samaya-info-navbtn { border-left: 1px solid var(--background-modifier-border); }
+.samaya-info-navbtn:hover:not(:disabled) { background: var(--background-modifier-hover) !important; color: var(--text-normal); }
+.samaya-info-navbtn:disabled { color: var(--text-faint); cursor: default; }
+.samaya-info-card { padding: 12px 14px; border-radius: var(--radius-l); background: var(--background-secondary); }
+.samaya-info-label, .samaya-info .samaya-wd-panel .samaya-wd-state { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
+.samaya-info-big, .samaya-wd-figure { margin-top: 2px; font-size: 1.35em; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.25; }
+.samaya-info-load.is-over .samaya-info-big { color: var(--text-error); }
+.samaya-info-load .samaya-col-bar { margin: 8px 0 0; height: 6px; }
+.samaya-info .samaya-wd.samaya-wd-panel { display: block; padding: 0; margin: 0; background: none; border: none; }
+.samaya-info .samaya-wd-panel .samaya-wd-state { display: flex; align-items: center; gap: 7px; font-weight: 700; white-space: normal; }
+.samaya-info .samaya-wd-panel .samaya-wd-state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); }
+.samaya-info .samaya-wd-panel.is-work .samaya-wd-state { color: var(--samaya-green); }
+.samaya-info .samaya-wd-panel.is-work .samaya-wd-state::before { background: var(--samaya-green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--samaya-green) 25%, transparent); }
+.samaya-info .samaya-wd-panel.is-break .samaya-wd-state { color: var(--color-orange); }
+.samaya-info .samaya-wd-panel.is-break .samaya-wd-state::before { background: var(--color-orange); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-orange) 25%, transparent); }
+.samaya-info .samaya-wd-panel .samaya-wd-sub { margin-top: 1px; color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.samaya-wd-prog { height: 5px; margin-top: 10px; border-radius: 3px; background: var(--background-modifier-border); overflow: hidden; }
+.samaya-wd-prog-fill { height: 100%; background: var(--samaya-green); }
+.samaya-info .samaya-wd-buttons { display: flex; gap: 6px; margin-top: 12px; }
+.samaya-info .samaya-wd-buttons button { flex: 1; height: 30px; }
+.samaya-info-card:has(.samaya-wd.is-break) { background: color-mix(in srgb, var(--color-orange) 10%, var(--background-secondary)); }
+.samaya-info-plan { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; height: 34px; border-radius: var(--radius-m); }
+.samaya-info-plan-icon { display: inline-flex; } .samaya-info-plan-icon svg { width: 15px; height: 15px; }
+.samaya-left .samaya-donebar { margin-bottom: 14px; }

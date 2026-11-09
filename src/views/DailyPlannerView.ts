@@ -1,4 +1,4 @@
-import { BasesView, Notice, QueryController, TFile, WorkspaceLeaf } from "obsidian";
+import { BasesView, Notice, QueryController, TFile, WorkspaceLeaf, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, allTasks, prefixOf, createTask, patchTask, placeInDay, readTask, sortTasks } from "../model";
@@ -203,21 +203,40 @@ export class DailyPlannerView extends BasesView {
 
   private fileOf(path: string): TFile { return this.app.vault.getAbstractFileByPath(path) as TFile; }
 
-  private renderHeader(left: HTMLElement, day: Task[], cap: Capacity, plannedAll: number, isToday: boolean, guided: boolean) {
-    const head = left.createDiv("samaya-head samaya-top");
-    const row = head.createDiv("samaya-top-row");
+  private renderHeader(host: HTMLElement, day: Task[], cap: Capacity, plannedAll: number, isToday: boolean, guided: boolean) {
     const d = parseYmd(this.date);
-    const title = row.createEl("h2", { text: isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" }) });
-    title.createSpan({ cls: "samaya-date", text: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) });
-    if (guided) return; // plan my day: no day navigation, workday strip, totals or progress here
-    const nav = row.createDiv("samaya-nav samaya-nav-min");
+    if (guided) { // plan my day: only the title; no navigation, workday, totals or progress
+      const row = host.createDiv("samaya-head samaya-top").createDiv("samaya-top-row");
+      const title = row.createEl("h2", { text: isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" }) });
+      title.createSpan({ cls: "samaya-date", text: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) });
+      return;
+    }
+    // day column: title + navigation, workday status, capacity, plan button
+    const hero = host.createDiv("samaya-info-hero");
+    const titles = hero.createDiv("samaya-info-titles");
+    titles.createEl("h2", { text: isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" }) });
+    titles.createDiv({ cls: "samaya-info-date", text: d.toLocaleDateString(undefined, { weekday: isToday ? "long" : undefined, month: "long", day: "numeric" }) });
+    const nav = hero.createDiv("samaya-info-nav");
     const go = (x: string) => { this.date = x; void this.render(); };
-    nav.createEl("button", { text: "‹", cls: "samaya-link-btn" }).onclick = () => go(addDays(this.date, -1));
-    nav.createEl("button", { text: "Today", cls: "samaya-link-btn" }).onclick = () => go(today());
-    nav.createEl("button", { text: "›", cls: "samaya-link-btn" }).onclick = () => go(addDays(this.date, 1));
-    if (isToday) renderWorkdayCard(this.plugin, head.createDiv());
-    const tot = head.createDiv({ cls: "samaya-total" + (plannedAll > cap.free ? " is-over" : ""), text: `${fmtDur(plannedAll)} / ${fmtDur(cap.free)} planned` });
+    nav.createEl("button", { text: "‹", cls: "samaya-info-navbtn", attr: { "aria-label": "Previous day" } }).onclick = () => go(addDays(this.date, -1));
+    const t = nav.createEl("button", { text: "Today", cls: "samaya-info-navbtn", attr: { "aria-label": "Go to today" } }); t.disabled = isToday; t.onclick = () => go(today());
+    nav.createEl("button", { text: "›", cls: "samaya-info-navbtn", attr: { "aria-label": "Next day" } }).onclick = () => go(addDays(this.date, 1));
+
+    if (isToday) renderWorkdayCard(this.plugin, host.createDiv("samaya-info-card"), { panel: true });
+
+    const over = plannedAll > cap.free;
+    const load = host.createDiv({ cls: "samaya-info-card samaya-info-load" + (over ? " is-over" : "") });
+    load.createDiv({ cls: "samaya-info-label", text: "Capacity" });
+    const tot = load.createDiv({ cls: "samaya-info-big", text: `${fmtDur(plannedAll)} / ${fmtDur(cap.free)} planned` });
     tot.title = `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`;
+    const bar = load.createDiv({ cls: "samaya-col-bar" + (over ? " is-over" : "") });
+    bar.createDiv("samaya-col-bar-fill").style.width = `${over || cap.free <= 0 ? (plannedAll > 0 ? 100 : 0) : (plannedAll / cap.free) * 100}%`;
+
+    if (isToday) {
+      const plan = host.createEl("button", { cls: "samaya-info-plan" });
+      setIcon(plan.createSpan("samaya-info-plan-icon"), "calendar-check"); plan.createSpan({ text: "Plan day" });
+      plan.onclick = () => { void this.plugin.startGuide(); };
+    }
   }
 
 }

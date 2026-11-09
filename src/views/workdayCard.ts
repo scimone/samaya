@@ -3,44 +3,51 @@ import { fmtDur, hmToMin, minToHm, today } from "../util";
 import { nowMin } from "../workday";
 import { dailyTarget, fmtSigned, workedMinutes } from "../worktime";
 
-/** Minimal one-line workday status with inline actions. Repaints itself until removed from the DOM. */
-export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { compact?: boolean } = {}) {
+/** Workday status with actions: a minimal one-liner, or (`panel`) a card with the time worked in large type. Repaints itself until removed from the DOM. */
+export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { compact?: boolean; panel?: boolean } = {}) {
   const wd = plugin.workday; const s = plugin.settings;
   let timer = 0; let off = () => {};
   const paint = () => {
     if (!host.isConnected) { off(); window.clearInterval(timer); return; }
     host.empty();
     const l = wd.log; const target = dailyTarget(s.weeklyHours, s.workDays, today());
-    const strip = host.createDiv({ cls: "samaya-wd" + (l?.open ? " is-break" : l?.start && !l.end ? " is-work" : "") });
+    const strip = host.createDiv({ cls: "samaya-wd" + (o.panel ? " samaya-wd-panel" : "") + (l?.open ? " is-break" : l?.start && !l.end ? " is-work" : "") });
+    // what to show: a state label, the main figure, a detail line and the actions
+    let state = "", big = "", sub = ""; let progress = -1;
+    const buttons: Array<[string, () => void, boolean?]> = [];
+    if (!l || !l.start) {
+      state = "Day not started"; sub = "Plan your day, or just start the clock.";
+      buttons.push(["Plan my day", () => plugin.startGuide(), true], ["Just start", () => { void wd.startDay(); }]);
+    } else if (l.end) {
+      const worked = workedMinutes(l, 1440);
+      state = "Day finished"; big = fmtDur(worked); sub = `${l.start}–${l.end}${target ? ` · ${fmtSigned(worked - target)}` : ""}`;
+      buttons.push(["Reopen", () => { void wd.reopenDay(); }], ["Dashboard", () => { void plugin.openDashboard(); }]);
+    } else if (l.open) {
+      state = "On break"; big = fmtDur(Math.max(0, nowMin() - hmToMin(l.open.start))); sub = `since ${l.open.start}`;
+      buttons.push(["Back to work", () => { void wd.endBreak(); }, true]);
+    } else {
+      const worked = workedMinutes(l, nowMin());
+      state = "Working"; big = fmtDur(worked);
+      sub = `since ${l.start}` + (target ? (worked < target ? ` · done ~${minToHm(nowMin() + target - worked)}` : ` · +${fmtDur(worked - target)}`) : "");
+      if (target) progress = Math.min(1, worked / target);
+      buttons.push(["Break", () => { void wd.startBreak(); }], ["End day", () => plugin.startShutdown()]);
+    }
+
+    if (o.panel) {
+      strip.createDiv({ cls: "samaya-wd-state", text: state });
+      if (big) strip.createDiv({ cls: "samaya-wd-figure", text: big });
+      if (sub) strip.createDiv({ cls: "samaya-wd-sub", text: sub });
+      if (progress >= 0) strip.createDiv("samaya-wd-prog").createDiv("samaya-wd-prog-fill").style.width = `${progress * 100}%`;
+      const row = strip.createDiv("samaya-wd-buttons");
+      buttons.forEach(([label, fn, cta]) => { row.createEl("button", { text: label, cls: cta ? "mod-cta" : "" }).onclick = fn; });
+      return;
+    }
     const line = strip.createDiv("samaya-wd-line");
     const text = line.createDiv("samaya-wd-text");
     const actions = line.createDiv("samaya-wd-actions");
-    const meta = (t: string) => { if (!o.compact) text.createSpan({ cls: "samaya-wd-meta", text: t }); };
-    const act = (label: string, fn: () => void, cta = false) => { actions.createEl("button", { text: label, cls: "samaya-link-btn" + (cta ? " is-cta" : "") }).onclick = fn; };
-
-    if (!l || !l.start) {
-      text.createSpan({ cls: "samaya-wd-state", text: "Day not started" });
-      act("Plan my day", () => plugin.startGuide(), true); act("Just start", () => { void wd.startDay(); });
-      return;
-    }
-    if (l.end) {
-      const worked = workedMinutes(l, 1440);
-      text.createSpan({ cls: "samaya-wd-state", text: "Day finished" });
-      meta(`${fmtDur(worked)} · ${l.start}–${l.end}${target ? ` · ${fmtSigned(worked - target)}` : ""}`);
-      act("Reopen", () => { void wd.reopenDay(); }); act("Dashboard", () => { void plugin.openDashboard(); });
-      return;
-    }
-    const worked = workedMinutes(l, nowMin());
-    if (l.open) {
-      text.createSpan({ cls: "samaya-wd-state", text: "On break" });
-      meta(`${fmtDur(Math.max(0, nowMin() - hmToMin(l.open.start)))} · since ${l.open.start}`);
-      act("Back to work", () => { void wd.endBreak(); }, true);
-      return;
-    }
-    text.createSpan({ cls: "samaya-wd-state", text: "Working" });
-    const reach = target ? (worked < target ? ` · done ~${minToHm(nowMin() + target - worked)}` : ` · +${fmtDur(worked - target)}`) : "";
-    meta(`${fmtDur(worked)} · since ${l.start}${reach}`);
-    act("Break", () => { void wd.startBreak(); }); act("End day", () => plugin.startShutdown());
+    text.createSpan({ cls: "samaya-wd-state", text: state });
+    if (!o.compact && (big || sub)) text.createSpan({ cls: "samaya-wd-meta", text: [big, sub].filter(Boolean).join(" · ") });
+    buttons.forEach(([label, fn, cta]) => { actions.createEl("button", { text: label, cls: "samaya-link-btn" + (cta ? " is-cta" : "") }).onclick = fn; });
   };
   off = plugin.bus.on(paint);
   timer = window.setInterval(paint, 15000);

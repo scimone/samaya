@@ -1,7 +1,7 @@
 import { BasesView, QueryController, TFile } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
-import { Task, createTask, patchTask, placeInDay, readTask, setDone, sortTasks } from "../model";
+import { Task, allTasks, createTask, patchTask, placeInDay, readTask, setDone, sortTasks } from "../model";
 import { addDays, fmtDur, hmToMin, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { bindCardDrop, bindZone, renderTaskCard, showTaskMenu } from "./common";
 import type { IcsEvent } from "../ics";
@@ -31,6 +31,7 @@ export class DailyPlannerView extends BasesView {
   private gridScroll = 0;
   private scrolledFor = "";
   private announced = false;
+  private pickTab: "week" | "backlog" = "week";
   private meetingNotes = new Map<IcsEvent, TFile>();
 
   constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
@@ -88,19 +89,20 @@ export class DailyPlannerView extends BasesView {
     const plannedAll = day.reduce((a, t) => a + (t.estimate || 0), 0);
 
     const g = isToday ? this.plugin.guide : null; const step = g?.step ?? -1;
-    const review = step === 0; // Review: guide and left over tasks on top, the timeline lives in the sidebar
-    this.root.toggleClass("is-review", review);
+    const review = step === 0, pick = step === 1;
+    const side = review || pick; // Review and Pick: guide on top, two columns below, the timeline lives in the sidebar
+    this.root.toggleClass("is-review", side);
     const left = this.root.createDiv("samaya-left");
     this.renderHeader(left, day, cap, plannedAll, isToday, !!g);
     let body = left; // where today's planned list goes
     if (g) {
       renderGuide(this.plugin, left, { overdue: overdue.length });
-      if (review) { // guide across the top, then the left over tasks (left) next to today's tasks (right)
+      if (side) { // guide across the top, then the source tasks (left) next to today's tasks (right)
         const cols = left.createDiv("samaya-review-cols");
-        this.renderLeftOver(cols, overdue);
+        if (review) this.renderLeftOver(cols, overdue); else this.renderPick(cols);
         body = cols.createDiv("samaya-panel samaya-review-main");
       }
-      this.colHead(body, "Planned for today", day.length, "Drag tasks here, or press Today on a left over task.");
+      this.colHead(body, "Planned for today", day.length, review ? "Drag left over tasks here, or press Today on one." : pick ? "Drag tasks here, or press Today on a task." : "Give these tasks a time slot on the timeline.");
       renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
     }
 
@@ -133,7 +135,7 @@ export class DailyPlannerView extends BasesView {
 
     left.scrollTop = this.leftScroll;
 
-    if (!review) {
+    if (!side) {
       const right = this.root.createDiv("samaya-right" + (step === 2 ? " is-guided" : ""));
       this.renderTimeline(right, day, events);
     }
@@ -146,6 +148,37 @@ export class DailyPlannerView extends BasesView {
     h.createSpan({ cls: "samaya-colhead-title", text: title });
     h.createSpan({ cls: "samaya-colhead-count", text: String(count) });
     host.createDiv({ cls: "samaya-guide-text", text: hint });
+  }
+
+  /** Pick step: This week / Backlog with full task cards. Press Today or drag a card into today's list; new tasks can be added here too. */
+  private renderPick(host: HTMLElement) {
+    const s = this.plugin.settings; const wk = startOfWeek(today());
+    const open = allTasks(this.app, s).filter(t => !t.planned && t.status !== "done");
+    const week = sortTasks(open.filter(t => t.week === wk)), backlog = sortTasks(open.filter(t => t.week !== wk));
+    const col = host.createDiv("samaya-panel samaya-pick is-guided");
+    const tasks = this.pickTab === "week" ? week : backlog;
+    this.colHead(col, "Pick your tasks", tasks.length, "Press Today on a task, or drag it into today's list.");
+    const tabs = col.createDiv("samaya-tabs");
+    ([["week", "This week", week.length], ["backlog", "Backlog", backlog.length]] as const).forEach(([key, label, n]) => {
+      const b = tabs.createEl("button", { cls: "samaya-tab" + (this.pickTab === key ? " is-active" : ""), text: `${label} ${n}` });
+      b.onclick = () => { this.pickTab = key; void this.render(); };
+    });
+    const list = col.createDiv("samaya-leftover-list");
+    if (!tasks.length) list.createDiv({ cls: "samaya-empty", text: this.pickTab === "week" ? "Nothing planned for this week yet." : "Backlog is empty." });
+    tasks.forEach(t => renderTaskCard(this.plugin, list, t, {
+      scope: this.scope, ticketInline: true,
+      actions: [["Today", () => { void placeInDay(this.app, s, t.file.path, this.date, 9999); }]],
+    }));
+    bindZone(this.scope, col, path => {
+      const f = this.app.vault.getAbstractFileByPath(path);
+      if (f instanceof TFile) void patchTask(this.app, f, { planned: null, start: null, week: this.pickTab === "week" ? wk : null });
+    });
+    const add = col.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: this.pickTab === "week" ? "+ Add weekly task" : "+ Add to backlog" } });
+    add.addEventListener("keydown", e => {
+      if (e.key !== "Enter" || !add.value.trim()) return;
+      const p = parseTitleEstimate(add.value); add.value = "";
+      void createTask(this.app, s, p.title, { ...(this.pickTab === "week" ? { week: wk } : {}), estimate: p.estimate ?? s.defaultEstimate });
+    });
   }
 
   private renderLeftOver(host: HTMLElement, overdue: Task[]) {

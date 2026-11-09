@@ -2,7 +2,7 @@ import type SamayaPlugin from "../main";
 
 export const GUIDE_STEPS = [
   { title: "Review", text: "Unfinished tasks from earlier days: move them to today, tomorrow or this week, back to the backlog, or mark them done." },
-  { title: "Pick", text: "Choose what you want to do today from the This week and Backlog tabs in the sidebar: press Today on a card, or drag it into the list." },
+  { title: "Pick", text: "Choose what you want to do today from This week or Backlog: press Today on a card, or drag it into the list. You can also add new tasks here." },
   { title: "Timebox", text: "Drag your tasks onto the timeline to give them a time slot. Move the start and finish lines to set your day." },
 ];
 

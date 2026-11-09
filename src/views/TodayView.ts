@@ -77,7 +77,7 @@ export class TodayView extends ItemView {
   async render() {
     const token = ++this.token; const s = this.plugin.settings;
     this.mode = this.currentMode(); const guide = this.mode === "lists" ? this.plugin.guide : null;
-    const tl = guide?.step === 0; // plan my day, Review: the sidebar shows today's timeline
+    const tl = !!guide && guide.step <= 1; // plan my day, Review and Pick: the sidebar shows today's timeline (read-only)
     const date = tl ? today() : this.viewDate || today();
     const lists = this.mode !== "timeline" && !tl; this.shownDate = this.plugin.plannerDate;
     const wkStart = this.plugin.boardWeek || startOfWeek(today()); this.shownWeek = this.plugin.boardWeek;
@@ -125,8 +125,7 @@ export class TodayView extends ItemView {
     if (guide) { // plan my day: no workday strip, progress or day title, just the current phase
       head.remove();
       if (!tl) {
-        if (guide.step === 1) this.renderLists(c, all, day);
-        else c.createDiv({ cls: "samaya-guide-hint", text: "Timebox: drag the tasks in the list on the left onto the timeline, so each one gets a time slot. The ones still without a time stay highlighted. Drag the start and finish lines to set your working day, then press “Start my day”." });
+        c.createDiv({ cls: "samaya-guide-hint", text: "Timebox: drag the tasks in the list on the left onto the timeline, so each one gets a time slot. The ones still without a time stay highlighted. Drag the start and finish lines to set your working day, then press “Start my day”." });
         return;
       }
     } else {
@@ -136,7 +135,7 @@ export class TodayView extends ItemView {
     }
     events.filter(e => e.allDay).forEach(e => c.createDiv({ cls: "samaya-allday", text: e.title }));
 
-    if (!tl) { // (not during Review: nothing is dragged onto the timeline then)
+    if (!tl) { // (not while reviewing or picking: nothing is dragged onto the timeline then)
     // ---- unscheduled cards (drop here to unschedule)
     const unscheduled = day.filter(t => !t.start && t.status !== "done");
     const usec = c.createDiv("samaya-today-unsched");

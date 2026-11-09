@@ -2,7 +2,7 @@ import esbuild from "esbuild";
 import assert from "node:assert/strict";
 const bundle = async (entry, out) => esbuild.build({ entryPoints: [entry], bundle: true, format: "esm", outfile: out, alias: { obsidian: "./test/obsidian-stub.mjs" }, logLevel: "error" });
 await bundle("src/home.ts", "test/.home.mjs"); await bundle("src/ics.ts", "test/.ics.mjs"); await bundle("src/util.ts", "test/.util.mjs");
-await bundle("src/worktime.ts", "test/.worktime.mjs");
+await bundle("src/worktime.ts", "test/.worktime.mjs"); await bundle("src/segments.ts", "test/.segments.mjs");
 await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timeline.ts", "test/.timeline.mjs");
 await bundle("src/settings.ts", "test/.settings.mjs");
 await bundle("src/monthgrid.ts", "test/.monthgrid.mjs"); await bundle("src/kanban.ts", "test/.kanban.mjs"); await bundle("src/gantt.ts", "test/.gantt.mjs"); await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
@@ -174,6 +174,23 @@ note = upsertSection(note, "Planned today", "- [[A]]\n- [[B]]"); // replaces, do
 assert.equal(note.split("## Planned today").length, 2);
 assert.deepEqual(readSection(note, "Planned today"), ["[[A]]", "[[B]]"]);
 assert.ok(upsertSection("# My day\nfree text\n", "Planned today", "- x").startsWith("# My day\nfree text"));
+
+// ---- split tasks
+{
+  const S = await import("./.segments.mjs");
+  assert.deepEqual(S.parseSegments(["13:00-13:45", "10:15-11:00", "bad"]), [{ s: 615, dur: 45 }, { s: 780, dur: 45 }]);
+  assert.deepEqual(S.fmtSegments([{ s: 615, dur: 45 }]), ["10:15-11:00"]);
+  const busy = [[660, 720], [720, 780]]; // meeting 11:00-12:00 + lunch 12:00-13:00
+  assert.deepEqual(S.planSegments(600, 120, busy, 1200, 15), [{ s: 600, dur: 60 }, { s: 780, dur: 60 }]); // 10:00 task of 2h: 1h before, 1h after
+  assert.deepEqual(S.planSegments(600, 30, busy, 1200, 15), [{ s: 600, dur: 30 }]); // fits before the conflict: no split
+  assert.deepEqual(S.planSegments(670, 30, busy, 1200, 15), [{ s: 780, dur: 30 }]); // dropped on the meeting: moves behind it
+  assert.deepEqual(S.planSegments(650, 60, busy, 1200, 15), [{ s: 780, dur: 60 }]); // gap of 10 min is too small
+  assert.equal(S.planSegments(1100, 180, busy, 1200, 15), null); // does not fit before the end
+  const segs = [{ s: 600, dur: 60 }, { s: 780, dur: 60 }];
+  assert.deepEqual(S.mergeOffer([{ s: 600, dur: 60 }, { s: 660, dur: 60 }], 1, busy, 1200), { at: 600 }); // touching
+  assert.deepEqual(S.mergeOffer([{ s: 600, dur: 60 }, { s: 900, dur: 60 }], 1, busy, 1200), { at: 900 }); // open block for all 120 min
+  assert.equal(S.mergeOffer(segs.map(x => ({ ...x })), 0, busy, 1200), null); // 10:00 + 120 min runs into the meeting
+}
 
 // ---- tickets
 const calls = [];

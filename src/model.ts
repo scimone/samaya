@@ -4,12 +4,14 @@ import type { SamayaSettings } from "./settings";
 import { safeFileName } from "./util";
 import { DEFAULT_TASK_TEMPLATE, ensureSubtasksHeading, insertSubtask, renderPath, pathRoot, renderTemplate, TicketVars, DEFAULT_TICKET_TEMPLATE, renderTicketNote, renderTicketFileName, renderTicketPath } from "./taskbody";
 import type { RawTicket } from "./tickets";
+import { Seg, parseSegments } from "./segments";
 
 export interface Task {
   file: TFile; title: string; status: "todo" | "done";
   planned: string; start: string; estimate: number; actual: number; order: number; channel: string;
   /** link path of the assigned ticket note ("" = none) */ ticket: string;
   /** week-start date (YYYY-MM-DD) for "this week" tasks without a day */ week: string;
+  /** time segments when the task is split around meetings (2+), else empty; `start` is the first one, `estimate` the total */ segments: Seg[];
 }
 
 const str = (v: unknown): string => (v == null ? "" : String(v));
@@ -27,6 +29,7 @@ export function readTask(app: App, file: TFile): Task {
     channel: str(fm.channel),
     ticket: str(fm.ticket).replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0].trim(),
     week: /^\d{4}-\d{2}-\d{2}$/.test(str(fm.week).slice(0, 10)) ? str(fm.week).slice(0, 10) : "",
+    segments: (() => { const g = parseSegments(fm.segments); return g.length > 1 ? g : []; })(),
   };
 }
 
@@ -41,6 +44,8 @@ export function sortTasks(ts: Task[]): Task[] {
 /** Patch frontmatter; undefined/null/"" removes the key. */
 export async function patchTask(app: App, file: TFile, patch: Record<string, string | number | string[] | null | undefined>): Promise<void> {
   await app.fileManager.processFrontMatter(file, fm => {
+    // a split task keeps its segments only when they are written together with the new time or length
+    if (!("segments" in patch) && ("start" in patch || ("estimate" in patch && fm.estimate !== patch.estimate))) delete fm.segments;
     for (const [k, v] of Object.entries(patch)) {
       if (v === undefined || v === null || v === "") delete fm[k]; else fm[k] = v;
     }

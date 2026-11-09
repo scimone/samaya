@@ -124,3 +124,18 @@ export class ShutdownModal extends Stepper {
     new Notice(`Shutdown complete${s.journalOn ? " - saved to your journal" : ""}. See you tomorrow.`);
   }
 }
+
+/** Asked when moving a segment of a split task makes it possible to join the pieces again. */
+export class MergeSegmentsModal extends Modal {
+  private answered = false;
+  constructor(plugin: SamayaPlugin, private total: number, private answer: (merge: boolean) => void) { super(plugin.app); }
+  onOpen() {
+    this.titleEl.setText("Merge the split task?");
+    this.contentEl.createEl("p", { text: `The pieces now fit together. Merge them into one block of ${fmtDur(this.total)}?` });
+    const nav = this.contentEl.createDiv("samaya-ritual-nav");
+    const done = (v: boolean) => { this.answered = true; this.close(); this.answer(v); };
+    nav.createEl("button", { text: "Keep split" }).onclick = () => done(false);
+    const ok = nav.createEl("button", { text: "Merge", cls: "mod-cta" }); ok.onclick = () => done(true); ok.focus();
+  }
+  onClose() { if (!this.answered) { this.answered = true; this.answer(false); } }
+}

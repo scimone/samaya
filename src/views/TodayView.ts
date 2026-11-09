@@ -10,6 +10,7 @@ import { addDays, fmtDur, hmToMin, minToHm, parseTitleEstimate, parseYmd, startO
 import { bindZone, renderTaskCard, richText, showTaskMenu } from "./common";
 import { renderLoadBar } from "./loadBar";
 import { renderDayLines } from "./dayLines";
+import { decorateSegment, dragDur, dropOnTimeline, resizeBlock, segLabel, taskBlocks } from "./place";
 import { addBands } from "./bands";
 import { renderWorkdayCard } from "./workdayCard";
 import { renderDoneBar } from "./doneBar";
@@ -167,14 +168,14 @@ export class TodayView extends ItemView {
       const m = snap(i.y - lane.getBoundingClientRect().top - i.grabY);
       return Math.max(startH * 60, Math.min(endH * 60 - Math.min(dur, slot), m));
     };
-    const durOf = (path: string) => byPath.get(path)?.estimate || s.defaultEstimate;
+    const durOf = (path: string, seg: number | null) => dragDur(byPath.get(path), seg, s.defaultEstimate);
 
     let preview: HTMLElement | null = null;
     if (!ro) { // drop target: give a task a time slot
     // target = the visible scroll box (the lane itself extends beyond it when scrolled)
     this.dnd.target(scroll, {
       over: i => {
-        const dur = durOf(i.path); const m = startFor(i, dur);
+        const dur = durOf(i.path, i.seg); const m = startFor(i, dur);
         if (!preview) preview = lane.createDiv("samaya-preview");
         preview.style.top = `${px(m)}px`; preview.style.height = `${Math.max(20, (dur / 60) * HOUR_H - 2)}px`;
         preview.setText(`${minToHm(m)} – ${minToHm(m + dur)}`);
@@ -183,20 +184,20 @@ export class TodayView extends ItemView {
       drop: i => {
         preview?.remove(); preview = null;
         const f = this.app.vault.getAbstractFileByPath(i.path); if (!(f instanceof TFile)) return;
-        const dur = readTask(this.app, f).estimate || s.defaultEstimate;
-        void patchTask(this.app, f, { planned: date, week: null, start: minToHm(startFor(i, dur)), estimate: dur });
+        const dur = dragDur(readTask(this.app, f), i.seg, s.defaultEstimate);
+        void dropOnTimeline(this.plugin, f, date, startFor(i, dur), i.seg, events, endH * 60, slot);
       },
     });
 
     }
 
-    interface Item { s: number; dur: number; task?: Task; ev?: IcsEvent; }
+    interface Item { s: number; dur: number; task?: Task; ev?: IcsEvent; seg?: number; n?: number; }
     const items: Item[] = [];
     events.filter(e => !e.allDay).forEach(e => {
       const sm = Math.max(0, (e.start.getTime() - dayStartMs) / 60000), em = Math.min(1440, (e.end.getTime() - dayStartMs) / 60000);
       if (em > startH * 60 && sm < endH * 60) items.push({ s: sm, dur: Math.max(15, em - sm), ev: e });
     });
-    day.filter(t => t.start).forEach(t => items.push({ s: hmToMin(t.start), dur: t.estimate || s.defaultEstimate, task: t }));
+    day.filter(t => t.start).forEach(t => { const bl = taskBlocks(t, s.defaultEstimate); bl.forEach((g, k) => items.push({ s: g.s, dur: g.dur, task: t, seg: k, n: bl.length })); });
     items.sort((a, b) => a.s - b.s || b.dur - a.dur);
     const slots = layoutItems(items);
     const open = (f: TFile) => { void this.app.workspace.getLeaf("tab").openFile(f); };
@@ -213,9 +214,10 @@ export class TodayView extends ItemView {
         st.addEventListener("click", e => { e.stopPropagation(); void setDone(this.app, task, task.status !== "done"); });
       }
       bt.createSpan({ text: it.ev ? it.ev.title : it.task!.title });
-      b.createDiv({ cls: it.ev ? "samaya-event-time" : "samaya-block-time", text: `${minToHm(it.s)} – ${minToHm(it.s + it.dur)}` });
+      b.createDiv({ cls: it.ev ? "samaya-event-time" : "samaya-block-time", text: `${minToHm(it.s)} – ${minToHm(it.s + it.dur)}${it.ev ? "" : segLabel(it.seg!, it.n!)}` });
       if (it.ev) { const n = notes.get(it.ev); if (n) { b.title = "Open meeting note"; b.addEventListener("click", () => open(n)); } return; }
       const t = it.task!;
+      decorateSegment(b, t, it.seg!, it.n!, lane);
       b.addEventListener("dblclick", () => open(t.file));
       b.addEventListener("contextmenu", e => showTaskMenu(this.plugin, t, e));
       if (ro) return; // read-only while reviewing and picking
@@ -230,7 +232,7 @@ export class TodayView extends ItemView {
         };
         const up = () => {
           window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
-          if (nd !== dur0) void patchTask(this.app, t.file, { estimate: nd });
+          if (nd !== dur0) void resizeBlock(this.plugin, t, it.seg!, nd);
         };
         window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
       });

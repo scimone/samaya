@@ -8,6 +8,7 @@ import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { layoutItems } from "../timeline";
 import { bindZone, showTaskMenu } from "./common";
 import { addBands } from "./bands";
+import { decorateSegment, dragDur, dropOnTimeline, segLabel, taskBlocks } from "./place";
 
 export const WTL_VIEW_TYPE = "samaya-week-timeline";
 const MIN_HOUR_H = 40;
@@ -114,7 +115,7 @@ export class WeeklyTimelineView extends BasesView {
       let preview: HTMLElement | null = null;
       this.scope.target(lane, {
         over: i2 => {
-          const dur = byPath.get(i2.path)?.estimate || s.defaultEstimate; const m = startFor(i2, dur);
+          const dur = dragDur(byPath.get(i2.path), i2.seg, s.defaultEstimate); const m = startFor(i2, dur);
           if (!preview) preview = lane.createDiv("samaya-preview");
           preview.style.top = `${px(m)}px`; preview.style.height = `${Math.max(18, (dur / 60) * HOUR_H - 2)}px`;
           preview.setText(`${minToHm(m)} – ${minToHm(m + dur)}`);
@@ -123,18 +124,18 @@ export class WeeklyTimelineView extends BasesView {
         drop: i2 => {
           preview?.remove(); preview = null;
           const f = this.app.vault.getAbstractFileByPath(i2.path); if (!(f instanceof TFile)) return;
-          const dur = readTask(this.app, f).estimate || s.defaultEstimate;
-          void patchTask(this.app, f, { planned: date, week: null, start: minToHm(startFor(i2, dur)), estimate: dur });
+          const dur = dragDur(readTask(this.app, f), i2.seg, s.defaultEstimate);
+          void dropOnTimeline(this.plugin, f, date, startFor(i2, dur), i2.seg, dayEvents, endH * 60, slot);
         },
       });
 
-      interface Item { s: number; dur: number; task?: Task; ev?: IcsEvent; }
+      interface Item { s: number; dur: number; task?: Task; ev?: IcsEvent; seg?: number; n?: number; }
       const items: Item[] = [];
       dayEvents.filter(e => !e.allDay).forEach(e => {
         const sm = Math.max(0, (e.start.getTime() - dayMs) / 60000), em = Math.min(1440, (e.end.getTime() - dayMs) / 60000);
         if (em > startH * 60 && sm < endH * 60) items.push({ s: sm, dur: Math.max(15, em - sm), ev: e });
       });
-      dayTasks.filter(t => t.start).forEach(t => items.push({ s: hmToMin(t.start), dur: t.estimate || s.defaultEstimate, task: t }));
+      dayTasks.filter(t => t.start).forEach(t => { const bl = taskBlocks(t, s.defaultEstimate); bl.forEach((g, k) => items.push({ s: g.s, dur: g.dur, task: t, seg: k, n: bl.length })); });
       items.sort((a, b) => a.s - b.s || b.dur - a.dur);
       const slots = layoutItems(items);
       items.forEach(it => {
@@ -153,7 +154,8 @@ export class WeeklyTimelineView extends BasesView {
         const st = bt.createSpan({ cls: "samaya-block-state", attr: { title: t.status === "done" ? "Mark as not done" : "Mark as done" } });
         st.addEventListener("click", e => { e.stopPropagation(); void setDone(this.app, t, t.status !== "done"); });
         bt.createSpan({ text: t.title });
-        b.createDiv({ cls: "samaya-block-time", text: `${minToHm(it.s)}–${minToHm(it.s + it.dur)} · ${fmtDur(it.dur)}` });
+        b.createDiv({ cls: "samaya-block-time", text: `${minToHm(it.s)}–${minToHm(it.s + it.dur)} · ${fmtDur(it.dur)}${segLabel(it.seg!, it.n!)}` });
+        decorateSegment(b, t, it.seg!, it.n!, lane);
         b.addEventListener("dblclick", () => open(t.file));
         b.addEventListener("contextmenu", e => showTaskMenu(this.plugin, t, e));
         this.scope.draggable(b, t.file.path);

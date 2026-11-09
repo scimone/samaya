@@ -13,6 +13,7 @@ import { renderDoneBar } from "./doneBar";
 import { renderGuide } from "./guide";
 import { renderLoadBar } from "./loadBar";
 import { renderDayLines } from "./dayLines";
+import { decorateSegment, dragDur, dropOnTimeline, resizeBlock, segLabel, taskBlocks } from "./place";
 import { renderWorkdayCard } from "./workdayCard";
 import { capacityWindow, Capacity } from "../worktime";
 
@@ -269,7 +270,7 @@ export class DailyPlannerView extends BasesView {
     const startFor = (i: { y: number; grabY: number }, dur: number) => clampStart(pxToMin(i.y - lane.getBoundingClientRect().top - i.grabY), dur);
     this.scope.target(lane, {
       over: i => {
-        const dur = byPath.get(i.path)?.estimate || this.plugin.settings.defaultEstimate; const m = startFor(i, dur);
+        const dur = dragDur(byPath.get(i.path), i.seg, this.plugin.settings.defaultEstimate); const m = startFor(i, dur);
         if (!preview) preview = lane.createDiv("samaya-preview");
         preview.style.top = `${minToPx(m)}px`; preview.style.height = `${Math.max(18, (dur / 60) * HOUR_H - 2)}px`;
         preview.setText(`${minToHm(m)} – ${minToHm(m + dur)}`);
@@ -278,19 +279,19 @@ export class DailyPlannerView extends BasesView {
       drop: i => {
         preview?.remove(); preview = null;
         const f = this.app.vault.getAbstractFileByPath(i.path); if (!(f instanceof TFile)) return;
-        const t = readTask(this.app, f); const dur = t.estimate || this.plugin.settings.defaultEstimate;
-        void patchTask(this.app, f, { planned: this.date, week: null, start: minToHm(startFor(i, dur)), estimate: dur });
+        const dur = dragDur(readTask(this.app, f), i.seg, this.plugin.settings.defaultEstimate);
+        void dropOnTimeline(this.plugin, f, this.date, startFor(i, dur), i.seg, events, o.endH * 60, o.slot);
       },
     });
 
     // tasks and calendar events share one column; overlapping items sit side by side
-    interface Item { s: number; dur: number; task?: Task; ev?: IcsEvent; }
+    interface Item { s: number; dur: number; task?: Task; ev?: IcsEvent; seg?: number; n?: number; }
     const items: Item[] = [];
     events.filter(e => !e.allDay).forEach(e => {
       const s = Math.max(0, (e.start.getTime() - dayStartMs) / 60000), en = Math.min(24 * 60, (e.end.getTime() - dayStartMs) / 60000);
       if (en > o.startH * 60 && s < o.endH * 60) items.push({ s, dur: Math.max(15, en - s), ev: e });
     });
-    day.filter(t => t.start).forEach(t => items.push({ s: hmToMin(t.start), dur: t.estimate || this.plugin.settings.defaultEstimate, task: t }));
+    day.filter(t => t.start).forEach(t => { const bl = taskBlocks(t, this.plugin.settings.defaultEstimate); bl.forEach((g, k) => items.push({ s: g.s, dur: g.dur, task: t, seg: k, n: bl.length })); });
     items.sort((a, b) => a.s - b.s || b.dur - a.dur);
     const slotOf = layoutItems(items);
     items.forEach(it => {
@@ -312,7 +313,8 @@ export class DailyPlannerView extends BasesView {
       const st = bt.createSpan({ cls: "samaya-block-state", attr: { title: t.status === "done" ? "Mark as not done" : "Mark as done" } });
       st.addEventListener("click", e => { e.stopPropagation(); void setDone(this.app, t, t.status !== "done"); });
       bt.createSpan({ text: t.title });
-      b.createDiv({ cls: "samaya-block-time", text: `${t.start}–${minToHm(s + dur)} · ${fmtDur(dur)}` });
+      b.createDiv({ cls: "samaya-block-time", text: `${minToHm(s)}–${minToHm(s + dur)} · ${fmtDur(dur)}${segLabel(it.seg!, it.n!)}` });
+      decorateSegment(b, t, it.seg!, it.n!, lane);
       b.addEventListener("dblclick", () => { void this.app.workspace.getLeaf("tab").openFile(t.file); });
       b.addEventListener("contextmenu", e => showTaskMenu(this.plugin, t, e));
       this.scope.draggable(b, t.file.path);
@@ -326,7 +328,7 @@ export class DailyPlannerView extends BasesView {
         };
         const up = () => {
           window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
-          if (nd !== dur) void patchTask(this.app, t.file, { estimate: nd });
+          if (nd !== dur) void resizeBlock(this.plugin, t, it.seg!, nd);
         };
         window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
       });

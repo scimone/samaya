@@ -2,7 +2,7 @@
 // auto-scrolling and feels sluggish; this keeps a ghost glued to the pointer, shows live previews
 // and scrolls containers when you drag near their edge.
 
-export interface DropInfo { path: string; x: number; y: number; grabY: number; /** dragged from a timeline block (not from a card) */ fromTimeline: boolean; }
+export interface DropInfo { path: string; x: number; y: number; grabY: number; /** dragged from a timeline block (not from a card) */ fromTimeline: boolean; /** which segment of a split task is dragged (timeline blocks of split tasks only) */ seg: number | null; }
 export interface DropHandlers { over?(i: DropInfo): void; leave?(): void; drop(i: DropInfo): void; }
 interface Target { el: HTMLElement; h: DropHandlers; }
 
@@ -55,7 +55,7 @@ export class DndScope {
     let armed = !touch, started = false, last = e, hover: Target | null = null;
     let ghost: HTMLElement | null = null, timer = 0, scrollTimer = 0;
     const holdTimer = touch ? window.setTimeout(() => { armed = true; }, 220) : 0;
-    const info = (ev: PointerEvent): DropInfo => ({ path, x: ev.clientX, y: ev.clientY, grabY: o.grabY ?? offY, fromTimeline: el.classList.contains("samaya-block") });
+    const info = (ev: PointerEvent): DropInfo => ({ path, x: ev.clientX, y: ev.clientY, grabY: o.grabY ?? offY, fromTimeline: el.classList.contains("samaya-block"), seg: el.dataset.seg !== undefined ? Number(el.dataset.seg) : null });
     const noScroll = (ev: Event) => { if (started) ev.preventDefault(); };
     const noSelect = (ev: Event) => ev.preventDefault();
 

@@ -4,7 +4,7 @@ import { DndScope, DropInfo } from "../dnd";
 import { Task, addSubtask, assignTicket, patchTask, readSubtasks, readTicket, setDone, ticketPathOf, toggleSubtask } from "../model";
 import { ProjectSuggestModal, TicketSuggestModal } from "../modals";
 import { assignProject, projectPathOf } from "../projects";
-import { fmtHm, parseDuration, startOfWeek, today } from "../util";
+import { fmtHm, minToHm, parseDuration, startOfWeek, today } from "../util";
 
 export interface CardOpts {
   scope: DndScope; showTime?: boolean; /** show the actions under the estimate on the right instead of below the title */ actionsSide?: boolean; /** hide subtasks (sidebar) */ compact?: boolean;
@@ -35,7 +35,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   el.dataset.path = t.file.path;
   const row = el.createDiv("samaya-card-row");
   const body = row.createDiv("samaya-card-body");
-  if (o.showTime && t.start) body.createDiv({ cls: "samaya-card-time", text: t.start });
+  if (o.showTime && t.start) body.createDiv({ cls: "samaya-card-time", text: t.segments.length > 1 ? t.segments.map(g => minToHm(g.s)).join(", ") : t.start }); // a split task lists all its start times
   const line = body.createDiv("samaya-card-line");
   const cb = line.createEl("input", { type: "checkbox", cls: "samaya-check" }); cb.checked = t.status === "done";
   cb.addEventListener("change", () => { void setDone(app, t, cb.checked); });

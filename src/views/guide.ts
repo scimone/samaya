@@ -24,7 +24,7 @@ export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideC
   box.createDiv({ cls: "samaya-guide-text", text: step.text });
 
   if (g.step === 0) {
-    box.createDiv({ cls: "samaya-guide-status", text: ctx.overdue ? `${ctx.overdue} unfinished task${ctx.overdue > 1 ? "s" : ""} from earlier days (see the triage queue)` : "All cleared." });
+    box.createDiv({ cls: "samaya-guide-status", text: ctx.overdue ? `${ctx.overdue} unfinished task${ctx.overdue > 1 ? "s" : ""} from earlier days (see below)` : "All cleared." });
   }
 
   const nav = box.createDiv("samaya-guide-nav");

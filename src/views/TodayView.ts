@@ -7,7 +7,10 @@ import { ensureMeetingNote } from "../meetings";
 import { Task, prefixOf, allTasks, createTask, patchTask, placeInDay, readTask, setDone, sortTasks } from "../model";
 import { layoutItems } from "../timeline";
 import { addDays, fmtDur, hmToMin, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
-import { bindZone, renderTaskCard } from "./common";
+import { bindZone, renderTaskCard, showTaskMenu } from "./common";
+import { renderLoadBar } from "./loadBar";
+import { renderDayLines } from "./dayLines";
+import { capacityMinutes } from "../worktime";
 import { addBands } from "./bands";
 import { renderWorkdayCard } from "./workdayCard";
 import { renderDoneBar } from "./doneBar";
@@ -69,8 +72,11 @@ export class TodayView extends ItemView {
   }
 
   async render() {
-    const token = ++this.token; const s = this.plugin.settings; const date = this.viewDate || today();
-    this.mode = this.currentMode(); const lists = this.mode !== "timeline"; this.shownDate = this.plugin.plannerDate;
+    const token = ++this.token; const s = this.plugin.settings;
+    this.mode = this.currentMode(); const guide = this.mode === "lists" ? this.plugin.guide : null;
+    const tl = guide?.step === 0; // plan my day, Review: the sidebar shows today's timeline
+    const date = tl ? today() : this.viewDate || today();
+    const lists = this.mode !== "timeline" && !tl; this.shownDate = this.plugin.plannerDate;
     const wkStart = this.plugin.boardWeek || startOfWeek(today()); this.shownWeek = this.plugin.boardWeek;
     const events: IcsEvent[] = !lists && calendarEnabled(s) ? await calendarEvents(this.plugin, parseYmd(date), new Date(parseYmd(date).getTime() + 86400000)) : [];
     const notes = new Map<IcsEvent, TFile>();
@@ -90,7 +96,7 @@ export class TodayView extends ItemView {
     const head = c.createDiv("samaya-today-head");
     const d = parseYmd(date); const isToday = date === today();
     const title = head.createDiv("samaya-today-title");
-    if (!lists) {
+    if (!lists && !tl) {
       const nav = (icon: string, label: string, to: () => string) => {
         const b = title.createEl("button", { cls: "samaya-day-nav clickable-icon", attr: { "aria-label": label } }); setIcon(b, icon);
         b.addEventListener("click", () => { const n = to(); this.viewDate = n === today() ? "" : n; void this.render(); });
@@ -112,18 +118,22 @@ export class TodayView extends ItemView {
       title.createSpan({ cls: "samaya-today-date", text: new Date().toLocaleDateString(undefined, { day: "numeric", month: "short" }) });
     }
     if (this.mode === "week") { this.renderWeek(c, all, wkStart); return; }
-    const guide = lists ? this.plugin.guide : null;
+    const dayMs = parseYmd(date).getTime();
     if (guide) { // plan my day: no workday strip, progress or day title, just the current phase
       head.remove();
-      if (guide.step === 0) c.createDiv({ cls: "samaya-guide-hint", text: "Review: decide on your left over tasks in the triage queue next to the guide. This week and Backlog come next." });
-      else if (guide.step === 1) this.renderLists(c, all, day);
-      else c.createDiv({ cls: "samaya-guide-hint", text: "Timebox: drag the tasks in the list on the left onto the timeline, so each one gets a time slot. The ones still without a time stay highlighted. Drag the start and finish lines to set your working day, then press “Start my day”." });
-      return;
+      if (!tl) {
+        if (guide.step === 1) this.renderLists(c, all, day);
+        else c.createDiv({ cls: "samaya-guide-hint", text: "Timebox: drag the tasks in the list on the left onto the timeline, so each one gets a time slot. The ones still without a time stay highlighted. Drag the start and finish lines to set your working day, then press “Start my day”." });
+        return;
+      }
+      const cap = capacityMinutes(s.capacityHours, this.plugin.lunchFor(date),
+        events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
+      renderLoadBar(c, day.reduce((a, t) => a + (t.estimate || 0), 0), cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
+    } else {
+      renderWorkdayCard(this.plugin, head.createDiv(), { compact: true });
+      renderDoneBar(head, day.filter(t => t.status === "done").length, day.length);
+      if (lists) { this.renderLists(c, all, day); return; }
     }
-    renderWorkdayCard(this.plugin, head.createDiv(), { compact: true });
-    const dayMs = parseYmd(date).getTime();
-    renderDoneBar(head, day.filter(t => t.status === "done").length, day.length);
-    if (lists) { this.renderLists(c, all, day); return; }
     events.filter(e => e.allDay).forEach(e => c.createDiv({ cls: "samaya-allday", text: e.title }));
 
     // ---- unscheduled cards (drop here to unschedule)
@@ -204,12 +214,7 @@ export class TodayView extends ItemView {
       if (it.ev) { const n = notes.get(it.ev); if (n) { b.title = "Open meeting note"; b.addEventListener("click", () => open(n)); } return; }
       const t = it.task!;
       b.addEventListener("dblclick", () => open(t.file));
-      b.addEventListener("contextmenu", e => {
-        e.preventDefault();
-        new Menu().addItem(i => i.setTitle("Start focus").setIcon("timer").onClick(() => { void this.plugin.focus.start(t.file); }))
-          .addItem(i => i.setTitle("Unschedule").setIcon("x").onClick(() => { void patchTask(this.app, t.file, { start: null }); }))
-          .addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => open(t.file))).showAtMouseEvent(e);
-      });
+      b.addEventListener("contextmenu", e => showTaskMenu(this.plugin, t, e));
       this.dnd.draggable(b, t.file.path);
       const handle = b.createDiv("samaya-resize");
       handle.addEventListener("pointerdown", e => {
@@ -227,6 +232,7 @@ export class TodayView extends ItemView {
       });
     });
 
+    renderDayLines(this.plugin, lane, grid, { startH, endH, slot }, HOUR_H, px);
     const now = new Date(); const nm = now.getHours() * 60 + now.getMinutes();
     if (isToday && nm >= startH * 60 && nm <= endH * 60) lane.createDiv("samaya-now").style.top = `${px(nm)}px`;
     if (this.scrolled !== date) { this.scrolled = date; this.scrollTop = Math.max(0, px(nm) - 120); }

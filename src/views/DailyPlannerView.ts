@@ -12,6 +12,7 @@ import { addBands } from "./bands";
 import { renderDoneBar } from "./doneBar";
 import { renderGuide } from "./guide";
 import { renderLoadBar } from "./loadBar";
+import { renderDayLines } from "./dayLines";
 import { renderWorkdayCard } from "./workdayCard";
 import { capacityMinutes, Capacity } from "../worktime";
 
@@ -86,12 +87,19 @@ export class DailyPlannerView extends BasesView {
       events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
     const plannedAll = day.reduce((a, t) => a + (t.estimate || 0), 0);
 
-    const left = this.root.createDiv("samaya-left");
     const g = isToday ? this.plugin.guide : null; const step = g?.step ?? -1;
+    const review = step === 0; // Review: guide and left over tasks on top, the timeline lives in the sidebar
+    this.root.toggleClass("is-review", review);
+    const left = this.root.createDiv("samaya-left");
     this.renderHeader(left, day, cap, plannedAll, isToday, !!g);
     if (g) {
-      renderGuide(this.plugin, left, { overdue: overdue.length });
+      if (review) {
+        const band = left.createDiv("samaya-review-band");
+        renderGuide(this.plugin, band, { overdue: overdue.length });
+        this.renderLeftOver(band, overdue);
+      } else renderGuide(this.plugin, left, { overdue: overdue.length });
       if (step >= 1) renderLoadBar(left, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
+      left.createDiv({ cls: "samaya-today-label", text: `Planned for today · ${day.length}` });
     }
 
     if (overdue.length && !g) { // during the guide the left over tasks live in the sidebar
@@ -121,22 +129,21 @@ export class DailyPlannerView extends BasesView {
 
     left.scrollTop = this.leftScroll;
 
-    if (g && step === 0) { this.root.addClass("has-triage"); this.renderTriage(overdue); } else this.root.removeClass("has-triage");
-
-    const right = this.root.createDiv("samaya-right" + (step === 2 ? " is-guided" : ""));
-    if (g && step === 0) renderLoadBar(right, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
-    this.renderTimeline(right, day, events);
+    if (!review) {
+      const right = this.root.createDiv("samaya-right" + (step === 2 ? " is-guided" : ""));
+      this.renderTimeline(right, day, events);
+    }
     if (!this.announced || this.plugin.plannerDate !== this.date) { this.announced = true; this.plugin.plannerDate = this.date; this.plugin.modeBus.emit(); }
   }
 
-  /** Review step: the left over tasks as a queue next to the guide. Decide with a button, or drag onto the list / timeline. */
-  private renderTriage(overdue: Task[]) {
-    const col = this.root.createDiv("samaya-triage is-guided");
-    const head = col.createDiv("samaya-triage-head");
-    head.createSpan({ cls: "samaya-triage-title", text: "Leftover triage" });
-    head.createSpan({ cls: "samaya-triage-count", text: String(overdue.length) });
-    col.createDiv({ cls: "samaya-guide-text", text: "Pick a button, or drag a task onto today's list or the timeline." });
-    const list = col.createDiv("samaya-triage-list");
+  /** Review step: the left over tasks as a panel next to the guide. Decide with a button, or drag onto today's list or the sidebar timeline. */
+  private renderLeftOver(host: HTMLElement, overdue: Task[]) {
+    const col = host.createDiv("samaya-leftover is-guided");
+    const head = col.createDiv("samaya-leftover-head");
+    head.createSpan({ cls: "samaya-leftover-title", text: "Left over from earlier days" });
+    head.createSpan({ cls: "samaya-leftover-count", text: String(overdue.length) });
+    col.createDiv({ cls: "samaya-guide-text", text: "Pick a button, or drag a task onto today's list or the timeline in the sidebar." });
+    const list = col.createDiv("samaya-leftover-list");
     if (!overdue.length) list.createDiv({ cls: "samaya-empty", text: "All cleared - nothing left over." });
     const tomorrow = addDays(today(), 1);
     overdue.forEach(t => renderTaskCard(this.plugin, list, t, {
@@ -265,7 +272,7 @@ export class DailyPlannerView extends BasesView {
       });
     });
 
-    this.renderDayLines(lane, grid, o, minToPx);
+    renderDayLines(this.plugin, lane, grid, o, HOUR_H, minToPx);
 
     if (this.date === today()) {
       const nl = lane.createDiv("samaya-now"); nl.dataset.startH = String(o.startH); this.updateNowLine(nl);
@@ -277,43 +284,6 @@ export class DailyPlannerView extends BasesView {
       this.gridScroll = nl ? Math.max(0, parseFloat(nl.style.top) - 150) : Math.max(0, (8 - o.startH) * HOUR_H);
     }
     scroll.scrollTop = this.gridScroll;
-  }
-
-  /** Draggable start and finish lines of the working day (settings dayStartTime / shutdownTime). */
-  private renderDayLines(lane: HTMLElement, grid: HTMLElement, o: { startH: number; endH: number; slot: number }, minToPx: (m: number) => number) {
-    const s = this.plugin.settings; const lo = o.startH * 60, hi = o.endH * 60;
-    const val = { start: hmToMin(s.dayStartTime || "09:00"), end: hmToMin(s.shutdownTime || "17:30") };
-    const shadeTop = lane.createDiv("samaya-dayshade"); shadeTop.style.top = "0px";
-    const shadeBot = lane.createDiv("samaya-dayshade");
-    const mk = (key: "start" | "end", label: string) => {
-      const el = lane.createDiv("samaya-dayline is-" + key);
-      const lab = el.createSpan({ cls: "samaya-dayline-label", attr: { title: `Drag to move the ${label.toLowerCase()} line` } });
-      const paint = () => {
-        const clamped = Math.max(lo, Math.min(hi, val[key]));
-        el.style.top = `${minToPx(clamped)}px`; lab.setText(`${label} ${minToHm(val[key])}`);
-        shadeTop.style.height = `${Math.max(0, minToPx(Math.max(lo, Math.min(hi, val.start))))}px`;
-        const endPx = minToPx(Math.max(lo, Math.min(hi, val.end)));
-        shadeBot.style.top = `${endPx}px`; shadeBot.style.height = `${Math.max(0, grid.clientHeight - endPx)}px`;
-      };
-      lab.addEventListener("pointerdown", e => {
-        e.preventDefault(); e.stopPropagation();
-        const y0 = e.clientY, m0 = Math.max(lo, Math.min(hi, val[key]));
-        const move = (ev: PointerEvent) => {
-          const m = Math.round((m0 + ((ev.clientY - y0) / HOUR_H) * 60) / o.slot) * o.slot;
-          val[key] = key === "start" ? Math.max(lo, Math.min(val.end - o.slot, m)) : Math.min(hi, Math.max(val.start + o.slot, m));
-          paint();
-        };
-        const up = () => {
-          window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
-          if (key === "start") s.dayStartTime = minToHm(val.start); else s.shutdownTime = minToHm(val.end);
-          void this.plugin.saveSettings();
-        };
-        window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
-      });
-      return paint;
-    };
-    const p1 = mk("start", "Start"), p2 = mk("end", "Finish");
-    p1(); p2();
   }
 
   private updateNowLine(el?: HTMLElement) {

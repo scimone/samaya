@@ -608,13 +608,14 @@ body { --samaya-green: #2fa862; }
 .samaya-dayline.is-start .samaya-dayline-label { top: 1px; }
 .samaya-dayline.is-end .samaya-dayline-label { bottom: 1px; }
 .samaya-dayshade { position: absolute; left: 0; right: 0; z-index: 1; pointer-events: none; background: color-mix(in srgb, var(--background-modifier-border) 45%, transparent); }
-.samaya-daily.has-triage { max-width: 1500px; }
-.samaya-daily.has-triage .samaya-left { flex: 1 1 340px; max-width: 400px; }
-.samaya-triage { flex: 1 1 340px; max-width: 400px; min-width: 260px; display: flex; flex-direction: column; gap: 6px; padding: 16px; overflow-y: auto; border-right: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); }
-.samaya-triage-head { display: flex; align-items: center; gap: 8px; }
-.samaya-triage-title { font-weight: 700; font-size: var(--font-ui-medium); }
-.samaya-triage-count { font-size: var(--font-ui-smaller); font-weight: 700; padding: 0 7px; border-radius: 10px; background: var(--interactive-accent); color: var(--text-on-accent); }
-.samaya-triage-list { display: flex; flex-direction: column; gap: 8px; }
-.samaya-triage .samaya-mini { padding: 4px 12px; font-size: var(--font-ui-small); }
+.samaya-daily.is-review { max-width: 1100px; }
+.samaya-daily.is-review .samaya-left { flex: 1 1 auto; max-width: none; border-right: none; }
+.samaya-review-band { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; margin-bottom: 8px; }
+.samaya-review-band > .samaya-guide { flex: 1 1 260px; max-width: 340px; margin: 0; }
+.samaya-leftover { flex: 3 1 420px; display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: var(--radius-l); border: 1px solid var(--background-modifier-border); }
+.samaya-leftover-head { display: flex; align-items: center; gap: 8px; }
+.samaya-leftover-title { font-weight: 700; font-size: var(--font-ui-medium); }
+.samaya-leftover-count { font-size: var(--font-ui-smaller); font-weight: 700; padding: 0 7px; border-radius: 10px; background: var(--interactive-accent); color: var(--text-on-accent); }
+.samaya-leftover-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+.samaya-leftover .samaya-mini { padding: 4px 12px; font-size: var(--font-ui-small); }
 .samaya-guide-stepno { font-size: var(--font-ui-smaller); color: var(--text-muted); }
-.samaya-daily.has-triage .samaya-right > .samaya-loadbar { padding: 8px 8px 0; margin: 0; }

@@ -164,6 +164,7 @@ assert.equal(W.fmtSigned(-18), "-0:18"); assert.equal(W.fmtSigned(75), "+1:15");
 assert.equal(fmtEstimate(20), "20 min"); assert.equal(fmtEstimate(120), "2 hr"); assert.equal(fmtEstimate(90), "1.5 hr"); assert.equal(fmtEstimate(0), "");
 assert.equal(taskLines([{ title: "Task A", minutes: 20, subtasks: [] }, { title: "Task B", minutes: 120, subtasks: ["Subtask 1", "Subtask 2"] }]),
   "- [[Task A]] • *20 min*\n- [[Task B]] • *2 hr*\n    - Subtask 1\n    - Subtask 2");
+assert.equal(taskLines([{ title: "T", minutes: 30, subtasks: [], time: "10:00-10:30" }]), "- [[T]] • *10:00-10:30* • *30 min*");
 assert.equal(bulletLines(["", "- a", "b "]), "- a\n- b");
 let note = upsertSection("", "Planned today", "- [[A]]");
 note = upsertSection(note, "Planned for tomorrow", "- [[C]]");

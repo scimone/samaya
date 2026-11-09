@@ -3,7 +3,8 @@ import { App, TFile, normalizePath } from "obsidian";
 import type { SamayaSettings } from "./settings";
 import { renderPath, renderTemplate } from "./taskbody";
 import { Task, ensureFolder, loadTemplate, momentFmt, readSubtasks, rootOf } from "./model";
-import { today } from "./util";
+import { minToHm, today } from "./util";
+import { fmtSegments } from "./segments";
 
 export type JournalPart = "journalPlanned" | "journalFinished" | "journalTomorrow" | "journalWorkTimes" | "journalBreaks" | "journalTracked";
 /** Whether the journal module is on and the given part of it is enabled. */
@@ -18,13 +19,13 @@ export function fmtEstimate(min: number): string {
   const h = min / 60; return `${Number.isInteger(h) ? h : +h.toFixed(2)} hr`;
 }
 
-export interface JournalTask { title: string; minutes: number; subtasks: string[]; }
+export interface JournalTask { title: string; minutes: number; subtasks: string[]; /** planned time of day, e.g. "10:00-10:30" */ time?: string; }
 
 export function taskLines(items: JournalTask[]): string {
   if (!items.length) return "- None";
   return items.map(t => {
     const est = fmtEstimate(t.minutes);
-    return [`- [[${t.title}]]${est ? ` • *${est}*` : ""}`, ...t.subtasks.map(s => `    - ${s}`)].join("\n");
+    return [`- [[${t.title}]]${t.time ? ` • *${t.time}*` : ""}${est ? ` • *${est}*` : ""}`, ...t.subtasks.map(s => `    - ${s}`)].join("\n");
   }).join("\n");
 }
 export function bulletLines(lines: string[]): string {
@@ -201,9 +202,17 @@ export async function writeSection(app: App, s: SamayaSettings, date: string, he
   else await app.vault.create(path, upsertSection("", heading, body));
 }
 
-export async function toJournalTasks(app: App, tasks: Task[], useActual = false): Promise<JournalTask[]> {
+/** Planned time of day of a task: its segments, or start-end from `start` + estimate ("" when unscheduled). */
+export function plannedTime(t: Pick<Task, "start" | "estimate" | "segments">): string {
+  if (t.segments.length) return fmtSegments(t.segments).join(", ");
+  if (!t.start) return "";
+  const [h, m] = t.start.split(":").map(Number); const s = h * 60 + m;
+  return t.estimate > 0 ? `${minToHm(s)}-${minToHm(s + t.estimate)}` : minToHm(s);
+}
+
+export async function toJournalTasks(app: App, tasks: Task[], useActual = false, withTime = false): Promise<JournalTask[]> {
   return Promise.all(tasks.map(async t => ({
-    title: t.title, minutes: (useActual && t.actual) || t.estimate,
+    title: t.title, minutes: (useActual && t.actual) || t.estimate, time: withTime ? plannedTime(t) : undefined,
     subtasks: (await readSubtasks(app, t.file)).map(s => s.text),
   })));
 }

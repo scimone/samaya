@@ -587,7 +587,7 @@ export default class SamayaPlugin extends Plugin {
   async finishGuide() {
     const g = this.guide; if (!g) return; const s = this.settings; const td = today();
     const day = sortTasks(allTasks(this.app, s).filter(t => t.planned === td));
-    if (journalWants(s, "journalPlanned")) await writeSection(this.app, s, td, "Planned today", taskLines(await toJournalTasks(this.app, day)));
+    if (journalWants(s, "journalPlanned")) await writeSection(this.app, s, td, "Planned today", taskLines(await toJournalTasks(this.app, day, false, true)));
     const wasStarted = this.workday.started;
     await this.workday.startDay();
     this.closeGuide();

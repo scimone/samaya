@@ -5,7 +5,7 @@ import { richText } from "./common";
 export const GUIDE_STEPS = [
   { title: "Review", text: "Unfinished tasks from earlier days: move them to `Today`, `Tomorrow` or `This week`, back to the `Backlog`, or mark them done." },
   { title: "Pick", text: "Choose what you want to do today from `This week` or `Backlog`: press `Today` on a card, or drag it into the list. You can also add new tasks here, or drag a planned task back to `This week` or `Backlog` to swap it out." },
-  { title: "Timebox", text: "Drag your tasks onto the timeline to give them a time slot. Move the start and finish lines to set your day, then press `Start my day`." },
+  { title: "Timebox", text: "Drag your tasks onto the timeline to give them a time slot. Move the start and finish lines to set your day, then press `Start my day` (or `Finalize plan` if your day has already started)." },
 ];
 
 export interface GuideCtx { overdue: number; }
@@ -39,5 +39,5 @@ export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideC
   const nav = box.createDiv("samaya-plan-nav");
   if (g.step > first) nav.createEl("button", { text: "Back", cls: "samaya-plan-back" }).onclick = () => go(g.step - 1);
   const last = g.step === GUIDE_STEPS.length - 1;
-  nav.createEl("button", { text: last ? "Start my day" : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) void plugin.finishGuide(); else go(g.step + 1); };
+  nav.createEl("button", { text: last ? (plugin.workday.started ? "Finalize plan" : "Start my day") : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) void plugin.finishGuide(); else go(g.step + 1); };
 }

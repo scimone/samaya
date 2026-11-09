@@ -89,11 +89,13 @@ export class DailyPlannerView extends BasesView {
     const left = this.root.createDiv("samaya-left");
     this.renderHeader(info ?? left, day, cap, plannedAll, isToday, !!g);
     let body = left; // where today's planned list goes
-    if (!g) {
-      const h = left.createDiv("samaya-colhead");
-      h.createSpan({ cls: "samaya-colhead-title", text: "Tasks" });
-      h.createSpan({ cls: "samaya-colhead-count", text: `${day.filter(t => t.status === "done").length}/${day.length}` });
-      renderDoneBar(left, day.filter(t => t.status === "done").length, day.length, false);
+    if (!g) { // tasks heading: title, done count, progress
+      const nd = day.filter(t => t.status === "done").length;
+      const head = left.createDiv("samaya-tasks-head");
+      const row = head.createDiv("samaya-tasks-row");
+      row.createEl("h3", { text: "Tasks" });
+      row.createSpan({ cls: "samaya-tasks-count" + (day.length && nd === day.length ? " is-complete" : ""), text: day.length ? `${nd} / ${day.length} done` : "none planned" });
+      renderDoneBar(head, nd, day.length, false);
     }
     if (g) {
       // columns: guide | source tasks (Review: left over, Pick: this week/backlog) | today's tasks
@@ -215,7 +217,12 @@ export class DailyPlannerView extends BasesView {
     const hero = host.createDiv("samaya-info-hero");
     const titles = hero.createDiv("samaya-info-titles");
     titles.createEl("h2", { text: isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" }) });
-    titles.createDiv({ cls: "samaya-info-date", text: d.toLocaleDateString(undefined, { weekday: isToday ? "long" : undefined, month: "long", day: "numeric" }) });
+    const dateBtn = titles.createEl("button", { cls: "samaya-info-date", attr: { "aria-label": "Pick a date" } });
+    setIcon(dateBtn.createSpan("samaya-info-date-icon"), "calendar");
+    dateBtn.createSpan({ text: d.toLocaleDateString(undefined, { weekday: isToday ? "long" : undefined, month: "long", day: "numeric" }) });
+    const picker = dateBtn.createEl("input", { type: "date", cls: "samaya-info-datepick" }); picker.value = this.date; // sits invisibly over the button so the native calendar opens right there
+    picker.addEventListener("change", () => { if (picker.value) { this.date = picker.value; void this.render(); } });
+    dateBtn.onclick = e => { if (e.target !== picker) { try { picker.showPicker(); } catch { picker.focus(); picker.click(); } } };
     const nav = hero.createDiv("samaya-info-nav");
     const go = (x: string) => { this.date = x; void this.render(); };
     nav.createEl("button", { text: "‹", cls: "samaya-info-navbtn", attr: { "aria-label": "Previous day" } }).onclick = () => go(addDays(this.date, -1));
@@ -231,12 +238,11 @@ export class DailyPlannerView extends BasesView {
     tot.title = `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`;
     const bar = load.createDiv({ cls: "samaya-col-bar" + (over ? " is-over" : "") });
     bar.createDiv("samaya-col-bar-fill").style.width = `${over || cap.free <= 0 ? (plannedAll > 0 ? 100 : 0) : (plannedAll / cap.free) * 100}%`;
-
     if (isToday) {
-      const plan = host.createEl("button", { cls: "samaya-info-plan" });
-      setIcon(plan.createSpan("samaya-info-plan-icon"), "calendar-check"); plan.createSpan({ text: "Plan day" });
-      plan.onclick = () => { void this.plugin.startGuide(); };
+      const row = load.createDiv("samaya-wd-buttons");
+      const plan = row.createEl("button", { text: "Plan day" }); plan.onclick = () => { void this.plugin.startGuide(); };
     }
+
   }
 
 }

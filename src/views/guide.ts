@@ -1,7 +1,7 @@
 import type SamayaPlugin from "../main";
 
 export const GUIDE_STEPS = [
-  { title: "Review", text: "Unfinished tasks from earlier days: move them to today or tomorrow, back to the backlog, or mark them done." },
+  { title: "Review", text: "Unfinished tasks from earlier days: move them to today, tomorrow or this week, back to the backlog, or mark them done." },
   { title: "Pick", text: "Choose what you want to do today from the This week and Backlog tabs in the sidebar: press Today on a card, or drag it into the list." },
   { title: "Timebox", text: "Drag your tasks onto the timeline to give them a time slot. Move the start and finish lines to set your day." },
 ];
@@ -25,9 +25,6 @@ export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideC
   info.createEl("h3", { text: step.title });
   info.createDiv({ cls: "samaya-guide-text", text: step.text });
 
-  if (g.step === 0) {
-    info.createDiv({ cls: "samaya-guide-status", text: ctx.overdue ? `${ctx.overdue} unfinished task${ctx.overdue > 1 ? "s" : ""} from earlier days (see below)` : "All cleared." });
-  }
 
   const nav = row.createDiv("samaya-guide-nav");
   if (g.step > first) nav.createEl("button", { text: "Back" }).onclick = () => { g.step--; plugin.bus.emit(); };

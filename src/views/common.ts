@@ -7,7 +7,7 @@ import { assignProject, projectPathOf } from "../projects";
 import { fmtHm, parseDuration, startOfWeek, today } from "../util";
 
 export interface CardOpts {
-  scope: DndScope; showTime?: boolean; /** hide subtasks (sidebar) */ compact?: boolean;
+  scope: DndScope; showTime?: boolean; /** ticket chip next to the title instead of below it */ ticketInline?: boolean; /** hide subtasks (sidebar) */ compact?: boolean;
   /** extra quick-action buttons (label, handler) */ actions?: Array<[string, () => void]>;
 }
 
@@ -27,7 +27,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   const tp = ticketPathOf(app, t);
   if (tp) {
     const tf = app.vault.getAbstractFileByPath(tp);
-    if (tf instanceof TFile) { const tk = readTicket(app, tf); meta.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}`, text: tk.key, attr: { title: tk.summary } }); }
+    if (tf instanceof TFile) { const tk = readTicket(app, tf); (o.ticketInline ? line : meta).createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}`, text: tk.key, attr: { title: tk.summary } }); }
   }
   if (plugin.settings.projectsOn) {
     const pp = projectPathOf(app, t.file);

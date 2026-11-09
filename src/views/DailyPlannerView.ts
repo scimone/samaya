@@ -153,10 +153,11 @@ export class DailyPlannerView extends BasesView {
     if (!overdue.length) list.createDiv({ cls: "samaya-empty", text: "All cleared - nothing left over." });
     const tomorrow = addDays(today(), 1);
     overdue.forEach(t => renderTaskCard(this.plugin, list, t, {
-      scope: this.scope,
+      scope: this.scope, ticketInline: true,
       actions: [
         ["Today", () => { void patchTask(this.app, t.file, { planned: today(), start: null }); }],
         ["Tomorrow", () => { void patchTask(this.app, t.file, { planned: tomorrow, start: null }); }],
+        ["This week", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: startOfWeek(today()) }); }],
         ["Backlog", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: null }); }],
       ],
     }));

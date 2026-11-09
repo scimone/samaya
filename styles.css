@@ -625,3 +625,4 @@ body { --samaya-green: #2fa862; }
 .samaya-guide h3 { margin: 0; font-size: var(--font-ui-medium); }
 .samaya-guide-status { margin-top: 2px; }
 .samaya-guide-nav { margin-top: 0; flex: none; }
+.samaya-card-line .samaya-chip-ticket { margin-left: 6px; flex: none; align-self: center; }

@@ -1,7 +1,7 @@
 import { BasesView, QueryController, TFile } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
-import { Task, allTasks, createTask, patchTask, placeInDay, readTask, setDone, sortTasks } from "../model";
+import { Task, allTasks, prefixOf, createTask, patchTask, placeInDay, readTask, setDone, sortTasks } from "../model";
 import { addDays, fmtDur, hmToMin, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { bindCardDrop, bindZone, renderTaskCard, richText, showTaskMenu } from "./common";
 import type { IcsEvent } from "../ics";
@@ -40,7 +40,7 @@ export class DailyPlannerView extends BasesView {
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
     this.registerInterval(window.setInterval(() => this.updateNowLine(), 60000));
     this.register(plugin.bus.on(() => this.schedule()));
-    const evRef = plugin.app.metadataCache.on("changed", f => { if (inEventFolder(plugin.settings, f.path)) this.schedule(); });
+    const evRef = plugin.app.metadataCache.on("changed", f => { if (inEventFolder(plugin.settings, f.path) || (this.plugin.guide && f.path.startsWith(prefixOf(plugin.settings.tasksPath)))) this.schedule(); });
     this.register(() => plugin.app.metadataCache.offref(evRef));
   }
 
@@ -49,7 +49,8 @@ export class DailyPlannerView extends BasesView {
     const n = (k: string, d: number) => { const raw = this.config.get(k); return raw == null || raw === "" || isNaN(Number(raw)) ? d : Number(raw); };
     return { startH: n("dayStart", s.dayStartHour), endH: n("dayEnd", s.dayEndHour), slot: n("slot", s.slotMinutes), showIcs: this.config.get("showIcs") !== false };
   }
-  private entryTasks(): Task[] { return this.data.data.map(e => readTask(this.app, e.file)); }
+  /** While planning my day, read the vault directly: a task just added must show up at once, not when the base has refreshed. */
+  private entryTasks(): Task[] { return this.plugin.guide ? allTasks(this.app, this.plugin.settings) : this.data.data.map(e => readTask(this.app, e.file)); }
 
   onDataUpdated(): void { this.schedule(); }
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); window.setTimeout(() => this.plugin.modeBus.emit(), 80); }
@@ -157,7 +158,7 @@ export class DailyPlannerView extends BasesView {
     const h = host.createDiv("samaya-colhead");
     h.createSpan({ cls: "samaya-colhead-title", text: title });
     h.createSpan({ cls: "samaya-colhead-count", text: String(count) });
-    richText(host.createDiv("samaya-guide-text"), hint);
+    richText(host.createDiv("samaya-guide-text samaya-colhint"), hint);
   }
 
   /** Pick step: This week / Backlog with full task cards. Press Today or drag a card into today's list; new tasks can be added here too. */

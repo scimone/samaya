@@ -28,7 +28,8 @@ export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideC
 
 
   const nav = row.createDiv("samaya-guide-nav");
-  if (g.step > first) nav.createEl("button", { text: "Back" }).onclick = () => { g.step--; plugin.bus.emit(); };
+  const back = nav.createEl("button", { text: "Back", cls: "samaya-guide-back" }); // always there, so Next never moves
+  if (g.step > first) back.onclick = () => { g.step--; plugin.bus.emit(); }; else back.addClass("is-hidden");
   const last = g.step === GUIDE_STEPS.length - 1;
-  nav.createEl("button", { text: last ? "Start my day" : "Next", cls: "mod-cta" }).onclick = () => { if (last) void plugin.finishGuide(); else { g.step++; plugin.bus.emit(); } };
+  nav.createEl("button", { text: last ? "Start my day" : "Next", cls: "mod-cta samaya-guide-next" }).onclick = () => { if (last) void plugin.finishGuide(); else { g.step++; plugin.bus.emit(); } };
 }

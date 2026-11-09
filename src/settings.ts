@@ -13,7 +13,7 @@ export interface SamayaSettings {
   calendarSource: "ics" | "notes"; eventNotesFolder: string; eventNotePattern: string;
   icsUrls: string[]; icsRefreshMinutes: number;
   dayStartHour: number; dayEndHour: number; slotMinutes: number;
-  defaultEstimate: number; capacityHours: number; shutdownTime: string; dayStartTime: string; openOnStartup: boolean;
+  defaultEstimate: number; shutdownTime: string; dayStartTime: string; openOnStartup: boolean;
   jiraFlavor: "cloud" | "server"; jiraUrl: string; jiraEmail: string; jiraToken: string; jiraJql: string;
   gitlabUrl: string; gitlabToken: string; gitlabScope: "assigned_to_me" | "created_by_me" | "all";
   syncOnStartup: boolean;
@@ -38,7 +38,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   tasksPath: "[Tasks]/YYYY/MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", meetingsPath: "[Meetings]/YYYY/MM", journalSource: "auto", journalFolder: "[Journal]/YYYY/YYYY-MM", journalFormat: "YYYY-MM-DD", plannerFile: "Planner/Planner.base", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
   calendarSource: "ics", eventNotesFolder: "Meetings", eventNotePattern: "{{date}}_{{title}}",
   icsUrls: [], icsRefreshMinutes: 15,
-  dayStartHour: 7, dayEndHour: 20, slotMinutes: 15, defaultEstimate: 30, capacityHours: 6, shutdownTime: "17:30", dayStartTime: "09:00", openOnStartup: false,
+  dayStartHour: 7, dayEndHour: 20, slotMinutes: 15, defaultEstimate: 30, shutdownTime: "17:30", dayStartTime: "09:00", openOnStartup: false,
   jiraFlavor: "cloud", jiraUrl: "", jiraEmail: "", jiraToken: "",
   jiraJql: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
   gitlabUrl: "https://gitlab.com", gitlabToken: "", gitlabScope: "assigned_to_me", syncOnStartup: false,
@@ -328,8 +328,7 @@ export class SamayaSettingTab extends PluginSettingTab {
       range(b, "Lunch break", "Marked in the calendar and subtracted from capacity.", "time",
         [() => s.lunchStart, v => (s.lunchStart = v)], [() => s.lunchEnd, v => (s.lunchEnd = v)]);
       toggle(b, "Add the default lunch automatically", "When you end the day without a logged lunch break, subtract the window above.", () => s.autoLunch, v => (s.autoLunch = v));
-      num(b, "Daily capacity (hours)", "Plannable hours per day. Free capacity = this minus lunch minus calendar meetings.", () => s.capacityHours, v => (s.capacityHours = v), { min: 0.5, max: 24, step: 0.5 });
-      text(b, "Day start line", "Where the start line sits in the planner timeline. Drag it there to change it.", () => s.dayStartTime, v => (s.dayStartTime = v), { time: true });
+      text(b, "Day start line", "Start of your plannable day. Free capacity = start to finish, minus lunch and meetings. Drag the line in the planner timeline to change it.", () => s.dayStartTime, v => (s.dayStartTime = v), { time: true });
       text(b, "Shutdown reminder", "A nudge to run the shutdown ritual. Also the finish line in the planner timeline.", () => s.shutdownTime, v => (s.shutdownTime = v), { time: true });
       label(b, "Week");
       num(b, "Required hours per week", "Used by the work time dashboard for overtime.", () => s.weeklyHours, v => (s.weeklyHours = v), { min: 1, max: 168, step: 0.5 });

@@ -2,9 +2,9 @@ import { BasesView, QueryController } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, createTask, placeInDay, readTask, sortTasks } from "../model";
-import { addDays, fmtDur, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
+import { addDays, fmtDur, hmToMin, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { calendarEnabled, calendarEvents } from "../calendar";
-import { Capacity, capacityMinutes } from "../worktime";
+import { Capacity, capacityWindow } from "../worktime";
 import { bindCardDrop, bindZone, renderTaskCard } from "./common";
 
 export const WEEK_VIEW_TYPE = "samaya-week";
@@ -55,7 +55,7 @@ export class WeeklyBoardView extends BasesView {
     const cols2 = this.root.createDiv("samaya-cols");
     for (let i = 0; i < (weekends ? 7 : 5); i++) {
       const date = addDays(this.weekStart, i); const dayMs = parseYmd(date).getTime();
-      const cap = capacityMinutes(s.capacityHours, this.plugin.lunchFor(date),
+      const cap = capacityWindow(hmToMin(s.dayStartTime || "09:00"), hmToMin(s.shutdownTime || "17:30"), this.plugin.lunchFor(date),
         events.map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
       this.column(cols2, parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }), "day", date, sortTasks(all.filter(t => t.planned === date)), date === today(), cap);
     }

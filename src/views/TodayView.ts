@@ -10,7 +10,6 @@ import { addDays, fmtDur, hmToMin, minToHm, parseTitleEstimate, parseYmd, startO
 import { bindZone, renderTaskCard, richText, showTaskMenu } from "./common";
 import { renderLoadBar } from "./loadBar";
 import { renderDayLines } from "./dayLines";
-import { capacityMinutes } from "../worktime";
 import { addBands } from "./bands";
 import { renderWorkdayCard } from "./workdayCard";
 import { renderDoneBar } from "./doneBar";

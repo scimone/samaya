@@ -40,11 +40,12 @@ export function unionMinutes(iv: Array<[number, number]>): number {
   return total + (cur ? cur[1] - cur[0] : 0);
 }
 export interface Capacity { total: number; lunch: number; meetings: number; free: number; }
-/** capacity = total hours - lunch break - calendar meetings (overlaps counted once, lunch overlap not double-counted) */
-export function capacityMinutes(capacityHours: number, lunch: [number, number], meetings: Array<[number, number]>): Capacity {
-  const total = Math.round(capacityHours * 60); const lunchLen = Math.max(0, lunch[1] - lunch[0]);
-  const clipped = meetings.map(([a, b]): [number, number] => [Math.max(a, 0), Math.min(b, 1440)]);
-  const meet = Math.max(0, unionMinutes([...clipped, lunch]) - lunchLen);
+/** Free capacity inside the working window [from, to] (minutes of the day): window - lunch - calendar meetings (overlaps counted once, lunch overlap not double-counted). */
+export function capacityWindow(from: number, to: number, lunch: [number, number], meetings: Array<[number, number]>): Capacity {
+  const total = Math.max(0, to - from);
+  const l: [number, number] = [Math.max(lunch[0], from), Math.min(lunch[1], to)]; const lunchLen = Math.max(0, l[1] - l[0]);
+  const clipped = meetings.map(([a, b]): [number, number] => [Math.max(a, from), Math.min(b, to)]);
+  const meet = Math.max(0, unionMinutes([...clipped, l]) - lunchLen);
   return { total, lunch: lunchLen, meetings: meet, free: Math.max(0, total - lunchLen - meet) };
 }
 

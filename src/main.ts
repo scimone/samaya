@@ -557,7 +557,16 @@ export default class SamayaPlugin extends Plugin {
     await ws.revealLeaf(leaf);
   }
   /** Interactive planning: opens the daily planner and walks through it (see views/guide.ts). */
+  private leftCollapsedByGuide = false;
+  /** Leaves the guide and brings the left sidebar back if the guide hid it. */
+  closeGuide() {
+    this.guide = null;
+    if (this.leftCollapsedByGuide) { this.leftCollapsedByGuide = false; this.app.workspace.leftSplit?.expand(); }
+    this.bus.emit();
+  }
   async startGuide() {
+    const ls = this.app.workspace.leftSplit;
+    if (ls && !ls.collapsed) { ls.collapse(); this.leftCollapsedByGuide = true; } // room for the planner while planning
     const overdue = allTasks(this.app, this.settings).some(t => t.planned && t.planned < today() && t.status !== "done");
     this.guide = { step: overdue ? 0 : 1, review: overdue, fresh: true };
     await this.openPlanner(); this.bus.emit();
@@ -568,7 +577,7 @@ export default class SamayaPlugin extends Plugin {
     if (journalWants(s, "journalPlanned")) await writeSection(this.app, s, td, "Planned today", taskLines(await toJournalTasks(this.app, day)));
     const wasStarted = this.workday.started;
     await this.workday.startDay();
-    this.guide = null; this.bus.emit();
+    this.closeGuide();
     new Notice(`Day planned${wasStarted ? "" : " and started"}.${s.journalOn ? " Saved to your journal." : ""}`);
   }
   startShutdown() { new ShutdownModal(this).open(); }

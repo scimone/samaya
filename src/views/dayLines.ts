@@ -29,7 +29,7 @@ export function renderDayLines(plugin: SamayaPlugin, lane: HTMLElement, grid: HT
       const up = () => {
         window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
         if (key === "start") s.dayStartTime = minToHm(val.start); else s.shutdownTime = minToHm(val.end);
-        void plugin.saveSettings();
+        void plugin.saveSettings().then(() => plugin.bus.emit()); // free capacity depends on the lines
       };
       window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
     });

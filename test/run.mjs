@@ -81,7 +81,7 @@ assert.equal(W.fmtBreak({ start: "15:00", end: "15:10", kind: "break" }), "15:00
 assert.equal(W.parseBreak("nope"), null);
 assert.equal(W.dailyTarget(40, 5, "2026-11-03"), 480); assert.equal(W.dailyTarget(40, 5, "2026-11-07"), 0); assert.equal(W.dailyTarget(30, 4, "2026-11-06"), 0);
 assert.equal(W.unionMinutes([[0, 60], [30, 90], [120, 150]]), 120);
-const cap = W.capacityMinutes(6, [720, 780], [[600, 660], [630, 690], [740, 800]]); // meetings: 10:00-11:30 (union 90) + 12:20-13:20 -> 20 min beyond lunch end
+const cap = W.capacityWindow(540, 900, [720, 780], [[600, 660], [630, 690], [740, 800]]); // meetings: 10:00-11:30 (union 90) + 12:20-13:20 -> 20 min beyond lunch end
 assert.deepEqual(cap, { total: 360, lunch: 60, meetings: 90 + 20, free: 360 - 60 - 110 });
 assert.deepEqual(W.autoLunch({ ...log, breaks: [] }, [720, 780]), { start: "12:00", end: "13:00", kind: "lunch" });
 assert.equal(W.autoLunch(log, [720, 780]), null);

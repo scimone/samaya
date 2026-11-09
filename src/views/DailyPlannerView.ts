@@ -14,7 +14,7 @@ import { renderGuide } from "./guide";
 import { renderLoadBar } from "./loadBar";
 import { renderDayLines } from "./dayLines";
 import { renderWorkdayCard } from "./workdayCard";
-import { capacityMinutes, Capacity } from "../worktime";
+import { capacityWindow, Capacity } from "../worktime";
 
 export const DAILY_VIEW_TYPE = "samaya-daily";
 const HOUR_H = 60; // px per hour
@@ -84,7 +84,7 @@ export class DailyPlannerView extends BasesView {
 
     // free capacity = capacity - lunch - calendar meetings
     const s = this.plugin.settings; const dayMs = parseYmd(this.date).getTime();
-    const cap = capacityMinutes(s.capacityHours, this.plugin.lunchFor(this.date),
+    const cap = capacityWindow(hmToMin(s.dayStartTime || "09:00"), hmToMin(s.shutdownTime || "17:30"), this.plugin.lunchFor(this.date),
       events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
     const plannedAll = day.reduce((a, t) => a + (t.estimate || 0), 0);
 
@@ -117,7 +117,10 @@ export class DailyPlannerView extends BasesView {
 
     const list = body.createDiv("samaya-list" + (step === 2 ? " is-timebox" : ""));
     if (!day.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned. Drag tasks here or add one below." });
-    day.forEach((t, idx) => {
+    // Timebox: tasks without a time slot always first
+    const shown = step === 2 ? [...day.filter(t => !t.start && t.status !== "done"), ...day.filter(t => t.start || t.status === "done")] : day;
+    shown.forEach(t => {
+      const idx = day.indexOf(t);
       const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true });
       c.toggleClass("is-timed", !!t.start);
       bindCardDrop(this.scope, c, (path, after, i) => { void this.place(path, idx + (after ? 1 : 0), i.fromTimeline); });

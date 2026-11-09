@@ -19,7 +19,7 @@ export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideC
   const dots = head.createDiv("samaya-guide-dots");
   GUIDE_STEPS.forEach((_s, i) => { if (i >= first) dots.createSpan({ cls: "samaya-guide-dot" + (i === g.step ? " is-active" : i < g.step ? " is-done" : "") }); });
   head.createSpan({ cls: "samaya-guide-stepno", text: `Step ${g.step + 1 - first} of ${GUIDE_STEPS.length - first}` });
-  head.createEl("button", { cls: "samaya-mini", text: "Cancel" }).onclick = () => { plugin.guide = null; plugin.bus.emit(); };
+  head.createEl("button", { cls: "samaya-mini", text: "Cancel" }).onclick = () => plugin.closeGuide();
   const step = GUIDE_STEPS[g.step];
   const row = box.createDiv("samaya-guide-body");
   const info = row.createDiv("samaya-guide-info");

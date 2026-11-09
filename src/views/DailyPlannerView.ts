@@ -121,9 +121,33 @@ export class DailyPlannerView extends BasesView {
 
     left.scrollTop = this.leftScroll;
 
+    if (g && step === 0) { this.root.addClass("has-triage"); this.renderTriage(overdue); } else this.root.removeClass("has-triage");
+
     const right = this.root.createDiv("samaya-right" + (step === 2 ? " is-guided" : ""));
+    if (g && step === 0) renderLoadBar(right, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
     this.renderTimeline(right, day, events);
     if (!this.announced || this.plugin.plannerDate !== this.date) { this.announced = true; this.plugin.plannerDate = this.date; this.plugin.modeBus.emit(); }
+  }
+
+  /** Review step: the left over tasks as a queue next to the guide. Decide with a button, or drag onto the list / timeline. */
+  private renderTriage(overdue: Task[]) {
+    const col = this.root.createDiv("samaya-triage is-guided");
+    const head = col.createDiv("samaya-triage-head");
+    head.createSpan({ cls: "samaya-triage-title", text: "Leftover triage" });
+    head.createSpan({ cls: "samaya-triage-count", text: String(overdue.length) });
+    col.createDiv({ cls: "samaya-guide-text", text: "Pick a button, or drag a task onto today's list or the timeline." });
+    const list = col.createDiv("samaya-triage-list");
+    if (!overdue.length) list.createDiv({ cls: "samaya-empty", text: "All cleared - nothing left over." });
+    const tomorrow = addDays(today(), 1);
+    overdue.forEach(t => renderTaskCard(this.plugin, list, t, {
+      scope: this.scope,
+      actions: [
+        ["Today", () => { void patchTask(this.app, t.file, { planned: today(), start: null }); }],
+        ["Tomorrow", () => { void patchTask(this.app, t.file, { planned: tomorrow, start: null }); }],
+        ["Backlog", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: null }); }],
+        ["Done", () => { void setDone(this.app, t, true); }],
+      ],
+    }));
   }
 
   private fileOf(path: string): TFile { return this.app.vault.getAbstractFileByPath(path) as TFile; }

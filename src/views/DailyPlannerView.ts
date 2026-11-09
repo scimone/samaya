@@ -1,4 +1,4 @@
-import { BasesView, QueryController, TFile } from "obsidian";
+import { BasesView, Notice, QueryController, TFile } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, allTasks, prefixOf, createTask, patchTask, placeInDay, readTask, setDone, sortTasks } from "../model";
@@ -57,6 +57,7 @@ export class DailyPlannerView extends BasesView {
 
   /** Coalesce bursts of updates; never re-render in the middle of a drag. */
   private schedule() {
+    if (this.scope.active && !document.querySelector(".samaya-ghost")) this.scope.active = false; // a drag that never ended must not freeze the view
     if (this.scope.active) { this.pending = true; return; }
     window.clearTimeout(this.timer);
     this.timer = window.setTimeout(() => { void this.render(); }, 30);
@@ -130,11 +131,7 @@ export class DailyPlannerView extends BasesView {
 
     if (!review && step !== 2) { // (no quick add in Review and Timebox: go back to Pick to add tasks)
       const add = body.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
-      add.addEventListener("keydown", e => {
-        if (e.key !== "Enter" || !add.value.trim()) return;
-        const p = parseTitleEstimate(add.value); add.value = "";
-        void createTask(this.app, this.plugin.settings, p.title, { planned: this.date, estimate: p.estimate ?? this.plugin.settings.defaultEstimate, order: day.length });
-      });
+      this.bindAdd(add, () => ({ planned: this.date, order: day.length }));
     }
 
     left.scrollTop = this.leftScroll;
@@ -187,10 +184,19 @@ export class DailyPlannerView extends BasesView {
       if (f instanceof TFile) void patchTask(this.app, f, { planned: null, start: null, week: this.pickTab === "week" ? wk : null });
     });
     const add = col.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: this.pickTab === "week" ? "+ Add weekly task" : "+ Add to backlog" } });
-    add.addEventListener("keydown", e => {
-      if (e.key !== "Enter" || !add.value.trim()) return;
-      const p = parseTitleEstimate(add.value); add.value = "";
-      void createTask(this.app, s, p.title, { ...(this.pickTab === "week" ? { week: wk } : {}), estimate: p.estimate ?? s.defaultEstimate });
+    this.bindAdd(add, (): Record<string, string | number> => (this.pickTab === "week" ? { week: wk } : {}));
+  }
+
+  /** "+ Add task" field: Enter creates the task with `extra` properties, then the lists refresh. Failures are shown instead of swallowed. */
+  private bindAdd(input: HTMLInputElement, extra: () => Record<string, string | number>) {
+    const s = this.plugin.settings;
+    input.addEventListener("keydown", e => {
+      if (e.key !== "Enter" || e.isComposing || !input.value.trim()) return;
+      const p = parseTitleEstimate(input.value); const props = { ...extra(), estimate: p.estimate ?? s.defaultEstimate };
+      input.value = "";
+      createTask(this.app, s, p.title, props)
+        .then(() => { window.setTimeout(() => this.schedule(), 250); }) // the metadata cache needs a moment to index the new note
+        .catch((err: unknown) => { console.error("Samaya: could not create task", err); new Notice(`Samaya: could not create the task (${err instanceof Error ? err.message : String(err)})`); });
     });
   }
 

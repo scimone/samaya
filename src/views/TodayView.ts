@@ -4,7 +4,7 @@ import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { DndScope } from "../dnd";
 import { ensureMeetingNote } from "../meetings";
-import { Task, prefixOf, allTasks, createTask, patchTask, placeInDay, readTask, setDone, sortTasks } from "../model";
+import { Task, prefixOf, allTasks, createTask, patchTask, readTask, setDone, sortTasks } from "../model";
 import { layoutItems } from "../timeline";
 import { addDays, fmtDur, hmToMin, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { bindZone, renderTaskCard, richText, showTaskMenu } from "./common";
@@ -26,7 +26,7 @@ export class TodayView extends ItemView {
   private token = 0;
   private pending = false;
   private dnd = new DndScope();
-  private mode: "timeline" | "lists" | "week" = "timeline";
+  private mode: "timeline" | "daily" | "week" = "timeline";
   private tab: "week" | "backlog" = "week";
   private shownDate = "";
   private shownWeek = "";
@@ -46,8 +46,8 @@ export class TodayView extends ItemView {
     this.registerEvent(this.app.vault.on("rename", f => { if (under(f)) this.schedule(); }));
     this.registerInterval(window.setInterval(() => { if (!this.dnd.active) void this.render(); }, 60000));
     this.register(this.plugin.bus.on(() => this.schedule()));
-    // while the Daily Planner is the page in front, show This week / Backlog instead of the timeline
-    const check = () => { if (this.currentMode() !== this.mode || (this.mode === "lists" && this.plugin.plannerDate !== this.shownDate) || (this.mode === "week" && this.plugin.boardWeek !== this.shownWeek)) this.schedule(); };
+    // while the Daily view is the page in front, the timeline follows the day it shows
+    const check = () => { if (this.currentMode() !== this.mode || (this.mode === "daily" && this.plugin.plannerDate !== this.shownDate) || (this.mode === "week" && this.plugin.boardWeek !== this.shownWeek)) this.schedule(); };
     this.registerEvent(this.app.workspace.on("active-leaf-change", check));
     this.registerEvent(this.app.workspace.on("layout-change", check));
     this.register(this.plugin.modeBus.on(check));
@@ -61,11 +61,11 @@ export class TodayView extends ItemView {
     window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { void this.render(); }, 120);
   }
 
-  private currentMode(): "timeline" | "lists" | "week" {
+  private currentMode(): "timeline" | "daily" | "week" {
     const leaf = this.app.workspace.getMostRecentLeaf();
     const el = (leaf?.view as { containerEl?: HTMLElement } | undefined)?.containerEl;
     if (el?.querySelector(".samaya-week, .samaya-wtl")) return "week";
-    return this.plannerOpen() ? "lists" : "timeline";
+    return this.plannerOpen() ? "daily" : "timeline";
   }
 
   private plannerOpen(): boolean {
@@ -76,20 +76,18 @@ export class TodayView extends ItemView {
 
   async render() {
     const token = ++this.token; const s = this.plugin.settings;
-    this.mode = this.currentMode(); const guide = this.mode === "lists" ? this.plugin.guide : null;
-    const tl = !!guide; // plan my day: the sidebar shows today's timeline (read-only until Timebox)
-    const ro = !!guide && guide.step <= 1;
-    const date = tl ? today() : this.viewDate || today();
-    const lists = this.mode !== "timeline" && !tl; this.shownDate = this.plugin.plannerDate;
+    this.mode = this.currentMode(); const daily = this.mode === "daily"; const guide = daily ? this.plugin.guide : null;
+    const ro = !!guide && guide.step <= 1; // plan my day: read-only until Timebox
+    const date = daily ? this.plugin.plannerDate || today() : this.viewDate || today();
+    this.shownDate = this.plugin.plannerDate;
     const wkStart = this.plugin.boardWeek || startOfWeek(today()); this.shownWeek = this.plugin.boardWeek;
-    const events: IcsEvent[] = !lists && calendarEnabled(s) ? await calendarEvents(this.plugin, parseYmd(date), new Date(parseYmd(date).getTime() + 86400000)) : [];
+    const events: IcsEvent[] = calendarEnabled(s) ? await calendarEvents(this.plugin, parseYmd(date), new Date(parseYmd(date).getTime() + 86400000)) : [];
     const notes = new Map<IcsEvent, TFile>();
-    for (const ev of (lists ? [] : events.filter(e => !e.allDay))) { try { notes.set(ev, await ensureMeetingNote(this.app, s, ev, events)); } catch { /* ignore */ } }
+    for (const ev of events.filter(e => !e.allDay)) { try { notes.set(ev, await ensureMeetingNote(this.app, s, ev, events)); } catch { /* ignore */ } }
     if (token !== this.token) return;
     if (this.dnd.active) { this.pending = true; return; }
 
     const c = this.contentEl; const old = c.querySelector<HTMLElement>(".samaya-scroll"); if (old) this.scrollTop = old.scrollTop;
-    this.listTop = c.querySelector<HTMLElement>(".samaya-today-lists .samaya-today-cards")?.scrollTop ?? this.listTop;
     const oldU = c.querySelector<HTMLElement>(".samaya-today-cards"); const uTop = oldU?.scrollTop ?? 0;
     c.empty(); this.dnd.clear();
     const all = allTasks(this.app, s);
@@ -100,7 +98,7 @@ export class TodayView extends ItemView {
     const head = c.createDiv("samaya-today-head");
     const d = parseYmd(date); const isToday = date === today();
     const title = head.createDiv("samaya-today-title");
-    if (!lists && !tl) {
+    if (!daily && this.mode !== "week") {
       const nav = (icon: string, label: string, to: () => string) => {
         const b = title.createEl("button", { cls: "samaya-day-nav clickable-icon", attr: { "aria-label": label } }); setIcon(b, icon);
         b.addEventListener("click", () => { const n = to(); this.viewDate = n === today() ? "" : n; void this.render(); });
@@ -117,21 +115,17 @@ export class TodayView extends ItemView {
       const wkTitle = wkStart === cur ? "This week" : wkStart === addDays(cur, 7) ? "Next week" : wkStart === addDays(cur, -7) ? "Last week" : "Week of";
       title.createSpan({ cls: "samaya-today-dow", text: wkTitle });
       title.createSpan({ cls: "samaya-today-date", text: `${fmt(wkStart)} – ${fmt(addDays(wkStart, 6))}` });
-    } else if (lists) {
-      title.createSpan({ cls: "samaya-today-dow", text: new Date().toLocaleDateString(undefined, { weekday: "long" }) });
-      title.createSpan({ cls: "samaya-today-date", text: new Date().toLocaleDateString(undefined, { day: "numeric", month: "short" }) });
     }
     if (this.mode === "week") { this.renderWeek(c, all, wkStart); return; }
     const dayMs = parseYmd(date).getTime();
-    if (guide) head.remove(); // plan my day: no workday strip, progress or day title
+    if (daily) head.remove(); // the Daily view shows the day title, workday strip and progress itself
     else {
       renderWorkdayCard(this.plugin, head.createDiv(), { compact: true });
       renderDoneBar(head, day.filter(t => t.status === "done").length, day.length);
-      if (lists) { this.renderLists(c, all, day); return; }
     }
     events.filter(e => e.allDay).forEach(e => c.createDiv({ cls: "samaya-allday", text: e.title }));
 
-    if (!tl) { // (not while planning my day: the planned list in the main view is the source)
+    if (!daily) { // (not next to the Daily view: its planned list is the source)
     // ---- unscheduled cards (drop here to unschedule)
     const unscheduled = day.filter(t => !t.start && t.status !== "done");
     const usec = c.createDiv("samaya-today-unsched");
@@ -283,38 +277,5 @@ export class TodayView extends ItemView {
         d.createDiv({ cls: "samaya-week-day", text: parseYmd(t.planned!).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }) });
       });
     }
-  }
-
-  /** This week / Backlog tabs with all their task cards (shown while the Daily Planner is open). */
-  private renderLists(c: HTMLElement, all: Task[], _day: Task[]) {
-    const s = this.plugin.settings; const planDate = this.plugin.plannerDate || today(); const wk = startOfWeek(planDate);
-    const week = sortTasks(all.filter(t => !t.planned && t.week === wk && t.status !== "done"));
-    const backlog = sortTasks(all.filter(t => !t.planned && t.week !== wk && t.status !== "done"));
-    const tabs = c.createDiv("samaya-tabs");
-    ([["week", "This week", week.length], ["backlog", "Backlog", backlog.length]] as const).forEach(([key, label, n]) => {
-      const b = tabs.createEl("button", { cls: "samaya-tab" + (this.tab === key ? " is-active" : ""), text: `${label} ${n}` });
-      b.onclick = () => { this.tab = key; void this.render(); };
-    });
-    const guided = this.plugin.guide?.step === 1;
-    const panel = c.createDiv("samaya-today-lists" + (guided ? " is-guided" : ""));
-    const tasks = this.tab === "week" ? week : backlog;
-    const planLabel = planDate === today() ? "Today" : parseYmd(planDate).toLocaleDateString(undefined, { weekday: "short" });
-    const list = panel.createDiv("samaya-today-cards");
-    if (!tasks.length) list.createDiv({ cls: "samaya-today-empty", text: this.tab === "week" ? "Nothing planned for this week yet" : "Backlog is empty" });
-    tasks.forEach(t => renderTaskCard(this.plugin, list, t, {
-      scope: this.dnd, compact: true,
-      actions: [[planLabel, () => { void placeInDay(this.app, s, t.file.path, planDate, 9999); }]],
-    }));
-    list.scrollTop = this.listTop;
-    bindZone(this.dnd, panel, path => {
-      const f = this.app.vault.getAbstractFileByPath(path);
-      if (f instanceof TFile) void patchTask(this.app, f, this.tab === "week" ? { planned: null, start: null, week: wk } : { planned: null, start: null, week: null });
-    });
-    const add = panel.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task" } });
-    add.addEventListener("keydown", e => {
-      if (e.key !== "Enter" || !add.value.trim()) return;
-      const p = parseTitleEstimate(add.value); add.value = "";
-      void createTask(this.app, s, p.title, { ...(this.tab === "week" ? { week: wk } : {}), estimate: p.estimate ?? s.defaultEstimate });
-    });
   }
 }

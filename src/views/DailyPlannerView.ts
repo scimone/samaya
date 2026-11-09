@@ -1,24 +1,18 @@
-import { BasesView, Notice, QueryController, TFile } from "obsidian";
+import { BasesView, Notice, QueryController, TFile, WorkspaceLeaf } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
-import { Task, allTasks, prefixOf, createTask, patchTask, placeInDay, readTask, setDone, sortTasks } from "../model";
-import { addDays, fmtDur, hmToMin, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
-import { bindCardDrop, bindZone, renderTaskCard, richText, showTaskMenu } from "./common";
+import { Task, allTasks, prefixOf, createTask, patchTask, placeInDay, readTask, sortTasks } from "../model";
+import { addDays, fmtDur, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
+import { bindCardDrop, bindZone, renderTaskCard, richText } from "./common";
 import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
-import { ensureMeetingNote } from "../meetings";
-import { layoutItems } from "../timeline";
-import { addBands } from "./bands";
 import { renderDoneBar } from "./doneBar";
 import { renderGuide } from "./guide";
 import { renderLoadBar } from "./loadBar";
-import { renderDayLines } from "./dayLines";
-import { decorateSegment, dragDur, dropOnTimeline, resizeBlock, segLabel, taskBlocks } from "./place";
 import { renderWorkdayCard } from "./workdayCard";
 import { capacityWindow, Capacity } from "../worktime";
 
 export const DAILY_VIEW_TYPE = "samaya-daily";
-const HOUR_H = 60; // px per hour
 
 export class DailyPlannerView extends BasesView {
   readonly type = DAILY_VIEW_TYPE;
@@ -29,27 +23,30 @@ export class DailyPlannerView extends BasesView {
   private timer = 0;
   private token = 0;
   private leftScroll = 0;
-  private gridScroll = 0;
-  private scrolledFor = "";
   private announced = false;
   private pickTab: "week" | "backlog" = "week";
-  private meetingNotes = new Map<IcsEvent, TFile>();
 
   constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
     super(controller);
     this.root = parentEl.createDiv("samaya-daily");
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
-    this.registerInterval(window.setInterval(() => this.updateNowLine(), 60000));
     this.register(plugin.bus.on(() => this.schedule()));
     const evRef = plugin.app.metadataCache.on("changed", f => { if (inEventFolder(plugin.settings, f.path) || (this.plugin.guide && f.path.startsWith(prefixOf(plugin.settings.tasksPath)))) this.schedule(); });
     this.register(() => plugin.app.metadataCache.offref(evRef));
+    this.showSidebar();
   }
 
-  private get opts() {
-    const s = this.plugin.settings;
-    const n = (k: string, d: number) => { const raw = this.config.get(k); return raw == null || raw === "" || isNaN(Number(raw)) ? d : Number(raw); };
-    return { startH: n("dayStart", s.dayStartHour), endH: n("dayEnd", s.dayEndHour), slot: n("slot", s.slotMinutes), showIcs: this.config.get("showIcs") !== false };
+  /** The timeline lives in the right sidebar: open it with this view, and give the focus back to the planner. */
+  private showSidebar() {
+    const ws = this.app.workspace;
+    ws.onLayoutReady(() => window.setTimeout(() => {
+      const mine: WorkspaceLeaf[] = []; ws.iterateRootLeaves(l => { if (l.view.containerEl.contains(this.root)) mine.push(l); });
+      const was = mine.length > 0 && ws.getMostRecentLeaf() === mine[0];
+      void this.plugin.openToday().then(() => { if (was) ws.setActiveLeaf(mine[0], { focus: true }); });
+    }, 0));
   }
+
+  private get showIcs() { return this.config.get("showIcs") !== false; }
   /** While planning my day, read the vault directly: a task just added must show up at once, not when the base has refreshed. */
   private entryTasks(): Task[] { return this.plugin.guide ? allTasks(this.app, this.plugin.settings) : this.data.data.map(e => readTask(this.app, e.file)); }
 
@@ -65,20 +62,14 @@ export class DailyPlannerView extends BasesView {
   }
 
   private async render() {
-    const token = ++this.token; const o = this.opts;
+    const token = ++this.token;
     const guide = this.plugin.guide;
-    if (guide?.fresh) { guide.fresh = false; this.date = today(); this.scrolledFor = ""; }
-    const events = o.showIcs && calendarEnabled(this.plugin.settings)
+    if (guide?.fresh) { guide.fresh = false; this.date = today(); }
+    const events = this.showIcs && calendarEnabled(this.plugin.settings)
       ? await calendarEvents(this.plugin, parseYmd(this.date), parseYmd(addDays(this.date, 1))) : [];
-    const meetingNotes = new Map<IcsEvent, TFile>();
-    for (const ev of events.filter(e => !e.allDay)) { // sequential: same-titled meetings must not race
-      try { meetingNotes.set(ev, await ensureMeetingNote(this.app, this.plugin.settings, ev, events)); } catch (e) { console.warn("Samaya: meeting note failed", e); }
-    }
-    this.meetingNotes = meetingNotes;
     if (token !== this.token || this.scope.active) { if (this.scope.active) this.pending = true; return; }
 
     const lp = this.root.querySelector<HTMLElement>(".samaya-left"); if (lp) this.leftScroll = lp.scrollTop;
-    const gp = this.root.querySelector<HTMLElement>(".samaya-scroll"); if (gp) this.gridScroll = gp.scrollTop;
     this.root.empty(); this.scope.clear();
 
     const all = this.entryTasks(); const isToday = this.date === today();
@@ -93,29 +84,18 @@ export class DailyPlannerView extends BasesView {
 
     const g = isToday ? this.plugin.guide : null; const step = g?.step ?? -1;
     const review = step === 0, pick = step === 1;
-    const side = !!g; // plan my day: guide on top, columns below, the timeline lives in the sidebar
-    this.root.toggleClass("is-review", side);
+    this.root.toggleClass("is-review", !!g); // plan my day: guide + columns; otherwise one column of task cards on the right
     const left = this.root.createDiv("samaya-left");
     this.renderHeader(left, day, cap, plannedAll, isToday, !!g);
     let body = left; // where today's planned list goes
     if (g) {
-      if (side) { // columns: guide | source tasks (Review: left over, Pick: this week/backlog) | today's tasks
-        const cols = left.createDiv("samaya-review-cols" + (step === 2 ? " is-two" : ""));
-        renderGuide(this.plugin, cols, { overdue: overdue.length });
-        if (review) this.renderLeftOver(cols, overdue); else if (pick) this.renderPick(cols);
-        body = cols.createDiv("samaya-plancol samaya-review-main");
-      }
+      // columns: guide | source tasks (Review: left over, Pick: this week/backlog) | today's tasks
+      const cols = left.createDiv("samaya-review-cols" + (step === 2 ? " is-two" : ""));
+      renderGuide(this.plugin, cols, { overdue: overdue.length });
+      if (review) this.renderLeftOver(cols, overdue); else if (pick) this.renderPick(cols);
+      body = cols.createDiv("samaya-plancol samaya-review-main");
       this.colHead(body, "Today", day.length, review ? "Drag overdue tasks here, or press `Today` on one." : pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
       renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
-    }
-
-    if (overdue.length && !g) { // during the guide the left over tasks live in the sidebar
-      const act = (t: Task): Array<[string, () => void]> => [
-        ["Today", () => { void patchTask(this.app, t.file, { planned: today(), start: null }); }],
-        ["Backlog", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: null }); }],
-        ["Done", () => { void setDone(this.app, t, true); }],
-      ];
-      this.section(left, `Overdue (${overdue.length})`, overdue, true, null, { actions: act });
     }
 
     const list = body.createDiv("samaya-list" + (step === 2 ? " is-timebox" : ""));
@@ -137,10 +117,6 @@ export class DailyPlannerView extends BasesView {
 
     left.scrollTop = this.leftScroll;
 
-    if (!side) {
-      const right = this.root.createDiv("samaya-right" + (step === 2 ? " is-guided" : ""));
-      this.renderTimeline(right, day, events);
-    }
     if (!this.announced || this.plugin.plannerDate !== this.date) { this.announced = true; this.plugin.plannerDate = this.date; this.plugin.modeBus.emit(); }
   }
 
@@ -228,7 +204,7 @@ export class DailyPlannerView extends BasesView {
     title.createSpan({ cls: "samaya-date", text: d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) });
     if (guided) return; // plan my day: no day navigation, workday strip, totals or progress here
     const nav = row.createDiv("samaya-nav samaya-nav-min");
-    const go = (x: string) => { this.date = x; this.scrolledFor = ""; void this.render(); };
+    const go = (x: string) => { this.date = x; void this.render(); };
     nav.createEl("button", { text: "‹", cls: "samaya-link-btn" }).onclick = () => go(addDays(this.date, -1));
     nav.createEl("button", { text: "Today", cls: "samaya-link-btn" }).onclick = () => go(today());
     nav.createEl("button", { text: "›", cls: "samaya-link-btn" }).onclick = () => go(addDays(this.date, 1));
@@ -239,118 +215,4 @@ export class DailyPlannerView extends BasesView {
     renderDoneBar(head, done, day.length);
   }
 
-  private section(left: HTMLElement, title: string, tasks: Task[], open: boolean, onDrop: ((path: string) => void) | null,
-    o: { actions?: (t: Task) => Array<[string, () => void]>; guided?: boolean } = {}) {
-    const d = left.createEl("details", { cls: "samaya-backlog" + (o.guided ? " is-guided" : "") }); d.open = open;
-    d.createEl("summary", { text: title });
-    const list = d.createDiv("samaya-list");
-    tasks.forEach(t => renderTaskCard(this.plugin, list, t, { scope: this.scope, actions: o.actions?.(t) }));
-    if (onDrop) bindZone(this.scope, d, onDrop);
-  }
-
-  private renderTimeline(right: HTMLElement, day: Task[], events: IcsEvent[]) {
-    const o = this.opts; const byPath = new Map(this.entryTasks().map(t => [t.file.path, t]));
-    const dayStartMs = parseYmd(this.date).getTime();
-    events.filter(e => e.allDay).forEach(e => right.createDiv({ cls: "samaya-allday", text: e.title }));
-
-    const scroll = right.createDiv("samaya-scroll");
-    const grid = scroll.createDiv("samaya-grid"); grid.style.height = `${(o.endH - o.startH) * HOUR_H}px`;
-    for (let h = o.startH; h < o.endH; h++) {
-      const row = grid.createDiv("samaya-hour"); row.style.top = `${(h - o.startH) * HOUR_H}px`; row.style.height = `${HOUR_H}px`;
-      row.createSpan({ cls: "samaya-hour-label", text: minToHm(h * 60) });
-    }
-    const lane = grid.createDiv("samaya-lane");
-    addBands(this.plugin, lane, this.date, o.startH, o.endH, HOUR_H, today());
-    const minToPx = (m: number) => ((m - o.startH * 60) / 60) * HOUR_H;
-    const pxToMin = (px: number) => Math.round((px / HOUR_H * 60 + o.startH * 60) / o.slot) * o.slot;
-    const clampStart = (m: number, dur: number) => Math.max(o.startH * 60, Math.min(o.endH * 60 - Math.min(dur, o.slot), m));
-
-    // live preview while dragging over the grid
-    let preview: HTMLElement | null = null;
-    const startFor = (i: { y: number; grabY: number }, dur: number) => clampStart(pxToMin(i.y - lane.getBoundingClientRect().top - i.grabY), dur);
-    this.scope.target(lane, {
-      over: i => {
-        const dur = dragDur(byPath.get(i.path), i.seg, this.plugin.settings.defaultEstimate); const m = startFor(i, dur);
-        if (!preview) preview = lane.createDiv("samaya-preview");
-        preview.style.top = `${minToPx(m)}px`; preview.style.height = `${Math.max(18, (dur / 60) * HOUR_H - 2)}px`;
-        preview.setText(`${minToHm(m)} – ${minToHm(m + dur)}`);
-      },
-      leave: () => { preview?.remove(); preview = null; },
-      drop: i => {
-        preview?.remove(); preview = null;
-        const f = this.app.vault.getAbstractFileByPath(i.path); if (!(f instanceof TFile)) return;
-        const dur = dragDur(readTask(this.app, f), i.seg, this.plugin.settings.defaultEstimate);
-        void dropOnTimeline(this.plugin, f, this.date, startFor(i, dur), i.seg, events, o.endH * 60, o.slot);
-      },
-    });
-
-    // tasks and calendar events share one column; overlapping items sit side by side
-    interface Item { s: number; dur: number; task?: Task; ev?: IcsEvent; seg?: number; n?: number; }
-    const items: Item[] = [];
-    events.filter(e => !e.allDay).forEach(e => {
-      const s = Math.max(0, (e.start.getTime() - dayStartMs) / 60000), en = Math.min(24 * 60, (e.end.getTime() - dayStartMs) / 60000);
-      if (en > o.startH * 60 && s < o.endH * 60) items.push({ s, dur: Math.max(15, en - s), ev: e });
-    });
-    day.filter(t => t.start).forEach(t => { const bl = taskBlocks(t, this.plugin.settings.defaultEstimate); bl.forEach((g, k) => items.push({ s: g.s, dur: g.dur, task: t, seg: k, n: bl.length })); });
-    items.sort((a, b) => a.s - b.s || b.dur - a.dur);
-    const slotOf = layoutItems(items);
-    items.forEach(it => {
-      if (it.s + it.dur <= o.startH * 60 || it.s >= o.endH * 60) return;
-      const pl = slotOf.get(it)!;
-      const top = minToPx(Math.max(it.s, o.startH * 60)), height = Math.max(18, minToPx(Math.min(it.s + it.dur, o.endH * 60)) - top - 2);
-      const place = (b: HTMLElement) => { b.style.top = `${top}px`; b.style.height = `${height}px`; b.style.left = `${(pl.col * 100) / pl.n}%`; b.style.width = `calc(${100 / pl.n}% - 2px)`; };
-      if (it.ev) {
-        const b = lane.createDiv({ cls: "samaya-event" }); place(b);
-        const note = this.meetingNotes.get(it.ev);
-        if (note) { b.title = "Open meeting note"; b.addEventListener("click", () => { void this.app.workspace.getLeaf("tab").openFile(note); }); }
-        b.createDiv({ cls: "samaya-event-title", text: it.ev.title });
-        b.createDiv({ cls: "samaya-event-time", text: `${minToHm(it.s)}–${minToHm(it.s + it.dur)}` });
-        return;
-      }
-      const t = it.task!; const s = it.s, dur = it.dur;
-      const b = lane.createDiv({ cls: "samaya-block" + (t.status === "done" ? " is-done" : "") }); place(b);
-      const bt = b.createDiv({ cls: "samaya-block-title" });
-      const st = bt.createSpan({ cls: "samaya-block-state", attr: { title: t.status === "done" ? "Mark as not done" : "Mark as done" } });
-      st.addEventListener("click", e => { e.stopPropagation(); void setDone(this.app, t, t.status !== "done"); });
-      bt.createSpan({ text: t.title });
-      b.createDiv({ cls: "samaya-block-time", text: `${minToHm(s)}–${minToHm(s + dur)} · ${fmtDur(dur)}${segLabel(it.seg!, it.n!)}` });
-      decorateSegment(b, t, it.seg!, it.n!, lane);
-      b.addEventListener("dblclick", () => { void this.app.workspace.getLeaf("tab").openFile(t.file); });
-      b.addEventListener("contextmenu", e => showTaskMenu(this.plugin, t, e));
-      this.scope.draggable(b, t.file.path);
-      const handle = b.createDiv("samaya-resize");
-      handle.addEventListener("pointerdown", e => {
-        e.preventDefault(); e.stopPropagation();
-        const startY = e.clientY; let nd = dur;
-        const move = (ev: PointerEvent) => {
-          nd = Math.max(o.slot, Math.round((dur + ((ev.clientY - startY) / HOUR_H) * 60) / o.slot) * o.slot);
-          b.style.height = `${Math.max(18, (nd / 60) * HOUR_H - 2)}px`;
-        };
-        const up = () => {
-          window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
-          if (nd !== dur) void resizeBlock(this.plugin, t, it.seg!, nd);
-        };
-        window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
-      });
-    });
-
-    renderDayLines(this.plugin, this.date, lane, grid, o, HOUR_H, minToPx);
-
-    if (this.date === today()) {
-      const nl = lane.createDiv("samaya-now"); nl.dataset.startH = String(o.startH); this.updateNowLine(nl);
-    }
-    // keep scroll position across re-renders; jump to "now" only when the day changes
-    if (this.scrolledFor !== this.date) {
-      this.scrolledFor = this.date;
-      const nl = lane.querySelector<HTMLElement>(".samaya-now");
-      this.gridScroll = nl ? Math.max(0, parseFloat(nl.style.top) - 150) : Math.max(0, (8 - o.startH) * HOUR_H);
-    }
-    scroll.scrollTop = this.gridScroll;
-  }
-
-  private updateNowLine(el?: HTMLElement) {
-    const nl = el ?? this.root.querySelector<HTMLElement>(".samaya-now"); if (!nl) return;
-    const now = new Date(); const startH = Number(nl.dataset.startH ?? 0);
-    nl.style.top = `${((now.getHours() * 60 + now.getMinutes() - startH * 60) / 60) * HOUR_H}px`;
-  }
 }

@@ -42,7 +42,7 @@ properties:
     displayName: Start
 views:
   - type: ${DAILY_VIEW_TYPE}
-    name: Daily Planner
+    name: Daily
   - type: ${WEEK_VIEW_TYPE}
     name: Weekly Board
   - type: ${WTL_VIEW_TYPE}
@@ -177,13 +177,10 @@ export default class SamayaPlugin extends Plugin {
 
     const ok = (id: string, name: string, icon: string, factory: Parameters<Plugin["registerBasesView"]>[1]["factory"], options: Parameters<Plugin["registerBasesView"]>[1]["options"]) =>
       this.registerBasesView(id, { name, icon, factory, options });
-    const a = ok(DAILY_VIEW_TYPE, "Daily Planner", "lucide-calendar-clock",
+    const a = ok(DAILY_VIEW_TYPE, "Daily", "lucide-calendar-clock",
       (c, el) => new DailyPlannerView(c, el, this),
       () => [
-        { type: "slider", key: "dayStart", displayName: "Day starts (hour)", min: 0, max: 23, step: 1, default: this.settings.dayStartHour },
-        { type: "slider", key: "dayEnd", displayName: "Day ends (hour)", min: 1, max: 24, step: 1, default: this.settings.dayEndHour },
-        { type: "slider", key: "slot", displayName: "Snap (minutes)", min: 5, max: 60, step: 5, default: this.settings.slotMinutes },
-        { type: "toggle", key: "showIcs", displayName: "Show calendar events", default: true },
+        { type: "toggle", key: "showIcs", displayName: "Count calendar events as busy", default: true },
       ]);
     const b = ok(WEEK_VIEW_TYPE, "Weekly Board", "lucide-columns-3",
       (c, el) => new WeeklyBoardView(c, el, this),
@@ -540,6 +537,7 @@ export default class SamayaPlugin extends Plugin {
         const next = stripTaskViews(txt);
         if (next !== txt) { await this.app.vault.modify(bf, next); txt = next; new Notice(`Samaya: moved the Backlog and All tasks views to ${tp}`); }
       } else if (announce) new Notice("Planner files already exist.");
+      if (/^    name: Daily Planner\s*$/m.test(txt)) { txt = txt.replace(/^(    name: )Daily Planner(\s*)$/m, "$1Daily$2"); await this.app.vault.modify(bf, txt); }
       if (!txt.includes(WTL_VIEW_TYPE)) {
         const next = txt.replace(new RegExp(`(  - type: ${WEEK_VIEW_TYPE}\\n    name: [^\\n]*\\n)`), `$1  - type: ${WTL_VIEW_TYPE}\n    name: Weekly Timeline\n`);
         if (next !== txt) { await this.app.vault.modify(bf, next); new Notice("Samaya: added the Weekly Timeline view to " + bp); }
@@ -557,7 +555,7 @@ export default class SamayaPlugin extends Plugin {
     const leaf = found ?? ws.getLeaf("tab");
     if (!found) await leaf.openFile(f);
     await ws.revealLeaf(leaf);
-    await this.openToday(); // backlog / this week live in the sidebar while the planner is open
+    await this.openToday(); // the timeline lives in the sidebar while the planner is open
     ws.setActiveLeaf(leaf, { focus: true });
   }
   async openToday() {

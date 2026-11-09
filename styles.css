@@ -1,6 +1,5 @@
-.samaya-daily { display: flex; justify-content: center; height: 100%; width: 100%; max-width: 940px; margin: 0 auto; gap: 0; overflow: hidden; }
-.samaya-left { flex: 1 1 440px; max-width: 520px; min-width: 300px; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; border-right: 1px solid var(--background-modifier-border); }
-.samaya-right { flex: 0 1 380px; display: flex; flex-direction: column; min-width: 260px; padding-left: 8px; }
+.samaya-daily { display: flex; justify-content: flex-end; height: 100%; width: 100%; gap: 0; overflow: hidden; } /* the card column sits at the right edge, next to the timeline sidebar */
+.samaya-left { flex: 0 1 520px; min-width: 300px; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
 .samaya-head h2 { margin: 8px 0 2px; }
 .samaya-date { color: var(--text-muted); font-weight: 400; font-size: 0.7em; margin-left: 0.6em; }
 .samaya-nav, .samaya-head-buttons, .samaya-week-head { display: flex; gap: 6px; align-items: center; }
@@ -80,7 +79,7 @@
 .samaya-focus-subs { text-align: left; }
 .samaya-status { cursor: pointer; }
 
-@media (max-width: 700px) { .samaya-daily { flex-direction: column; overflow-y: auto; } .samaya-left { flex: none; max-width: none; border-right: none; } .samaya-right { min-height: 500px; } }
+@media (max-width: 700px) { .samaya-daily { flex-direction: column; overflow-y: auto; } .samaya-left { flex: none; } }
 
 /* drag & drop */
 .samaya-ghost { position: fixed !important; left: 0 !important; top: 0 !important; margin: 0 !important; z-index: 10000; pointer-events: none; opacity: 0.92; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); transform-origin: 0 0; cursor: grabbing; }
@@ -253,7 +252,7 @@ body { --samaya-green: #2fa862; }
 .samaya-guide-row label { margin: 0; }
 .samaya-guide-nav { display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px; }
 .samaya-guide .samaya-reflection { width: 100%; }
-.samaya-backlog.is-guided, .samaya-right.is-guided { border-radius: var(--radius-m); box-shadow: 0 0 0 2px var(--interactive-accent); animation: samaya-glow 2.2s ease-in-out infinite; }
+.samaya-backlog.is-guided { border-radius: var(--radius-m); box-shadow: 0 0 0 2px var(--interactive-accent); animation: samaya-glow 2.2s ease-in-out infinite; }
 @keyframes samaya-glow { 0%, 100% { box-shadow: 0 0 0 2px var(--interactive-accent); } 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--interactive-accent) 35%, transparent); } }
 
 /* ---------- today sidebar extras ---------- */
@@ -335,11 +334,6 @@ body { --samaya-green: #2fa862; }
 .samaya-tabs { display: flex; gap: 2px; padding: 3px; border-radius: var(--radius-m); background: var(--background-modifier-hover); }
 .samaya-tab { flex: 1; background: transparent !important; box-shadow: none !important; border: none; height: 26px; font-size: var(--font-ui-smaller); color: var(--text-muted); border-radius: var(--radius-s); }
 .samaya-tab.is-active { background: var(--background-primary) !important; color: var(--text-normal); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12) !important; }
-.samaya-today-lists { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 6px; border-radius: var(--radius-m); }
-.samaya-today-lists .samaya-today-cards { flex: 1; min-height: 0; padding: 2px; }
-.samaya-today-lists.is-drop { outline: 2px dashed var(--interactive-accent); outline-offset: -2px; }
-.samaya-today-lists.is-guided { box-shadow: 0 0 0 2px var(--interactive-accent); animation: samaya-glow 2.2s ease-in-out infinite; }
-.samaya-today-lists .samaya-add { margin: 0; width: 100%; flex: none; }
 
 /* ---------- round checkboxes, main checkbox left of the title ---------- */
 .samaya-check, .samaya-sub-row input[type="checkbox"], .samaya-card input[type="checkbox"] { border-radius: 50% !important; }
@@ -607,8 +601,7 @@ body { --samaya-green: #2fa862; }
 .samaya-dayline.is-start .samaya-dayline-label { top: 1px; }
 .samaya-dayline.is-end .samaya-dayline-label { bottom: 1px; }
 .samaya-dayshade { position: absolute; left: 0; right: 0; z-index: 1; pointer-events: none; background: color-mix(in srgb, var(--background-modifier-border) 45%, transparent); }
-.samaya-daily.is-review { max-width: none; }
-.samaya-daily.is-review .samaya-left { flex: 1 1 auto; max-width: none; border-right: none; }
+.samaya-daily.is-review .samaya-left { flex: 1 1 auto; max-width: none; }
 .samaya-review-cols { display: grid; grid-template-columns: minmax(230px, 300px) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .samaya-review-cols.is-two > .samaya-plancol { grid-column: 3; } /* Timebox: planned for today stays where it was in the steps before */
 @media (max-width: 900px) { .samaya-review-cols { grid-template-columns: 1fr; } .samaya-review-cols.is-two > .samaya-plancol { grid-column: auto; } }

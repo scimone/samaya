@@ -1,5 +1,5 @@
 .samaya-daily { display: flex; justify-content: flex-end; height: 100%; width: 100%; gap: 0; overflow: hidden; } /* the card column sits at the right edge, next to the timeline sidebar */
-.samaya-info { flex: 0 0 340px; width: 340px; box-sizing: border-box; margin-right: auto; display: flex; flex-direction: column; padding: 16px 20px 16px 24px; }
+.samaya-info { flex: 0 0 420px; width: 420px; box-sizing: border-box; margin-right: auto; display: flex; flex-direction: column; padding: 16px 20px 16px 24px; }
 .samaya-left { flex: 0 1 520px; min-width: 300px; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
 .samaya-head h2 { margin: 8px 0 2px; }
 .samaya-date { color: var(--text-muted); font-weight: 400; font-size: 0.7em; margin-left: 0.6em; }
@@ -658,10 +658,10 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-info { gap: 14px; }
 .samaya-info-hero { display: block; }
 .samaya-info-titles h2 { margin: 0; font-size: 1.8em; letter-spacing: -0.02em; line-height: 1.1; }
-.samaya-info-titlerow { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.samaya-info-titlerow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .samaya-info-today { height: 24px; padding: 0 10px; border-radius: 999px; font-size: var(--font-ui-smaller); font-weight: 600; }
 .samaya-info-daterow { display: flex; align-items: center; gap: 0; white-space: nowrap; }
-.samaya-info-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; margin-right: -6px; }
+.samaya-info-side { display: flex; align-items: center; gap: 6px; margin-right: -6px; }
 .samaya-info-arrow { flex: none; width: 26px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); }
 .samaya-info-arrow svg { width: 18px; height: 18px; }
 .samaya-info-date { flex: none; width: auto; min-width: 0; position: relative; display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 2px 6px; height: auto; background: transparent !important; box-shadow: none !important; border: none; border-radius: var(--radius-s); color: var(--text-muted); font-size: var(--font-ui-small); cursor: pointer; }

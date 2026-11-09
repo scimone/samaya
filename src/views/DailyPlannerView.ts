@@ -219,7 +219,8 @@ export class DailyPlannerView extends BasesView {
     const titles = hero.createDiv("samaya-info-titles");
     const top = titles.createDiv("samaya-info-titlerow");
     top.createEl("h2", { text: isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" }) });
-    const side = top.createDiv("samaya-info-side"); // date picker with its arrows, the Today shortcut below
+    const side = top.createDiv("samaya-info-side"); // Today shortcut, then the date picker with its arrows
+    if (!isToday) { const t = side.createEl("button", { text: "Today", cls: "samaya-info-today", attr: { "aria-label": "Jump to today" } }); t.onclick = () => go(today()); }
     // ‹ date ›: step day by day, or click the date to pick one
     const dr = side.createDiv("samaya-info-daterow");
     const arrow = (icon: string, label: string, to: string) => { const b = dr.createEl("button", { cls: "samaya-info-arrow clickable-icon", attr: { "aria-label": label } }); setIcon(b, icon); b.onclick = () => go(to); };
@@ -231,7 +232,6 @@ export class DailyPlannerView extends BasesView {
     picker.addEventListener("change", () => { if (picker.value) go(picker.value); });
     dateBtn.onclick = e => { if (e.target !== picker) { try { picker.showPicker(); } catch { picker.focus(); picker.click(); } } };
     arrow("chevron-right", "Next day", addDays(this.date, 1));
-    if (!isToday) { const t = side.createEl("button", { text: "Today", cls: "samaya-info-today", attr: { "aria-label": "Jump to today" } }); t.onclick = () => go(today()); }
 
     renderWorkdayCard(this.plugin, host.createDiv("samaya-info-card"), { panel: true, date: this.date });
 

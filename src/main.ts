@@ -21,11 +21,11 @@ import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { HOME_VIEW_TYPE, HomeView } from "./views/HomeView";
 import { allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask } from "./model";
 import { bulletLines, journalPath, journalWants, readJournalSection, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
-import { Emitter, addDays, hmToMin, parseTitleEstimate as parseTitleEstimateSafe, today } from "./util";
+import { Emitter, addDays, hmToMin, minToHm, parseTitleEstimate as parseTitleEstimateSafe, today } from "./util";
 import { WorkdayManager } from "./workday";
 import type { DayLog } from "./worktime";
 
-interface PluginData { settings?: Partial<SamayaSettings>; focus?: FocusState | null; workday?: DayLog | null; }
+interface PluginData { settings?: Partial<SamayaSettings>; focus?: FocusState | null; workday?: DayLog | null; /** per-day workday start/end set with the timeline lines */ dayWindows?: Record<string, [string, string]>; }
 export interface GuideState { step: number; /** the Review step exists (there were unfinished overdue tasks) */ review: boolean; fresh: boolean; }
 
 const BASE_TEMPLATE = (folder: string) => `filters:
@@ -306,7 +306,7 @@ export default class SamayaPlugin extends Plugin {
   private nudged = "";
   private shutdownNudge() {
     const now = new Date(); const hm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    const t = this.settings.shutdownTime.padStart(5, "0");
+    const t = minToHm(this.workWindowFor(today())[1]);
     if (hm === t && this.nudged !== today()) { this.nudged = today(); new Notice("Samaya: time to shut down. Run “Start shutdown ritual”.", 10000); }
   }
 
@@ -336,6 +336,19 @@ export default class SamayaPlugin extends Plugin {
     this.lunchIdx.set(path, { date, range: [st, en] }); // optimistic
     this.bus.emit();
     await setJournalProps(this.app, this.settings, date, { date, lunch: `${st}-${en}` });
+  }
+
+  // ---- per-day workday window (start/end lines of the timeline): kept in data.json, the settings are the default
+  /** Workday [start, end] in minutes for a date: the day's own lines if moved, else the default from the settings. */
+  workWindowFor(date: string): [number, number] {
+    const w = this.data.dayWindows?.[date] ?? [this.settings.dayStartTime, this.settings.shutdownTime];
+    return [hmToMin(w[0]), hmToMin(w[1])];
+  }
+  /** Set the workday window of ONE day (null = back to the default). */
+  async setWorkWindow(date: string, w: [string, string] | null) {
+    const all = this.data.dayWindows ?? (this.data.dayWindows = {});
+    if (w) all[date] = w; else delete all[date];
+    await this.saveData(this.data); this.bus.emit();
   }
 
   async saveSettings() { this.data.settings = this.settings; await this.saveData(this.data); }

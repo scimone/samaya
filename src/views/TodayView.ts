@@ -236,7 +236,7 @@ export class TodayView extends ItemView {
       });
     });
 
-    renderDayLines(this.plugin, lane, grid, { startH, endH, slot }, HOUR_H, px);
+    renderDayLines(this.plugin, date, lane, grid, { startH, endH, slot }, HOUR_H, px);
     const now = new Date(); const nm = now.getHours() * 60 + now.getMinutes();
     if (isToday && nm >= startH * 60 && nm <= endH * 60) lane.createDiv("samaya-now").style.top = `${px(nm)}px`;
     if (this.scrolled !== date) { this.scrolled = date; this.scrollTop = Math.max(0, px(nm) - 120); }

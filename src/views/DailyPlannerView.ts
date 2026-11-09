@@ -84,7 +84,7 @@ export class DailyPlannerView extends BasesView {
 
     // free capacity = capacity - lunch - calendar meetings
     const s = this.plugin.settings; const dayMs = parseYmd(this.date).getTime();
-    const cap = capacityWindow(hmToMin(s.dayStartTime), hmToMin(s.shutdownTime), this.plugin.lunchFor(this.date),
+    const cap = capacityWindow(...this.plugin.workWindowFor(this.date), this.plugin.lunchFor(this.date),
       events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
     const plannedAll = day.reduce((a, t) => a + (t.estimate || 0), 0);
 
@@ -100,7 +100,7 @@ export class DailyPlannerView extends BasesView {
         const cols = left.createDiv("samaya-review-cols" + (step === 2 ? " is-two" : ""));
         renderGuide(this.plugin, cols, { overdue: overdue.length });
         if (review) this.renderLeftOver(cols, overdue); else if (pick) this.renderPick(cols);
-        body = cols.createDiv("samaya-panel samaya-review-main");
+        body = cols.createDiv("samaya-plancol samaya-review-main");
       }
       this.colHead(body, "Planned for today", day.length, review ? "Drag left over tasks here, or press `Today` on one." : pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
       renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
@@ -165,7 +165,7 @@ export class DailyPlannerView extends BasesView {
     const s = this.plugin.settings; const wk = startOfWeek(today());
     const open = allTasks(this.app, s).filter(t => !t.planned && t.status !== "done");
     const week = sortTasks(open.filter(t => t.week === wk)), backlog = sortTasks(open.filter(t => t.week !== wk));
-    const col = host.createDiv("samaya-panel samaya-pick is-guided");
+    const col = host.createDiv("samaya-plancol samaya-pick");
     const tasks = this.pickTab === "week" ? week : backlog;
     this.colHead(col, "Pick your tasks", tasks.length, "Press `Today` on a task, or drag it into today's list.");
     const tabs = col.createDiv("samaya-tabs");
@@ -193,7 +193,7 @@ export class DailyPlannerView extends BasesView {
   }
 
   private renderLeftOver(host: HTMLElement, overdue: Task[]) {
-    const col = host.createDiv("samaya-panel samaya-leftover is-guided");
+    const col = host.createDiv("samaya-plancol samaya-leftover");
     this.colHead(col, "Left over from earlier days", overdue.length, "Press `Today`, `Tomorrow`, `This week` or `Backlog`, or drag a task into today's list.");
     const list = col.createDiv("samaya-leftover-list");
     if (!overdue.length) list.createDiv({ cls: "samaya-empty", text: "All cleared - nothing left over." });
@@ -324,7 +324,7 @@ export class DailyPlannerView extends BasesView {
       });
     });
 
-    renderDayLines(this.plugin, lane, grid, o, HOUR_H, minToPx);
+    renderDayLines(this.plugin, this.date, lane, grid, o, HOUR_H, minToPx);
 
     if (this.date === today()) {
       const nl = lane.createDiv("samaya-now"); nl.dataset.startH = String(o.startH); this.updateNowLine(nl);

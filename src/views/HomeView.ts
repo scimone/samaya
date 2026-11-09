@@ -60,7 +60,7 @@ export class HomeView extends BasesView {
     const l = p.workday.log;
     const moment = pickMoment({
       started: p.workday.started || !!l?.end, ended: !!l?.end, onBreak: p.workday.onBreak,
-      now: nowMin(), shutdown: hmToMin(s.shutdownTime), open: open.length, total: day.length,
+      now: nowMin(), shutdown: p.workWindowFor(today())[1], open: open.length, total: day.length,
     });
 
     const keepInput = this.root.querySelector<HTMLInputElement>(".samaya-home-add")?.value ?? "";

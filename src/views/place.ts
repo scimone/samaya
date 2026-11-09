@@ -6,11 +6,13 @@ import { Seg, fmtSegments, mergeOffer, planSegments, segsTotal } from "../segmen
 import { hmToMin, minToHm, parseYmd } from "../util";
 import type { TFile } from "obsidian";
 
-/** Meetings and lunch of a day as [start, end] minutes: what a task flows around. */
+/** Meetings, lunch and the time outside the day start/finish lines as [start, end] minutes: what a task flows around. */
 export function busyIntervals(plugin: SamayaPlugin, date: string, events: IcsEvent[]): Array<[number, number]> {
   const dayMs = parseYmd(date).getTime();
   const iv = events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]);
-  iv.push(plugin.lunchFor(date)); return iv;
+  iv.push(plugin.lunchFor(date));
+  const [from, to] = plugin.workWindowFor(date); iv.push([0, from], [to, 1440]); // the day lines are borders too
+  return iv;
 }
 
 /** The blocks a task occupies on the timeline: its segments, or one block from `start` with the estimate. */

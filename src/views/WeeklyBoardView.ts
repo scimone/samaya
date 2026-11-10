@@ -155,13 +155,15 @@ export class WeeklyBoardView extends BasesView {
     };
     const weekCol = (host: HTMLElement) => {
       const col = host.createDiv("samaya-plancol samaya-wg-col");
-      head(col, "This week", noDay.length, "Press `This week` on a task, or drag it here.");
+      const shown = [...noDay, ...sortTasks(weekTasks.filter(t => t.planned)).sort((a, b) => a.planned.localeCompare(b.planned))];
+      head(col, "This week", shown.length, "Press `This week` on a task, or drag it here. Tasks that already have a day show it above the card.");
       weekLoad(col);
       const list = scroller(col, "week", "samaya-leftover-list");
-      if (!noDay.length) list.createDiv({ cls: "samaya-empty", text: "Nothing waiting for a day." });
-      noDay.forEach(t => renderTaskCard(this.plugin, list, t, { scope: this.scope, compact: step === 2 }));
-      const placed = weekTasks.length - noDay.length;
-      if (placed) col.createDiv({ cls: "samaya-guide-text samaya-colhint", text: `${placed} more already ${placed === 1 ? "has" : "have"} a day.` });
+      if (!shown.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned for this week yet." });
+      shown.forEach(t => {
+        if (t.planned) list.createDiv({ cls: "samaya-week-day", text: parseYmd(t.planned).toLocaleDateString(undefined, { weekday: "long", day: "numeric" }) });
+        renderTaskCard(this.plugin, list, t, { scope: this.scope, compact: step === 2 });
+      });
       bindZone(this.scope, col, toWeek);
       addBox(col, "+ Add weekly task", () => ({ week: wk }));
     };

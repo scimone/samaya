@@ -58,6 +58,7 @@ export class DailyPlannerView extends BasesView {
 
   onDataUpdated(): void { this.schedule(); }
   refresh() { this.schedule(); }
+  goTo(date: string) { this.date = date; this.schedule(); }
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); window.setTimeout(() => this.plugin.modeBus.emit(), 80); }
 
   /** Coalesce bursts of updates; never re-render in the middle of a drag. */

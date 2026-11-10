@@ -1,4 +1,5 @@
-import { BasesView, QueryController, TFile } from "obsidian";
+import { BasesView, QueryController, TFile, setIcon } from "obsidian";
+import type { PlannerHost } from "./plannerHost";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, patchTask, readTask, setDone, sortTasks } from "../model";
@@ -27,7 +28,7 @@ export class WeeklyTimelineView extends BasesView {
   private hourH = MIN_HOUR_H;
   private seenH = 0;
 
-  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
+  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin, private host?: PlannerHost) {
     super(controller);
     this.root = parentEl.createDiv("samaya-wtl");
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
@@ -37,11 +38,15 @@ export class WeeklyTimelineView extends BasesView {
     this.register(plugin.bus.on(() => this.schedule()));
     const ref = plugin.app.metadataCache.on("changed", f => { if (inEventFolder(plugin.settings, f.path)) this.schedule(); });
     this.register(() => plugin.app.metadataCache.offref(ref));
-    void plugin.openToday(); // same sidebar as the Weekly Board
+    if (!host) void plugin.openToday(); // same sidebar as the Weekly Board (expanded in the Planner, both sidebars are folded away)
   }
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); if (this.plugin.boardWeek === this.weekStart) { this.plugin.boardWeek = ""; this.plugin.modeBus.emit(); } }
   onDataUpdated(): void { this.schedule(); }
+  refresh() { this.schedule(); }
+  /** Planner: show the week that contains `date`. */
+  showWeekOf(date: string) { this.weekStart = startOfWeek(date); this.scrolledFor = ""; this.schedule(); }
   private schedule() {
+    if (this.host?.hidden()) return;
     if (this.scope.active) { this.pending = true; return; }
     window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { void this.render(); }, 30);
   }
@@ -57,7 +62,7 @@ export class WeeklyTimelineView extends BasesView {
     if (token !== this.token) return;
     if (this.scope.active) { this.pending = true; return; }
 
-    if (this.plugin.guide?.kind === "week") { // the guide lives in the Weekly Board
+    if (!this.host && this.plugin.guide?.kind === "week") { // the guide lives in the Weekly Board
       this.root.empty(); this.scope.clear();
       this.root.createDiv({ cls: "samaya-empty", text: "Planning your week happens in the Weekly Board view. Pick it from the view menu at the top of this tab." });
       return;
@@ -70,6 +75,11 @@ export class WeeklyTimelineView extends BasesView {
     if (this.plugin.boardWeek !== this.weekStart) { this.plugin.boardWeek = this.weekStart; this.plugin.modeBus.emit(); }
     const head = this.root.createDiv("samaya-week-head");
     const go = (w: string) => { this.weekStart = w; this.scrolledFor = ""; void this.render(); };
+    if (this.host?.back) { // expanded from the day planner: one obvious way back
+      const back = head.createEl("button", { cls: "samaya-wtl-back mod-cta", attr: { "aria-label": "Back to the day planner (Esc)", title: "Back to the day planner (Esc)" } });
+      setIcon(back.createSpan("samaya-wtl-back-icon"), "arrow-left"); back.createSpan({ text: "Day planner" });
+      back.onclick = () => this.host?.back?.();
+    }
     head.createEl("button", { text: "‹" }).onclick = () => go(addDays(this.weekStart, -7));
     head.createEl("button", { text: "This week" }).onclick = () => go(startOfWeek(today()));
     head.createEl("button", { text: "›" }).onclick = () => go(addDays(this.weekStart, 7));
@@ -95,7 +105,8 @@ export class WeeklyTimelineView extends BasesView {
 
       // header: weekday, all-day events, tasks without a time slot
       const h = cols.createDiv("samaya-wtl-head" + (isToday ? " is-today" : ""));
-      h.createDiv({ cls: "samaya-wtl-day", text: parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }) });
+      const dayLbl = h.createDiv({ cls: "samaya-wtl-day", text: parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }) });
+      if (this.host?.openDay) { dayLbl.addClass("is-link"); dayLbl.title = "Open this day in the planner"; dayLbl.onclick = () => this.host?.openDay?.(date); }
       dayEvents.filter(e => e.allDay).forEach(e => h.createDiv({ cls: "samaya-wtl-chip is-event", text: e.title }));
       dayTasks.filter(t => !t.start && t.status !== "done").forEach(t => {
         const c = h.createDiv({ cls: "samaya-wtl-chip", attr: { title: "No time slot yet - drag onto the calendar" } });

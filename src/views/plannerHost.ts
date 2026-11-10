@@ -2,4 +2,8 @@
 export interface PlannerHost {
   /** true while the other pane is the one showing (a hidden pane does not render) */
   hidden(): boolean;
+  /** the expanded week timeline: back to the day planner */
+  back?(): void;
+  /** the expanded week timeline: jump to a day in the day planner */
+  openDay?(date: string): void;
 }

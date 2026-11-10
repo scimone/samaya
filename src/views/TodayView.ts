@@ -128,7 +128,16 @@ export class TodayView extends ItemView {
     }
     if (this.mode === "week") { this.renderWeek(c, all, wkStart); return; }
     const dayMs = parseYmd(date).getTime();
-    if (daily) head.remove(); // the Daily view shows the day title, workday strip and progress itself
+    if (daily) {
+      head.remove(); // the Daily view shows the day title, workday strip and progress itself
+      if (!guide) { // one clear way into the week: the timeline expands to the whole week
+        const bar = c.createDiv("samaya-tl-bar");
+        bar.createSpan({ cls: "samaya-tl-bar-title", text: "Timeline" });
+        const ex = bar.createEl("button", { cls: "samaya-tl-expand", attr: { "aria-label": "Expand to the week timeline", title: "Expand to the week timeline" } });
+        setIcon(ex.createSpan("samaya-tl-expand-icon"), "maximize-2"); ex.createSpan({ text: "Week" });
+        ex.onclick = () => this.plugin.expandTimeline();
+      }
+    }
     else {
       renderWorkdayCard(this.plugin, head.createDiv(), { compact: true });
       renderDoneBar(head, day.filter(t => t.status === "done").length, day.length);

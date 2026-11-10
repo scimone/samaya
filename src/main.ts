@@ -170,6 +170,22 @@ export default class SamayaPlugin extends Plugin {
   /** week (monday, ymd) shown by the Weekly Board while it is open ("" = none) */
   boardWeek = "";
   guide: GuideState | null = null;
+  /** the week timeline is expanded inside the Planner (both sidebars folded away) */
+  timelineWide = false;
+  private wideSaved: { left: boolean; right: boolean } | null = null;
+  /** Planner: expand the timeline into the week timeline; both sidebars make room. */
+  expandTimeline() {
+    if (this.timelineWide) return; const ws = this.app.workspace;
+    this.wideSaved = { left: !!ws.leftSplit && !ws.leftSplit.collapsed, right: !!ws.rightSplit && !ws.rightSplit.collapsed };
+    ws.leftSplit?.collapse(); ws.rightSplit?.collapse();
+    this.timelineWide = true; this.bus.emit();
+  }
+  /** Back to the day planner, and the sidebars as they were. */
+  collapseTimeline() {
+    if (!this.timelineWide) return; const ws = this.app.workspace; const sv = this.wideSaved; this.timelineWide = false; this.wideSaved = null;
+    if (sv?.left) ws.leftSplit?.expand(); if (sv?.right) ws.rightSplit?.expand();
+    this.bus.emit(); this.modeBus.emit();
+  }
 
   async onload() {
     this.data = (await this.loadData()) ?? {};
@@ -608,6 +624,7 @@ export default class SamayaPlugin extends Plugin {
   }
   /** Interactive week plan: Review, Tickets, Backlog, Schedule, Check (see views/guide.ts and WeeklyBoardView). The left sidebar makes room, the right one shows This week. */
   async startWeekGuide() {
+    this.collapseTimeline();
     const ws = this.app.workspace; const now = new Date(); const wk = weekToPlan(today(), now.getDay());
     const leftover = allTasks(this.app, this.settings).some(t => isLeftover(t, today(), wk));
     const tickets = allTickets(this.app, this.settings).some(t => !/(done|closed|resolved|complete|finished|released|cancel)/i.test(t.state));
@@ -666,6 +683,7 @@ export default class SamayaPlugin extends Plugin {
     frag.createEl("button", { text: label, cls: "mod-cta" }).onclick = () => { n.hide(); void this.openNoteInMain(file); };
   }
   async startGuide() {
+    this.collapseTimeline();
     const ls = this.app.workspace.leftSplit;
     if (ls && !ls.collapsed) { ls.collapse(); this.leftCollapsedByGuide = true; } // room for the planner while planning
     const overdue = allTasks(this.app, this.settings).some(isOverdue);
@@ -688,6 +706,7 @@ export default class SamayaPlugin extends Plugin {
   }
   /** End of day: the planner with a one-step guide (tick off forgotten tasks), then finalize. */
   async startShutdown() {
+    this.collapseTimeline();
     const td = today(); const day = allTasks(this.app, this.settings).filter(t => t.planned === td);
     if (day.every(t => t.status === "done")) { await this.finishShutdown(); return; } // nothing left to check off: end the day right away
     this.guide = { step: 0, review: false, fresh: true, kind: "shutdown" };

@@ -160,13 +160,14 @@ export class WeeklyBoardView extends BasesView {
       head(col, "This week", shown.length);
       weekLoad(col);
       richText(col.createDiv("samaya-guide-text samaya-colhint"), step === 2 ? "Drag a task onto a day." : "Press `This week` on a task, or drag it here. Tasks that already have a day show it on the card.");
+      if (step === 2) addBox(col, "+ Add weekly task", () => ({ week: wk })); // Schedule: right under the description
       const list = scroller(col, "week", "samaya-leftover-list");
       if (!shown.length) list.createDiv({ cls: "samaya-empty", text: step === 2 ? "Every task has a day." : "Nothing planned for this week yet." });
       shown.forEach(t => {
         renderTaskCard(this.plugin, list, t, { scope: this.scope, compact: step === 2, dayLabel: t.planned ? parseYmd(t.planned).toLocaleDateString(undefined, { weekday: "long", day: "numeric" }) : undefined });
       });
       bindZone(this.scope, col, toWeek);
-      addBox(col, "+ Add weekly task", () => ({ week: wk }));
+      if (step !== 2) addBox(col, "+ Add weekly task", () => ({ week: wk }));
     };
 
     if (step === 0) {
@@ -195,7 +196,7 @@ export class WeeklyBoardView extends BasesView {
       const cols = main.createDiv("samaya-wg-cols is-schedule");
       weekCol(cols);
       const board = scroller(cols, "board", "samaya-wg-board");
-      days.forEach(date => this.guidedDay(board, date, caps.get(date)!, events, sortTasks(all.filter(t => t.planned === date)), date === td));
+      days.forEach(date => this.guidedDay(board, date, caps.get(date)!, events, sortTasks(all.filter(t => t.planned === date)), date === td, addBox));
     } else {
       this.renderCheck(main, days, caps, all, noDay.filter(t => t.status !== "done"), plannedTotal, freeTotal);
     }
@@ -203,7 +204,7 @@ export class WeeklyBoardView extends BasesView {
   }
 
   /** One day of the Schedule step: its meetings as a compact agenda on top, then the load bar and the day's tasks. */
-  private guidedDay(parent: HTMLElement, date: string, cap: Capacity, events: IcsEvent[], tasks: Task[], isToday: boolean) {
+  private guidedDay(parent: HTMLElement, date: string, cap: Capacity, events: IcsEvent[], tasks: Task[], isToday: boolean, addBox: (col: HTMLElement, placeholder: string, props: () => Record<string, string | number>) => void) {
     const s = this.plugin.settings; const dayMs = parseYmd(date).getTime();
     const col = parent.createDiv({ cls: "samaya-col samaya-wg-day" + (isToday ? " is-today" : "") });
     const planned = tasks.reduce((a, t) => a + (t.estimate || 0), 0); const lvl = loadLevel(planned, cap.free);
@@ -221,6 +222,7 @@ export class WeeklyBoardView extends BasesView {
       r.createSpan({ cls: "samaya-agenda-time", text: e.allDay ? "all day" : minToHm(Math.max(0, (e.start.getTime() - dayMs) / 60000)) });
       r.createSpan({ cls: "samaya-agenda-title", text: e.title });
     });
+    addBox(col, "+ Add task", () => ({ planned: date, order: tasks.length }));
     const body = col.createDiv("samaya-col-body");
     tasks.forEach((t, idx) => {
       const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true, compact: true });

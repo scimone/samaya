@@ -97,8 +97,8 @@ const JOURNAL_PARTS: Array<[JournalPart, string, string]> = [
   ["journalTracked", "Tracked work time", "work_minutes property: total time worked that day."],
 ];
 const JOURNAL_WEEK_PARTS: Array<[JournalPart, string, string]> = [
-  ["journalWeekPlan", "Week overview", "“Week plan” section: totals and a table with tasks, meetings, unplanned time and load for every day. Written when you finish planning the week."],
-  ["journalWeekTasks", "Day by day", "A section per weekday with its time summary, meetings and planned tasks (and tasks without a day). Written when you finish planning the week."],
+  ["journalWeekPlan", "Week overview", "Totals and a table with tasks, meetings, unplanned time and load for every day, at the top of the “Weekly plan” section. Written when you finish planning the week."],
+  ["journalWeekTasks", "Day by day", "A subheading per weekday in the “Weekly plan” section, with its time summary, meetings (linked to their meeting notes) and planned tasks, plus the tasks without a day. Written when you finish planning the week."],
 ];
 const SAMPLE_TICKET: TicketVars = { id: "OPS-12", title: "Fix the deploy pipeline", type: "Bug", status: "In Progress", assignedTo: "Ada", url: "", description: "", source: "Jira", project: "OPS" };
 const HM = /^\d{1,2}:\d{2}$/;

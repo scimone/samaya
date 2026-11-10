@@ -324,18 +324,21 @@ console.log("home ok");
   assert.equal(trimToBuffer(500, 480), 116); assert.equal(trimToBuffer(300, 480), 0);
 }
 {
-  const { upsertSection, weekOverview, dayBody, loadBar, loadNote } = await import("./.journal.mjs");
-  const order = ["Week plan", "Monday", "Tuesday", "No day yet"];
-  let t = upsertSection("# Week\n", "Tuesday", "- a", order);
-  t = upsertSection(t, "Monday", "### Meetings\n\n- x", order); // goes before Tuesday, and its ### subheading stays inside the section
-  t = upsertSection(t, "Week plan", "- b", order);
-  assert.ok(t.indexOf("## Week plan") < t.indexOf("## Monday") && t.indexOf("## Monday") < t.indexOf("## Tuesday"));
-  t = upsertSection(t, "Monday", "- y", order); assert.ok(!t.includes("### Meetings") && t.includes("- y") && t.includes("- a"));
+  const { upsertSection, removeSection, weekOverview, dayBody, weekPlanBody, loadBar, loadNote, WEEK_ORDER } = await import("./.journal.mjs");
+  let t = upsertSection("# Week\n", "Weekly review", "- r", WEEK_ORDER);
+  t = upsertSection(t, "Weekly plan", "### Monday\n#### Meetings\n- x", WEEK_ORDER); // goes before the review; the ### / #### headings stay inside the section
+  assert.ok(t.indexOf("## Weekly plan") < t.indexOf("## Weekly review") && t.includes("- r"));
+  t = upsertSection(t, "Weekly plan", "- y", WEEK_ORDER); assert.ok(!t.includes("#### Meetings") && t.includes("- y") && t.includes("## Weekly review"));
+  assert.equal(removeSection("## A\n- 1\n## B\n- 2\n", "A"), "## B\n- 2\n"); assert.equal(removeSection("## A\n", "Z"), "## A\n");
   assert.equal(loadBar(300, 600), "█████░░░░░ 50%"); assert.equal(loadBar(0, 0), "–"); assert.equal(loadBar(10, 0), "██████████ over");
   assert.equal(loadNote(100, 600), ""); assert.equal(loadNote(500, 600), "past the 80% buffer"); assert.equal(loadNote(700, 600), "over capacity");
   const mon = { label: "Monday", planned: 120, meetings: 60, free: 300, tasks: [{ title: "A", minutes: 120, subtasks: [] }], events: [] };
   const body = dayBody(mon);
-  assert.ok(body.startsWith("**Tasks** 2 hr · **Meetings** 1 hr · **Unplanned** 3 hr") && body.includes("### Meetings\n\n- None") && body.includes("### Tasks\n\n- [[A]]"));
-  const ov = weekOverview([mon, { label: "Tuesday", planned: 0, meetings: 0, free: 300, tasks: [], events: [] }], 2);
-  assert.ok(ov.includes("| [[#Monday]] | 2 hr (1) | 1 hr | 3 hr | ████░░░░░░ 40% |") && ov.includes("| [[#Tuesday]] | – | – | 5 hr | ░░░░░░░░░░ 0% |") && ov.includes("3 tasks, 1 scheduled, 2 still without a day"));
+  assert.ok(body.startsWith("### Monday\n**Tasks** 2 hr · **Meetings** 1 hr · **Unplanned** 3 hr") && body.includes("#### Meetings\n- None") && body.includes("#### Tasks\n- [[A]]"));
+  const tue = { label: "Tuesday", planned: 0, meetings: 0, free: 300, tasks: [], events: [] };
+  const ov = weekOverview([mon, tue], 2);
+  assert.ok(ov.includes("| [[#Monday]] | 2 hr (1) | 1 hr | 3 hr | ████░░░░░░ 40% |") && ov.includes("| [[#Tuesday]] | – | – | 5 hr | ░░░░░░░░░░ 0% |") && ov.includes("3 tasks, 1 scheduled, 2 still without a day.") && !ov.includes("Recommended"));
+  const full = weekPlanBody([mon, tue], [{ title: "Z", minutes: 0, subtasks: [] }], { overview: true, days: true });
+  assert.ok(full.indexOf("### No day yet") > full.indexOf("| **Week**") && full.indexOf("### No day yet") < full.indexOf("### Monday") && full.indexOf("### Monday") < full.indexOf("### Tuesday"));
+  assert.ok(!weekPlanBody([mon], [], { overview: true, days: false }).includes("### "));
 }

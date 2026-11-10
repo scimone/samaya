@@ -3,6 +3,7 @@ import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, allTasks, prefixOf, createTask, patchTask, parkTask, placeInDay, readTask, sortTasks, isOverdue } from "../model";
 import { addDays, fmtDur, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
+import { weekBuckets, weekFreeTime } from "./weekColumn";
 import { bindCardDrop, bindZone, renderBacklogBuckets, renderTaskCard, richText } from "./common";
 import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
@@ -85,13 +86,17 @@ export class DailyPlannerView extends BasesView {
     const cap = capacityWindow(...this.plugin.workWindowFor(this.date), this.plugin.lunchFor(this.date),
       events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
     const plannedAll = day.reduce((a, t) => a + (t.estimate || 0), 0);
+    const wkStart = startOfWeek(this.date);
+    const weekFree = !guide || guide.kind === "shutdown" ? await weekFreeTime(this.plugin, wkStart, s.workDays) : 0;
+    if (token !== this.token) return;
+    const weekPlanned = weekBuckets(all, wkStart).weekTasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0);
 
     const g = isToday ? guide : null; const step = g?.step ?? -1;
     const sd = g?.kind === "shutdown"; const pg = sd ? null : g; const review = !sd && step === 0, pick = !sd && step === 1, check = !sd && step === 3;
     this.root.toggleClass("is-review", !!pg); // plan my day: guide + columns; otherwise one column of task cards on the right
     const info = pg ? null : this.root.createDiv("samaya-info"); // day title, workday, navigation, totals
     const left = this.root.createDiv("samaya-left");
-    if (info) { if (sd) renderGuide(this.plugin, info, { overdue: 0 }); else this.renderHeader(info, day, cap, plannedAll, isToday); } // End day: the guide takes the place of the day header, the tasks column stays as in the main view // (plan my day has no heading)
+    if (info) { if (sd) renderGuide(this.plugin, info, { overdue: 0 }); else this.renderHeader(info, day, cap, plannedAll, isToday, weekPlanned, weekFree); } // End day: the guide takes the place of the day header, the tasks column stays as in the main view // (plan my day has no heading)
     let body = left; // where today's planned list goes
     if (!pg) { // tasks heading: title, done count, progress
       const nd = day.filter(t => t.status === "done").length;
@@ -285,7 +290,7 @@ export class DailyPlannerView extends BasesView {
 
   private fileOf(path: string): TFile { return this.app.vault.getAbstractFileByPath(path) as TFile; }
 
-  private renderHeader(host: HTMLElement, day: Task[], cap: Capacity, plannedAll: number, isToday: boolean) {
+  private renderHeader(host: HTMLElement, day: Task[], cap: Capacity, plannedAll: number, isToday: boolean, weekPlanned: number, weekFree: number) {
     const d = parseYmd(this.date);
     // day column: title + navigation, workday status, capacity, plan button
     const go = (x: string) => { this.date = x; void this.render(); };
@@ -317,10 +322,22 @@ export class DailyPlannerView extends BasesView {
     tot.title += `. Plan at most ${Math.round(share * 100)}% of it (${fmtDur(Math.round(cap.free * share))}) and keep the rest for what comes up.`;
     const bar = load.createDiv({ cls: `samaya-col-bar is-${lvl}` });
     bar.createDiv("samaya-col-bar-fill").style.width = `${over || cap.free <= 0 ? (plannedAll > 0 ? 100 : 0) : (plannedAll / cap.free) * 100}%`;
+    if (cap.free > 0) { const mark = bar.createDiv("samaya-col-bar-mark"); mark.style.left = `${share * 100}%`; mark.title = `${Math.round(share * 100)}% of the free time`; }
     if (isToday) {
       const row = load.createDiv("samaya-wd-buttons");
       const plan = row.createEl("button", { text: "Plan day" }); plan.onclick = () => { void this.plugin.startGuide(); };
     }
+
+    const wLvl = loadLevel(weekPlanned, weekFree, share); const wOver = weekPlanned > weekFree;
+    const wk = host.createDiv({ cls: "samaya-info-card samaya-info-load" + (wOver ? " is-over" : "") });
+    wk.createDiv({ cls: "samaya-info-label", text: "Weekly capacity" });
+    const wtot = wk.createDiv({ cls: "samaya-info-big", text: `${fmtDur(weekPlanned)} / ${fmtDur(weekFree)} planned` });
+    wtot.title = `Free time of the week = work time - lunch - meetings. Plan at most ${Math.round(share * 100)}% of it (${fmtDur(Math.round(weekFree * share))}) and keep the rest for what comes up.`;
+    const wbar = wk.createDiv({ cls: `samaya-col-bar is-${wLvl}` });
+    wbar.createDiv("samaya-col-bar-fill").style.width = `${wOver || weekFree <= 0 ? (weekPlanned > 0 ? 100 : 0) : (weekPlanned / weekFree) * 100}%`;
+    if (weekFree > 0) { const mark = wbar.createDiv("samaya-col-bar-mark"); mark.style.left = `${share * 100}%`; mark.title = `${Math.round(share * 100)}% of the free time`; }
+    const wrow = wk.createDiv("samaya-wd-buttons");
+    wrow.createEl("button", { text: "Plan week" }).onclick = () => { void this.plugin.startWeekGuide(); };
 
   }
 

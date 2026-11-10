@@ -375,7 +375,7 @@ body { --samaya-green: #2fa862; }
 .samaya-col-cap { font-size: var(--font-ui-smaller); font-weight: 400; color: var(--text-faint); font-variant-numeric: tabular-nums; }
 .samaya-col-cap.is-over { color: var(--text-error); }
 .samaya-col-bar { height: 4px; border-radius: 2px; background: var(--background-modifier-border); overflow: hidden; margin-bottom: 6px; }
-.samaya-col-bar-fill { height: 100%; background: var(--samaya-green, #2fa862); }
+.samaya-col-bar-fill { height: 100%; background: var(--interactive-accent); }
 .samaya-col-bar.is-over .samaya-col-bar-fill { background: var(--text-error); }
 
 /* weekly timeline */
@@ -676,11 +676,11 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-plan-step { position: relative; display: flex; gap: 12px; padding-bottom: 18px; }
 .samaya-plan-step:last-child { padding-bottom: 0; }
 .samaya-plan-step:not(:last-child)::before { content: ""; position: absolute; left: 13px; top: 28px; bottom: 2px; width: 2px; border-radius: 1px; background: var(--background-modifier-border); }
-.samaya-plan-step.is-done:not(:last-child)::before { background: var(--samaya-green); }
+.samaya-plan-step.is-done:not(:last-child)::before { background: var(--interactive-accent); }
 .samaya-plan-marker { flex: none; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: var(--font-ui-small); font-weight: 700; border: 2px solid var(--background-modifier-border); color: var(--text-faint); background: var(--background-primary); box-sizing: border-box; }
 .samaya-plan-marker svg { width: 14px; height: 14px; stroke-width: 3; }
 .samaya-plan-step.is-active .samaya-plan-marker { background: var(--interactive-accent); border-color: var(--interactive-accent); color: var(--text-on-accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--interactive-accent) 20%, transparent); }
-.samaya-plan-step.is-done .samaya-plan-marker { background: var(--samaya-green); border-color: var(--samaya-green); color: #fff; }
+.samaya-plan-step.is-done .samaya-plan-marker { background: var(--interactive-accent); border-color: var(--interactive-accent); color: var(--text-on-accent); }
 .samaya-plan-main { min-width: 0; flex: 1; padding-top: 3px; }
 .samaya-plan-title { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--text-faint); }
 .samaya-plan-step.is-active .samaya-plan-title { font-size: var(--font-ui-medium); font-weight: 700; color: var(--text-normal); }

@@ -208,7 +208,7 @@ export async function placeInDay(app: App, s: SamayaSettings, path: string, date
   const cur = sortTasks(allTasks(app, s).filter(t => t.planned === date && t.file.path !== path));
   cur.splice(Math.max(0, Math.min(index, cur.length)), 0, moved);
   await Promise.all(cur.map((t, i) => {
-    if (t.file.path === path) return patchTask(app, t.file, { planned: date, week: null, order: i, estimate: moved.estimate || s.defaultEstimate });
+    if (t.file.path === path) return patchTask(app, t.file, { planned: date, week: null, order: i, estimate: moved.estimate || s.defaultEstimate, ...(moved.planned !== date ? { start: null } : {}) }); // moved from another day: its time slot no longer fits
     return t.order !== i ? patchTask(app, t.file, { order: i }) : Promise.resolve();
   }));
 }

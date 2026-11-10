@@ -21,12 +21,13 @@ import { PROJECTS_BASE_TEMPLATE, assignProject, createProject } from "./projects
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { HOME_VIEW_TYPE, HomeView } from "./views/HomeView";
 import { promoteParked, allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask } from "./model";
-import { bulletLines, journalPath, journalWants, meetingLines, readJournalSection, sortByStart, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
+import { WEEK_SECTIONS, groupedTaskLines, weekSummaryLines, writeFileSection, bulletLines, journalPath, journalWants, meetingLines, readJournalSection, sortByStart, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
 import { ensureMeetingNote } from "./meetings";
 import { calendarEnabled, calendarEvents } from "./calendar";
 import { Emitter, addDays, hmToMin, minToHm, parseTitleEstimate as parseTitleEstimateSafe, parseYmd, today } from "./util";
 import { WorkdayManager } from "./workday";
-import { isLeftover, weekSteps, weekToPlan } from "./weekplan";
+import { BUFFER_SHARE, isLeftover, weekSteps, weekToPlan } from "./weekplan";
+import { capacityOf, weekBuckets } from "./views/weekColumn";
 import type { DayLog } from "./worktime";
 
 interface PluginData { settings?: Partial<SamayaSettings>; focus?: FocusState | null; workday?: DayLog | null; /** per-day workday start/end set with the timeline lines */ dayWindows?: Record<string, [string, string]>; }
@@ -613,10 +614,34 @@ export default class SamayaPlugin extends Plugin {
     await this.openToday(); // opens the right sidebar: it shows This week while the guide runs
     this.bus.emit();
   }
-  finishWeekGuide() {
-    const wk = this.guide?.week; this.closeGuide();
-    new Notice(`Week of ${wk ? parseYmd(wk).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : ""} planned. Leave room for the unexpected.`);
+  async finishWeekGuide() {
+    const g = this.guide; const wk = g?.week; const days = g?.days ?? 5;
+    this.closeGuide();
+    if (!wk) return;
+    let saved = false;
+    try { saved = await this.writeWeekPlan(wk, days); } catch (e) { console.error("Samaya: could not write the weekly note", e); new Notice("Samaya: could not write the weekly note (see the console)."); }
+    new Notice(`Week of ${parseYmd(wk).toLocaleDateString(undefined, { month: "short", day: "numeric" })} planned${saved ? " and saved to your weekly note" : ""}. Leave room for the unexpected.`);
   }
+  /** The weekly note (created if missing) gets a "Week plan" summary and the "Planned tasks" of the week by day. False when weekly notes are off. */
+  private async writeWeekPlan(wk: string, nDays: number): Promise<boolean> {
+    const s = this.settings;
+    if (!s.journalOn || !s.journalNotes.weekly.on) return false;
+    const file = await openPeriodNote(this.app, s, "weekly", wk); if (!file) return false;
+    const { weekTasks, noDay } = weekBuckets(allTasks(this.app, s), wk);
+    const events = calendarEnabled(s) ? await calendarEvents(this, parseYmd(wk), parseYmd(addDays(wk, 7))).catch(() => []) : [];
+    const dates = Array.from({ length: nDays }, (_, i) => addDays(wk, i));
+    const label = (d: string) => parseYmd(d).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" });
+    const rows = dates.map(d => { const cap = capacityOf(this, d, events); return { date: d, cap, tasks: sortByStart(sortTasks(weekTasks.filter(t => t.planned === d))) }; });
+    const planned = weekTasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0);
+    const summary = weekSummaryLines({ planned, free: rows.reduce((a, r) => a + r.cap.free, 0), meetings: rows.reduce((a, r) => a + r.cap.meetings, 0), buffer: BUFFER_SHARE,
+      days: rows.map(r => ({ label: label(r.date), planned: r.tasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0), free: r.cap.free })) });
+    const groups = [...await Promise.all(rows.map(async r => ({ label: label(r.date), tasks: await toJournalTasks(this.app, r.tasks, false, true) }))),
+      { label: "No day yet", tasks: await toJournalTasks(this.app, noDay) }];
+    await writeFileSection(this.app, file, "Week plan", summary, WEEK_SECTIONS);
+    await writeFileSection(this.app, file, "Planned tasks", groupedTaskLines(groups), WEEK_SECTIONS);
+    return true;
+  }
+
   async startGuide() {
     const ls = this.app.workspace.leftSplit;
     if (ls && !ls.collapsed) { ls.collapse(); this.leftCollapsedByGuide = true; } // room for the planner while planning

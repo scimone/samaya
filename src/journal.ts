@@ -12,6 +12,8 @@ export const journalWants = (s: SamayaSettings, part: JournalPart): boolean => s
 
 export const SECTIONS = ["Meetings", "Planned tasks", "Finished tasks", "Planned for tomorrow"] as const;
 export type Section = typeof SECTIONS[number];
+/** Sections the week plan writes into the weekly note. */
+export const WEEK_SECTIONS = ["Week plan", "Planned tasks"] as const;
 
 export function fmtEstimate(min: number): string {
   if (!min || min <= 0) return "";
@@ -40,7 +42,7 @@ export function bulletLines(lines: string[]): string {
 }
 
 /** Replace the body of `## heading` (or insert it in canonical order). Pure. */
-export function upsertSection(text: string, heading: Section, body: string): string {
+export function upsertSection(text: string, heading: string, body: string, order: readonly string[] = SECTIONS): string {
   const lines = text.split("\n");
   const isH = (l: string) => /^##\s+/.test(l);
   const find = (h: string) => lines.findIndex(l => l.trim().replace(/^##\s+/, "") === h && isH(l));
@@ -51,9 +53,9 @@ export function upsertSection(text: string, heading: Section, body: string): str
     lines.splice(idx, end - idx, ...block);
     return lines.join("\n");
   }
-  const myPos = SECTIONS.indexOf(heading);
+  const myPos = order.indexOf(heading);
   let insertAt = -1;
-  for (let k = myPos + 1; k < SECTIONS.length && insertAt < 0; k++) insertAt = find(SECTIONS[k]);
+  for (let k = myPos + 1; k < order.length && insertAt < 0; k++) insertAt = find(order[k]);
   if (insertAt < 0) {
     const base = text.replace(/\s+$/, "");
     return (base ? base + "\n\n" : "") + block.join("\n");
@@ -198,6 +200,25 @@ export async function journalPath(app: App, s: SamayaSettings, date: string): Pr
 export async function readJournalSection(app: App, s: SamayaSettings, date: string, h: Section): Promise<string[]> {
   const f = app.vault.getAbstractFileByPath(await journalPath(app, s, date));
   return f instanceof TFile ? readSection(await app.vault.read(f), h) : [];
+}
+/** Write a section into an existing note (the weekly note), keeping the order of `order`. */
+export async function writeFileSection(app: App, f: TFile, heading: string, body: string, order: readonly string[]): Promise<void> {
+  await app.vault.process(f, t => upsertSection(t, heading, body, order));
+}
+/** The "Week plan" summary: planned vs recommended, meetings, and every day's load. Pure. */
+export function weekSummaryLines(o: { planned: number; free: number; meetings: number; buffer: number; days: Array<{ label: string; planned: number; free: number }> }): string {
+  const fmt = (m: number) => fmtEstimate(m) || "0 min";
+  return bulletLines([
+    `Planned: ${fmt(o.planned)} of ${fmt(Math.round(o.free * o.buffer))} recommended (${fmt(o.free)} free)`,
+    `Meetings: ${fmt(o.meetings)}`,
+    ...o.days.map(d => `${d.label}: ${fmt(d.planned)} of ${fmt(d.free)} free`),
+  ]);
+}
+/** Tasks grouped under a bold day label, each task nested below it. Pure. */
+export function groupedTaskLines(groups: Array<{ label: string; tasks: JournalTask[] }>): string {
+  const g = groups.filter(x => x.tasks.length);
+  if (!g.length) return "- None";
+  return g.map(x => `- **${x.label}**\n` + taskLines(x.tasks).split("\n").map(l => "    " + l).join("\n")).join("\n");
 }
 export async function writeSection(app: App, s: SamayaSettings, date: string, heading: Section, body: string): Promise<void> {
   const path = await journalPath(app, s, date);

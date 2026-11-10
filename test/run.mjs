@@ -323,3 +323,14 @@ console.log("home ok");
   assert.deepEqual(weekVerdict([{ planned: 500, free: 480 }, { planned: 420, free: 480 }]), { level: "over", over: 1, tight: 1 });
   assert.equal(trimToBuffer(500, 480), 116); assert.equal(trimToBuffer(300, 480), 0);
 }
+{
+  const { upsertSection, weekSummaryLines, groupedTaskLines, WEEK_SECTIONS } = await import("./.journal.mjs");
+  let t = upsertSection("# Week\n", "Planned tasks", "- a", WEEK_SECTIONS);
+  t = upsertSection(t, "Week plan", "- b", WEEK_SECTIONS); // inserted before Planned tasks
+  assert.ok(t.indexOf("## Week plan") < t.indexOf("## Planned tasks"));
+  t = upsertSection(t, "Week plan", "- c", WEEK_SECTIONS); assert.equal(t.split("## Week plan").length, 2); assert.ok(t.includes("- c") && !t.includes("- b"));
+  const sum = weekSummaryLines({ planned: 300, free: 600, meetings: 120, buffer: 0.8, days: [{ label: "Monday", planned: 120, free: 300 }] });
+  assert.equal(sum, "- Planned: 5 hr of 8 hr recommended (10 hr free)\n- Meetings: 2 hr\n- Monday: 2 hr of 5 hr free");
+  assert.equal(groupedTaskLines([{ label: "Monday", tasks: [] }]), "- None");
+  assert.equal(groupedTaskLines([{ label: "Monday", tasks: [{ title: "A", minutes: 30, subtasks: [] }] }]), "- **Monday**\n    - [[A]] \u2022 *30 min*");
+}

@@ -101,7 +101,7 @@ function renderWeekGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideCtx)
   const nav = box.createDiv("samaya-plan-nav");
   if (pos > 0) nav.createEl("button", { text: "Back", cls: "samaya-plan-back" }).onclick = () => go(vis[pos - 1]);
   const last = pos === vis.length - 1;
-  nav.createEl("button", { text: last ? doneLabel : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) plugin.finishWeekGuide(); else go(vis[pos + 1]); };
+  nav.createEl("button", { text: last ? doneLabel : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) void plugin.finishWeekGuide(); else go(vis[pos + 1]); };
 
   const rem = box.createDiv("samaya-plan-reminder");
   setIcon(rem.createSpan("samaya-plan-reminder-icon"), "life-buoy");

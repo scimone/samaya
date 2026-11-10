@@ -299,7 +299,6 @@ export class DailyPlannerView extends BasesView {
     const go = (x: string) => { this.date = x; void this.render(); };
     const hero = host.createDiv("samaya-info-hero");
     const titles = hero.createDiv("samaya-info-titles");
-    this.host?.switcher(titles);
     const top = titles.createDiv("samaya-info-titlerow");
     top.createEl("h2", { text: isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" }) });
     const side = top.createDiv("samaya-info-side"); // Today shortcut, then the date picker with its arrows

@@ -897,7 +897,3 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-planner { height: 100%; width: 100%; }
 .samaya-planner-pane { height: 100%; width: 100%; }
 .samaya-planner-pane.is-hidden { display: none; }
-.samaya-modeswitch { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--radius-m); background: var(--background-modifier-hover); margin-bottom: 6px; align-self: flex-start; }
-.samaya-modeswitch button { box-shadow: none; background: transparent; height: 24px; padding: 0 12px; font-size: var(--font-ui-small); color: var(--text-muted); }
-.samaya-modeswitch button.is-active { background: var(--background-primary); color: var(--text-normal); font-weight: 600; }
-.samaya-week-head .samaya-modeswitch { margin: 0 8px 0 0; }

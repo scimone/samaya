@@ -4,7 +4,7 @@ import { FOCUS_VIEW_TYPE, FocusManager, FocusState, FocusView } from "./focus";
 import { IcsClient, allTickets, assignTicket, createTask, momentFmt } from "./model";
 import { DAILY_VIEW_TYPE } from "./views/DailyPlannerView";
 import { PlannerView } from "./views/PlannerView";
-import { WEEK_VIEW_TYPE, WeeklyBoardView } from "./views/WeeklyBoardView";
+import { WEEK_VIEW_TYPE } from "./views/WeeklyBoardView";
 import { WTL_VIEW_TYPE, WeeklyTimelineView } from "./views/WeeklyTimelineView";
 import { BACKLOG_VIEW_TYPE, BacklogView } from "./views/BacklogView";
 import { BACKLOG_BUCKETS_VIEW_TYPE, BacklogBucketsView } from "./views/BacklogBucketsView";
@@ -173,11 +173,8 @@ export default class SamayaPlugin extends Plugin {
       (c, el) => new PlannerView(c, el, this),
       () => [
         { type: "toggle", key: "showIcs", displayName: "Count calendar events as busy", default: true },
-        { type: "toggle", key: "showWeekends", displayName: "Show weekends (week)", default: false },
+        { type: "toggle", key: "showWeekends", displayName: "Show weekends (plan week)", default: false },
       ]);
-    const b = ok(WEEK_VIEW_TYPE, "Weekly Board", "lucide-columns-3",
-      (c, el) => new WeeklyBoardView(c, el, this),
-      () => [{ type: "toggle", key: "showWeekends", displayName: "Show weekends", default: false }]);
     const d = ok(WTL_VIEW_TYPE, "Weekly Timeline", "lucide-calendar-range",
       (c, el) => new WeeklyTimelineView(c, el, this),
       () => [
@@ -203,7 +200,7 @@ export default class SamayaPlugin extends Plugin {
       (ct, el) => new JournalBaseView(ct, el, this), () => []);
     const h = ok(HOME_VIEW_TYPE, "Home", "lucide-home",
       (ct, el) => new HomeView(ct, el, this), () => []);
-    if (!a || !b || !c || !d || !e || !f || !g || !h) new Notice("Samaya: could not register Bases views. Enable the core Bases plugin and use Obsidian 1.10+.");
+    if (!a || !c || !d || !e || !f || !g || !h) new Notice("Samaya: could not register Bases views. Enable the core Bases plugin and use Obsidian 1.10+.");
 
     this.addRibbonIcon("calendar-clock", "Open Samaya planner", () => { void this.openPlanner(); });
     this.focus.init(this.addStatusBarItem(), this.data.focus ?? null);
@@ -213,7 +210,6 @@ export default class SamayaPlugin extends Plugin {
     this.addCommand({ id: "open-today", name: "Open today's timeline in the right sidebar", callback: () => this.openToday() });
     this.addCommand({ id: "open-home", name: "Open home", checkCallback: c => { if (!this.settings.homeOn) return false; if (!c) void this.openHome(); return true; } });
     this.addCommand({ id: "plan-week", name: "Plan my week (guided)", callback: () => this.startWeekGuide() });
-    this.addCommand({ id: "open-week-board", name: "Open weekly board", callback: () => this.openWeekPlanner() });
     this.addCommand({ id: "review-week", name: "Review my week", callback: () => this.reviewWeek() });
     this.addCommand({ id: "open-planner", name: "Open planner", callback: () => this.openPlanner() });
     this.addCommand({ id: "plan-day", name: "Plan my day (guided)", callback: () => this.startGuide() });
@@ -393,12 +389,6 @@ export default class SamayaPlugin extends Plugin {
     const leaf = found ?? this.app.workspace.getLeaf("tab");
     if (!found) await leaf.openFile(f);
     await this.app.workspace.revealLeaf(leaf);
-  }
-  /** The week half of the Planner view (the week board is part of the planner now, no extra tab). */
-  async openWeekPlanner() {
-    this.plannerMode = "week";
-    await this.openPlanner();
-    this.bus.emit();
   }
   /** Weekly note when the journal keeps them, else the work time dashboard. */
   async reviewWeek() {
@@ -588,7 +578,7 @@ export default class SamayaPlugin extends Plugin {
     const leftover = allTasks(this.app, this.settings).some(t => isLeftover(t, today(), wk));
     const tickets = allTickets(this.app, this.settings).some(t => !/(done|closed|resolved|complete|finished|released|cancel)/i.test(t.state));
     this.guide = { step: weekSteps(leftover, tickets)[0], review: leftover, fresh: true, kind: "week", week: wk, tickets };
-    await this.openWeekPlanner();
+    await this.openPlanner();
     if (ws.leftSplit && !ws.leftSplit.collapsed) { ws.leftSplit.collapse(); this.leftCollapsedByGuide = true; }
     if (ws.rightSplit?.collapsed) this.rightOpenedByGuide = true;
     await this.openToday(); // opens the right sidebar: it shows This week while the guide runs

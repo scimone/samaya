@@ -41,6 +41,9 @@ export class WeeklyBoardView extends BasesView {
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); if (this.plugin.boardWeek === this.weekStart) { this.plugin.boardWeek = ""; this.plugin.modeBus.emit(); } }
   onDataUpdated(): void { this.schedule(); }
   refresh() { this.schedule(); }
+  getWeek() { return this.weekStart; }
+  /** Planner: show the week that contains `date`. */
+  showWeekOf(date: string) { this.weekStart = startOfWeek(date); this.schedule(); }
   private schedule() {
     if (this.host?.hidden()) return; // the Day pane is showing
     if (this.scope.active) { this.pending = true; return; }
@@ -70,6 +73,11 @@ export class WeeklyBoardView extends BasesView {
     head.createEl("button", { text: "›" }).onclick = () => go(addDays(this.weekStart, 7));
     const fmt = (s: string) => parseYmd(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
     head.createEl("h2", { text: `${fmt(this.weekStart)} – ${fmt(addDays(this.weekStart, 6))}` });
+    if (this.host?.back) { // same Day | Week switch as on the timeline
+      const sw = head.createDiv("samaya-modeswitch is-right");
+      sw.createEl("button", { text: "Day", attr: { title: "Back to the day planner (Esc)" } }).onclick = () => this.host?.back?.();
+      sw.createEl("button", { text: "Week", cls: "is-active" });
+    }
 
     const cols2 = this.root.createDiv("samaya-cols");
     for (let i = 0; i < (weekends ? 7 : 5); i++) {

@@ -173,6 +173,8 @@ export default class SamayaPlugin extends Plugin {
   guide: GuideState | null = null;
   /** the week timeline is expanded inside the Planner (both sidebars folded away) */
   timelineWide = false;
+  /** expanded week: true = the task board is in front, false = the timeline */
+  weekBoard = false;
   private wideSaved: { left: boolean; right: boolean } | null = null;
   /** Planner: expand the timeline into the week timeline; both sidebars make room. */
   expandTimeline() {
@@ -183,7 +185,7 @@ export default class SamayaPlugin extends Plugin {
   }
   /** Back to the day planner, and the sidebars as they were. */
   collapseTimeline() {
-    if (!this.timelineWide) return; const ws = this.app.workspace; const sv = this.wideSaved; this.timelineWide = false; this.wideSaved = null;
+    if (!this.timelineWide) return; const ws = this.app.workspace; const sv = this.wideSaved; this.timelineWide = false; this.weekBoard = false; this.wideSaved = null;
     if (sv?.left) ws.leftSplit?.expand(); if (sv?.right) ws.rightSplit?.expand();
     this.bus.emit(); this.modeBus.emit();
   }

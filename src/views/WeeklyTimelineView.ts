@@ -43,6 +43,7 @@ export class WeeklyTimelineView extends BasesView {
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); if (this.plugin.boardWeek === this.weekStart) { this.plugin.boardWeek = ""; this.plugin.modeBus.emit(); } }
   onDataUpdated(): void { this.schedule(); }
   refresh() { this.schedule(); }
+  getWeek() { return this.weekStart; }
   /** Planner: show the week that contains `date`. */
   showWeekOf(date: string) { this.weekStart = startOfWeek(date); this.scrolledFor = ""; this.schedule(); }
   private schedule() {

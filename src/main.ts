@@ -9,7 +9,7 @@ import { BACKLOG_VIEW_TYPE, BacklogView } from "./views/BacklogView";
 import { syncTickets } from "./sync";
 import { syncMeetingNotes } from "./meetings";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
-import { ConfirmCreateModal, ProjectSuggestModal, ShutdownModal, TextPromptModal, TicketSuggestModal } from "./modals";
+import { ConfirmCreateModal, ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "./modals";
 import { GANTT_VIEW_TYPE, GanttView } from "./views/GanttView";
 import { KANBAN_VIEW_TYPE, KanbanView } from "./views/KanbanView";
 import { JOURNAL_CAL_TYPE, JournalCalendarView } from "./views/JournalCalendarView";
@@ -28,7 +28,7 @@ import { WorkdayManager } from "./workday";
 import type { DayLog } from "./worktime";
 
 interface PluginData { settings?: Partial<SamayaSettings>; focus?: FocusState | null; workday?: DayLog | null; /** per-day workday start/end set with the timeline lines */ dayWindows?: Record<string, [string, string]>; }
-export interface GuideState { step: number; /** the Review step exists (there were unfinished overdue tasks) */ review: boolean; fresh: boolean; }
+export interface GuideState { step: number; /** the Review step exists (there were unfinished overdue tasks) */ review: boolean; fresh: boolean; /** "shutdown": the one-step end-of-day guide */ kind: "plan" | "shutdown"; }
 
 const BASE_TEMPLATE = (folder: string) => `filters:
   and:
@@ -581,7 +581,7 @@ export default class SamayaPlugin extends Plugin {
     const ls = this.app.workspace.leftSplit;
     if (ls && !ls.collapsed) { ls.collapse(); this.leftCollapsedByGuide = true; } // room for the planner while planning
     const overdue = allTasks(this.app, this.settings).some(t => t.planned && t.planned < today() && t.status !== "done");
-    this.guide = { step: overdue ? 0 : 1, review: overdue, fresh: true };
+    this.guide = { step: overdue ? 0 : 1, review: overdue, fresh: true, kind: "plan" };
     await this.openPlanner(); this.bus.emit();
   }
   async finishGuide() {
@@ -597,7 +597,24 @@ export default class SamayaPlugin extends Plugin {
     this.closeGuide();
     new Notice(`Day planned${wasStarted ? "" : " and started"}.${s.journalOn ? " Saved to your journal." : ""}`);
   }
-  startShutdown() { new ShutdownModal(this).open(); }
+  /** End of day: the planner with a one-step guide (tick off forgotten tasks), then finalize. */
+  async startShutdown() {
+    const ls = this.app.workspace.leftSplit;
+    if (ls && !ls.collapsed) { ls.collapse(); this.leftCollapsedByGuide = true; }
+    this.guide = { step: 0, review: false, fresh: true, kind: "shutdown" };
+    await this.openPlanner(); this.bus.emit();
+  }
+  async finishShutdown() {
+    if (this.guide?.kind !== "shutdown") return; const s = this.settings; const td = today(); const tm = addDays(td, 1);
+    const all = allTasks(this.app, s);
+    const finished = sortTasks(all.filter(t => t.status === "done" && t.planned === td));
+    const tomorrow = sortTasks(all.filter(t => t.planned === tm && t.status !== "done"));
+    if (journalWants(s, "journalFinished")) await writeSection(this.app, s, td, "Finished tasks", taskLines(await toJournalTasks(this.app, finished, true)));
+    if (journalWants(s, "journalTomorrow")) await writeSection(this.app, s, td, "Planned for tomorrow", taskLines(await toJournalTasks(this.app, tomorrow)));
+    await this.workday.endDay();
+    this.closeGuide();
+    new Notice(`Day ended${s.journalOn ? " - saved to your journal" : ""}. See you tomorrow.`);
+  }
 
   private quickAdd() {
     new TextPromptModal(this, "New task (append 30m / 1h for an estimate)", raw => {

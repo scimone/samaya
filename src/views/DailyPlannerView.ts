@@ -83,7 +83,7 @@ export class DailyPlannerView extends BasesView {
     const plannedAll = day.reduce((a, t) => a + (t.estimate || 0), 0);
 
     const g = isToday ? this.plugin.guide : null; const step = g?.step ?? -1;
-    const review = step === 0, pick = step === 1;
+    const sd = g?.kind === "shutdown"; const review = !sd && step === 0, pick = !sd && step === 1;
     this.root.toggleClass("is-review", !!g); // plan my day: guide + columns; otherwise one column of task cards on the right
     const info = g ? null : this.root.createDiv("samaya-info"); // day title, workday, navigation, totals
     const left = this.root.createDiv("samaya-left");
@@ -99,18 +99,19 @@ export class DailyPlannerView extends BasesView {
     }
     if (g) {
       // columns: guide | source tasks (Review: left over, Pick: this week/backlog) | today's tasks
-      const cols = left.createDiv("samaya-review-cols" + (step === 2 ? " is-two" : ""));
+      const cols = left.createDiv("samaya-review-cols" + (step === 2 || sd ? " is-two" : ""));
       renderGuide(this.plugin, cols, { overdue: overdue.length });
       if (review) this.renderLeftOver(cols, overdue); else if (pick) this.renderPick(cols);
       body = cols.createDiv("samaya-plancol samaya-review-main");
-      this.colHead(body, "Today", day.length, review || pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
-      renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
+      if (sd) this.colHead(body, "Tasks", day.length, "Tick the checkbox of every task you have finished.");
+      else this.colHead(body, "Today", day.length, review || pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
+      if (!sd) renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
     }
 
-    const list = body.createDiv("samaya-list" + (step === 2 ? " is-timebox" : ""));
+    const list = body.createDiv("samaya-list" + (step === 2 && !sd ? " is-timebox" : ""));
     if (!day.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned." });
     // Timebox: tasks without a time slot always first
-    const shown = step === 2 ? [...day.filter(t => !t.start && t.status !== "done"), ...day.filter(t => t.start || t.status === "done")] : day;
+    const shown = step === 2 && !sd ? [...day.filter(t => !t.start && t.status !== "done"), ...day.filter(t => t.start || t.status === "done")] : day;
     shown.forEach(t => {
       const idx = day.indexOf(t);
       const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true });
@@ -119,7 +120,7 @@ export class DailyPlannerView extends BasesView {
     });
     bindZone(this.scope, list, (path, i) => { void this.place(path, day.length, i.fromTimeline); });
 
-    if (!review && step !== 2 && this.date >= today()) { // (no quick add in Review and Timebox: go back to Pick to add tasks)
+    if (!sd && !review && step !== 2 && this.date >= today()) { // (no quick add in Review and Timebox: go back to Pick to add tasks)
       const add = body.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
       this.bindAdd(add, () => ({ planned: this.date, order: day.length }));
     }

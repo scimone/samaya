@@ -13,6 +13,7 @@ export interface GuideCtx { overdue: number; }
 /** Interactive "plan my day" guide: a vertical stepper (finished steps tick off, the current one opens with its instructions) with Back / Next underneath. The Review step only exists when something is overdue. */
 export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideCtx) {
   const g = plugin.guide; if (!g) return;
+  if (g.kind === "shutdown") return renderShutdownGuide(plugin, host);
   const first = g.review ? 0 : 1; // first visible step
   const go = (to: number) => { g.step = to; plugin.bus.emit(); };
   const doneLabel = plugin.workday.started ? "Finalize plan" : "Start my day";
@@ -41,4 +42,20 @@ export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideC
   if (g.step > first) nav.createEl("button", { text: "Back", cls: "samaya-plan-back" }).onclick = () => go(g.step - 1);
   const last = g.step === GUIDE_STEPS.length - 1;
   nav.createEl("button", { text: last ? doneLabel : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) void plugin.finishGuide(); else go(g.step + 1); };
+}
+
+/** End of day: a single step. Tick off forgotten tasks in the Tasks column, then finalize. */
+function renderShutdownGuide(plugin: SamayaPlugin, host: HTMLElement) {
+  const box = host.createDiv("samaya-plan");
+  const top = box.createDiv("samaya-plan-top");
+  top.createSpan({ cls: "samaya-plan-kicker", text: "End my day" });
+  const x = top.createEl("button", { cls: "samaya-plan-cancel clickable-icon", attr: { "aria-label": "Cancel" } });
+  setIcon(x, "x"); x.onclick = () => plugin.closeGuide();
+  const li = box.createEl("ol", { cls: "samaya-plan-steps" }).createEl("li", { cls: "samaya-plan-step is-active" });
+  li.createDiv("samaya-plan-marker").setText("1");
+  const main = li.createDiv("samaya-plan-main");
+  main.createDiv("samaya-plan-title").createSpan({ text: "Check off finished tasks" });
+  richText(main.createDiv("samaya-plan-text"), "Did you finish something and forget to tick it off? Check off any finished tasks in the list. Then press `End my day`.");
+  const nav = box.createDiv("samaya-plan-nav");
+  nav.createEl("button", { text: "End my day", cls: "mod-cta samaya-plan-next" }).onclick = () => { void plugin.finishShutdown(); };
 }

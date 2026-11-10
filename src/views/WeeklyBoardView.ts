@@ -160,14 +160,14 @@ export class WeeklyBoardView extends BasesView {
     };
     const weekCol = (host: HTMLElement) => {
       const col = host.createDiv("samaya-plancol samaya-wg-col");
-      // every step shows the same list: tasks without a day first, then those with one (the weekday is written on the card)
-      const shown = [...noDay, ...sortTasks(weekTasks.filter(t => t.planned)).sort((a, b) => a.planned.localeCompare(b.planned))];
+      // Schedule: only what still needs a day; the other steps list everything, the weekday written on cards that have one
+      const shown = step === 3 ? noDay : [...noDay, ...sortTasks(weekTasks.filter(t => t.planned)).sort((a, b) => a.planned.localeCompare(b.planned))];
       head(col, "This week", shown.length);
       const info = weekLoad(col);
-      richText(info.createDiv("samaya-guide-text samaya-colhint"), "Press `This week` on a task, or drag it here. Tasks that already have a day show it on the card.");
+      richText(info.createDiv("samaya-guide-text samaya-colhint"), step === 3 ? "Drag a task onto a day." : "Press `This week` on a task, or drag it here. Tasks that already have a day show it on the card.");
       if (step !== 3) addBox(col, "+ Add weekly task", () => ({ week: wk })); // before the first task (the Schedule step has none: the days have their own)
       const list = scroller(col, "week", "samaya-leftover-list");
-      if (!shown.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned for this week yet." });
+      if (!shown.length) list.createDiv({ cls: "samaya-empty", text: step === 3 ? "Every task has a day." : "Nothing planned for this week yet." });
       shown.forEach(t => {
         renderTaskCard(this.plugin, list, t, { scope: this.scope, dayLabel: t.planned ? parseYmd(t.planned).toLocaleDateString(undefined, { weekday: "long" }) : undefined });
       });

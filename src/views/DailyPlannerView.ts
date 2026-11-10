@@ -83,13 +83,13 @@ export class DailyPlannerView extends BasesView {
     const plannedAll = day.reduce((a, t) => a + (t.estimate || 0), 0);
 
     const g = isToday ? this.plugin.guide : null; const step = g?.step ?? -1;
-    const sd = g?.kind === "shutdown"; const review = !sd && step === 0, pick = !sd && step === 1;
-    this.root.toggleClass("is-review", !!g); // plan my day: guide + columns; otherwise one column of task cards on the right
-    const info = g ? null : this.root.createDiv("samaya-info"); // day title, workday, navigation, totals
+    const sd = g?.kind === "shutdown"; const pg = sd ? null : g; const review = !sd && step === 0, pick = !sd && step === 1;
+    this.root.toggleClass("is-review", !!pg); // plan my day: guide + columns; otherwise one column of task cards on the right
+    const info = pg ? null : this.root.createDiv("samaya-info"); // day title, workday, navigation, totals
     const left = this.root.createDiv("samaya-left");
-    if (info) this.renderHeader(info, day, cap, plannedAll, isToday); // (plan my day has no heading)
+    if (info) { if (sd) renderGuide(this.plugin, info, { overdue: 0 }); else this.renderHeader(info, day, cap, plannedAll, isToday); } // End day: the guide takes the place of the day header, the tasks column stays as in the main view // (plan my day has no heading)
     let body = left; // where today's planned list goes
-    if (!g) { // tasks heading: title, done count, progress
+    if (!pg) { // tasks heading: title, done count, progress
       const nd = day.filter(t => t.status === "done").length;
       const head = left.createDiv("samaya-tasks-head");
       const row = head.createDiv("samaya-tasks-row");
@@ -97,28 +97,20 @@ export class DailyPlannerView extends BasesView {
       row.createSpan({ cls: "samaya-tasks-count" + (day.length && nd === day.length ? " is-complete" : ""), text: day.length ? `${nd} / ${day.length} done` : "0" });
       renderDoneBar(head, nd, day.length, false);
     }
-    if (g) {
+    if (pg) {
       // columns: guide | source tasks (Review: left over, Pick: this week/backlog) | today's tasks
-      const cols = left.createDiv("samaya-review-cols" + (sd ? " is-shutdown" : step === 2 ? " is-two" : ""));
+      const cols = left.createDiv("samaya-review-cols" + (step === 2 ? " is-two" : ""));
       renderGuide(this.plugin, cols, { overdue: overdue.length });
       if (review) this.renderLeftOver(cols, overdue); else if (pick) this.renderPick(cols);
       body = cols.createDiv("samaya-plancol samaya-review-main");
-      if (sd) { // same heading as the main daily view
-        const nd = day.filter(t => t.status === "done").length;
-        const head = body.createDiv("samaya-tasks-head");
-        const row = head.createDiv("samaya-tasks-row");
-        row.createEl("h3", { text: "Tasks" });
-        row.createSpan({ cls: "samaya-tasks-count" + (day.length && nd === day.length ? " is-complete" : ""), text: day.length ? `${nd} / ${day.length} done` : "0" });
-        renderDoneBar(head, nd, day.length, false);
-      }
-      else this.colHead(body, "Today", day.length, review || pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
-      if (!sd) renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
+      this.colHead(body, "Today", day.length, review || pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
+      renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
     }
 
-    const list = body.createDiv("samaya-list" + (step === 2 && !sd ? " is-timebox" : ""));
+    const list = body.createDiv("samaya-list" + (step === 2 ? " is-timebox" : ""));
     if (!day.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned." });
     // Timebox: tasks without a time slot always first
-    const shown = step === 2 && !sd ? [...day.filter(t => !t.start && t.status !== "done"), ...day.filter(t => t.start || t.status === "done")] : day;
+    const shown = step === 2 ? [...day.filter(t => !t.start && t.status !== "done"), ...day.filter(t => t.start || t.status === "done")] : day;
     shown.forEach(t => {
       const idx = day.indexOf(t);
       const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true });

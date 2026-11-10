@@ -324,13 +324,18 @@ console.log("home ok");
   assert.equal(trimToBuffer(500, 480), 116); assert.equal(trimToBuffer(300, 480), 0);
 }
 {
-  const { upsertSection, weekSummaryLines, groupedTaskLines, WEEK_SECTIONS } = await import("./.journal.mjs");
-  let t = upsertSection("# Week\n", "Planned tasks", "- a", WEEK_SECTIONS);
-  t = upsertSection(t, "Week plan", "- b", WEEK_SECTIONS); // inserted before Planned tasks
-  assert.ok(t.indexOf("## Week plan") < t.indexOf("## Planned tasks"));
-  t = upsertSection(t, "Week plan", "- c", WEEK_SECTIONS); assert.equal(t.split("## Week plan").length, 2); assert.ok(t.includes("- c") && !t.includes("- b"));
-  const sum = weekSummaryLines({ planned: 300, free: 600, meetings: 120, buffer: 0.8, days: [{ label: "Monday", planned: 120, free: 300 }] });
-  assert.equal(sum, "- Planned: 5 hr of 8 hr recommended (10 hr free)\n- Meetings: 2 hr\n- Monday: 2 hr of 5 hr free");
-  assert.equal(groupedTaskLines([{ label: "Monday", tasks: [] }]), "- None");
-  assert.equal(groupedTaskLines([{ label: "Monday", tasks: [{ title: "A", minutes: 30, subtasks: [] }] }]), "- **Monday**\n    - [[A]] \u2022 *30 min*");
+  const { upsertSection, weekOverview, dayBody, loadBar, loadNote } = await import("./.journal.mjs");
+  const order = ["Week plan", "Monday", "Tuesday", "No day yet"];
+  let t = upsertSection("# Week\n", "Tuesday", "- a", order);
+  t = upsertSection(t, "Monday", "### Meetings\n\n- x", order); // goes before Tuesday, and its ### subheading stays inside the section
+  t = upsertSection(t, "Week plan", "- b", order);
+  assert.ok(t.indexOf("## Week plan") < t.indexOf("## Monday") && t.indexOf("## Monday") < t.indexOf("## Tuesday"));
+  t = upsertSection(t, "Monday", "- y", order); assert.ok(!t.includes("### Meetings") && t.includes("- y") && t.includes("- a"));
+  assert.equal(loadBar(300, 600), "█████░░░░░ 50%"); assert.equal(loadBar(0, 0), "–"); assert.equal(loadBar(10, 0), "██████████ over");
+  assert.equal(loadNote(100, 600), ""); assert.equal(loadNote(500, 600), "past the 80% buffer"); assert.equal(loadNote(700, 600), "over capacity");
+  const mon = { label: "Monday", planned: 120, meetings: 60, free: 300, tasks: [{ title: "A", minutes: 120, subtasks: [] }], events: [] };
+  const body = dayBody(mon);
+  assert.ok(body.startsWith("**Tasks** 2 hr · **Meetings** 1 hr · **Unplanned** 3 hr") && body.includes("### Meetings\n\n- None") && body.includes("### Tasks\n\n- [[A]]"));
+  const ov = weekOverview([mon, { label: "Tuesday", planned: 0, meetings: 0, free: 300, tasks: [], events: [] }], 2);
+  assert.ok(ov.includes("| [[#Monday]] | 2 hr (1) | 1 hr | 3 hr | ████░░░░░░ 40% |") && ov.includes("| [[#Tuesday]] | – | – | 5 hr | ░░░░░░░░░░ 0% |") && ov.includes("3 tasks, 1 scheduled, 2 still without a day"));
 }

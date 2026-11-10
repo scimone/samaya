@@ -5,6 +5,7 @@ import { renderPath, renderTemplate } from "./taskbody";
 import { Task, ensureFolder, loadTemplate, momentFmt, readSubtasks, rootOf } from "./model";
 import { hmToMin, minToHm, today } from "./util";
 import { fmtSegments } from "./segments";
+import { BUFFER_SHARE, loadLevel } from "./weekplan";
 
 export type JournalPart = "journalPlanned" | "journalFinished" | "journalTomorrow" | "journalWorkTimes" | "journalBreaks" | "journalTracked" | "journalWeekPlan" | "journalWeekTasks";
 /** Whether the journal module is on and the given part of it is enabled. */
@@ -12,8 +13,8 @@ export const journalWants = (s: SamayaSettings, part: JournalPart): boolean => s
 
 export const SECTIONS = ["Meetings", "Planned tasks", "Finished tasks", "Planned for tomorrow"] as const;
 export type Section = typeof SECTIONS[number];
-/** Sections the week plan writes into the weekly note. */
-export const WEEK_SECTIONS = ["Week plan", "Planned tasks"] as const;
+/** Heading of the overview the week plan writes into the weekly note; each day then gets a section of its own. */
+export const WEEK_PLAN = "Week plan"; export const NO_DAY = "No day yet";
 
 export function fmtEstimate(min: number): string {
   if (!min || min <= 0) return "";
@@ -205,20 +206,41 @@ export async function readJournalSection(app: App, s: SamayaSettings, date: stri
 export async function writeFileSection(app: App, f: TFile, heading: string, body: string, order: readonly string[]): Promise<void> {
   await app.vault.process(f, t => upsertSection(t, heading, body, order));
 }
-/** The "Week plan" summary: planned vs recommended, meetings, and every day's load. Pure. */
-export function weekSummaryLines(o: { planned: number; free: number; meetings: number; buffer: number; days: Array<{ label: string; planned: number; free: number }> }): string {
-  const fmt = (m: number) => fmtEstimate(m) || "0 min";
-  return bulletLines([
-    `Planned: ${fmt(o.planned)} of ${fmt(Math.round(o.free * o.buffer))} recommended (${fmt(o.free)} free)`,
-    `Meetings: ${fmt(o.meetings)}`,
-    ...o.days.map(d => `${d.label}: ${fmt(d.planned)} of ${fmt(d.free)} free`),
-  ]);
+/** One day of the week plan, for the weekly note. */
+export interface DayPlan { label: string; /** minutes of planned tasks */ planned: number; meetings: number; /** free minutes: work time - lunch - meetings */ free: number; tasks: JournalTask[]; events: Array<{ title: string; start: Date; end: Date; allDay: boolean }>; }
+const fmtMin = (m: number) => fmtEstimate(m) || "0 min";
+/** "██████░░░░ 60%": how much of the day's free time is planned. Pure. */
+export function loadBar(planned: number, free: number): string {
+  if (free <= 0) return planned > 0 ? "██████████ over" : "–";
+  const pct = Math.round((planned / free) * 100); const n = Math.max(0, Math.min(10, Math.round(pct / 10)));
+  return `${"█".repeat(n)}${"░".repeat(10 - n)} ${pct}%`;
 }
-/** Tasks grouped under a bold day label, each task nested below it. Pure. */
-export function groupedTaskLines(groups: Array<{ label: string; tasks: JournalTask[] }>): string {
-  const g = groups.filter(x => x.tasks.length);
-  if (!g.length) return "- None";
-  return g.map(x => `- **${x.label}**\n` + taskLines(x.tasks).split("\n").map(l => "    " + l).join("\n")).join("\n");
+/** "" while there is room, else why the day is full. */
+export function loadNote(planned: number, free: number): string {
+  const l = loadLevel(planned, free); return l === "over" ? "over capacity" : l === "tight" ? `past the ${Math.round(BUFFER_SHARE * 100)}% buffer` : "";
+}
+/** The "Week plan" section: totals and a table with one row per day that links to the day's section. Pure. */
+export function weekOverview(days: DayPlan[], noDay: number): string {
+  const sum = (f: (d: DayPlan) => number) => days.reduce((a, d) => a + f(d), 0);
+  const planned = sum(d => d.planned), meetings = sum(d => d.meetings), free = sum(d => d.free);
+  const spare = sum(d => Math.max(0, d.free - d.planned)); const n = sum(d => d.tasks.length);
+  const cell = (m: number) => (m > 0 ? fmtMin(m) : "–");
+  const rows = days.map(d => `| [[#${d.label}]] | ${cell(d.planned)}${d.tasks.length ? ` (${d.tasks.length})` : ""} | ${cell(d.meetings)} | ${cell(Math.max(0, d.free - d.planned))} | ${loadBar(d.planned, d.free)} |`);
+  return [
+    `**${fmtMin(planned)}** of tasks · **${fmtMin(meetings)}** of meetings · **${fmtMin(spare)}** unplanned`,
+    `${n + noDay} ${n + noDay === 1 ? "task" : "tasks"}, ${n} scheduled${noDay ? `, ${noDay} still without a day` : ""}. Recommended: at most ${fmtMin(Math.round(free * BUFFER_SHARE))} of tasks (${Math.round(BUFFER_SHARE * 100)}% of ${fmtMin(free)} free); the rest is for the unexpected.`,
+    "",
+    "| Day | Tasks | Meetings | Unplanned | Load |", "| --- | --- | --- | --- | --- |", ...rows,
+    `| **Week** | **${cell(planned)}**${n ? ` (${n})` : ""} | **${cell(meetings)}** | **${cell(spare)}** | ${loadBar(planned, free)} |`,
+  ].join("\n");
+}
+/** The body of one day's section: a time summary, then Meetings and Tasks as subheadings. Pure. */
+export function dayBody(d: DayPlan): string {
+  const note = loadNote(d.planned, d.free);
+  return [
+    `**Tasks** ${fmtMin(d.planned)} · **Meetings** ${fmtMin(d.meetings)} · **Unplanned** ${fmtMin(Math.max(0, d.free - d.planned))}${note ? ` — *${note}*` : ""}`,
+    "", "### Meetings", "", meetingLines(d.events), "", "### Tasks", "", d.tasks.length ? taskLines(d.tasks) : "- None",
+  ].join("\n");
 }
 export async function writeSection(app: App, s: SamayaSettings, date: string, heading: Section, body: string): Promise<void> {
   const path = await journalPath(app, s, date);

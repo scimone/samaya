@@ -66,14 +66,14 @@ export class TodayView extends ItemView {
   private currentMode(): "timeline" | "daily" | "week" {
     const leaf = this.app.workspace.getMostRecentLeaf();
     const el = (leaf?.view as { containerEl?: HTMLElement } | undefined)?.containerEl;
-    if (el?.querySelector(".samaya-week, .samaya-wtl")) return "week";
+    if (el?.querySelector(".samaya-wtl") || Array.from(el?.querySelectorAll(".samaya-week") ?? []).some(w => !w.closest(".is-hidden"))) return "week";
     return this.plannerOpen() ? "daily" : "timeline";
   }
 
   private plannerOpen(): boolean {
     const leaf = this.app.workspace.getMostRecentLeaf(); // most recent leaf of the MAIN area, even while a sidebar is focused
     const el = (leaf?.view as { containerEl?: HTMLElement } | undefined)?.containerEl;
-    return !!el?.querySelector(".samaya-daily");
+    return Array.from(el?.querySelectorAll(".samaya-daily") ?? []).some(w => !w.closest(".is-hidden"));
   }
 
   async render() {

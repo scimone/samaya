@@ -2,7 +2,8 @@ import { Editor, MarkdownView, Notice, Plugin, TFile, normalizePath, setIcon } f
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FOCUS_VIEW_TYPE, FocusManager, FocusState, FocusView } from "./focus";
 import { IcsClient, allTickets, assignTicket, createTask, momentFmt } from "./model";
-import { DAILY_VIEW_TYPE, DailyPlannerView } from "./views/DailyPlannerView";
+import { DAILY_VIEW_TYPE } from "./views/DailyPlannerView";
+import { PlannerView } from "./views/PlannerView";
 import { WEEK_VIEW_TYPE, WeeklyBoardView } from "./views/WeeklyBoardView";
 import { WTL_VIEW_TYPE, WeeklyTimelineView } from "./views/WeeklyTimelineView";
 import { BACKLOG_VIEW_TYPE, BacklogView } from "./views/BacklogView";
@@ -46,9 +47,7 @@ properties:
     displayName: Start
 views:
   - type: ${DAILY_VIEW_TYPE}
-    name: Daily
-  - type: ${WEEK_VIEW_TYPE}
-    name: Weekly Board
+    name: Planner
   - type: ${WTL_VIEW_TYPE}
     name: Weekly Timeline
 `;
@@ -90,23 +89,6 @@ views:
 const HOME_BASE_TEMPLATE = `views:
   - type: ${HOME_VIEW_TYPE}
     name: Home
-`;
-
-const WEEKLY_BASE_TEMPLATE = (folder: string) => `filters:
-  and:
-    - file.inFolder("${folder}")
-properties:
-  note.planned:
-    displayName: Planned
-  note.estimate:
-    displayName: Estimate (min)
-  note.start:
-    displayName: Start
-views:
-  - type: ${WEEK_VIEW_TYPE}
-    name: Weekly Board
-  - type: ${WTL_VIEW_TYPE}
-    name: Weekly Timeline
 `;
 
 const TASKS_BASE_TEMPLATE = (folder: string) => `filters:
@@ -171,6 +153,9 @@ export default class SamayaPlugin extends Plugin {
   /** week (monday, ymd) shown by the Weekly Board while it is open ("" = none) */
   boardWeek = "";
   guide: GuideState | null = null;
+  /** which half of the Planner view is in front when no guide is running */
+  plannerMode: "day" | "week" = "day";
+  setPlannerMode(m: "day" | "week") { this.plannerMode = m; this.bus.emit(); }
 
   async onload() {
     this.data = (await this.loadData()) ?? {};
@@ -184,10 +169,11 @@ export default class SamayaPlugin extends Plugin {
 
     const ok = (id: string, name: string, icon: string, factory: Parameters<Plugin["registerBasesView"]>[1]["factory"], options: Parameters<Plugin["registerBasesView"]>[1]["options"]) =>
       this.registerBasesView(id, { name, icon, factory, options });
-    const a = ok(DAILY_VIEW_TYPE, "Daily", "lucide-calendar-clock",
-      (c, el) => new DailyPlannerView(c, el, this),
+    const a = ok(DAILY_VIEW_TYPE, "Planner", "lucide-calendar-clock",
+      (c, el) => new PlannerView(c, el, this),
       () => [
         { type: "toggle", key: "showIcs", displayName: "Count calendar events as busy", default: true },
+        { type: "toggle", key: "showWeekends", displayName: "Show weekends (week)", default: false },
       ]);
     const b = ok(WEEK_VIEW_TYPE, "Weekly Board", "lucide-columns-3",
       (c, el) => new WeeklyBoardView(c, el, this),
@@ -408,21 +394,11 @@ export default class SamayaPlugin extends Plugin {
     if (!found) await leaf.openFile(f);
     await this.app.workspace.revealLeaf(leaf);
   }
-  /** Weekly Board + Weekly Timeline in their own base next to the planner (the planner base always opens on the Daily Planner). */
+  /** The week half of the Planner view (the week board is part of the planner now, no extra tab). */
   async openWeekPlanner() {
-    const dir = normalizePath(this.settings.plannerFile).split("/").slice(0, -1).join("/");
-    const wp = normalizePath(dir ? `${dir}/Weekly.base` : "Weekly.base");
-    if (!this.app.vault.getAbstractFileByPath(wp)) {
-      if (dir) await ensureFolder(this.app, dir);
-      const root = rootOf(this.settings.tasksPath); await ensureFolder(this.app, root === "/" ? "" : root);
-      await this.app.vault.create(wp, WEEKLY_BASE_TEMPLATE(root));
-    }
-    const f = this.app.vault.getAbstractFileByPath(wp); if (!(f instanceof TFile)) return;
-    let found: import("obsidian").WorkspaceLeaf | null = null;
-    this.app.workspace.iterateRootLeaves(l => { if (!found && (l.view as { file?: TFile }).file?.path === f.path) found = l; });
-    const leaf = found ?? this.app.workspace.getLeaf("tab");
-    if (!found) await leaf.openFile(f);
-    await this.app.workspace.revealLeaf(leaf);
+    this.plannerMode = "week";
+    await this.openPlanner();
+    this.bus.emit();
   }
   /** Weekly note when the journal keeps them, else the work time dashboard. */
   async reviewWeek() {
@@ -562,11 +538,11 @@ export default class SamayaPlugin extends Plugin {
         const next = stripTaskViews(txt);
         if (next !== txt) { await this.app.vault.modify(bf, next); txt = next; new Notice(`Samaya: moved the Backlog and All tasks views to ${tp}`); }
       } else if (announce) new Notice("Planner files already exist.");
-      if (/^    name: Daily Planner\s*$/m.test(txt)) { txt = txt.replace(/^(    name: )Daily Planner(\s*)$/m, "$1Daily$2"); await this.app.vault.modify(bf, txt); }
-      if (!txt.includes(WTL_VIEW_TYPE)) {
-        const next = txt.replace(new RegExp(`(  - type: ${WEEK_VIEW_TYPE}\\n    name: [^\\n]*\\n)`), `$1  - type: ${WTL_VIEW_TYPE}\n    name: Weekly Timeline\n`);
-        if (next !== txt) { await this.app.vault.modify(bf, next); new Notice("Samaya: added the Weekly Timeline view to " + bp); }
-      }
+      // the Daily view is now the Planner (day + week in one): rename it, and drop the separate Weekly Board tab
+      let next = txt.replace(new RegExp(`(  - type: ${DAILY_VIEW_TYPE}\\n    name: )(?:Daily Planner|Daily)(\\s*\\n)`), "$1Planner$2")
+        .replace(new RegExp(`  - type: ${WEEK_VIEW_TYPE}\\n    name: [^\\n]*\\n`), "");
+      if (!next.includes(WTL_VIEW_TYPE)) next = next.replace(/\n*$/, "\n") + `  - type: ${WTL_VIEW_TYPE}\n    name: Weekly Timeline\n`;
+      if (next !== txt) await this.app.vault.modify(bf, next);
     }
   }
 

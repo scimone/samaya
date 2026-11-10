@@ -1,3 +1,4 @@
+import type { PlannerHost } from "./plannerHost";
 import { BasesView, Notice, QueryController, TFile, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
@@ -28,7 +29,7 @@ export class WeeklyBoardView extends BasesView {
   private kbX = 0;
   private lastLeft: number | null = null; // Overdue step: to spot the moment the last overdue task gets sorted out
 
-  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
+  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin, private host?: PlannerHost) {
     super(controller);
     this.root = parentEl.createDiv("samaya-week");
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
@@ -39,7 +40,9 @@ export class WeeklyBoardView extends BasesView {
   }
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); if (this.plugin.boardWeek === this.weekStart) { this.plugin.boardWeek = ""; this.plugin.modeBus.emit(); } }
   onDataUpdated(): void { this.schedule(); }
+  refresh() { this.schedule(); }
   private schedule() {
+    if (this.host?.hidden()) return; // the Day pane is showing
     if (this.scope.active) { this.pending = true; return; }
     window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { void this.render(); }, 30);
   }
@@ -62,6 +65,7 @@ export class WeeklyBoardView extends BasesView {
     if (this.plugin.boardWeek !== this.weekStart) { this.plugin.boardWeek = this.weekStart; this.plugin.modeBus.emit(); }
     const head = this.root.createDiv("samaya-week-head");
     const go = (w: string) => { this.weekStart = w; void this.render(); };
+    this.host?.switcher(head);
     head.createEl("button", { text: "‹" }).onclick = () => go(addDays(this.weekStart, -7));
     head.createEl("button", { text: "This week" }).onclick = () => go(startOfWeek(today()));
     head.createEl("button", { text: "›" }).onclick = () => go(addDays(this.weekStart, 7));

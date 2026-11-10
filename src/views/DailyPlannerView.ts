@@ -4,6 +4,7 @@ import { DndScope } from "../dnd";
 import { Task, allTasks, prefixOf, createTask, patchTask, parkTask, placeInDay, readTask, sortTasks, isOverdue } from "../model";
 import { addDays, fmtDur, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { weekBuckets, weekFreeTime } from "./weekColumn";
+import type { PlannerHost } from "./plannerHost";
 import { bindCardDrop, bindZone, renderBacklogBuckets, renderTaskCard, richText } from "./common";
 import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
@@ -31,7 +32,7 @@ export class DailyPlannerView extends BasesView {
   private lastBoxed: { date: string; all: boolean } | null = null; // Timebox: to spot the moment the last task gets a time slot
   private pickTab: "week" | "backlog" = "week";
 
-  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
+  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin, private host?: PlannerHost) {
     super(controller);
     this.root = parentEl.createDiv("samaya-daily");
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
@@ -56,10 +57,12 @@ export class DailyPlannerView extends BasesView {
   private entryTasks(): Task[] { return this.plugin.guide ? allTasks(this.app, this.plugin.settings) : this.data.data.map(e => readTask(this.app, e.file)); }
 
   onDataUpdated(): void { this.schedule(); }
+  refresh() { this.schedule(); }
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); window.setTimeout(() => this.plugin.modeBus.emit(), 80); }
 
   /** Coalesce bursts of updates; never re-render in the middle of a drag. */
   private schedule() {
+    if (this.host?.hidden()) return; // the Week pane is showing
     if (this.scope.active && !document.querySelector(".samaya-ghost")) this.scope.active = false; // a drag that never ended must not freeze the view
     if (this.scope.active) { this.pending = true; return; }
     window.clearTimeout(this.timer);
@@ -296,6 +299,7 @@ export class DailyPlannerView extends BasesView {
     const go = (x: string) => { this.date = x; void this.render(); };
     const hero = host.createDiv("samaya-info-hero");
     const titles = hero.createDiv("samaya-info-titles");
+    this.host?.switcher(titles);
     const top = titles.createDiv("samaya-info-titlerow");
     top.createEl("h2", { text: isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" }) });
     const side = top.createDiv("samaya-info-side"); // Today shortcut, then the date picker with its arrows

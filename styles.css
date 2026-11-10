@@ -232,7 +232,7 @@ body { --samaya-green: #2fa862; }
 .samaya-wd-big { font-size: 1.8em; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
 .samaya-wd-sub { color: var(--text-muted); font-size: var(--font-ui-smaller); }
 .samaya-wd-bar { height: 5px; border-radius: 3px; background: var(--background-modifier-border); overflow: hidden; margin: 8px 0 2px; }
-.samaya-wd-bar-fill { height: 100%; background: var(--samaya-green); }
+.samaya-wd-bar-fill { height: 100%; background: var(--interactive-accent); }
 .samaya-wd-bar-fill.is-over { background: var(--color-orange); }
 .samaya-wd-buttons { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 
@@ -299,7 +299,7 @@ body { --samaya-green: #2fa862; }
 .samaya-wd-meta { color: var(--text-muted); font-size: var(--font-ui-smaller); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .samaya-wd-actions { display: flex; gap: 0; flex: none; }
 .samaya-wd-bar { height: 2px; background: var(--background-modifier-border); border-radius: 1px; overflow: hidden; margin-top: 2px; }
-.samaya-wd-bar-fill { height: 100%; background: var(--samaya-green); }
+.samaya-wd-bar-fill { height: 100%; background: var(--interactive-accent); }
 .samaya-today-head { gap: 4px; }
 .samaya-today-pill { background: none; padding: 0; border-radius: 0; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .samaya-today-pill.is-over { background: none; color: var(--text-error); }
@@ -655,7 +655,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-info .samaya-wd-panel.is-break .samaya-wd-state::before { background: var(--color-orange); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-orange) 25%, transparent); }
 .samaya-info .samaya-wd-panel .samaya-wd-sub { margin-top: 1px; color: var(--text-muted); font-size: var(--font-ui-smaller); }
 .samaya-wd-prog { height: 5px; margin-top: 10px; border-radius: 3px; background: var(--background-modifier-border); overflow: hidden; }
-.samaya-wd-prog-fill { height: 100%; background: var(--samaya-green); }
+.samaya-wd-prog-fill { height: 100%; background: var(--interactive-accent); }
 .samaya-info .samaya-wd-buttons { display: flex; gap: 6px; margin-top: 12px; }
 .samaya-info .samaya-wd-buttons button { flex: 1; height: 30px; }
 .samaya-info-card:has(.samaya-wd.is-break) { background: color-mix(in srgb, var(--color-orange) 10%, var(--background-secondary)); }

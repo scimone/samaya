@@ -1,6 +1,6 @@
 import type SamayaPlugin from "../main";
 import type { IcsEvent } from "../ics";
-import { Task, patchTask, readTask } from "../model";
+import { Task, allTasks, patchTask, readTask } from "../model";
 import { MergeSegmentsModal } from "../modals";
 import { Seg, fmtSegments, mergeOffer, planInWindow, segsTotal } from "../segments";
 import { hmToMin, minToHm, parseYmd, today } from "../util";
@@ -42,8 +42,8 @@ export const segLabel = (k: number, n: number): string => (n > 1 ? ` · ${k + 1}
 export async function dropOnTimeline(plugin: SamayaPlugin, file: TFile, date: string, startMin: number, seg: number | null, events: IcsEvent[], limit: number, slot: number) {
   const app = plugin.app; const t = readTask(app, file); const dflt = plugin.settings.defaultEstimate;
   const base = { planned: date, week: null };
-  const single = (at: number, dur: number) => patchTask(app, file, { ...base, start: minToHm(at), estimate: dur, segments: null });
-  const split = (segs: Seg[]) => patchTask(app, file, { ...base, start: minToHm(segs[0].s), estimate: segsTotal(segs), segments: fmtSegments(segs) });
+  const single = async (at: number, dur: number) => { await patchTask(app, file, { ...base, start: minToHm(at), estimate: dur, segments: null }); await makeRoom(plugin, file, date, [{ s: at, dur }], events, limit, slot); };
+  const split = async (segs: Seg[]) => { await patchTask(app, file, { ...base, start: minToHm(segs[0].s), estimate: segsTotal(segs), segments: fmtSegments(segs) }); await makeRoom(plugin, file, date, segs, events, limit, slot); };
   const busy = busyIntervals(plugin, date, events, true);
   if (seg !== null && t.segments.length > 1) {
     const segs = t.segments.map(g => ({ ...g })); const moved = segs[seg]; moved.s = startMin; segs.sort((a, b) => a.s - b.s);
@@ -55,6 +55,31 @@ export async function dropOnTimeline(plugin: SamayaPlugin, file: TFile, date: st
   const [from, to] = plugin.workWindowFor(date); const earliest = date === today() ? nowMin() : 0; // today: nothing before the current time
   const plan = planInWindow(startMin, dur, busyIntervals(plugin, date, events), from, to, earliest, limit, slot);
   if (plan && plan.length > 1) await split(plan); else await single(plan ? plan[0].s : startMin, dur);
+}
+
+/**
+ * A task was dropped onto `placed`: every other open task of the day that overlaps it (or a task pushed by it) makes space
+ * and moves to the next free time, splitting around meetings and other tasks when needed.
+ */
+async function makeRoom(plugin: SamayaPlugin, dropped: TFile, date: string, placed: Seg[], events: IcsEvent[], limit: number, slot: number) {
+  const app = plugin.app; const dflt = plugin.settings.defaultEstimate;
+  const [from, to] = plugin.workWindowFor(date); const earliest = date === today() ? nowMin() : 0;
+  const meet = busyIntervals(plugin, date, events);
+  const occupied: Array<[number, number]> = placed.map((g): [number, number] => [g.s, g.s + g.dur]);
+  const hit = (blocks: Seg[]) => blocks.some(g => occupied.some(([a, b]) => g.s < b && a < g.s + g.dur));
+  const others = allTasks(app, plugin.settings).filter(o => o.planned === date && o.start && o.file.path !== dropped.path)
+    .sort((a, b) => hmToMin(a.start) - hmToMin(b.start));
+  for (const o of others) {
+    const blocks = taskBlocks(o, dflt);
+    if (o.status === "done" || !hit(blocks)) { blocks.forEach(g => occupied.push([g.s, g.s + g.dur])); continue; }
+    const total = segsTotal(blocks);
+    const plan = planInWindow(Math.min(...blocks.map(g => g.s)), total, [...meet, ...occupied], from, to, earliest, limit, slot);
+    if (!plan) { blocks.forEach(g => occupied.push([g.s, g.s + g.dur])); continue; }
+    plan.forEach(g => occupied.push([g.s, g.s + g.dur]));
+    await patchTask(app, o.file, plan.length > 1
+      ? { start: minToHm(plan[0].s), estimate: total, segments: fmtSegments(plan) }
+      : { start: minToHm(plan[0].s), estimate: total, segments: null });
+  }
 }
 
 /** New length of one block: a piece of a split task changes its own length, the total follows. */

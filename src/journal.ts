@@ -7,18 +7,17 @@ import { hmToMin, minToHm, today } from "./util";
 import { fmtSegments } from "./segments";
 import { BUFFER_SHARE, loadLevel } from "./weekplan";
 
-export type JournalPart = "journalPlanned" | "journalFinished" | "journalTomorrow" | "journalWorkTimes" | "journalBreaks" | "journalTracked" | "journalWeekPlan" | "journalWeekTasks";
+export type JournalPart = "journalPlanned" | "journalFinished" | "journalTomorrow" | "journalWorkTimes" | "journalBreaks" | "journalTracked" | "journalWeekPlan" | "journalWeekMeetings" | "journalWeekTasks";
 /** Whether the journal module is on and the given part of it is enabled. */
 export const journalWants = (s: SamayaSettings, part: JournalPart): boolean => s.journalOn && s[part];
 
 export const SECTIONS = ["Meetings", "Planned tasks", "Finished tasks", "Planned for tomorrow"] as const;
 export type Section = typeof SECTIONS[number];
-/** Heading of the overview the week plan writes into the weekly note; each day then gets a section of its own. */
-export const WEEK_PLAN = "Weekly plan"; export const NO_DAY = "No day yet";
-/** The weekly note's own sections, in order: the plan, then (added later) the review. */
-export const WEEK_ORDER = [WEEK_PLAN, "Weekly review"] as const;
-/** Sections of older versions that the plan replaces: it used "Week plan", a section per weekday and "No day yet" at the top level. */
-export const LEGACY_WEEK_HEADING = "Week plan";
+/** The weekly note's sections the week plan writes, in order; "Weekly review" is added later and comes last. */
+export const WEEK_OVERVIEW = "Overview", WEEK_MEETINGS = "Meetings", WEEK_TASKS = "Planned tasks";
+export const WEEK_ORDER = [WEEK_OVERVIEW, WEEK_MEETINGS, WEEK_TASKS, "Weekly review"] as const;
+/** Headings of earlier versions of the week plan (a "Weekly plan" section with weekdays below it, or one section per weekday) that are replaced. */
+export const LEGACY_WEEK_HEADINGS = ["Weekly plan", "Week plan", "No day yet"];
 /** Remove `## heading` and its body (nothing happens when it is missing). Pure. */
 export function removeSection(text: string, heading: string): string {
   const lines = text.split("\n"); const isH = (l: string) => /^##\s+/.test(l);
@@ -33,13 +32,13 @@ export function fmtEstimate(min: number): string {
   const h = min / 60; return `${Number.isInteger(h) ? h : +h.toFixed(2)} hr`;
 }
 
-export interface JournalTask { title: string; minutes: number; subtasks: string[]; /** planned time of day, e.g. "10:00-10:30" */ time?: string; }
+export interface JournalTask { title: string; minutes: number; subtasks: string[]; /** planned time of day, e.g. "10:00-10:30" */ time?: string; /** weekly note: the weekday ("no day" when unscheduled) */ day?: string; }
 
 export function taskLines(items: JournalTask[]): string {
   if (!items.length) return "- None";
   return items.map(t => {
     const est = fmtEstimate(t.minutes);
-    return [`- [[${t.title}]]${t.time ? ` • *${t.time}*` : ""}${est ? ` • *${est}*` : ""}`, ...t.subtasks.map(s => `    - ${s}`)].join("\n");
+    return [`- [[${t.title}]]${t.day ? ` • ${t.day}` : ""}${t.time ? ` • *${t.time}*` : ""}${est ? ` • *${est}*` : ""}`, ...t.subtasks.map(s => `    - ${s}`)].join("\n");
   }).join("\n");
 }
 /** One bullet per meeting: "HH:MM-HH:MM Title" (linked to the meeting note when there is one; all-day events: "All day Title"). Pure. */
@@ -218,7 +217,7 @@ export async function writeFileSection(app: App, f: TFile, heading: string, body
   await app.vault.process(f, t => upsertSection(t, heading, body, order));
 }
 /** One day of the week plan, for the weekly note. */
-export interface DayPlan { label: string; /** basename of the day's daily note: the weekday links to it */ note?: string; /** minutes of planned tasks */ planned: number; meetings: number; /** free minutes: work time - lunch - meetings */ free: number; tasks: JournalTask[]; events: Array<{ title: string; start: Date; end: Date; allDay: boolean; /** meeting note to link to */ note?: string }>; }
+export interface DayPlan { /** weekday name, e.g. "Monday" */ weekday: string; label: string; /** basename of the day's daily note: the weekday links to it */ note?: string; /** minutes of planned tasks */ planned: number; meetings: number; /** free minutes: work time - lunch - meetings */ free: number; tasks: JournalTask[]; events: Array<{ title: string; start: Date; end: Date; allDay: boolean; /** meeting note to link to */ note?: string }>; }
 const fmtMin = (m: number) => fmtEstimate(m) || "0 min";
 /** The weekday as a link to its daily note (plain text without one). */
 const dayLink = (d: DayPlan, inTable = false) => (d.note ? `[[${d.note}${inTable ? "\\|" : "|"}${d.label}]]` : d.label); // inside a table the alias pipe is escaped
@@ -247,24 +246,11 @@ export function weekOverview(days: DayPlan[], noDay: number): string {
     `| **Week** | **${cell(planned)}**${n ? ` (${n})` : ""} | **${cell(meetings)}** | **${cell(spare)}** | ${loadBar(planned, free)} |`,
   ].join("\n");
 }
-/** One weekday inside the weekly plan: a ### heading with the time summary, then #### Meetings and #### Tasks. Pure. */
-export function dayBody(d: DayPlan): string {
-  const note = loadNote(d.planned, d.free);
-  return [
-    `### ${dayLink(d)}`,
-    `**Tasks** ${fmtMin(d.planned)} · **Meetings** ${fmtMin(d.meetings)} · **Unplanned** ${fmtMin(Math.max(0, d.free - d.planned))}${note ? ` — *${note}*` : ""}`,
-    "", "#### Meetings", meetingLines(d.events), "", "#### Tasks", d.tasks.length ? taskLines(d.tasks) : "- None",
-  ].join("\n");
-}
-/** Everything under `## Weekly plan`: the overview, the tasks without a day, then every weekday. Pure. */
-export function weekPlanBody(days: DayPlan[], noDay: JournalTask[], o: { overview: boolean; days: boolean }): string {
-  const parts: string[] = [];
-  if (o.overview) parts.push(weekOverview(days, noDay.length));
-  if (o.days) {
-    if (noDay.length) parts.push([`### ${NO_DAY}`, taskLines(noDay)].join("\n"));
-    parts.push(...days.map(dayBody));
-  }
-  return parts.join("\n\n");
+/** The "Meetings" section: a bullet per weekday that has meetings, the meetings nested below it. Pure. */
+export function weekMeetings(days: DayPlan[]): string {
+  const withMeetings = days.filter(d => d.events.length);
+  if (!withMeetings.length) return "- None";
+  return withMeetings.map(d => `- **${d.weekday}**\n` + meetingLines(d.events).split("\n").map(l => "    " + l).join("\n")).join("\n");
 }
 export async function writeSection(app: App, s: SamayaSettings, date: string, heading: Section, body: string): Promise<void> {
   const path = await journalPath(app, s, date);

@@ -21,7 +21,7 @@ import { PROJECTS_BASE_TEMPLATE, assignProject, createProject } from "./projects
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { HOME_VIEW_TYPE, HomeView } from "./views/HomeView";
 import { promoteParked, allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask } from "./model";
-import { DayPlan, LEGACY_WEEK_HEADING, NO_DAY, WEEK_ORDER, WEEK_PLAN, removeSection, upsertSection, weekPlanBody, bulletLines, journalPath, journalWants, meetingLines, readJournalSection, sortByStart, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
+import { DayPlan, LEGACY_WEEK_HEADINGS, WEEK_MEETINGS, WEEK_ORDER, WEEK_OVERVIEW, WEEK_TASKS, removeSection, upsertSection, weekMeetings, weekOverview, bulletLines, journalPath, journalWants, meetingLines, readJournalSection, sortByStart, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
 import { ensureMeetingNote } from "./meetings";
 import { calendarEnabled, calendarEvents } from "./calendar";
 import { Emitter, addDays, hmToMin, minToHm, parseTitleEstimate as parseTitleEstimateSafe, parseYmd, today } from "./util";
@@ -622,31 +622,36 @@ export default class SamayaPlugin extends Plugin {
     try { saved = await this.writeWeekPlan(wk, days); } catch (e) { console.error("Samaya: could not write the weekly note", e); new Notice("Samaya: could not write the weekly note (see the console)."); }
     new Notice(`Week of ${parseYmd(wk).toLocaleDateString(undefined, { month: "short", day: "numeric" })} planned${saved ? " and saved to your weekly note" : ""}. Leave room for the unexpected.`);
   }
-  /** The weekly note (created if missing) gets one "Weekly plan" section: an overview, the tasks without a day, and every weekday (summary, meetings, tasks) as subheadings. False when nothing is written. */
+  /** The weekly note (created if missing) gets an "Overview", the week's "Meetings" by weekday and its "Planned tasks". False when nothing is written. */
   private async writeWeekPlan(wk: string, nDays: number): Promise<boolean> {
-    const s = this.settings; const wantPlan = journalWants(s, "journalWeekPlan"), wantDays = journalWants(s, "journalWeekTasks");
-    if (!s.journalNotes.weekly.on || !(wantPlan || wantDays)) return false;
+    const s = this.settings; const wantPlan = journalWants(s, "journalWeekPlan"), wantMeet = journalWants(s, "journalWeekMeetings"), wantTasks = journalWants(s, "journalWeekTasks");
+    if (!s.journalNotes.weekly.on || !(wantPlan || wantMeet || wantTasks)) return false;
     const file = await openPeriodNote(this.app, s, "weekly", wk); if (!file) return false;
     const { weekTasks, noDay } = weekBuckets(allTasks(this.app, s), wk);
     const events = calendarEnabled(s) ? await calendarEvents(this, parseYmd(wk), parseYmd(addDays(wk, 7))).catch(() => []) : [];
     const dates = Array.from({ length: nDays }, (_, i) => addDays(wk, i));
-    const label = (d: string) => parseYmd(d).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" });
     const plans: DayPlan[] = [];
     for (const d of dates) { // one after the other: the meeting notes are created on the way
       const t0 = parseYmd(d).getTime(), t1 = parseYmd(addDays(d, 1)).getTime(); const cap = capacityOf(this, d, events);
+      const weekday = parseYmd(d).toLocaleDateString(undefined, { weekday: "long" });
       const tasks = sortByStart(sortTasks(weekTasks.filter(t => t.planned === d)));
       const dayEvents = events.filter(e => e.end.getTime() > t0 && e.start.getTime() < t1).sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.getTime() - b.start.getTime());
-      plans.push({ label: label(d), note: (await journalPath(this.app, s, d)).split("/").pop()!.replace(/\.md$/, ""), planned: tasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0), meetings: cap.meetings, free: cap.free, tasks: await toJournalTasks(this.app, tasks, false, true),
-        events: wantDays ? await Promise.all(dayEvents.map(async e => ({ ...e, note: e.allDay ? undefined : await ensureMeetingNote(this.app, s, e, dayEvents).then(f => f.basename, () => undefined) }))) : dayEvents });
+      plans.push({ weekday, label: parseYmd(d).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" }), note: (await journalPath(this.app, s, d)).split("/").pop()!.replace(/\.md$/, ""),
+        planned: tasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0), meetings: cap.meetings, free: cap.free,
+        tasks: (await toJournalTasks(this.app, tasks, false, true)).map(t => ({ ...t, day: weekday })),
+        events: wantMeet ? await Promise.all(dayEvents.map(async e => ({ ...e, note: e.allDay ? undefined : await ensureMeetingNote(this.app, s, e, dayEvents).then(f => f.basename, () => undefined) }))) : dayEvents });
     }
-    const body = weekPlanBody(plans, await toJournalTasks(this.app, noDay), { overview: wantPlan, days: wantDays });
+    const unscheduled = (await toJournalTasks(this.app, noDay)).map(t => ({ ...t, day: "no day" }));
     await this.app.vault.process(file, t => {
-      let x = removeSection(t, LEGACY_WEEK_HEADING); // sections written by earlier versions
-      for (const l of [...plans.map(p => p.label), NO_DAY]) x = removeSection(x, l);
-      return upsertSection(x, WEEK_PLAN, body, WEEK_ORDER);
+      let x = t; for (const h of [...LEGACY_WEEK_HEADINGS, ...plans.map(p => p.label)]) x = removeSection(x, h); // sections written by earlier versions
+      if (wantPlan) x = upsertSection(x, WEEK_OVERVIEW, weekOverview(plans, noDay.length), WEEK_ORDER);
+      if (wantMeet) x = upsertSection(x, WEEK_MEETINGS, weekMeetings(plans), WEEK_ORDER);
+      if (wantTasks) x = upsertSection(x, WEEK_TASKS, taskLines([...unscheduled, ...plans.flatMap(p => p.tasks)]), WEEK_ORDER);
+      return x;
     });
     return true;
   }
+
 
 
   async startGuide() {

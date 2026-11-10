@@ -324,22 +324,23 @@ console.log("home ok");
   assert.equal(trimToBuffer(500, 480), 116); assert.equal(trimToBuffer(300, 480), 0);
 }
 {
-  const { upsertSection, removeSection, weekOverview, dayBody, weekPlanBody, loadBar, loadNote, WEEK_ORDER } = await import("./.journal.mjs");
+  const { upsertSection, removeSection, weekOverview, weekMeetings, taskLines, loadBar, loadNote, WEEK_ORDER } = await import("./.journal.mjs");
   let t = upsertSection("# Week\n", "Weekly review", "- r", WEEK_ORDER);
-  t = upsertSection(t, "Weekly plan", "### Monday\n#### Meetings\n- x", WEEK_ORDER); // goes before the review; the ### / #### headings stay inside the section
-  assert.ok(t.indexOf("## Weekly plan") < t.indexOf("## Weekly review") && t.includes("- r"));
-  t = upsertSection(t, "Weekly plan", "- y", WEEK_ORDER); assert.ok(!t.includes("#### Meetings") && t.includes("- y") && t.includes("## Weekly review"));
+  t = upsertSection(t, "Planned tasks", "- t", WEEK_ORDER); t = upsertSection(t, "Meetings", "- m", WEEK_ORDER); t = upsertSection(t, "Overview", "- o", WEEK_ORDER);
+  const at = h => t.indexOf("## " + h);
+  assert.ok(at("Overview") < at("Meetings") && at("Meetings") < at("Planned tasks") && at("Planned tasks") < at("Weekly review") && t.includes("- r"));
+  t = upsertSection(t, "Meetings", "- m2", WEEK_ORDER); assert.ok(t.includes("- m2") && !t.includes("- m\n") && t.includes("- t") && t.includes("- r"));
   assert.equal(removeSection("## A\n- 1\n## B\n- 2\n", "A"), "## B\n- 2\n"); assert.equal(removeSection("## A\n", "Z"), "## A\n");
   assert.equal(loadBar(300, 600), "█████░░░░░ 50%"); assert.equal(loadBar(0, 0), "–"); assert.equal(loadBar(10, 0), "██████████ over");
   assert.equal(loadNote(100, 600), ""); assert.equal(loadNote(500, 600), "past the 80% buffer"); assert.equal(loadNote(700, 600), "over capacity");
-  const mon = { label: "Monday", planned: 120, meetings: 60, free: 300, tasks: [{ title: "A", minutes: 120, subtasks: [] }], events: [] };
-  const body = dayBody(mon);
-  assert.ok(body.startsWith("### Monday\n**Tasks** 2 hr · **Meetings** 1 hr · **Unplanned** 3 hr") && body.includes("#### Meetings\n- None") && body.includes("#### Tasks\n- [[A]]"));
-  assert.ok(dayBody({ ...mon, note: "2026-11-09" }).startsWith("### [[2026-11-09|Monday]]\n") && weekOverview([{ ...mon, note: "2026-11-09" }], 0).includes("| [[2026-11-09\\|Monday]] |"));
-  const tue = { label: "Tuesday", planned: 0, meetings: 0, free: 300, tasks: [], events: [] };
+  const d = (h, m) => new Date(2026, 10, 9, h, m);
+  const mon = { weekday: "Monday", label: "Monday", planned: 120, meetings: 60, free: 300, tasks: [{ title: "A", minutes: 120, subtasks: [], day: "Monday" }], events: [{ title: "Daily", start: d(9, 0), end: d(9, 30), allDay: false, note: "2026-11-09_daily" }] };
+  const tue = { weekday: "Tuesday", label: "Tuesday", planned: 0, meetings: 0, free: 300, tasks: [], events: [] };
+  assert.equal(weekMeetings([mon, tue]), "- **Monday**\n    - *09:00-09:30* [[2026-11-09_daily|Daily]]");
+  assert.equal(weekMeetings([tue]), "- None");
+  assert.equal(taskLines([{ title: "x", minutes: 20, subtasks: [], day: "no day" }, { title: "y", minutes: 45, subtasks: ["sub"], day: "Monday", time: "10:15-11:00" }, { title: "z", minutes: 180, subtasks: [], day: "Tuesday" }]),
+    "- [[x]] \u2022 no day \u2022 *20 min*\n- [[y]] \u2022 Monday \u2022 *10:15-11:00* \u2022 *45 min*\n    - sub\n- [[z]] \u2022 Tuesday \u2022 *3 hr*");
   const ov = weekOverview([mon, tue], 2);
   assert.ok(ov.includes("| Monday | 2 hr (1) | 1 hr | 3 hr | ████░░░░░░ 40% |") && ov.includes("| Tuesday | – | – | 5 hr | ░░░░░░░░░░ 0% |") && ov.includes("3 tasks, 1 scheduled, 2 still without a day.") && !ov.includes("Recommended"));
-  const full = weekPlanBody([mon, tue], [{ title: "Z", minutes: 0, subtasks: [] }], { overview: true, days: true });
-  assert.ok(full.indexOf("### No day yet") > full.indexOf("| **Week**") && full.indexOf("### No day yet") < full.indexOf("### Monday") && full.indexOf("### Monday") < full.indexOf("### Tuesday"));
-  assert.ok(!weekPlanBody([mon], [], { overview: true, days: false }).includes("### "));
+  assert.ok(weekOverview([{ ...mon, note: "2026-11-09" }], 0).includes("| [[2026-11-09\\|Monday]] |"));
 }

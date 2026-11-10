@@ -4,14 +4,14 @@ import { richText } from "./common";
 import { weekSteps } from "./../weekplan";
 
 export const GUIDE_STEPS = [
-  { title: "Review", text: "Unfinished tasks from earlier days: move them to `Today`, `Tomorrow` or `This week`, back to the `Backlog`, or mark them done." },
+  { title: "Overdue tasks", text: "Review unfinished tasks from earlier days: move them to `Today`, `Tomorrow` or `This week`, back to the `Backlog`, or mark them done." },
   { title: "Pick", text: "Choose what you want to do today from `This week` or `Backlog`: press `Today` on a card, or drag it into the list. You can also add new tasks here, or drag a planned task back to `This week` or `Backlog` to swap it out." },
   { title: "Timebox", text: "Drag your tasks onto the timeline to give them a time slot. Move the start and finish lines to set your day, then press `Next`." },
   { title: "Check", text: "Look at the whole day: is it too full, does every task have a time slot? Fix it with the `Back` button, then press `{done}`." },
 ];
 
 export const WEEK_GUIDE_STEPS = [
-  { title: "Review", text: "Unfinished tasks from earlier days and weeks: move them to `This week`, back to the `Backlog`, or mark them done." },
+  { title: "Overdue tasks", text: "Review unfinished tasks from earlier days and weeks: move them to `This week`, back to the `Backlog`, or mark them done." },
   { title: "Tickets", text: "Your open tickets, one row per project. Press `New task` on a ticket to plan work for it. New tasks for this week appear in `This week` on the right." },
   { title: "Backlog", text: "Pull what belongs into the week: press `This week` on a backlog card, or drag it across. Add anything new that is on your mind, and drag tasks you will not get to back to the `Backlog`." },
   { title: "Schedule", text: "Drag the week's tasks onto the days. Each day shows its meetings on top and how full it is. Tasks without a day stay in the list on the left." },
@@ -27,7 +27,7 @@ function addReminder(plugin: SamayaPlugin, box: HTMLElement) {
   rem.createSpan({ text: bufferReminder(plugin.settings.bufferPercent) });
 }
 
-export interface GuideCtx { overdue: number; }
+export interface GuideCtx { overdue: number; /** Timebox: how many of today's tasks still lack a time slot, and how many there are */ toSchedule?: number; planned?: number; }
 
 /** Interactive "plan my day" guide: a vertical stepper (finished steps tick off, the current one opens with its instructions) with Back / Next underneath. The Review step only exists when something is overdue. */
 export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideCtx) {
@@ -57,6 +57,7 @@ export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideC
     if (i === g.step) {
       richText(main.createDiv("samaya-plan-text"), st.text.replace("{done}", doneLabel));
       if (i === 0) main.createDiv({ cls: "samaya-plan-alert" + (ctx.overdue ? "" : " is-clear"), text: ctx.overdue ? `There ${ctx.overdue === 1 ? "is 1 overdue task" : `are ${ctx.overdue} overdue tasks`} to review.` : "No overdue tasks left." });
+      if (i === 2 && ctx.planned) { const n = ctx.toSchedule ?? 0; main.createDiv({ cls: "samaya-plan-alert" + (n ? "" : " is-clear"), text: n ? `There ${n === 1 ? "is 1 task" : `are ${n} tasks`} to schedule.` : "All tasks are scheduled." }); }
     }
   });
 

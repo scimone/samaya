@@ -5,6 +5,7 @@ import { Task, Ticket, allTasks, allTickets, ticketPathOf, createTask, parkTask,
 import type { IcsEvent } from "../ics";
 import { bufferShare, isLeftover, loadLevel, trimToBuffer, weekVerdict } from "../weekplan";
 import { renderGuide } from "./guide";
+import { celebrate } from "./doneBar";
 import { addTaskInput, capacityOf, weekBuckets } from "./weekColumn";
 import { TicketTaskModal } from "../modals";
 import { groupTickets, statusRank } from "../kanban";
@@ -25,6 +26,7 @@ export class WeeklyBoardView extends BasesView {
   private token = 0;
   private kbCollapsed = new Set<string>();
   private kbX = 0;
+  private lastLeft: number | null = null; // Overdue step: to spot the moment the last overdue task gets sorted out
 
   constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
     super(controller);
@@ -126,18 +128,22 @@ export class WeeklyBoardView extends BasesView {
     const main = grid.createDiv("samaya-wg-main");
     const scroller = (host: HTMLElement, key: string, cls = "") => { const el = host.createDiv("samaya-wg-scroll " + cls); el.dataset.scroll = key; return el; };
     const head = (col: HTMLElement, title: string, count: number, hint?: string) => {
-      const h = col.createDiv("samaya-colhead"); h.createSpan({ cls: "samaya-colhead-title", text: title }); h.createSpan({ cls: "samaya-colhead-count", text: String(count) });
+      const h = col.createDiv("samaya-colhead"); h.createSpan({ cls: "samaya-colhead-title", text: title }); const badge = h.createSpan({ cls: "samaya-colhead-count", text: String(count) });
       if (hint) richText(col.createDiv("samaya-guide-text samaya-colhint"), hint);
+      return badge;
     };
+    if (step !== 0) this.lastLeft = null;
     const addBox = (col: HTMLElement, placeholder: string, props: () => Record<string, string | number>) => { addTaskInput(this.plugin, col, placeholder, props, () => this.schedule()); };
 
     if (step === 0) {
       const cols = main.createDiv("samaya-wg-cols is-board is-review"); // the Overdue column sits at the right, next to the sidebar with This week
       const col = cols.createDiv("samaya-plancol samaya-wg-col");
-      head(col, "Overdue", leftovers.length, "Decide for each task what happens to it.");
-      if (leftovers.length) col.querySelector(".samaya-colhead-count")?.addClass("is-overdue"); // orange only while something is overdue
+      const badge = head(col, "Overdue", leftovers.length, "Decide for each task what happens to it.");
+      badge.toggleClass("is-overdue", leftovers.length > 0); // orange only while something is overdue
+      if (!leftovers.length && this.lastLeft) { badge.addClass("is-pop"); celebrate(badge); } // the moment the last one is sorted out
+      this.lastLeft = leftovers.length;
       const list = scroller(col, "left", "samaya-leftover-list");
-      if (!leftovers.length) list.createDiv({ cls: "samaya-empty", text: "Nothing overdue." });
+      if (!leftovers.length) list.createDiv({ cls: "samaya-empty samaya-allset", text: "Nothing overdue." });
       leftovers.forEach(t => renderTaskCard(this.plugin, list, t, { scope: this.scope, actions: [
         ["This week", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: wk }); }],
         ["Backlog", () => { void parkTask(this.app, t.file, "someday"); }],

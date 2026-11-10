@@ -788,11 +788,11 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-colhead-count.is-pop { animation: samaya-pop 700ms cubic-bezier(.2,.9,.3,1.4); }
 @keyframes samaya-pop { 0% { transform: scale(1); } 35% { transform: scale(1.5); box-shadow: 0 0 0 6px color-mix(in srgb, var(--interactive-accent) 35%, transparent); } 100% { transform: scale(1); box-shadow: 0 0 0 0 transparent; } }
 @media (prefers-reduced-motion: reduce) { .samaya-colhead-count.is-pop { animation: none; } }
-.samaya-allset { color: var(--text-accent); text-align: center; padding: 18px 12px; }
+.samaya-allset { color: var(--text-accent); text-align: center; font-style: normal; padding: 18px 12px; }
 .samaya-plan-alert { margin-top: 6px; font-size: var(--font-ui-small); color: var(--color-orange); font-weight: 600; }
 .samaya-wg-cols.is-review > .samaya-wg-col:first-child { justify-self: end; width: 380px; max-width: 100%; }
 .samaya-kb-cell > .samaya-add { width: 100%; box-sizing: border-box; margin: 0 0 2px; }
-.samaya-plan-alert.is-clear { color: var(--text-normal); font-weight: 400; }
+.samaya-plan-alert.is-clear { color: var(--text-accent); font-weight: 600; }
 /* Backlog and Tickets boards look like the Schedule step: no column background, cards like the tasks there */
 .samaya-wg-kb .samaya-kb-cell { background: none; padding: 0; gap: 6px; min-height: 40px; }
 .samaya-wg-kb .samaya-kb-card { padding: 8px 10px; background: var(--background-primary-alt); border-radius: var(--radius-m); }

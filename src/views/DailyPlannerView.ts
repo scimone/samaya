@@ -26,6 +26,7 @@ export class DailyPlannerView extends BasesView {
   private leftScroll = 0;
   private announced = false;
   private lastAll: { date: string; all: boolean } | null = null; // to spot the moment the last task of the day gets checked
+  private lastOverdue: number | null = null; // Review: to spot the moment the last overdue task gets sorted out
   private lastBoxed: { date: string; all: boolean } | null = null; // Timebox: to spot the moment the last task gets a time slot
   private pickTab: "week" | "backlog" = "week";
 
@@ -106,14 +107,15 @@ export class DailyPlannerView extends BasesView {
     if (pg) {
       // columns: guide | source tasks (Review: left over, Pick: this week/backlog) | today's tasks
       const cols = left.createDiv("samaya-review-cols" + (step === 2 ? " is-two" : "") + (pick ? " is-pick" : ""));
-      renderGuide(this.plugin, cols, { overdue: overdue.length });
+      renderGuide(this.plugin, cols, { overdue: overdue.length, toSchedule: day.filter(t => !t.start).length, planned: day.length });
       if (check) { this.renderCheck(cols, day, cap, plannedAll); return void this.finishRender(left); }
+      if (!review) this.lastOverdue = null;
       if (review) this.renderLeftOver(cols, overdue); else if (pick) this.renderPick(cols);
       body = cols.createDiv("samaya-plancol samaya-review-main");
-      const todayBadge = this.colHead(body, "Today", day.length, review || pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
+      const todayBadge = this.colHead(body, "Today", day.length, review || pick ? "Drag tasks here, or press `Today` on a task." : "");
       if (step === 2) { // Timebox: the badge counts the tasks still waiting for a time slot
         const ns = day.filter(t => t.start).length; const allSet = day.length > 0 && ns === day.length;
-        todayBadge.setText(`${day.length - ns} / ${day.length}`); todayBadge.toggleClass("is-complete", allSet);
+        todayBadge.setText(`${day.length - ns} / ${day.length}`); todayBadge.toggleClass("is-complete", allSet); todayBadge.toggleClass("is-overdue", !allSet && ns < day.length); // orange while tasks still wait for a slot
         if (allSet && this.lastBoxed && this.lastBoxed.date === this.date && !this.lastBoxed.all) { todayBadge.addClass("is-pop"); celebrate(todayBadge); }
         this.lastBoxed = { date: this.date, all: allSet };
       } else this.lastBoxed = null;
@@ -124,7 +126,7 @@ export class DailyPlannerView extends BasesView {
     // Timebox: tasks with a time slot live on the timeline, so only the ones still waiting for a slot are listed
     const shown = step === 2 ? day.filter(t => !t.start) : day;
     if (!day.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned." });
-    else if (!shown.length) list.createDiv({ cls: "samaya-empty samaya-allset", text: "All tasks are scheduled. Check the timeline in the sidebar, then finish your plan." });
+    else if (!shown.length) list.createDiv({ cls: "samaya-empty samaya-allset", text: "Nothing left to schedule." });
     shown.forEach(t => {
       const idx = day.indexOf(t);
       const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true });
@@ -159,7 +161,7 @@ export class DailyPlannerView extends BasesView {
     const h = host.createDiv("samaya-colhead");
     h.createSpan({ cls: "samaya-colhead-title", text: title });
     const badge = h.createSpan({ cls: "samaya-colhead-count", text: String(count) });
-    richText(host.createDiv("samaya-guide-text samaya-colhint"), hint);
+    if (hint) richText(host.createDiv("samaya-guide-text samaya-colhint"), hint);
     return badge;
   }
 
@@ -263,10 +265,12 @@ export class DailyPlannerView extends BasesView {
 
   private renderLeftOver(host: HTMLElement, overdue: Task[]) {
     const col = host.createDiv("samaya-plancol samaya-leftover");
-    this.colHead(col, "Overdue", overdue.length, "Press one of the buttons to schedule a task, or drag the task directly into today's list on the right.");
-    if (overdue.length) col.querySelector(".samaya-colhead-count")?.addClass("is-overdue"); // orange only while something is overdue
+    const badge = this.colHead(col, "Overdue", overdue.length, "Press one of the buttons to schedule a task, or drag the task directly into today's list on the right.");
+    badge.toggleClass("is-overdue", overdue.length > 0); // orange only while something is overdue
+    if (!overdue.length && this.lastOverdue) { badge.addClass("is-pop"); celebrate(badge); } // the moment the last one is sorted out
+    this.lastOverdue = overdue.length;
     const list = col.createDiv("samaya-leftover-list");
-    if (!overdue.length) list.createDiv({ cls: "samaya-empty", text: "Nothing overdue." });
+    if (!overdue.length) list.createDiv({ cls: "samaya-empty samaya-allset", text: "Nothing overdue." });
     const tomorrow = addDays(today(), 1);
     overdue.forEach(t => renderTaskCard(this.plugin, list, t, {
       scope: this.scope,

@@ -856,3 +856,10 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-chk-kv-value { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-normal); }
 .samaya-chk-kv-extra { color: var(--text-faint); min-width: 1.2em; text-align: right; font-variant-numeric: tabular-nums; }
 .samaya-chk-kv-extra::before { content: "· "; }
+/* the top tiles wear the colour of their part of the bar */
+.samaya-chk-stat { --tone: var(--background-modifier-border-hover); border-left: 4px solid var(--tone); }
+.samaya-chk-stat.is-tasks { --tone: var(--interactive-accent); background: color-mix(in srgb, var(--tone) 10%, var(--background-primary-alt)); }
+.samaya-chk-stat.is-tasks.is-tight { --tone: var(--color-orange); } .samaya-chk-stat.is-tasks.is-over { --tone: var(--text-error); }
+.samaya-chk-stat.is-meet { --tone: var(--color-cyan); background: color-mix(in srgb, var(--tone) 10%, var(--background-primary-alt)); }
+.samaya-chk-stat.is-open { --tone: var(--background-modifier-border-hover); }
+.samaya-chk-stat.is-tasks .samaya-chk-stat-value, .samaya-chk-stat.is-meet .samaya-chk-stat-value { color: var(--tone); }

@@ -278,9 +278,9 @@ export class WeeklyBoardView extends BasesView {
     const stats = box.createDiv("samaya-chk-stats");
     const stat = (label: string, value: string, sub = "", cls = "") => { const t = stats.createDiv("samaya-chk-stat " + cls); t.createDiv({ cls: "samaya-chk-stat-label", text: label }); t.createDiv({ cls: "samaya-chk-stat-value", text: value }); if (sub) t.createDiv({ cls: "samaya-chk-stat-sub", text: sub }); };
     const spare = rows.reduce((a, r) => a + Math.max(0, r.cap.free - r.planned), 0); // time with neither a meeting nor a task (a day that is over does not eat into another one)
-    stat("Tasks", fmtDur(plannedTotal), `${nPlaced} planned · ${fmtDur(Math.round(freeTotal * BUFFER_SHARE))} recommended`, `is-${loadLevel(plannedTotal, freeTotal)}`);
-    stat("Meetings", fmtDur(meetings), `${rows.filter(r => r.cap.meetings).length} of ${rows.length} days`);
-    stat("Unplanned time", fmtDur(spare), "no meetings or tasks");
+    stat("Tasks", fmtDur(plannedTotal), `${nPlaced} planned · ${fmtDur(Math.round(freeTotal * BUFFER_SHARE))} recommended`, `is-tasks is-${loadLevel(plannedTotal, freeTotal)}`);
+    stat("Meetings", fmtDur(meetings), `${rows.filter(r => r.cap.meetings).length} of ${rows.length} days`, "is-meet");
+    stat("Unplanned time", fmtDur(spare), "no meetings or tasks", "is-open");
 
     // ---- day by day
     box.createDiv({ cls: "samaya-chk-h", text: "Day by day" });

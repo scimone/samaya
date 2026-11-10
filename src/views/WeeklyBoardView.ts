@@ -278,9 +278,9 @@ export class WeeklyBoardView extends BasesView {
     const stats = box.createDiv("samaya-chk-stats");
     const stat = (label: string, value: string, sub = "", cls = "") => { const t = stats.createDiv("samaya-chk-stat " + cls); t.createDiv({ cls: "samaya-chk-stat-label", text: label }); t.createDiv({ cls: "samaya-chk-stat-value", text: value }); if (sub) t.createDiv({ cls: "samaya-chk-stat-sub", text: sub }); };
     const spare = rows.reduce((a, r) => a + Math.max(0, r.cap.free - r.planned), 0); // time with neither a meeting nor a task (a day that is over does not eat into another one)
-    stat("Tasks", fmtDur(plannedTotal), `${fmtDur(Math.round(freeTotal * BUFFER_SHARE))} recommended`, `is-${loadLevel(plannedTotal, freeTotal)}`);
+    stat("Tasks", fmtDur(plannedTotal), `${nPlaced} planned · ${fmtDur(Math.round(freeTotal * BUFFER_SHARE))} recommended`, `is-${loadLevel(plannedTotal, freeTotal)}`);
     stat("Meetings", fmtDur(meetings), `${rows.filter(r => r.cap.meetings).length} of ${rows.length} days`);
-    stat("Free time", fmtDur(spare), "no meetings or tasks");
+    stat("Unplanned time", fmtDur(spare), "no meetings or tasks");
 
     // ---- day by day
     box.createDiv({ cls: "samaya-chk-h", text: "Day by day" });
@@ -298,14 +298,16 @@ export class WeeklyBoardView extends BasesView {
         const work = bar.createDiv(`samaya-chk-seg is-work is-${r.level}`); work.style.bottom = pct(r.cap.meetings); work.style.height = pct(Math.min(r.planned, r.cap.free + (r.planned > r.cap.free ? r.cap.meetings : 0)));
         const line = bar.createDiv("samaya-chk-line"); line.style.bottom = pct(r.cap.meetings + r.cap.free * BUFFER_SHARE); line.title = `${Math.round(BUFFER_SHARE * 100)}% of the free time`;
       } else bar.addClass("is-off");
-      card.createDiv({ cls: "samaya-chk-day-value", text: fmtDur(r.planned) });
-      card.createDiv({ cls: "samaya-chk-day-sub", text: avail > 0 ? `of ${fmtDur(r.cap.free)} free` : "no work time" });
+      const kv = card.createDiv("samaya-chk-kvs");
+      const row = (cls: string, label: string, value: string, extra = "") => { const k = kv.createDiv("samaya-chk-kv"); k.createSpan({ cls: `samaya-chk-swatch ${cls}` }); k.createSpan({ cls: "samaya-chk-kv-label", text: label }); k.createSpan({ cls: "samaya-chk-kv-value", text: value }); if (extra) k.createSpan({ cls: "samaya-chk-kv-extra", text: extra }); };
+      row("is-work", `Tasks (${r.count})`, fmtDur(r.planned));
+      row("is-meet", "Meetings", fmtDur(r.cap.meetings));
+      row("is-open", "Unplanned", fmtDur(Math.max(0, r.cap.free - r.planned)));
       const trim = trimToBuffer(r.planned, r.cap.free);
       card.createDiv({ cls: "samaya-chk-day-flag", text: r.level === "over" ? `Over by ${fmtDur(r.planned - r.cap.free)}` : r.level === "tight" ? `${fmtDur(trim)} past the buffer` : r.count ? `${fmtDur(Math.max(0, Math.round(r.cap.free * BUFFER_SHARE) - r.planned))} to spare` : "Nothing planned" });
-      card.createDiv({ cls: "samaya-chk-day-meta", text: `${r.count} ${r.count === 1 ? "task" : "tasks"}${r.cap.meetings ? ` · ${fmtDur(r.cap.meetings)} meetings` : ""}` });
     }
     const legend = box.createDiv("samaya-chk-legend");
-    for (const [cls, text] of [["is-meet", "Meetings"], ["is-work", "Planned tasks"], ["is-line", `${Math.round(BUFFER_SHARE * 100)}% line`]]) { const l = legend.createSpan("samaya-chk-legend-item"); l.createSpan({ cls: `samaya-chk-swatch ${cls}` }); l.createSpan({ text }); }
+    for (const [cls, text] of [["is-meet", "Meetings"], ["is-work", "Tasks"], ["is-open", "Unplanned"], ["is-line", `${Math.round(BUFFER_SHARE * 100)}% line`]]) { const l = legend.createSpan("samaya-chk-legend-item"); l.createSpan({ cls: `samaya-chk-swatch ${cls}` }); l.createSpan({ text }); }
 
     // ---- what is left to fix
     const todo: Array<[string, string]> = [];

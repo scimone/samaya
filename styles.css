@@ -826,7 +826,8 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-chk-bar { position: relative; height: 120px; border-radius: 6px; background: var(--background-modifier-border); overflow: hidden; margin-bottom: 8px; }
 .samaya-chk-bar.is-off { background: repeating-linear-gradient(45deg, transparent 0 6px, var(--background-modifier-border) 6px 7px); }
 .samaya-chk-seg { position: absolute; left: 0; right: 0; bottom: 0; }
-.samaya-chk-seg.is-meet, .samaya-chk-swatch.is-meet { background: color-mix(in srgb, var(--text-faint) 55%, var(--background-primary)); }
+.samaya-chk-seg.is-meet, .samaya-chk-swatch.is-meet { background: var(--color-cyan); }
+.samaya-chk-swatch.is-open { background: var(--background-modifier-border); }
 .samaya-chk-seg.is-work, .samaya-chk-swatch.is-work { background: var(--tone, var(--interactive-accent)); }
 .samaya-chk-seg.is-work.is-tight { background: var(--color-orange); } .samaya-chk-seg.is-work.is-over { background: var(--text-error); }
 .samaya-chk-seg.is-work.is-ok { background: var(--interactive-accent); }
@@ -848,3 +849,10 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-chk-fix-sub { color: var(--text-muted); font-size: var(--font-ui-small); line-height: 1.45; }
 .samaya-chk-fix-btn { align-self: flex-start; }
 .samaya-chk-hero-count { margin-top: 6px; font-size: var(--font-ui-smaller); color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.samaya-chk-kvs { display: flex; flex-direction: column; gap: 4px; }
+.samaya-chk-kv { display: flex; align-items: center; gap: 6px; font-size: var(--font-ui-smaller); }
+.samaya-chk-kv .samaya-chk-swatch { flex: none; width: 8px; height: 8px; border-radius: 2px; }
+.samaya-chk-kv-label { color: var(--text-muted); }
+.samaya-chk-kv-value { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-normal); }
+.samaya-chk-kv-extra { color: var(--text-faint); min-width: 1.2em; text-align: right; font-variant-numeric: tabular-nums; }
+.samaya-chk-kv-extra::before { content: "· "; }

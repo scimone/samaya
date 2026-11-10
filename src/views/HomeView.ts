@@ -209,7 +209,7 @@ export class HomeView extends BasesView {
     const btn = (text: string, icon: string, hot: boolean, fn: () => void) => {
       const b = row.createEl("button", { cls: hot ? "mod-cta" : "" }); setIcon(b.createSpan("samaya-home-btn-icon"), icon); b.createSpan({ text }); b.onclick = fn;
     };
-    btn("Plan week", "layout-dashboard", intent === "plan", () => { void p.openWeekPlanner(); });
+    btn("Plan week", "layout-dashboard", intent === "plan", () => { void p.startWeekGuide(); });
     btn("Review week", "check-circle-2", intent === "review", () => { void p.reviewWeek(); });
   }
 

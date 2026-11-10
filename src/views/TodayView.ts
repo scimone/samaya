@@ -76,7 +76,7 @@ export class TodayView extends ItemView {
 
   async render() {
     const token = ++this.token; const s = this.plugin.settings;
-    this.mode = this.currentMode(); const daily = this.mode === "daily"; const guide = daily ? this.plugin.guide : null;
+    this.mode = this.currentMode(); const daily = this.mode === "daily"; const guide = daily && this.plugin.guide?.kind !== "week" ? this.plugin.guide : null;
     const ro = !!guide && guide.kind === "plan" && guide.step <= 1; // plan my day: read-only until Timebox
     const date = daily ? this.plugin.plannerDate || today() : this.viewDate || today();
     this.shownDate = this.plugin.plannerDate;

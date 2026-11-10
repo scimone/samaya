@@ -64,7 +64,7 @@ export class DailyPlannerView extends BasesView {
 
   private async render() {
     const token = ++this.token;
-    const guide = this.plugin.guide;
+    const guide = this.plugin.guide?.kind === "week" ? null : this.plugin.guide; // the week guide lives in the Weekly Board
     if (guide?.fresh) { guide.fresh = false; this.date = today(); }
     const events = this.showIcs && calendarEnabled(this.plugin.settings)
       ? await calendarEvents(this.plugin, parseYmd(this.date), parseYmd(addDays(this.date, 1))) : [];
@@ -83,7 +83,7 @@ export class DailyPlannerView extends BasesView {
       events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
     const plannedAll = day.reduce((a, t) => a + (t.estimate || 0), 0);
 
-    const g = isToday ? this.plugin.guide : null; const step = g?.step ?? -1;
+    const g = isToday ? guide : null; const step = g?.step ?? -1;
     const sd = g?.kind === "shutdown"; const pg = sd ? null : g; const review = !sd && step === 0, pick = !sd && step === 1;
     this.root.toggleClass("is-review", !!pg); // plan my day: guide + columns; otherwise one column of task cards on the right
     const info = pg ? null : this.root.createDiv("samaya-info"); // day title, workday, navigation, totals

@@ -26,10 +26,11 @@ import { ensureMeetingNote } from "./meetings";
 import { calendarEnabled, calendarEvents } from "./calendar";
 import { Emitter, addDays, hmToMin, minToHm, parseTitleEstimate as parseTitleEstimateSafe, parseYmd, today } from "./util";
 import { WorkdayManager } from "./workday";
+import { isLeftover, weekToPlan } from "./weekplan";
 import type { DayLog } from "./worktime";
 
 interface PluginData { settings?: Partial<SamayaSettings>; focus?: FocusState | null; workday?: DayLog | null; /** per-day workday start/end set with the timeline lines */ dayWindows?: Record<string, [string, string]>; }
-export interface GuideState { step: number; /** the Review step exists (there were unfinished overdue tasks) */ review: boolean; fresh: boolean; /** "shutdown": the one-step end-of-day guide */ kind: "plan" | "shutdown"; }
+export interface GuideState { step: number; /** the Review step exists (there were unfinished overdue tasks) */ review: boolean; fresh: boolean; /** "shutdown": the one-step end-of-day guide; "week": the guided week plan */ kind: "plan" | "shutdown" | "week"; /** week guide: the monday (ymd) being planned */ week?: string; }
 
 const BASE_TEMPLATE = (folder: string) => `filters:
   and:
@@ -222,7 +223,8 @@ export default class SamayaPlugin extends Plugin {
     this.addRibbonIcon("calendar-days", "Samaya: today's timeline", () => { void this.openToday(); });
     this.addCommand({ id: "open-today", name: "Open today's timeline in the right sidebar", callback: () => this.openToday() });
     this.addCommand({ id: "open-home", name: "Open home", checkCallback: c => { if (!this.settings.homeOn) return false; if (!c) void this.openHome(); return true; } });
-    this.addCommand({ id: "plan-week", name: "Plan my week", callback: () => this.openWeekPlanner() });
+    this.addCommand({ id: "plan-week", name: "Plan my week (guided)", callback: () => this.startWeekGuide() });
+    this.addCommand({ id: "open-week-board", name: "Open weekly board", callback: () => this.openWeekPlanner() });
     this.addCommand({ id: "review-week", name: "Review my week", callback: () => this.reviewWeek() });
     this.addCommand({ id: "open-planner", name: "Open planner", callback: () => this.openPlanner() });
     this.addCommand({ id: "plan-day", name: "Plan my day (guided)", callback: () => this.startGuide() });
@@ -590,10 +592,26 @@ export default class SamayaPlugin extends Plugin {
   /** Interactive planning: opens the daily planner and walks through it (see views/guide.ts). */
   private leftCollapsedByGuide = false;
   /** Leaves the guide and brings the left sidebar back if the guide hid it. */
+  private rightCollapsedByGuide = false;
   closeGuide() {
     this.guide = null;
     if (this.leftCollapsedByGuide) { this.leftCollapsedByGuide = false; this.app.workspace.leftSplit?.expand(); }
+    if (this.rightCollapsedByGuide) { this.rightCollapsedByGuide = false; this.app.workspace.rightSplit?.expand(); this.modeBus.emit(); }
     this.bus.emit();
+  }
+  /** Interactive week plan: Review, Backlog, Schedule, Check (see views/guide.ts and WeeklyBoardView). Both sidebars make room while it runs. */
+  async startWeekGuide() {
+    const ws = this.app.workspace; const now = new Date(); const wk = weekToPlan(today(), now.getDay());
+    const leftover = allTasks(this.app, this.settings).some(t => isLeftover(t, today(), wk));
+    this.guide = { step: leftover ? 0 : 1, review: leftover, fresh: true, kind: "week", week: wk };
+    await this.openWeekPlanner();
+    if (ws.leftSplit && !ws.leftSplit.collapsed) { ws.leftSplit.collapse(); this.leftCollapsedByGuide = true; }
+    if (ws.rightSplit && !ws.rightSplit.collapsed) { ws.rightSplit.collapse(); this.rightCollapsedByGuide = true; } // the day timeline has no use while planning the week
+    this.bus.emit();
+  }
+  finishWeekGuide() {
+    const wk = this.guide?.week; this.closeGuide();
+    new Notice(`Week of ${wk ? parseYmd(wk).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : ""} planned. Leave room for the unexpected.`);
   }
   async startGuide() {
     const ls = this.app.workspace.leftSplit;

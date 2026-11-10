@@ -4,7 +4,7 @@ const bundle = async (entry, out) => esbuild.build({ entryPoints: [entry], bundl
 await bundle("src/home.ts", "test/.home.mjs"); await bundle("src/ics.ts", "test/.ics.mjs"); await bundle("src/util.ts", "test/.util.mjs");
 await bundle("src/worktime.ts", "test/.worktime.mjs"); await bundle("src/segments.ts", "test/.segments.mjs");
 await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timeline.ts", "test/.timeline.mjs");
-await bundle("src/settings.ts", "test/.settings.mjs");
+await bundle("src/settings.ts", "test/.settings.mjs"); await bundle("src/weekplan.ts", "test/.weekplan.mjs");
 await bundle("src/monthgrid.ts", "test/.monthgrid.mjs"); await bundle("src/kanban.ts", "test/.kanban.mjs"); await bundle("src/gantt.ts", "test/.gantt.mjs"); await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
 const { parseIcs } = await import("./.ics.mjs");
 const { horizonTarget, horizonOf, bucketOf, parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify } = await import("./.util.mjs");
@@ -295,3 +295,19 @@ assert.equal(greeting(8), "Good morning"); assert.equal(greeting(13), "Good afte
 assert.equal(weekIntent(1, 9), "plan"); assert.equal(weekIntent(3, 9), null); assert.equal(weekIntent(5, 10), null); assert.equal(weekIntent(5, 15), "review"); assert.equal(weekIntent(0, 12), "plan");
 assert.equal(inMinutes(0), "now"); assert.equal(inMinutes(25), "in 25m"); assert.equal(inMinutes(65), "in 1h 5m"); assert.equal(inMinutes(120), "in 2h");
 console.log("home ok");
+
+// ---- week plan
+{
+  const { weekToPlan, loadLevel, isLeftover, BUFFER_SHARE } = await import("./.weekplan.mjs");
+  assert.equal(weekToPlan("2026-11-10", 2), "2026-11-09"); // tuesday: this week
+  assert.equal(weekToPlan("2026-11-14", 6), "2026-11-16"); // saturday: next week
+  assert.equal(weekToPlan("2026-11-15", 0), "2026-11-16"); // sunday: next week
+  assert.equal(BUFFER_SHARE, 0.8);
+  assert.equal(loadLevel(300, 480), "ok"); assert.equal(loadLevel(400, 480), "tight"); assert.equal(loadLevel(481, 480), "over"); assert.equal(loadLevel(0, 0), "ok"); assert.equal(loadLevel(30, 0), "over");
+  assert.ok(isLeftover({ planned: "2026-11-09", week: "", status: "todo" }, "2026-11-10", "2026-11-09"));
+  assert.ok(!isLeftover({ planned: "2026-11-10", week: "", status: "todo" }, "2026-11-10", "2026-11-09"));
+  assert.ok(!isLeftover({ planned: "2026-11-09", week: "", status: "done" }, "2026-11-10", "2026-11-09"));
+  assert.ok(isLeftover({ planned: "", week: "2026-11-02", status: "todo" }, "2026-11-10", "2026-11-09"));
+  assert.ok(!isLeftover({ planned: "", week: "2026-11-09", status: "todo" }, "2026-11-10", "2026-11-09"));
+  assert.ok(!isLeftover({ planned: "", week: "", status: "todo" }, "2026-11-10", "2026-11-09"));
+}

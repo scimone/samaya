@@ -775,3 +775,10 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-chip-status.is-rank-1_5 { background: color-mix(in srgb, var(--interactive-accent) 16%, transparent); color: var(--interactive-accent); }
 .samaya-chip-status.is-rank-2 { background: color-mix(in srgb, var(--color-purple) 16%, transparent); color: var(--color-purple); }
 .samaya-chip-status.is-rank-3 { color: var(--text-faint); }
+.samaya-wg-cols.is-tickets { grid-template-columns: minmax(0, 1fr) 300px; }
+.samaya-wg-col > .samaya-wg-kb { overflow: auto; }
+.samaya-wg-kb .samaya-kb-grid { min-width: calc(var(--cols) * 210px); }
+.samaya-wg-kb .samaya-kb-cols, .samaya-wg-kb .samaya-kb-row { grid-template-columns: repeat(var(--cols), minmax(210px, 1fr)); }
+.samaya-wg-kb .samaya-kb-cols { top: 0; padding-top: 0; }
+.samaya-kb-cardtop { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.samaya-kb-new { margin-top: 6px; }

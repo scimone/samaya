@@ -5,8 +5,8 @@ import { Task, Ticket, allTasks, allTickets, ticketPathOf, createTask, parkTask,
 import type { IcsEvent } from "../ics";
 import { BUFFER_SHARE, isLeftover, loadLevel } from "../weekplan";
 import { renderGuide } from "./guide";
-import { TextPromptModal } from "../modals";
-import { orderStatuses, statusRank } from "../kanban";
+import { TicketTaskModal } from "../modals";
+import { groupTickets, statusRank } from "../kanban";
 import { renderBacklogBuckets, richText } from "./common";
 import { addDays, fmtDur, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
@@ -23,6 +23,8 @@ export class WeeklyBoardView extends BasesView {
   private pending = false;
   private timer = 0;
   private token = 0;
+  private kbCollapsed = new Set<string>();
+  private kbX = 0;
 
   constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
     super(controller);
@@ -112,7 +114,7 @@ export class WeeklyBoardView extends BasesView {
     const days = Array.from({ length: weekends ? 7 : 5 }, (_, i) => addDays(wk, i));
     const events = calendarEnabled(s) ? await calendarEvents(this.plugin, from, parseYmd(addDays(wk, 7))).catch(() => [] as IcsEvent[]) : [];
     if (this.scope.active) { this.pending = true; return; }
-    const keep = new Map<string, number>(); this.root.querySelectorAll<HTMLElement>("[data-scroll]").forEach(e => keep.set(e.dataset.scroll!, e.scrollTop));
+    const keep = new Map<string, number>(); this.root.querySelectorAll<HTMLElement>("[data-scroll]").forEach(e => { keep.set(e.dataset.scroll!, e.scrollTop); if (e.dataset.scroll === "kb") this.kbX = e.scrollLeft; });
     this.root.empty(); this.scope.clear(); this.root.addClass("is-guided");
     if (this.plugin.boardWeek !== wk) { this.plugin.boardWeek = wk; this.plugin.modeBus.emit(); }
 
@@ -187,16 +189,30 @@ export class WeeklyBoardView extends BasesView {
       ] }));
       weekCol(cols);
     } else if (step === 1) {
-      const cols = main.createDiv("samaya-wg-cols");
-      const col = cols.createDiv("samaya-plancol samaya-wg-col");
+      // the ticket board scrolls on its own; the This week column stays put on the right, so new tasks are always in sight
+      const cols = main.createDiv("samaya-wg-cols is-tickets");
       const tickets = allTickets(this.app, s).filter(tk => statusRank(tk.state) < 3);
-      head(col, "Tickets", tickets.length, "Make a task of a ticket, or give it a task of your own. The ticket is assigned either way.");
-      const list = scroller(col, "tickets", "samaya-wg-tickets");
-      if (!tickets.length) list.createDiv({ cls: "samaya-empty", text: "No open tickets." });
-      for (const st of orderStatuses(tickets.map(tk => tk.state || "No status"))) {
-        const group = tickets.filter(tk => (tk.state || "No status") === st);
-        list.createDiv({ cls: "samaya-wg-group", text: `${st} · ${group.length}` });
-        group.forEach(tk => this.ticketCard(list, tk, all.filter(t => ticketPathOf(this.app, t) === tk.file.path), wk));
+      const area = cols.createDiv("samaya-plancol samaya-wg-col");
+      head(area, "Tickets", tickets.length, "Press `New task` on a ticket to plan work for it this week. The ticket is assigned to the task.");
+      const sc = scroller(area, "kb", "samaya-wg-kb");
+      if (!tickets.length) sc.createDiv({ cls: "samaya-empty", text: "No open tickets." });
+      const { columns, lanes } = groupTickets(tickets);
+      if (tickets.length) {
+        const grid = sc.createDiv("samaya-kb-grid"); grid.style.setProperty("--cols", String(columns.length));
+        const hd = grid.createDiv("samaya-kb-cols");
+        for (const c of columns) hd.createDiv({ cls: "samaya-kb-colhead", text: `${c} (${tickets.filter(t => (t.state || "No status") === c).length})` });
+        for (const lane of lanes) {
+          const box = grid.createDiv("samaya-kb-lane"); const closed = this.kbCollapsed.has(lane.project);
+          const title = box.createDiv({ cls: "samaya-kb-lanehead" + (closed ? " is-collapsed" : "") });
+          title.createSpan({ cls: "samaya-kb-chevron", text: "▾" }); title.createSpan({ text: lane.project }); title.createSpan({ cls: "samaya-kb-count", text: String(lane.count) });
+          title.onclick = () => { if (!this.kbCollapsed.delete(lane.project)) this.kbCollapsed.add(lane.project); this.schedule(); };
+          if (closed) continue;
+          const row = box.createDiv("samaya-kb-row");
+          for (const c of columns) {
+            const cell = row.createDiv("samaya-kb-cell");
+            for (const tk of lane.cells.get(c) ?? []) this.ticketCard(cell, tk, all.filter(t => ticketPathOf(this.app, t) === tk.file.path), wk);
+          }
+        }
       }
       weekCol(cols);
     } else if (step === 2) {
@@ -217,33 +233,28 @@ export class WeeklyBoardView extends BasesView {
     } else {
       this.renderCheck(main, days, caps, all, noDay.filter(t => t.status !== "done"), plannedTotal, freeTotal);
     }
-    keep.forEach((v, k) => { const e = this.root.querySelector<HTMLElement>(`[data-scroll="${k}"]`); if (e) e.scrollTop = v; });
+    keep.forEach((v, k) => { const e = this.root.querySelector<HTMLElement>(`[data-scroll="${k}"]`); if (e) { e.scrollTop = v; if (k === "kb") e.scrollLeft = this.kbX; } });
   }
 
-  /** Tickets step: a ticket with its status and the tasks that already exist for it, and the two ways to make a task of it. */
-  private ticketCard(list: HTMLElement, tk: Ticket, tasks: Task[], wk: string) {
+  /** Tickets step: a card of the board with the tasks that already exist for the ticket and the "New task" button. */
+  private ticketCard(cell: HTMLElement, tk: Ticket, tasks: Task[], wk: string) {
     const s = this.plugin.settings; const title = tk.summary || tk.key;
-    const el = list.createDiv("samaya-card"); const body = el.createDiv("samaya-card-row").createDiv("samaya-card-body");
-    const line = body.createDiv("samaya-card-line");
-    line.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}`, text: tk.key });
-    line.createDiv({ cls: "samaya-card-title", text: title }).addEventListener("click", e => { void this.app.workspace.getLeaf(e.ctrlKey || e.metaKey ? "tab" : false).openFile(tk.file); });
-    const meta = body.createDiv("samaya-card-meta");
-    meta.createSpan({ cls: `samaya-chip samaya-chip-status is-rank-${String(statusRank(tk.state)).replace(".", "_")}`, text: tk.state || "No status" });
-    if (tk.issueType) meta.createSpan({ cls: "samaya-chip", text: tk.issueType });
-    if (tk.assignee) meta.createSpan({ cls: "samaya-chip", text: tk.assignee });
-    if (tasks.length) meta.createSpan({ cls: "samaya-chip samaya-chip-channel", text: tasks.length === 1 ? "1 task" : `${tasks.length} tasks`, attr: { title: tasks.map(t => t.title).join("\n") } });
-    const make = (name: string) => createTask(this.app, s, name, { week: wk, estimate: s.defaultEstimate, ticket: `[[${tk.file.basename}]]` })
-      .then(() => { window.setTimeout(() => this.schedule(), 250); })
-      .catch((err: unknown) => { new Notice(`Samaya: could not create the task (${err instanceof Error ? err.message : String(err)})`); });
-    meta.createEl("button", { cls: "samaya-mini", text: "Make task" }).addEventListener("click", () => { void make(title); });
-    meta.createEl("button", { cls: "samaya-mini", text: "New task…" }).addEventListener("click", () => {
-      new TextPromptModal(this.plugin, `New task for ${tk.key} (append 30m / 1h for an estimate)`, raw => {
+    const card = cell.createDiv("samaya-kb-card");
+    const top = card.createDiv("samaya-kb-cardtop");
+    top.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}`, text: tk.key });
+    if (tasks.length) top.createSpan({ cls: "samaya-chip samaya-chip-channel", text: tasks.length === 1 ? "1 task" : `${tasks.length} tasks`, attr: { title: tasks.map(t => t.title).join("\n") } });
+    card.createDiv({ cls: "samaya-kb-title", text: title });
+    const meta = [tk.issueType, tk.assignee].filter(Boolean).join(" · "); if (meta) card.createDiv({ cls: "samaya-kb-meta", text: meta });
+    card.createEl("button", { cls: "samaya-mini samaya-kb-new", text: "New task" }).addEventListener("click", e => {
+      e.stopPropagation();
+      new TicketTaskModal(this.plugin, tk.key, title, raw => {
         const p = parseTitleEstimate(raw);
-        void createTask(this.app, s, p.title, { week: wk, estimate: p.estimate ?? s.defaultEstimate, ticket: `[[${tk.file.basename}]]` })
+        createTask(this.app, s, p.title || title, { week: wk, estimate: p.estimate ?? s.defaultEstimate, ticket: `[[${tk.file.basename}]]` })
           .then(() => { window.setTimeout(() => this.schedule(), 250); })
           .catch((err: unknown) => { new Notice(`Samaya: could not create the task (${err instanceof Error ? err.message : String(err)})`); });
       }).open();
     });
+    card.addEventListener("click", e => { if (e.target instanceof HTMLElement && e.target.closest("button")) return; void this.app.workspace.getLeaf(e.ctrlKey || e.metaKey ? "tab" : false).openFile(tk.file); });
   }
 
   /** One day of the Schedule step: its meetings as a compact agenda on top, then the load bar and the day's tasks. */

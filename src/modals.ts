@@ -62,3 +62,18 @@ export class MergeSegmentsModal extends Modal {
   }
   onClose() { if (!this.answered) { this.answered = true; this.answer(false); } }
 }
+
+/** New task for a ticket: leaving the field empty takes the ticket's title as the task name. An estimate like "1h" can be typed on its own or after a title. */
+export class TicketTaskModal extends Modal {
+  constructor(plugin: SamayaPlugin, private key: string, private ticketTitle: string, private onSubmit: (raw: string) => void) { super(plugin.app); }
+  onOpen() {
+    this.titleEl.setText(`New task for ${this.key}`);
+    this.contentEl.createEl("p", { text: "Task name. Leave empty to use the ticket title. Append 30m / 1h for an estimate." });
+    const inp = this.contentEl.createEl("input", { type: "text", attr: { placeholder: this.ticketTitle } }); inp.style.width = "100%"; inp.focus();
+    const go = () => { const v = inp.value.trim(); this.close(); this.onSubmit(v); };
+    inp.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) go(); });
+    const nav = this.contentEl.createDiv("samaya-ritual-nav");
+    nav.createEl("button", { text: "Cancel" }).onclick = () => this.close();
+    nav.createEl("button", { text: "Create task", cls: "mod-cta" }).onclick = go;
+  }
+}

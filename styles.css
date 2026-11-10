@@ -223,10 +223,10 @@ body { --samaya-green: #2fa862; }
 
 /* ---------- workday card ---------- */
 .samaya-wd { margin: 8px 0 12px; padding: 10px 12px; border-radius: var(--radius-l); background: var(--background-secondary); border-left: 4px solid var(--background-modifier-border); }
-.samaya-wd.is-work { border-left-color: var(--samaya-green); }
+.samaya-wd.is-work { border-left-color: var(--interactive-accent); }
 .samaya-wd.is-break { border-left-color: var(--color-orange); background: color-mix(in srgb, var(--color-orange) 10%, var(--background-secondary)); }
 .samaya-wd-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--text-faint); }
-.samaya-wd.is-work .samaya-wd-label { color: var(--samaya-green); }
+.samaya-wd.is-work .samaya-wd-label { color: var(--interactive-accent); }
 .samaya-wd.is-break .samaya-wd-label { color: var(--color-orange); }
 .samaya-wd-title { font-weight: 600; }
 .samaya-wd-big { font-size: 1.8em; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
@@ -292,7 +292,7 @@ body { --samaya-green: #2fa862; }
 .samaya-wd-line { display: flex; align-items: center; gap: 8px; min-height: 26px; }
 .samaya-wd-text { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; font-size: var(--font-ui-small); }
 .samaya-wd-text::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); }
-.samaya-wd.is-work .samaya-wd-text::before { background: var(--samaya-green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--samaya-green) 25%, transparent); }
+.samaya-wd.is-work .samaya-wd-text::before { background: var(--interactive-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--interactive-accent) 25%, transparent); }
 .samaya-wd.is-break .samaya-wd-text::before { background: var(--color-orange); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-orange) 25%, transparent); }
 .samaya-wd-state { font-weight: 600; white-space: nowrap; }
 .samaya-wd.is-break .samaya-wd-state { color: var(--color-orange); }
@@ -513,7 +513,7 @@ body { --samaya-green: #2fa862; }
 .samaya-home-hero { padding: 22px 24px; border-radius: var(--radius-l); background: var(--background-secondary); border: 1px solid var(--background-modifier-border); display: flex; flex-direction: column; gap: 6px; }
 .samaya-home-kicker { display: flex; align-items: center; gap: 8px; font-size: var(--font-ui-smaller); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
 .samaya-home-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); }
-.samaya-home-hero.is-working .samaya-home-dot, .samaya-home-hero.is-wrapup .samaya-home-dot { background: var(--samaya-green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--samaya-green) 25%, transparent); }
+.samaya-home-hero.is-working .samaya-home-dot, .samaya-home-hero.is-wrapup .samaya-home-dot { background: var(--interactive-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--interactive-accent) 25%, transparent); }
 .samaya-home-hero.is-break .samaya-home-dot { background: var(--color-orange); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-orange) 25%, transparent); }
 .samaya-home-hero.is-break { background: color-mix(in srgb, var(--color-orange) 8%, var(--background-secondary)); }
 .samaya-home-title { font-size: 1.5em; font-weight: 650; line-height: 1.25; letter-spacing: -0.01em; margin-top: 4px; overflow-wrap: anywhere; }
@@ -619,7 +619,8 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 /* split tasks: pieces share a dashed edge and a dot, and light up together on hover */
 .samaya-block.is-split { border-left: 3px dashed var(--text-on-accent) !important; }
 .samaya-today .samaya-block.is-split { border-left: 3px dashed var(--interactive-accent) !important; }
-.samaya-block.is-split .samaya-block-title::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: currentColor; opacity: 0.8; vertical-align: middle; }
+.samaya-split-mark { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; font-size: 0.85em; opacity: 0.8; vertical-align: middle; white-space: nowrap; }
+.samaya-split-icon { display: inline-flex; } .samaya-split-icon svg { width: 11px; height: 11px; }
 .samaya-lane .samaya-block.is-linked:not(.is-done) { opacity: 1; outline: 2px solid var(--interactive-accent); outline-offset: 1px; z-index: 3; }
 
 /* Daily: left info column */
@@ -649,8 +650,8 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-info .samaya-wd.samaya-wd-panel { display: block; padding: 0; margin: 0; background: none; border: none; }
 .samaya-info .samaya-wd-panel .samaya-wd-state { display: flex; align-items: center; gap: 7px; font-weight: 700; white-space: normal; }
 .samaya-info .samaya-wd-panel .samaya-wd-state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); }
-.samaya-info .samaya-wd-panel.is-work .samaya-wd-state { color: var(--samaya-green); }
-.samaya-info .samaya-wd-panel.is-work .samaya-wd-state::before { background: var(--samaya-green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--samaya-green) 25%, transparent); }
+.samaya-info .samaya-wd-panel.is-work .samaya-wd-state { color: var(--interactive-accent); }
+.samaya-info .samaya-wd-panel.is-work .samaya-wd-state::before { background: var(--interactive-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--interactive-accent) 25%, transparent); }
 .samaya-info .samaya-wd-panel.is-break .samaya-wd-state { color: var(--color-orange); }
 .samaya-info .samaya-wd-panel.is-break .samaya-wd-state::before { background: var(--color-orange); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-orange) 25%, transparent); }
 .samaya-info .samaya-wd-panel .samaya-wd-sub { margin-top: 1px; color: var(--text-muted); font-size: var(--font-ui-smaller); }

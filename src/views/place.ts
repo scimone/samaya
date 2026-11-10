@@ -5,7 +5,7 @@ import { MergeSegmentsModal } from "../modals";
 import { Seg, fmtSegments, mergeOffer, planInWindow, segsTotal } from "../segments";
 import { hmToMin, minToHm, parseYmd, today } from "../util";
 import { nowMin } from "../workday";
-import type { TFile } from "obsidian";
+import { setIcon, type TFile } from "obsidian";
 
 /** Meetings and lunch of a day as [start, end] minutes (with `borders`: also the time outside the day start/finish lines). */
 export function busyIntervals(plugin: SamayaPlugin, date: string, events: IcsEvent[], borders = false): Array<[number, number]> {
@@ -29,11 +29,13 @@ export function dragDur(t: Task | undefined, seg: number | null, dflt: number): 
 export function decorateSegment(b: HTMLElement, t: Task, k: number, n: number, scope: HTMLElement) {
   if (n < 2) return;
   b.addClass("is-split"); b.dataset.seg = String(k); b.dataset.task = t.file.path;
+  const mark = b.querySelector(".samaya-block-title")?.createSpan({ cls: "samaya-split-mark" });
+  if (mark) { setIcon(mark.createSpan({ cls: "samaya-split-icon" }), "scissors"); mark.createSpan({ text: `${k + 1}/${n}` }); }
   const all = () => Array.from(scope.querySelectorAll<HTMLElement>(".samaya-block.is-split")).filter(x => x.dataset.task === t.file.path);
   b.addEventListener("mouseenter", () => all().forEach(x => x.addClass("is-linked")));
   b.addEventListener("mouseleave", () => all().forEach(x => x.removeClass("is-linked")));
 }
-export const segLabel = (k: number, n: number): string => (n > 1 ? ` · ${k + 1}/${n}` : "");
+export const segLabel = (_k: number, _n: number): string => ""; // the piece number sits next to the scissors icon in the title
 
 /**
  * Drop on the timeline at `startMin`. A task flows around meetings and lunch (split into segments); a dragged segment of a

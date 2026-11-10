@@ -757,5 +757,5 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-wg-note-icon svg { width: 14px; height: 14px; }
 @media (max-width: 900px) { .samaya-wg { grid-template-columns: 1fr; } .samaya-wg-cols { grid-template-columns: 1fr; } }
 .samaya-wg-col > .samaya-loadbar .samaya-total { margin-top: 4px; }
-.samaya-chip-day { color: var(--interactive-accent); font-weight: 600; }
+.samaya-card-day { flex: none; align-self: flex-start; color: var(--interactive-accent); font-size: var(--font-ui-smaller); font-weight: 600; white-space: nowrap; }
 .samaya-wg-cols.is-schedule > .samaya-wg-col > .samaya-add { width: 100%; box-sizing: border-box; margin-bottom: 8px; flex: none; }

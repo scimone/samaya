@@ -52,13 +52,13 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
     const pp = projectPathOf(app, t.file);
     if (pp) meta.createSpan({ cls: "samaya-chip samaya-chip-project", text: pp.split("/").pop()!.replace(/\.md$/, "") });
   }
-  if (o.dayLabel) meta.createSpan({ cls: "samaya-chip samaya-chip-day", text: o.dayLabel });
   if (t.channel) meta.createSpan({ cls: "samaya-chip samaya-chip-channel", text: t.channel });
   if (!o.actionsSide) o.actions?.forEach(([label, fn]) => { const b = meta.createEl("button", { cls: "samaya-mini", text: label }); b.addEventListener("click", fn); });
   if (!meta.childElementCount) meta.remove();
 
   // top right: [logged/]estimated as hh:mm
   const label = t.actual ? `${fmtHm(t.actual)}/${t.estimate ? fmtHm(t.estimate) : "--:--"}` : t.estimate ? fmtHm(t.estimate) : "--:--";
+  if (o.dayLabel) row.createSpan({ cls: "samaya-card-day", text: o.dayLabel }); // left of the estimate; the title wraps instead of running under it
   const side = row.createDiv("samaya-card-side");
   const est = side.createEl("button", { cls: "samaya-est", text: label, attr: { title: "Estimated time (hh:mm). Click to edit" } });
   est.addEventListener("click", e => {

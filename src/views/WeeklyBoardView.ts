@@ -164,7 +164,7 @@ export class WeeklyBoardView extends BasesView {
       const list = scroller(col, "week", "samaya-leftover-list");
       if (!shown.length) list.createDiv({ cls: "samaya-empty", text: step === 2 ? "Every task has a day." : "Nothing planned for this week yet." });
       shown.forEach(t => {
-        renderTaskCard(this.plugin, list, t, { scope: this.scope, compact: step === 2, dayLabel: t.planned ? parseYmd(t.planned).toLocaleDateString(undefined, { weekday: "long", day: "numeric" }) : undefined });
+        renderTaskCard(this.plugin, list, t, { scope: this.scope, compact: step === 2, dayLabel: t.planned ? parseYmd(t.planned).toLocaleDateString(undefined, { weekday: "long" }) : undefined });
       });
       bindZone(this.scope, col, toWeek);
       if (step !== 2) addBox(col, "+ Add weekly task", () => ({ week: wk }));

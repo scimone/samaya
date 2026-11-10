@@ -129,9 +129,9 @@ export class WeeklyBoardView extends BasesView {
     const main = grid.createDiv("samaya-wg-main");
     const scroller = (host: HTMLElement, key: string, cls = "") => { const el = host.createDiv("samaya-wg-scroll " + cls); el.dataset.scroll = key; return el; };
     const toWeek = (path: string) => { const f = this.app.vault.getAbstractFileByPath(path); if (f instanceof TFile) void patchTask(this.app, f, { planned: null, start: null, week: wk }); };
-    const head = (col: HTMLElement, title: string, count: number, hint: string) => {
+    const head = (col: HTMLElement, title: string, count: number, hint?: string) => {
       const h = col.createDiv("samaya-colhead"); h.createSpan({ cls: "samaya-colhead-title", text: title }); h.createSpan({ cls: "samaya-colhead-count", text: String(count) });
-      richText(col.createDiv("samaya-guide-text samaya-colhint"), hint);
+      if (hint) richText(col.createDiv("samaya-guide-text samaya-colhint"), hint);
     };
     const addBox = (col: HTMLElement, placeholder: string, props: () => Record<string, string | number>) => {
       const add = col.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder } });
@@ -148,18 +148,20 @@ export class WeeklyBoardView extends BasesView {
       const lvl = loadLevel(plannedTotal, freeTotal);
       const box = col.createDiv({ cls: `samaya-loadbar is-${lvl}` });
       const budget = Math.round(freeTotal * BUFFER_SHARE);
-      const label = box.createDiv({ cls: "samaya-total", text: `${fmtDur(plannedTotal)} planned · ${fmtDur(budget)} recommended` });
-      label.title = `Free time of the week = work time - lunch - meetings = ${fmtDur(freeTotal)}. Plan at most ${Math.round(BUFFER_SHARE * 100)}% of it (${fmtDur(budget)}).`;
       const bar = box.createDiv({ cls: `samaya-col-bar is-${lvl}` });
       bar.createDiv("samaya-col-bar-fill").style.width = `${freeTotal <= 0 ? (plannedTotal > 0 ? 100 : 0) : Math.min(100, (plannedTotal / freeTotal) * 100)}%`;
+      const label = box.createDiv({ cls: "samaya-total", text: `${fmtDur(plannedTotal)} planned · ${fmtDur(budget)} recommended` });
+      label.title = `Free time of the week = work time - lunch - meetings = ${fmtDur(freeTotal)}. Plan at most ${Math.round(BUFFER_SHARE * 100)}% of it (${fmtDur(budget)}).`;
     };
     const weekCol = (host: HTMLElement) => {
       const col = host.createDiv("samaya-plancol samaya-wg-col");
-      const shown = [...noDay, ...sortTasks(weekTasks.filter(t => t.planned)).sort((a, b) => a.planned.localeCompare(b.planned))];
-      head(col, "This week", shown.length, "Press `This week` on a task, or drag it here. Tasks that already have a day show it above the card.");
+      // Schedule: only what still needs a day; Backlog: everything, the day written above cards that have one
+      const shown = step === 2 ? noDay : [...noDay, ...sortTasks(weekTasks.filter(t => t.planned)).sort((a, b) => a.planned.localeCompare(b.planned))];
+      head(col, "This week", shown.length);
       weekLoad(col);
+      richText(col.createDiv("samaya-guide-text samaya-colhint"), step === 2 ? "Drag a task onto a day." : "Press `This week` on a task, or drag it here. Tasks that already have a day show it above the card.");
       const list = scroller(col, "week", "samaya-leftover-list");
-      if (!shown.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned for this week yet." });
+      if (!shown.length) list.createDiv({ cls: "samaya-empty", text: step === 2 ? "Every task has a day." : "Nothing planned for this week yet." });
       shown.forEach(t => {
         if (t.planned) list.createDiv({ cls: "samaya-week-day", text: parseYmd(t.planned).toLocaleDateString(undefined, { weekday: "long", day: "numeric" }) });
         renderTaskCard(this.plugin, list, t, { scope: this.scope, compact: step === 2 });

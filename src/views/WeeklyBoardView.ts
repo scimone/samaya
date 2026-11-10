@@ -144,22 +144,24 @@ export class WeeklyBoardView extends BasesView {
       });
     };
     /** planned vs 80% of the free time, with a bar that turns orange past the buffer and red past the capacity */
-    const weekLoad = (col: HTMLElement) => {
+    const weekLoad = (col: HTMLElement): HTMLElement => {
       const lvl = loadLevel(plannedTotal, freeTotal);
       const box = col.createDiv({ cls: `samaya-loadbar is-${lvl}` });
       const budget = Math.round(freeTotal * BUFFER_SHARE);
       const bar = box.createDiv({ cls: `samaya-col-bar is-${lvl}` });
       bar.createDiv("samaya-col-bar-fill").style.width = `${freeTotal <= 0 ? (plannedTotal > 0 ? 100 : 0) : Math.min(100, (plannedTotal / freeTotal) * 100)}%`;
-      const label = box.createDiv({ cls: "samaya-total", text: `${fmtDur(plannedTotal)} planned · ${fmtDur(budget)} recommended` });
+      const info = col.createDiv("samaya-wg-info"); // status text + description; a fixed height in Schedule so the day columns line up with it
+      const label = info.createDiv({ cls: "samaya-total", text: `${fmtDur(plannedTotal)} planned · ${fmtDur(budget)} recommended` });
       label.title = `Free time of the week = work time - lunch - meetings = ${fmtDur(freeTotal)}. Plan at most ${Math.round(BUFFER_SHARE * 100)}% of it (${fmtDur(budget)}).`;
+      return info;
     };
     const weekCol = (host: HTMLElement) => {
       const col = host.createDiv("samaya-plancol samaya-wg-col");
       // Schedule: only what still needs a day; Backlog: everything, the day written on cards that have one
       const shown = step === 2 ? noDay : [...noDay, ...sortTasks(weekTasks.filter(t => t.planned)).sort((a, b) => a.planned.localeCompare(b.planned))];
       head(col, "This week", shown.length);
-      weekLoad(col);
-      richText(col.createDiv("samaya-guide-text samaya-colhint"), step === 2 ? "Drag a task onto a day." : "Press `This week` on a task, or drag it here. Tasks that already have a day show it on the card.");
+      const info = weekLoad(col);
+      richText(info.createDiv("samaya-guide-text samaya-colhint"), step === 2 ? "Drag a task onto a day." : "Press `This week` on a task, or drag it here. Tasks that already have a day show it on the card.");
       if (step === 2) addBox(col, "+ Add weekly task", () => ({ week: wk })); // Schedule: right under the description
       const list = scroller(col, "week", "samaya-leftover-list");
       if (!shown.length) list.createDiv({ cls: "samaya-empty", text: step === 2 ? "Every task has a day." : "Nothing planned for this week yet." });

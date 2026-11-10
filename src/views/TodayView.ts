@@ -66,7 +66,7 @@ export class TodayView extends ItemView {
   private currentMode(): "timeline" | "daily" | "week" {
     const leaf = this.app.workspace.getMostRecentLeaf();
     const el = (leaf?.view as { containerEl?: HTMLElement } | undefined)?.containerEl;
-    if (el?.querySelector(".samaya-wtl") || Array.from(el?.querySelectorAll(".samaya-week") ?? []).some(w => !w.closest(".is-hidden"))) return "week";
+    if (this.plugin.guide?.kind === "week" && Array.from(el?.querySelectorAll(".samaya-week") ?? []).some(w => !w.closest(".is-hidden"))) return "week"; // only Plan week still uses the sidebar for the This week column
     return this.plannerOpen() ? "daily" : "timeline";
   }
 
@@ -119,14 +119,6 @@ export class TodayView extends ItemView {
       nav("chevron-right", "Next day", () => addDays(date, 1));
       if (!isToday) { const t = title.createEl("button", { cls: "samaya-mini", text: "Today" }); t.addEventListener("click", () => { this.viewDate = ""; void this.render(); }); }
     }
-    if (this.mode === "week") {
-      const fmt = (x: string) => parseYmd(x).toLocaleDateString(undefined, { day: "numeric", month: "short" });
-      const cur = startOfWeek(today());
-      const wkTitle = wkStart === cur ? "This week" : wkStart === addDays(cur, 7) ? "Next week" : wkStart === addDays(cur, -7) ? "Last week" : "Week of";
-      title.createSpan({ cls: "samaya-today-dow", text: wkTitle });
-      title.createSpan({ cls: "samaya-today-date", text: `${fmt(wkStart)} – ${fmt(addDays(wkStart, 6))}` });
-    }
-    if (this.mode === "week") { this.renderWeek(c, all, wkStart); return; }
     const dayMs = parseYmd(date).getTime();
     if (daily) {
       head.remove(); // the Daily view shows the day title, workday strip and progress itself
@@ -259,50 +251,5 @@ export class TodayView extends ItemView {
     if (isToday && nm >= startH * 60 && nm <= endH * 60) lane.createDiv("samaya-now").style.top = `${px(nm)}px`;
     if (this.scrolled !== date) { this.scrolled = date; this.scrollTop = Math.max(0, px(nm) - 120); }
     scroll.scrollTop = this.scrollTop;
-  }
-
-  /** Weekly Board open: the week's tasks, those without a day first and highlighted. */
-  private renderWeek(c: HTMLElement, all: Task[], wk: string) {
-    const s = this.plugin.settings; const end = addDays(wk, 6);
-    const open = all.filter(t => t.status !== "done");
-    const unscheduled = sortTasks(open.filter(t => !t.planned && t.week === wk));
-    const scheduled = sortTasks(open.filter(t => t.planned && t.planned >= wk && t.planned <= end));
-    const backlog = sortTasks(open.filter(t => !t.planned && t.week !== wk));
-    const tabs = c.createDiv("samaya-tabs");
-    ([["week", "Weekly Tasks", unscheduled.length], ["backlog", "Backlog", backlog.length]] as const).forEach(([key, label, n]) => {
-      const b = tabs.createEl("button", { cls: "samaya-tab" + (this.tab === key ? " is-active" : ""), text: `${label} ${n}` });
-      b.onclick = () => { this.tab = key; void this.render(); };
-    });
-    const isWeek = this.tab === "week"; const tasks = isWeek ? unscheduled : backlog;
-    const keep = c.querySelector<HTMLElement>(".samaya-today-cards")?.scrollTop ?? this.listTop;
-    const sec = c.createDiv(isWeek ? "samaya-week-unsched" : "samaya-week-backlog");
-    if (isWeek) {
-      sec.createDiv({ cls: "samaya-today-label", text: `Not scheduled yet · ${unscheduled.length}` });
-      const list = sec.createDiv("samaya-today-cards");
-      if (!tasks.length) list.createDiv({ cls: "samaya-today-empty", text: "Every weekly task has a day" });
-      tasks.forEach(t => renderTaskCard(this.plugin, list, t, { scope: this.dnd, compact: true }));
-      list.scrollTop = keep;
-      bindZone(this.dnd, sec, path => {
-        const f = this.app.vault.getAbstractFileByPath(path);
-        if (f instanceof TFile) void patchTask(this.app, f, { planned: null, start: null, week: wk });
-      });
-    } else {
-      const wrap = sec.createDiv("samaya-buckets"); wrap.scrollTop = keep;
-      renderBacklogBuckets(this.plugin, wrap, tasks, this.dnd, { compact: true });
-    }
-    const add = sec.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: isWeek ? "+ Add weekly task" : "+ Add to backlog" } });
-    add.addEventListener("keydown", e => {
-      if (e.key !== "Enter" || !add.value.trim()) return;
-      const p = parseTitleEstimate(add.value); add.value = "";
-      void createTask(this.app, s, p.title, { ...(isWeek ? { week: wk } : { horizon: "someday" }), estimate: p.estimate ?? s.defaultEstimate });
-    });
-    if (scheduled.length && isWeek) {
-      c.createDiv({ cls: "samaya-today-label", text: `Scheduled this week · ${scheduled.length}` });
-      const done = c.createDiv("samaya-today-cards samaya-week-sched");
-      scheduled.forEach(t => {
-        const d = renderTaskCard(this.plugin, done, t, { scope: this.dnd, compact: true });
-        d.createDiv({ cls: "samaya-week-day", text: parseYmd(t.planned!).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }) });
-      });
-    }
   }
 }

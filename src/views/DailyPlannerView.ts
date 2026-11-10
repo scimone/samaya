@@ -98,7 +98,7 @@ export class DailyPlannerView extends BasesView {
       const badge = row.createSpan({ cls: "samaya-tasks-count" + (day.length && nd === day.length ? " is-complete" : ""), text: day.length ? `${nd} / ${day.length} done` : "0" });
       renderDoneBar(head, nd, day.length, false);
       const all = day.length > 0 && nd === day.length;
-      if (all && this.lastAll && this.lastAll.date === this.date && !this.lastAll.all) window.setTimeout(() => celebrate(badge), 50);
+      if (all && this.lastAll && this.lastAll.date === this.date && !this.lastAll.all) celebrate(badge); // right away: a delayed call can find the badge already replaced by the next re-render (the End day view re-renders several times per tick)
       this.lastAll = { date: this.date, all };
     }
     if (pg) {

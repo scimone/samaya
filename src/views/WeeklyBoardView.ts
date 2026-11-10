@@ -270,15 +270,17 @@ export class WeeklyBoardView extends BasesView {
     setIcon(hero.createDiv("samaya-chk-hero-icon"), copy[2]);
     const ht = hero.createDiv("samaya-chk-hero-text");
     ht.createDiv({ cls: "samaya-chk-hero-title", text: copy[0] }); ht.createDiv({ cls: "samaya-chk-hero-sub", text: copy[1] });
+    const nPlaced = rows.reduce((a, r) => a + r.count, 0); const nAll = nPlaced + noDay.length;
+    ht.createDiv({ cls: "samaya-chk-hero-count", text: `${nAll} ${nAll === 1 ? "task" : "tasks"} · ${nPlaced} scheduled${noDay.length ? ` · ${noDay.length} without a day` : ""}` });
 
     // ---- the week in numbers
-    const meetings = rows.reduce((a, r) => a + r.cap.meetings, 0); const nTasks = rows.reduce((a, r) => a + r.count, 0);
+    const meetings = rows.reduce((a, r) => a + r.cap.meetings, 0);
     const stats = box.createDiv("samaya-chk-stats");
     const stat = (label: string, value: string, sub = "", cls = "") => { const t = stats.createDiv("samaya-chk-stat " + cls); t.createDiv({ cls: "samaya-chk-stat-label", text: label }); t.createDiv({ cls: "samaya-chk-stat-value", text: value }); if (sub) t.createDiv({ cls: "samaya-chk-stat-sub", text: sub }); };
-    stat("Planned", fmtDur(plannedTotal), `${fmtDur(Math.round(freeTotal * BUFFER_SHARE))} recommended`, `is-${loadLevel(plannedTotal, freeTotal)}`);
-    stat("Free time", fmtDur(freeTotal), `${fmtDur(meetings)} in meetings`);
-    stat("Tasks", String(nTasks + noDay.length), `${nTasks} scheduled`);
-    stat("Without a day", String(noDay.length), noDay.length ? "still to place" : "all placed", noDay.length ? "is-tight" : "");
+    const spare = rows.reduce((a, r) => a + Math.max(0, r.cap.free - r.planned), 0); // time with neither a meeting nor a task (a day that is over does not eat into another one)
+    stat("Tasks", fmtDur(plannedTotal), `${fmtDur(Math.round(freeTotal * BUFFER_SHARE))} recommended`, `is-${loadLevel(plannedTotal, freeTotal)}`);
+    stat("Meetings", fmtDur(meetings), `${rows.filter(r => r.cap.meetings).length} of ${rows.length} days`);
+    stat("Free time", fmtDur(spare), "no meetings or tasks");
 
     // ---- day by day
     box.createDiv({ cls: "samaya-chk-h", text: "Day by day" });

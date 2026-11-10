@@ -4,7 +4,7 @@ import { FOCUS_VIEW_TYPE, FocusManager, FocusState, FocusView } from "./focus";
 import { IcsClient, allTickets, assignTicket, createTask, momentFmt } from "./model";
 import { DAILY_VIEW_TYPE } from "./views/DailyPlannerView";
 import { PlannerView } from "./views/PlannerView";
-import { WEEK_VIEW_TYPE } from "./views/WeeklyBoardView";
+import { WEEK_VIEW_TYPE, WeeklyBoardView } from "./views/WeeklyBoardView";
 import { WTL_VIEW_TYPE, WeeklyTimelineView } from "./views/WeeklyTimelineView";
 import { BACKLOG_VIEW_TYPE, BacklogView } from "./views/BacklogView";
 import { BACKLOG_BUCKETS_VIEW_TYPE, BacklogBucketsView } from "./views/BacklogBucketsView";
@@ -91,6 +91,23 @@ const HOME_BASE_TEMPLATE = `views:
     name: Home
 `;
 
+const WEEKLY_BASE_TEMPLATE = (folder: string) => `filters:
+  and:
+    - file.inFolder("${folder}")
+properties:
+  note.planned:
+    displayName: Planned
+  note.estimate:
+    displayName: Estimate (min)
+  note.start:
+    displayName: Start
+views:
+  - type: ${WEEK_VIEW_TYPE}
+    name: Weekly Board
+  - type: ${WTL_VIEW_TYPE}
+    name: Weekly Timeline
+`;
+
 const TASKS_BASE_TEMPLATE = (folder: string) => `filters:
   and:
     - file.inFolder("${folder}")
@@ -172,6 +189,9 @@ export default class SamayaPlugin extends Plugin {
         { type: "toggle", key: "showIcs", displayName: "Count calendar events as busy", default: true },
         { type: "toggle", key: "showWeekends", displayName: "Show weekends (plan week)", default: false },
       ]);
+    const b = ok(WEEK_VIEW_TYPE, "Weekly Board", "lucide-columns-3",
+      (c, el) => new WeeklyBoardView(c, el, this),
+      () => [{ type: "toggle", key: "showWeekends", displayName: "Show weekends", default: false }]);
     const d = ok(WTL_VIEW_TYPE, "Weekly Timeline", "lucide-calendar-range",
       (c, el) => new WeeklyTimelineView(c, el, this),
       () => [
@@ -197,7 +217,7 @@ export default class SamayaPlugin extends Plugin {
       (ct, el) => new JournalBaseView(ct, el, this), () => []);
     const h = ok(HOME_VIEW_TYPE, "Home", "lucide-home",
       (ct, el) => new HomeView(ct, el, this), () => []);
-    if (!a || !c || !d || !e || !f || !g || !h) new Notice("Samaya: could not register Bases views. Enable the core Bases plugin and use Obsidian 1.10+.");
+    if (!a || !b || !c || !d || !e || !f || !g || !h) new Notice("Samaya: could not register Bases views. Enable the core Bases plugin and use Obsidian 1.10+.");
 
     this.addRibbonIcon("calendar-clock", "Open Samaya planner", () => { void this.openPlanner(); });
     this.focus.init(this.addStatusBarItem(), this.data.focus ?? null);
@@ -208,6 +228,7 @@ export default class SamayaPlugin extends Plugin {
     this.addCommand({ id: "open-home", name: "Open home", checkCallback: c => { if (!this.settings.homeOn) return false; if (!c) void this.openHome(); return true; } });
     this.addCommand({ id: "plan-week", name: "Plan my week (guided)", callback: () => this.startWeekGuide() });
     this.addCommand({ id: "review-week", name: "Review my week", callback: () => this.reviewWeek() });
+    this.addCommand({ id: "open-week-board", name: "Open weekly board", callback: () => this.openWeekPlanner() });
     this.addCommand({ id: "open-planner", name: "Open planner", callback: () => this.openPlanner() });
     this.addCommand({ id: "plan-day", name: "Plan my day (guided)", callback: () => this.startGuide() });
     this.addCommand({ id: "start-day", name: "Start workday now", callback: () => this.workday.startDay() });
@@ -381,6 +402,22 @@ export default class SamayaPlugin extends Plugin {
     await this.scaffoldHome(false);
     const f = this.app.vault.getAbstractFileByPath(this.homeFile());
     if (!(f instanceof TFile)) return;
+    let found: import("obsidian").WorkspaceLeaf | null = null;
+    this.app.workspace.iterateRootLeaves(l => { if (!found && (l.view as { file?: TFile }).file?.path === f.path) found = l; });
+    const leaf = found ?? this.app.workspace.getLeaf("tab");
+    if (!found) await leaf.openFile(f);
+    await this.app.workspace.revealLeaf(leaf);
+  }
+  /** Weekly Board + Weekly Timeline in their own base next to the planner (independent of the Planner). */
+  async openWeekPlanner() {
+    const dir = normalizePath(this.settings.plannerFile).split("/").slice(0, -1).join("/");
+    const wp = normalizePath(dir ? `${dir}/Weekly.base` : "Weekly.base");
+    if (!this.app.vault.getAbstractFileByPath(wp)) {
+      if (dir) await ensureFolder(this.app, dir);
+      const root = rootOf(this.settings.tasksPath); await ensureFolder(this.app, root === "/" ? "" : root);
+      await this.app.vault.create(wp, WEEKLY_BASE_TEMPLATE(root));
+    }
+    const f = this.app.vault.getAbstractFileByPath(wp); if (!(f instanceof TFile)) return;
     let found: import("obsidian").WorkspaceLeaf | null = null;
     this.app.workspace.iterateRootLeaves(l => { if (!found && (l.view as { file?: TFile }).file?.path === f.path) found = l; });
     const leaf = found ?? this.app.workspace.getLeaf("tab");
@@ -585,15 +622,15 @@ export default class SamayaPlugin extends Plugin {
     const g = this.guide; const wk = g?.week; const days = g?.days ?? 5;
     this.closeGuide();
     if (!wk) return;
-    let saved = false;
+    let saved: TFile | null = null;
     try { saved = await this.writeWeekPlan(wk, days); } catch (e) { console.error("Samaya: could not write the weekly note", e); new Notice("Samaya: could not write the weekly note (see the console)."); }
-    new Notice(`Week of ${parseYmd(wk).toLocaleDateString(undefined, { month: "short", day: "numeric" })} planned${saved ? " and saved to your weekly note" : ""}. Leave room for the unexpected.`);
+    this.noticeWithNote(`Week of ${parseYmd(wk).toLocaleDateString(undefined, { month: "short", day: "numeric" })} planned${saved ? " and saved to your weekly note" : ""}. Leave room for the unexpected.`, saved, "Open weekly note");
   }
   /** The weekly note (created if missing) gets an "Overview", the week's "Meetings" by weekday and its "Planned tasks". False when nothing is written. */
-  private async writeWeekPlan(wk: string, nDays: number): Promise<boolean> {
+  private async writeWeekPlan(wk: string, nDays: number): Promise<TFile | null> {
     const s = this.settings; const wantPlan = journalWants(s, "journalWeekPlan"), wantMeet = journalWants(s, "journalWeekMeetings"), wantTasks = journalWants(s, "journalWeekTasks");
-    if (!s.journalNotes.weekly.on || !(wantPlan || wantMeet || wantTasks)) return false;
-    const file = await openPeriodNote(this.app, s, "weekly", wk); if (!file) return false;
+    if (!s.journalNotes.weekly.on || !(wantPlan || wantMeet || wantTasks)) return null;
+    const file = await openPeriodNote(this.app, s, "weekly", wk); if (!file) return null;
     const { weekTasks, noDay } = weekBuckets(allTasks(this.app, s), wk);
     const events = calendarEnabled(s) ? await calendarEvents(this, parseYmd(wk), parseYmd(addDays(wk, 7))).catch(() => []) : [];
     const dates = Array.from({ length: nDays }, (_, i) => addDays(wk, i));
@@ -616,11 +653,18 @@ export default class SamayaPlugin extends Plugin {
       if (wantTasks) x = upsertSection(x, WEEK_TASKS, taskLines([...unscheduled, ...plans.flatMap(p => p.tasks)]), WEEK_ORDER);
       return x;
     });
-    return true;
+    return file;
   }
 
 
 
+  /** A notice with a button that opens the note the planning just wrote. */
+  private noticeWithNote(msg: string, file: TFile | null, label: string) {
+    if (!file) { new Notice(msg); return; }
+    const frag = document.createDocumentFragment(); frag.createDiv({ text: msg });
+    const n = new Notice(frag, 12000);
+    frag.createEl("button", { text: label, cls: "mod-cta" }).onclick = () => { n.hide(); void this.openNoteInMain(file); };
+  }
   async startGuide() {
     const ls = this.app.workspace.leftSplit;
     if (ls && !ls.collapsed) { ls.collapse(); this.leftCollapsedByGuide = true; } // room for the planner while planning
@@ -639,7 +683,8 @@ export default class SamayaPlugin extends Plugin {
     const wasStarted = this.workday.started;
     await this.workday.startDay();
     this.closeGuide();
-    new Notice(`Day planned${wasStarted ? "" : " and started"}.${s.journalOn ? " Saved to your journal." : ""}`);
+    const note = s.journalOn ? (await periodNotePath(this.app, s, "daily", td))?.file ?? null : null;
+    this.noticeWithNote(`Day planned${wasStarted ? "" : " and started"}.${s.journalOn ? " Saved to your journal." : ""}`, note, "Open daily note");
   }
   /** End of day: the planner with a one-step guide (tick off forgotten tasks), then finalize. */
   async startShutdown() {
@@ -657,7 +702,8 @@ export default class SamayaPlugin extends Plugin {
     if (journalWants(s, "journalTomorrow")) await writeSection(this.app, s, td, "Planned for tomorrow", taskLines(await toJournalTasks(this.app, tomorrow)));
     await this.workday.endDay();
     this.closeGuide();
-    new Notice(`Day ended${s.journalOn ? " - saved to your journal" : ""}. See you tomorrow.`);
+    const note = s.journalOn ? (await periodNotePath(this.app, s, "daily", td))?.file ?? null : null;
+    this.noticeWithNote(`Day ended${s.journalOn ? " - saved to your journal" : ""}. See you tomorrow.`, note, "Open daily note");
   }
 
   private quickAdd() {

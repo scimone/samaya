@@ -12,7 +12,7 @@ export interface Task {
   /** link path of the assigned ticket note ("" = none) */ ticket: string;
   /** week-start date (YYYY-MM-DD) for "this week" tasks without a day */ week: string;
   /** date a parked backlog task becomes due ("" = none); once reached it counts as this week's task */ later: string;
-  /** backlog bucket the task is parked in ("" = unsorted) */ horizon: Horizon | "";
+  /** backlog bucket the task is parked in ("" = none yet, shown as Someday) */ horizon: Horizon | "";
   /** time segments when the task is split around meetings (2+), else empty; `start` is the first one, `estimate` the total */ segments: Seg[];
 }
 
@@ -57,11 +57,11 @@ export async function patchTask(app: App, file: TFile, patch: Record<string, str
     }
   });
 }
-/** Park a task in the backlog under Next week / month / quarter (null = plain backlog). It moves to this week by itself when the date arrives. */
-export async function parkTask(app: App, file: TFile, h: Horizon | null): Promise<void> {
-  await patchTask(app, file, { planned: null, start: null, week: null, later: h ? horizonTarget(h, today()) : null, horizon: h });
+/** Park a task in the backlog under Next week / month / quarter / year / Someday / Never. It moves to this week by itself when the date arrives. */
+export async function parkTask(app: App, file: TFile, h: Horizon): Promise<void> {
+  await patchTask(app, file, { planned: null, start: null, week: null, later: horizonTarget(h, today()) || null, horizon: h });
 }
-/** Persist the move of parked tasks whose date has arrived into this week. Returns how many moved. */
+/** Persist the move of parked tasks whose date has arrived into this week, and file unparked backlog tasks under Someday. Returns how many tasks changed. */
 export async function promoteParked(app: App, s: SamayaSettings): Promise<number> {
   const t0 = today(); const due = allTasks(app, s).filter(t => t.later && t.later <= t0 && !t.planned && t.status !== "done");
   await Promise.all(due.map(t => patchTask(app, t.file, { week: startOfWeek(t0), later: null })));

@@ -79,15 +79,15 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   return el;
 }
 
-/** Backlog tasks grouped under Next week / Next month / Next quarter / Unsorted; every group is a drop zone that parks the dragged task there. */
+/** Backlog tasks grouped under Next week / Next month / Next quarter / Next year / Someday / Never; every group is a drop zone that parks the dragged task there. */
 export function renderBacklogBuckets(plugin: SamayaPlugin, host: HTMLElement, tasks: Task[], scope: DndScope, o: { compact?: boolean; actionsSide?: boolean; actions?: (t: Task) => Array<[string, () => void]> }, cls = { label: "samaya-today-label", list: "samaya-today-cards", empty: "samaya-today-empty" }) {
   const from = today();
-  const groups: Array<[Horizon | null, string, Task[]]> = [...HORIZONS.map(([h, label]) => [h, label, tasks.filter(t => bucketOf(t.horizon, t.later, from) === h)] as [Horizon | null, string, Task[]]), [null, "Unsorted", tasks.filter(t => !bucketOf(t.horizon, t.later, from))]];
+  const groups: Array<[Horizon, string, Task[]]> = HORIZONS.map(([h, label]) => [h, label, tasks.filter(t => bucketOf(t.horizon, t.later, from) === h)]);
   for (const [h, label, ts] of groups) {
     const box = host.createDiv("samaya-bucket");
     box.createDiv({ cls: cls.label, text: `${label} · ${ts.length}` });
     const list = box.createDiv(cls.list);
-    if (!ts.length) list.createDiv({ cls: cls.empty, text: h ? "Drop a task here" : "Nothing unsorted" });
+    if (!ts.length) list.createDiv({ cls: cls.empty, text: "Drop a task here" });
     ts.forEach(t => renderTaskCard(plugin, list, t, { compact: o.compact, actionsSide: o.actionsSide, actions: o.actions?.(t), scope }));
     bindZone(scope, box, path => { const f = plugin.app.vault.getAbstractFileByPath(path); if (f instanceof TFile) void parkTask(plugin.app, f, h); });
   }
@@ -109,7 +109,7 @@ export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent) {
   m.addItem(i => i.setTitle("Plan for today").setIcon("sun").onClick(() => { void patchTask(app, t.file, { planned: today(), week: null }); }));
   m.addItem(i => i.setTitle("Plan for this week").setIcon("calendar-range").onClick(() => { void patchTask(app, t.file, { planned: null, start: null, week: startOfWeek(today()) }); }));
   if (t.start) m.addItem(i => i.setTitle("Remove from timeline").setIcon("x").onClick(() => { void patchTask(app, t.file, { start: null }); }));
-  if (t.planned || t.week) m.addItem(i => i.setTitle("Move to backlog").setIcon("inbox").onClick(() => { void parkTask(app, t.file, null); }));
+  if (t.planned || t.week) m.addItem(i => i.setTitle("Move to backlog").setIcon("inbox").onClick(() => { void parkTask(app, t.file, "someday"); }));
   HORIZONS.forEach(([h, label]) => m.addItem(i => i.setTitle(`Backlog: ${label.toLowerCase()}`).setIcon("calendar-clock").onClick(() => { void parkTask(app, t.file, h); })));
   m.addSeparator();
   m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { void app.workspace.getLeaf("tab").openFile(t.file); }));

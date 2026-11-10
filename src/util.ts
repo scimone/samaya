@@ -27,8 +27,8 @@ export function horizonOf(later: string, from: string): Horizon {
   return later < ymd(new Date(d.getFullYear(), d.getMonth() + 2, 1)) ? "month" : "quarter";
 }
 /** Bucket a parked task shows in. Month / quarter tasks cascade closer as their date nears (a "next month" task whose date falls in next week shows under Next week). */
-export function bucketOf(h: Horizon | "", later: string, from: string): Horizon | "" {
-  if (!h) return later ? horizonOf(later, from) : "";
+export function bucketOf(h: Horizon | "", later: string, from: string): Horizon {
+  if (!h) return later ? horizonOf(later, from) : "someday"; // not parked = someday
   return later && (h === "month" || h === "quarter") ? horizonOf(later, from) : h;
 }
 export function hmToMin(hm: string): number { const [h, m] = hm.split(":").map(Number); return h * 60 + (m || 0); }

@@ -57,8 +57,6 @@ const TICKETS_BASE_TEMPLATE = (folder: string) => `filters:
 views:
   - type: ${KANBAN_VIEW_TYPE}
     name: Board
-  - type: ${BACKLOG_BUCKETS_VIEW_TYPE}
-    name: Backlog by date
   - type: table
     name: All tickets
     order:
@@ -125,6 +123,8 @@ views:
       and:
         - planned.isEmpty()
         - status != "done"
+  - type: ${BACKLOG_BUCKETS_VIEW_TYPE}
+    name: Backlog by date
   - type: table
     name: All tasks
     order:
@@ -207,7 +207,7 @@ export default class SamayaPlugin extends Plugin {
       () => [{ type: "toggle", key: "hideDone", displayName: "Hide done / closed tickets", default: false }]);
     const bb = ok(BACKLOG_BUCKETS_VIEW_TYPE, "Backlog by date", "lucide-calendar-clock",
       (ct, el) => new BacklogBucketsView(ct, el, this),
-      () => [{ type: "toggle", key: "onlyWithTicket", displayName: "Only tasks with a ticket", default: true }]);
+      () => [{ type: "toggle", key: "onlyWithTicket", displayName: "Only tasks with a ticket", default: false }]);
     if (!bb) new Notice("Samaya: could not register the Backlog by date view.");
     const g = ok(JOURNAL_BASE_VIEW_TYPE, "Journal calendar", "lucide-calendar",
       (ct, el) => new JournalBaseView(ct, el, this), () => []);
@@ -433,14 +433,7 @@ export default class SamayaPlugin extends Plugin {
     const folder = rootOf(this.settings.ticketsPath);
     if (folder !== "/") await ensureFolder(this.app, folder);
     const bp = normalizePath(folder === "/" ? "Tickets.base" : `${folder}/Tickets.base`);
-    const existing = this.app.vault.getAbstractFileByPath(bp);
-    if (existing instanceof TFile) {
-      // older Tickets.base files get the Backlog by date view added once
-      const txt = await this.app.vault.read(existing);
-      if (!txt.includes(BACKLOG_BUCKETS_VIEW_TYPE) && /^views:/m.test(txt)) { await this.app.vault.modify(existing, txt.replace(/\n*$/, "\n") + `  - type: ${BACKLOG_BUCKETS_VIEW_TYPE}\n    name: Backlog by date\n`); new Notice("Samaya: added the Backlog by date view to " + bp); }
-      else if (announce) new Notice("Tickets base already exists.");
-      return;
-    }
+    if (this.app.vault.getAbstractFileByPath(bp)) { if (announce) new Notice("Tickets base already exists."); return; }
     await this.app.vault.create(bp, TICKETS_BASE_TEMPLATE(folder)); if (announce) new Notice("Created " + bp);
   }
   /** Journal/Journal.base: opens the calendar sidebar (only while the journal is on). */
@@ -540,7 +533,16 @@ export default class SamayaPlugin extends Plugin {
 
     // Backlog + All tasks live in their own base inside the tasks folder; moved out of the planner base once
     const tp = normalizePath(folder === "/" ? "Tasks.base" : `${folder}/Tasks.base`);
-    const tasksBaseNew = !this.app.vault.getAbstractFileByPath(tp);
+    const tasksBaseFile = this.app.vault.getAbstractFileByPath(tp);
+    const tasksBaseNew = !tasksBaseFile;
+    if (tasksBaseFile instanceof TFile) {
+      // older Tasks.base files get the Backlog by date view added once
+      const txt = await this.app.vault.read(tasksBaseFile);
+      if (!txt.includes(BACKLOG_BUCKETS_VIEW_TYPE) && /^views:/m.test(txt)) {
+        const next = /^  - type: table\n    name: All tasks/m.test(txt) ? txt.replace(/^(  - type: table\n    name: All tasks)/m, `  - type: ${BACKLOG_BUCKETS_VIEW_TYPE}\n    name: Backlog by date\n$1`) : txt.replace(/\n*$/, "\n") + `  - type: ${BACKLOG_BUCKETS_VIEW_TYPE}\n    name: Backlog by date\n`;
+        await this.app.vault.modify(tasksBaseFile, next); new Notice("Samaya: added the Backlog by date view to " + tp);
+      }
+    }
     if (tasksBaseNew) { await this.app.vault.create(tp, TASKS_BASE_TEMPLATE(folder)); if (announce) new Notice("Created " + tp); }
 
     const bp = normalizePath(this.settings.plannerFile);

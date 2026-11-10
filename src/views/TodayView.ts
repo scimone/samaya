@@ -274,7 +274,7 @@ export class TodayView extends ItemView {
     add.addEventListener("keydown", e => {
       if (e.key !== "Enter" || !add.value.trim()) return;
       const p = parseTitleEstimate(add.value); add.value = "";
-      void createTask(this.app, s, p.title, { ...(isWeek ? { week: wk } : {}), estimate: p.estimate ?? s.defaultEstimate });
+      void createTask(this.app, s, p.title, { ...(isWeek ? { week: wk } : { horizon: "someday" }), estimate: p.estimate ?? s.defaultEstimate });
     });
     if (scheduled.length && isWeek) {
       c.createDiv({ cls: "samaya-today-label", text: `Scheduled this week · ${scheduled.length}` });

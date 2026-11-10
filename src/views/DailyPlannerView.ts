@@ -174,7 +174,7 @@ export class DailyPlannerView extends BasesView {
       renderBacklogBuckets(this.plugin, list, tasks, this.scope, { actionsSide: true, actions: t => [["Today", () => { void placeInDay(this.app, s, t.file.path, this.date, 9999); }]] }, { label: "samaya-colhead-count", list: "samaya-bucket-list", empty: "samaya-empty" });
     }
     const add = col.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: this.pickTab === "week" ? "+ Add weekly task" : "+ Add to backlog" } });
-    this.bindAdd(add, (): Record<string, string | number> => (this.pickTab === "week" ? { week: wk } : {}));
+    this.bindAdd(add, (): Record<string, string | number> => (this.pickTab === "week" ? { week: wk } : { horizon: "someday" }));
   }
 
   /** "+ Add task" field: Enter creates the task with `extra` properties, then the lists refresh. Failures are shown instead of swallowed. */
@@ -202,7 +202,7 @@ export class DailyPlannerView extends BasesView {
         ["Today", () => { void patchTask(this.app, t.file, { planned: today(), start: null }); }],
         ["Tomorrow", () => { void patchTask(this.app, t.file, { planned: tomorrow, start: null }); }],
         ["This week", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: startOfWeek(today()) }); }],
-        ["Backlog", () => { void parkTask(this.app, t.file, null); }],
+        ["Backlog", () => { void parkTask(this.app, t.file, "someday"); }],
       ],
     }));
   }

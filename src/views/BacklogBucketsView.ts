@@ -7,7 +7,7 @@ import { renderBacklogBuckets } from "./common";
 
 export const BACKLOG_BUCKETS_VIEW_TYPE = "samaya-backlog-buckets";
 
-/** The backlog grouped by when it is due: Next week / month / quarter / year, Someday, Never, Unsorted. Drag a task between groups to re-park it. Meant for the Tickets base, so it lists tasks that belong to a ticket (switchable). */
+/** The backlog grouped by when it is due: Next week / month / quarter / year, Someday, Never. Drag a task between groups to re-park it. Lives in the Tasks base; can be limited to tasks that belong to a ticket. */
 export class BacklogBucketsView extends BasesView {
   readonly type = BACKLOG_BUCKETS_VIEW_TYPE;
   private root: HTMLElement;
@@ -33,7 +33,7 @@ export class BacklogBucketsView extends BasesView {
   private render() {
     const keep = this.root.scrollTop;
     this.root.empty(); this.scope.clear();
-    const onlyTicket = this.config.get("onlyWithTicket") !== false; const wk = startOfWeek(today());
+    const onlyTicket = this.config.get("onlyWithTicket") === true; const wk = startOfWeek(today());
     const tasks = sortTasks(allTasks(this.app, this.plugin.settings).filter(t => !t.planned && t.status !== "done" && t.week !== wk && (!onlyTicket || !!ticketPathOf(this.app, t))));
     const head = this.root.createDiv("samaya-backlog-head");
     head.createEl("h2", { text: "Backlog by date" });

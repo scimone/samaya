@@ -58,7 +58,7 @@ assert.equal(horizonTarget("someday", "2026-11-10"), "");
 assert.equal(bucketOf("year", "2027-01-01", "2026-11-10"), "year"); // no cascade, even though it is also next quarter's date
 assert.equal(bucketOf("quarter", "2027-01-01", "2026-12-05"), "month");
 assert.equal(bucketOf("never", "", "2026-11-10"), "never");
-assert.equal(bucketOf("", "", "2026-11-10"), "");
+assert.equal(bucketOf("", "", "2026-11-10"), "someday");
 assert.equal(bucketOf("", "2026-11-16", "2026-11-10"), "week");
 assert.equal(addDays("2026-11-30", 1), "2026-12-01");
 assert.equal(fmtDur(90), "1h 30m");

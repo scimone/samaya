@@ -636,7 +636,7 @@ export default class SamayaPlugin extends Plugin {
       const t0 = parseYmd(d).getTime(), t1 = parseYmd(addDays(d, 1)).getTime(); const cap = capacityOf(this, d, events);
       const tasks = sortByStart(sortTasks(weekTasks.filter(t => t.planned === d)));
       const dayEvents = events.filter(e => e.end.getTime() > t0 && e.start.getTime() < t1).sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.getTime() - b.start.getTime());
-      plans.push({ label: label(d), planned: tasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0), meetings: cap.meetings, free: cap.free, tasks: await toJournalTasks(this.app, tasks, false, true),
+      plans.push({ label: label(d), note: (await journalPath(this.app, s, d)).split("/").pop()!.replace(/\.md$/, ""), planned: tasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0), meetings: cap.meetings, free: cap.free, tasks: await toJournalTasks(this.app, tasks, false, true),
         events: wantDays ? await Promise.all(dayEvents.map(async e => ({ ...e, note: e.allDay ? undefined : await ensureMeetingNote(this.app, s, e, dayEvents).then(f => f.basename, () => undefined) }))) : dayEvents });
     }
     const body = weekPlanBody(plans, await toJournalTasks(this.app, noDay), { overview: wantPlan, days: wantDays });

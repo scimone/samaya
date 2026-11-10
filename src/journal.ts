@@ -218,8 +218,10 @@ export async function writeFileSection(app: App, f: TFile, heading: string, body
   await app.vault.process(f, t => upsertSection(t, heading, body, order));
 }
 /** One day of the week plan, for the weekly note. */
-export interface DayPlan { label: string; /** minutes of planned tasks */ planned: number; meetings: number; /** free minutes: work time - lunch - meetings */ free: number; tasks: JournalTask[]; events: Array<{ title: string; start: Date; end: Date; allDay: boolean; /** meeting note to link to */ note?: string }>; }
+export interface DayPlan { label: string; /** basename of the day's daily note: the weekday links to it */ note?: string; /** minutes of planned tasks */ planned: number; meetings: number; /** free minutes: work time - lunch - meetings */ free: number; tasks: JournalTask[]; events: Array<{ title: string; start: Date; end: Date; allDay: boolean; /** meeting note to link to */ note?: string }>; }
 const fmtMin = (m: number) => fmtEstimate(m) || "0 min";
+/** The weekday as a link to its daily note (plain text without one). */
+const dayLink = (d: DayPlan, inTable = false) => (d.note ? `[[${d.note}${inTable ? "\\|" : "|"}${d.label}]]` : d.label); // inside a table the alias pipe is escaped
 /** "██████░░░░ 60%": how much of the day's free time is planned. Pure. */
 export function loadBar(planned: number, free: number): string {
   if (free <= 0) return planned > 0 ? "██████████ over" : "–";
@@ -236,7 +238,7 @@ export function weekOverview(days: DayPlan[], noDay: number): string {
   const planned = sum(d => d.planned), meetings = sum(d => d.meetings), free = sum(d => d.free);
   const spare = sum(d => Math.max(0, d.free - d.planned)); const n = sum(d => d.tasks.length);
   const cell = (m: number) => (m > 0 ? fmtMin(m) : "–");
-  const rows = days.map(d => `| [[#${d.label}]] | ${cell(d.planned)}${d.tasks.length ? ` (${d.tasks.length})` : ""} | ${cell(d.meetings)} | ${cell(Math.max(0, d.free - d.planned))} | ${loadBar(d.planned, d.free)} |`);
+  const rows = days.map(d => `| ${dayLink(d, true)} | ${cell(d.planned)}${d.tasks.length ? ` (${d.tasks.length})` : ""} | ${cell(d.meetings)} | ${cell(Math.max(0, d.free - d.planned))} | ${loadBar(d.planned, d.free)} |`);
   return [
     `**${fmtMin(planned)}** of tasks · **${fmtMin(meetings)}** of meetings · **${fmtMin(spare)}** unplanned`,
     `${n + noDay} ${n + noDay === 1 ? "task" : "tasks"}, ${n} scheduled${noDay ? `, ${noDay} still without a day` : ""}.`,
@@ -249,7 +251,7 @@ export function weekOverview(days: DayPlan[], noDay: number): string {
 export function dayBody(d: DayPlan): string {
   const note = loadNote(d.planned, d.free);
   return [
-    `### ${d.label}`,
+    `### ${dayLink(d)}`,
     `**Tasks** ${fmtMin(d.planned)} · **Meetings** ${fmtMin(d.meetings)} · **Unplanned** ${fmtMin(Math.max(0, d.free - d.planned))}${note ? ` — *${note}*` : ""}`,
     "", "#### Meetings", meetingLines(d.events), "", "#### Tasks", d.tasks.length ? taskLines(d.tasks) : "- None",
   ].join("\n");

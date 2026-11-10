@@ -81,6 +81,7 @@
 .samaya-focus-subs { text-align: left; }
 .samaya-status { cursor: pointer; }
 
+body.samaya-left-collapsed .samaya-daily { justify-content: center; }
 .samaya-tlpane { flex: 0 1 380px; min-width: 260px; box-sizing: border-box; height: 100%; }
 .samaya-info.is-side { flex: 1 1 auto; width: auto; min-width: 0; margin: 0; padding: 4px 4px 8px; overflow-y: auto; }
 @media (max-width: 700px) { .samaya-daily { flex-direction: column; overflow-y: auto; } .samaya-left, .samaya-info { flex: none; } .samaya-tlpane { flex: none; height: 520px; } }

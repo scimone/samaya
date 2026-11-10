@@ -297,7 +297,12 @@ export default class SamayaPlugin extends Plugin {
     this.register(this.bus.on(marks));
     this.registerEvent(this.app.metadataCache.on("changed", f => { if (this.indexLunch(f)) this.bus.emit(); void this.fileByPlanned(f); }));
     const ref = this.app.metadataCache.on("resolved", () => { this.scanLunch(); void this.fileAllByPlanned(); this.app.metadataCache.offref(ref); });
+    // body class while the left sidebar is folded: the planner centres its columns then
+    const leftState = () => document.body.toggleClass("samaya-left-collapsed", !!this.app.workspace.leftSplit?.collapsed);
+    this.register(() => document.body.removeClass("samaya-left-collapsed"));
+    for (const ev of ["layout-change", "resize", "active-leaf-change"] as const) this.registerEvent(this.app.workspace.on(ev as "resize", leftState));
     this.app.workspace.onLayoutReady(async () => {
+      leftState();
       this.scanLunch();
       void this.markJournalNotes();
       await this.scaffold(false);

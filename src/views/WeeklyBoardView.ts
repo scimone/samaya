@@ -211,7 +211,9 @@ export class WeeklyBoardView extends BasesView {
     const col = parent.createDiv({ cls: "samaya-col samaya-wg-day" + (isToday ? " is-today" : "") });
     const planned = tasks.reduce((a, t) => a + (t.estimate || 0), 0); const lvl = loadLevel(planned, cap.free);
     const h = col.createDiv("samaya-col-head");
-    h.createSpan({ cls: "samaya-col-title", text: parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }) });
+    const left = h.createDiv("samaya-col-headl");
+    left.createSpan({ cls: "samaya-col-title samaya-colhead-title", text: parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }) });
+    left.createSpan({ cls: "samaya-colhead-count", text: String(tasks.length) });
     const sum = h.createSpan({ cls: `samaya-col-cap is-${lvl}`, text: `${fmtDur(planned)}/${fmtDur(cap.free)}` });
     sum.title = `Free to plan = ${fmtDur(cap.total)} work time - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings. Keep about ${Math.round((1 - BUFFER_SHARE) * 100)}% of it free.`;
     const bar = col.createDiv({ cls: `samaya-col-bar is-${lvl}` });

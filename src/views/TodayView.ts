@@ -54,7 +54,7 @@ export class TodayView extends ItemView {
     this.registerEvent(this.app.workspace.on("active-leaf-change", check));
     this.registerEvent(this.app.workspace.on("layout-change", check));
     this.register(this.plugin.modeBus.on(check));
-    const ro = new ResizeObserver(() => { if (this.contentEl.clientHeight !== this.seenH && this.mode === "timeline") this.schedule(); });
+    const ro = new ResizeObserver(() => { if (this.contentEl.clientHeight !== this.seenH && this.mode !== "week") this.schedule(); });
     ro.observe(this.contentEl); this.register(() => ro.disconnect());
     await this.render();
   }
@@ -102,9 +102,18 @@ export class TodayView extends ItemView {
       return;
     }
     c.removeClass("is-wg");
+    const plan = daily && date === today() && this.plugin.guide?.kind === "plan" ? this.plugin.guide : null;
+    if (plan) { // plan my day: the timeline stays in the sidebar, read-only until Timebox
+      events.filter(e => e.allDay).forEach(e => c.createDiv({ cls: "samaya-allday", text: e.title }));
+      c.createDiv({ cls: "samaya-today-label", text: "Timeline" });
+      this.seenH = c.clientHeight;
+      renderTimeline(this.plugin, this.dnd, c, { date, day, events, notes, ro: plan.step <= 1, state: this.tlState });
+      return;
+    }
     // the status column: next to the planner it steps the planner's day, elsewhere it shows (and steps) the day on its own
     const info = c.createDiv("samaya-info is-side");
     const go = (d: string) => { if (daily) this.plugin.plannerGoTo?.(d); else { this.viewDate = d === today() ? "" : d; void this.render(); } };
     await renderDayStatus(this.plugin, info, { date, events, go });
+    this.seenH = c.clientHeight;
   }
 }

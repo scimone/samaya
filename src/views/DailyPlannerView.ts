@@ -93,8 +93,7 @@ export class DailyPlannerView extends BasesView {
     const sd = g?.kind === "shutdown"; const pg = sd ? null : g; const review = !sd && step === 0, pick = !sd && step === 1, check = !sd && step === 3;
     this.root.toggleClass("is-review", !!pg); // plan my day: guide + columns; otherwise one column of task cards
     const left = this.root.createDiv("samaya-left"); // columns from the left: tasks, timeline; the status column lives in the right sidebar
-    const pane = this.root.createDiv("samaya-today samaya-tlpane");
-    this.renderPane(pane, day, tlEvents, notes, !!pg && step <= 1 && g?.kind === "plan");
+    if (!pg) this.renderPane(this.root.createDiv("samaya-today samaya-tlpane"), day, tlEvents, notes); // (plan my day: the timeline stays in the right sidebar)
     let body = left; // where today's planned list goes
     if (!pg) { // tasks heading: title, done count, progress
       const nd = day.filter(t => t.status === "done").length;
@@ -147,7 +146,7 @@ export class DailyPlannerView extends BasesView {
   }
 
   /** The timeline next to the task list: Day/Week switch, all-day events, then the hours. */
-  private renderPane(pane: HTMLElement, day: Task[], events: IcsEvent[], notes: Map<IcsEvent, TFile>, ro: boolean) {
+  private renderPane(pane: HTMLElement, day: Task[], events: IcsEvent[], notes: Map<IcsEvent, TFile>) {
     if (!this.plugin.guide) { // one clear way into the week: the timeline expands to the whole week
       const bar = pane.createDiv("samaya-tl-bar");
       bar.createSpan({ cls: "samaya-tl-bar-title", text: "Timeline" });
@@ -156,7 +155,7 @@ export class DailyPlannerView extends BasesView {
       sw.createEl("button", { text: "Week", attr: { title: "Expand to the week timeline" } }).onclick = () => this.plugin.expandTimeline();
     } else pane.createDiv({ cls: "samaya-today-label", text: "Timeline" });
     events.filter(e => e.allDay).forEach(e => pane.createDiv({ cls: "samaya-allday", text: e.title }));
-    this.tlHeight = renderTimeline(this.plugin, this.scope, pane, { date: this.date, day, events, notes, ro, state: this.tlState });
+    this.tlHeight = renderTimeline(this.plugin, this.scope, pane, { date: this.date, day, events, notes, ro: false, state: this.tlState });
     if (!this.tlWatch) { // the hours stretch to the pane height
       this.tlWatch = new ResizeObserver(() => { const el = this.root.querySelector<HTMLElement>(".samaya-tlpane"); if (el && el.clientHeight !== this.tlHeight) this.schedule(); });
       this.tlWatch.observe(this.root); this.register(() => this.tlWatch?.disconnect());

@@ -3,7 +3,6 @@ import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, allTasks, prefixOf, createTask, patchTask, parkTask, placeInDay, readTask, sortTasks, isOverdue } from "../model";
 import { addDays, fmtDur, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
-import { weekBuckets, weekFreeTime } from "./weekColumn";
 import type { PlannerHost } from "./plannerHost";
 import { bindCardDrop, bindZone, renderBacklogBuckets, renderTaskCard, richText } from "./common";
 import type { IcsEvent } from "../ics";
@@ -11,7 +10,8 @@ import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { celebrate, renderDoneBar } from "./doneBar";
 import { renderGuide } from "./guide";
 import { renderLoadBar } from "./loadBar";
-import { renderWorkdayCard } from "./workdayCard";
+import { renderTimeline, TimelineState } from "./timelineKit";
+import { ensureMeetingNote } from "../meetings";
 import { capacityWindow, Capacity } from "../worktime";
 import { bufferShare, loadLevel, trimToBuffer } from "../weekplan";
 
@@ -31,6 +31,9 @@ export class DailyPlannerView extends BasesView {
   private lastOverdue: number | null = null; // Review: to spot the moment the last overdue task gets sorted out
   private lastBoxed: { date: string; all: boolean } | null = null; // Timebox: to spot the moment the last task gets a time slot
   private pickTab: "week" | "backlog" = "week";
+  private tlState: TimelineState = { scrolled: "", scrollTop: 0 };
+  private tlHeight = 0;
+  private tlWatch: ResizeObserver | null = null;
 
   constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin, private host?: PlannerHost) {
     super(controller);
@@ -39,10 +42,11 @@ export class DailyPlannerView extends BasesView {
     this.register(plugin.bus.on(() => this.schedule()));
     const evRef = plugin.app.metadataCache.on("changed", f => { if (inEventFolder(plugin.settings, f.path) || (this.plugin.guide && f.path.startsWith(prefixOf(plugin.settings.tasksPath)))) this.schedule(); });
     this.register(() => plugin.app.metadataCache.offref(evRef));
+    this.registerInterval(window.setInterval(() => { if (!this.host?.hidden() && this.root.isConnected) this.schedule(); }, 60000)); // the now line moves
     this.showSidebar();
   }
 
-  /** The timeline lives in the right sidebar: open it with this view, and give the focus back to the planner. */
+  /** The status column lives in the right sidebar: open it with this view, and give the focus back to the planner. */
   private showSidebar() {
     const ws = this.app.workspace;
     ws.onLayoutReady(() => window.setTimeout(() => {
@@ -90,17 +94,17 @@ export class DailyPlannerView extends BasesView {
     const cap = capacityWindow(...this.plugin.workWindowFor(this.date), this.plugin.lunchFor(this.date),
       events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
     const plannedAll = day.reduce((a, t) => a + (t.estimate || 0), 0);
-    const wkStart = startOfWeek(this.date);
-    const weekFree = !guide || guide.kind === "shutdown" ? await weekFreeTime(this.plugin, wkStart, s.workDays) : 0;
-    if (token !== this.token) return;
-    const weekPlanned = weekBuckets(all, wkStart).weekTasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0);
+    const notes = new Map<IcsEvent, TFile>(); // meeting notes for the timeline
+    const tlEvents = !calendarEnabled(s) ? [] : this.showIcs ? events : await calendarEvents(this.plugin, parseYmd(this.date), parseYmd(addDays(this.date, 1)));
+    for (const ev of tlEvents.filter(e => !e.allDay)) { try { notes.set(ev, await ensureMeetingNote(this.app, s, ev, tlEvents)); } catch { /* ignore */ } }
+    if (token !== this.token || this.scope.active) { if (this.scope.active) this.pending = true; return; }
 
     const g = isToday ? guide : null; const step = g?.step ?? -1;
     const sd = g?.kind === "shutdown"; const pg = sd ? null : g; const review = !sd && step === 0, pick = !sd && step === 1, check = !sd && step === 3;
-    this.root.toggleClass("is-review", !!pg); // plan my day: guide + columns; otherwise one column of task cards on the right
-    const info = pg ? null : this.root.createDiv("samaya-info"); // day title, workday, navigation, totals
-    const left = this.root.createDiv("samaya-left");
-    if (info) { if (sd) renderGuide(this.plugin, info, { overdue: 0 }); else this.renderHeader(info, day, cap, plannedAll, isToday, weekPlanned, weekFree); } // End day: the guide takes the place of the day header, the tasks column stays as in the main view // (plan my day has no heading)
+    this.root.toggleClass("is-review", !!pg); // plan my day: guide + columns; otherwise one column of task cards
+    const left = this.root.createDiv("samaya-left"); // columns from the left: tasks, timeline; the status column lives in the right sidebar
+    const pane = this.root.createDiv("samaya-today samaya-tlpane");
+    this.renderPane(pane, day, tlEvents, notes, !!pg && step <= 1 && g?.kind === "plan");
     let body = left; // where today's planned list goes
     if (!pg) { // tasks heading: title, done count, progress
       const nd = day.filter(t => t.status === "done").length;
@@ -152,9 +156,27 @@ export class DailyPlannerView extends BasesView {
     this.finishRender(left);
   }
 
+  /** The timeline next to the task list: Day/Week switch, all-day events, then the hours. */
+  private renderPane(pane: HTMLElement, day: Task[], events: IcsEvent[], notes: Map<IcsEvent, TFile>, ro: boolean) {
+    if (!this.plugin.guide) { // one clear way into the week: the timeline expands to the whole week
+      const bar = pane.createDiv("samaya-tl-bar");
+      bar.createSpan({ cls: "samaya-tl-bar-title", text: "Timeline" });
+      const sw = bar.createDiv("samaya-modeswitch");
+      sw.createEl("button", { text: "Day", cls: "is-active" });
+      sw.createEl("button", { text: "Week", attr: { title: "Expand to the week timeline" } }).onclick = () => this.plugin.expandTimeline();
+    } else pane.createDiv({ cls: "samaya-today-label", text: "Timeline" });
+    events.filter(e => e.allDay).forEach(e => pane.createDiv({ cls: "samaya-allday", text: e.title }));
+    this.tlHeight = renderTimeline(this.plugin, this.scope, pane, { date: this.date, day, events, notes, ro, state: this.tlState });
+    if (!this.tlWatch) { // the hours stretch to the pane height
+      this.tlWatch = new ResizeObserver(() => { const el = this.root.querySelector<HTMLElement>(".samaya-tlpane"); if (el && el.clientHeight !== this.tlHeight) this.schedule(); });
+      this.tlWatch.observe(this.root); this.register(() => this.tlWatch?.disconnect());
+    }
+  }
+
   private finishRender(left: HTMLElement) {
     left.scrollTop = this.leftScroll;
 
+    this.plugin.plannerGoTo = d => this.goTo(d); // the status column in the sidebar steps through the days
     if (!this.announced || this.plugin.plannerDate !== this.date) { this.announced = true; this.plugin.plannerDate = this.date; this.plugin.modeBus.emit(); }
   }
 
@@ -293,60 +315,4 @@ export class DailyPlannerView extends BasesView {
   }
 
   private fileOf(path: string): TFile { return this.app.vault.getAbstractFileByPath(path) as TFile; }
-
-  private renderHeader(host: HTMLElement, day: Task[], cap: Capacity, plannedAll: number, isToday: boolean, weekPlanned: number, weekFree: number) {
-    const d = parseYmd(this.date);
-    // day column: title + navigation, workday status, capacity, plan button
-    const go = (x: string) => { this.date = x; void this.render(); };
-    const hero = host.createDiv("samaya-info-hero");
-    const titles = hero.createDiv("samaya-info-titles");
-    const top = titles.createDiv("samaya-info-titlerow");
-    top.createEl("h2", { text: isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" }) });
-    const side = top.createDiv("samaya-info-side"); // Today shortcut, then the date picker with its arrows
-    if (!isToday) { const t = side.createEl("button", { text: "Today", cls: "samaya-info-today", attr: { "aria-label": "Jump to today" } }); t.onclick = () => go(today()); }
-    // ‹ date ›: step day by day, or click the date to pick one
-    const dr = side.createDiv("samaya-info-daterow");
-    const arrow = (icon: string, label: string, to: string) => { const b = dr.createEl("button", { cls: "samaya-info-arrow clickable-icon", attr: { "aria-label": label } }); setIcon(b, icon); b.onclick = () => go(to); };
-    arrow("chevron-left", "Previous day", addDays(this.date, -1));
-    const dateBtn = dr.createEl("button", { cls: "samaya-info-date", attr: { "aria-label": "Pick a date" } });
-    setIcon(dateBtn.createSpan("samaya-info-date-icon"), "calendar");
-    dateBtn.createSpan({ text: d.toLocaleDateString(undefined, { weekday: isToday ? "short" : undefined, month: "short", day: "numeric" }) });
-    const picker = dateBtn.createEl("input", { type: "date", cls: "samaya-info-datepick" }); picker.value = this.date; // sits invisibly over the button so the native calendar opens right there
-    picker.addEventListener("change", () => { if (picker.value) go(picker.value); });
-    dateBtn.onclick = e => { if (e.target !== picker) { try { picker.showPicker(); } catch { picker.focus(); picker.click(); } } };
-    arrow("chevron-right", "Next day", addDays(this.date, 1));
-
-    renderWorkdayCard(this.plugin, host.createDiv("samaya-info-card"), { panel: true, date: this.date });
-
-    const over = plannedAll > cap.free; const share = bufferShare(this.plugin.settings.bufferPercent); const lvl = loadLevel(plannedAll, cap.free, share);
-    const load = host.createDiv({ cls: "samaya-info-card samaya-info-load" + (over ? " is-over" : "") });
-    load.createDiv({ cls: "samaya-info-label", text: "Daily capacity" });
-    const tot = load.createDiv({ cls: "samaya-info-big", text: fmtDur(plannedAll) });
-    tot.createSpan({ cls: "samaya-info-rec", text: ` / ${fmtDur(Math.round(cap.free * share))} recommended` });
-    tot.title = `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`;
-    tot.title += `. Plan at most ${Math.round(share * 100)}% of it (${fmtDur(Math.round(cap.free * share))}) and keep the rest for what comes up.`;
-    const bar = load.createDiv({ cls: `samaya-col-bar is-${lvl}` });
-    bar.createDiv("samaya-col-bar-fill").style.width = `${over || cap.free <= 0 ? (plannedAll > 0 ? 100 : 0) : (plannedAll / cap.free) * 100}%`;
-    if (cap.free > 0) { const mark = bar.createDiv("samaya-col-bar-mark"); mark.style.left = `${share * 100}%`; mark.title = `${Math.round(share * 100)}% of the free time`; }
-    if (isToday) {
-      const row = load.createDiv("samaya-wd-buttons");
-      const plan = row.createEl("button", { text: "Plan day" }); plan.onclick = () => { void this.plugin.startGuide(); };
-    }
-
-    const wLvl = loadLevel(weekPlanned, weekFree, share); const wOver = weekPlanned > weekFree;
-    const wk = host.createDiv({ cls: "samaya-info-card samaya-info-load" + (wOver ? " is-over" : "") });
-    wk.createDiv({ cls: "samaya-info-label", text: "Weekly capacity" });
-    const wtot = wk.createDiv({ cls: "samaya-info-big", text: fmtDur(weekPlanned) });
-    wtot.createSpan({ cls: "samaya-info-rec", text: ` / ${fmtDur(Math.round(weekFree * share))} recommended` });
-    wtot.title = `Free time of the week = work time - lunch - meetings. Plan at most ${Math.round(share * 100)}% of it (${fmtDur(Math.round(weekFree * share))}) and keep the rest for what comes up.`;
-    const wbar = wk.createDiv({ cls: `samaya-col-bar is-${wLvl}` });
-    wbar.createDiv("samaya-col-bar-fill").style.width = `${wOver || weekFree <= 0 ? (weekPlanned > 0 ? 100 : 0) : (weekPlanned / weekFree) * 100}%`;
-    if (weekFree > 0) { const mark = wbar.createDiv("samaya-col-bar-mark"); mark.style.left = `${share * 100}%`; mark.title = `${Math.round(share * 100)}% of the free time`; }
-    if (startOfWeek(this.date) === startOfWeek(today())) {
-      const wrow = wk.createDiv("samaya-wd-buttons");
-      wrow.createEl("button", { text: "Plan week" }).onclick = () => { void this.plugin.startWeekGuide(); };
-    }
-
-  }
-
 }

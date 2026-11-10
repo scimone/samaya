@@ -162,6 +162,8 @@ export class DailyPlannerView extends BasesView {
       b.onclick = () => { this.pickTab = key; void this.render(); };
     });
     richText(col.createDiv("samaya-guide-text samaya-colhint"), "Press `Today` on a task, or drag it into today's list.");
+    const add = col.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: this.pickTab === "week" ? "+ Add weekly task" : "+ Add to backlog" } });
+    this.bindAdd(add, (): Record<string, string | number> => (this.pickTab === "week" ? { week: wk } : { horizon: "someday" }));
     const list = col.createDiv("samaya-leftover-list samaya-pick-list");
     if (this.pickTab === "week") {
       if (!tasks.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned for this week yet." });
@@ -173,8 +175,6 @@ export class DailyPlannerView extends BasesView {
     } else {
       renderBacklogBuckets(this.plugin, list, tasks, this.scope, { actionsSide: true, actions: t => [["Today", () => { void placeInDay(this.app, s, t.file.path, this.date, 9999); }]] }, { label: "samaya-colhead-count", list: "samaya-bucket-list", empty: "samaya-empty" });
     }
-    const add = col.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: this.pickTab === "week" ? "+ Add weekly task" : "+ Add to backlog" } });
-    this.bindAdd(add, (): Record<string, string | number> => (this.pickTab === "week" ? { week: wk } : { horizon: "someday" }));
   }
 
   /** "+ Add task" field: Enter creates the task with `extra` properties, then the lists refresh. Failures are shown instead of swallowed. */

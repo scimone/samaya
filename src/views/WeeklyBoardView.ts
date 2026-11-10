@@ -163,8 +163,7 @@ export class WeeklyBoardView extends BasesView {
       // Schedule: only what still needs a day; the other steps list everything, the weekday written on cards that have one
       const shown = step === 3 ? noDay : [...noDay, ...sortTasks(weekTasks.filter(t => t.planned)).sort((a, b) => a.planned.localeCompare(b.planned))];
       head(col, "This week", shown.length);
-      const info = weekLoad(col);
-      richText(info.createDiv("samaya-guide-text samaya-colhint"), step === 3 ? "Drag a task onto a day." : "Press `This week` on a task, or drag it here. Tasks that already have a day show it on the card.");
+      weekLoad(col);
       if (step !== 3) addBox(col, "+ Add weekly task", () => ({ week: wk })); // before the first task (the Schedule step has none: the days have their own)
       const list = scroller(col, "week", "samaya-leftover-list");
       if (!shown.length) list.createDiv({ cls: "samaya-empty", text: step === 3 ? "Every task has a day." : "Nothing planned for this week yet." });

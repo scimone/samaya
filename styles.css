@@ -788,9 +788,11 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-modal-custom { flex: 1; min-width: 0; }
 .samaya-modal-custom.is-invalid { border-color: var(--text-error); }
 .samaya-modal-hint { margin: -6px 0 12px 90px; color: var(--text-faint); font-size: var(--font-ui-smaller); }
-.samaya-wg-kb .samaya-kb-cell > .samaya-card { background: var(--background-primary); }
 .samaya-colhead-count.is-overdue { background: var(--color-orange); color: #fff; }
 .samaya-plan-alert { margin-top: 6px; font-size: var(--font-ui-small); color: var(--color-orange); font-weight: 600; }
 .samaya-wg-cols.is-review > .samaya-wg-col:first-child { justify-self: end; width: 380px; max-width: 100%; }
 .samaya-kb-cell > .samaya-add { width: 100%; box-sizing: border-box; margin: 0 0 2px; }
 .samaya-plan-alert.is-clear { color: var(--text-normal); font-weight: 400; }
+/* Backlog and Tickets boards look like the Schedule step: no column background, cards like the tasks there */
+.samaya-wg-kb .samaya-kb-cell { background: none; padding: 0; gap: 6px; min-height: 40px; }
+.samaya-wg-kb .samaya-kb-card { padding: 8px 10px; background: var(--background-primary-alt); border-radius: var(--radius-m); }

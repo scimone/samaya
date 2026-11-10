@@ -1,7 +1,7 @@
 import { BasesView, Notice, QueryController, TFile, WorkspaceLeaf, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
-import { Task, allTasks, prefixOf, createTask, patchTask, parkTask, placeInDay, readTask, sortTasks, isOverdue } from "../model";
+import { Task, allTasks, prefixOf, createTask, patchTask, parkTask, placeInDay, readTask, setDone, sortTasks, isOverdue } from "../model";
 import { addDays, fmtDur, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { bindCardDrop, bindZone, renderBacklogBuckets, renderTaskCard, richText } from "./common";
 import type { IcsEvent } from "../ics";
@@ -193,6 +193,7 @@ export class DailyPlannerView extends BasesView {
   private renderLeftOver(host: HTMLElement, overdue: Task[]) {
     const col = host.createDiv("samaya-plancol samaya-leftover");
     this.colHead(col, "Overdue", overdue.length, "Press one of the buttons to schedule a task, or drag the task directly into today's list on the right.");
+    if (overdue.length) col.querySelector(".samaya-colhead-count")?.addClass("is-overdue"); // orange only while something is overdue
     const list = col.createDiv("samaya-leftover-list");
     if (!overdue.length) list.createDiv({ cls: "samaya-empty", text: "Nothing overdue." });
     const tomorrow = addDays(today(), 1);
@@ -203,6 +204,7 @@ export class DailyPlannerView extends BasesView {
         ["Tomorrow", () => { void patchTask(this.app, t.file, { planned: tomorrow, start: null }); }],
         ["This week", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: startOfWeek(today()) }); }],
         ["Backlog", () => { void parkTask(this.app, t.file, "someday"); }],
+        ["Done", () => { void setDone(this.app, t, true); }],
       ],
     }));
   }

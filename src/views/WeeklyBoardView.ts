@@ -7,11 +7,10 @@ import { BUFFER_SHARE, isLeftover, loadLevel } from "../weekplan";
 import { renderGuide } from "./guide";
 import { TicketTaskModal } from "../modals";
 import { groupTickets, statusRank } from "../kanban";
-import { renderBacklogBuckets, richText } from "./common";
-import { addDays, fmtDur, horizonTarget, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
+import { HORIZONS, addDays, bucketOf, fmtDur, horizonTarget, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { Capacity, capacityWindow } from "../worktime";
-import { bindCardDrop, bindZone, renderTaskCard } from "./common";
+import { bindCardDrop, bindZone, renderTaskCard, richText } from "./common";
 
 export const WEEK_VIEW_TYPE = "samaya-week";
 
@@ -190,7 +189,7 @@ export class WeeklyBoardView extends BasesView {
       weekCol(cols);
     } else if (step === 1) {
       // the ticket board scrolls on its own; the This week column stays put on the right, so new tasks are always in sight
-      const cols = main.createDiv("samaya-wg-cols is-tickets");
+      const cols = main.createDiv("samaya-wg-cols is-board");
       const tickets = allTickets(this.app, s).filter(tk => statusRank(tk.state) < 3);
       const area = cols.createDiv("samaya-plancol samaya-wg-col");
       head(area, "Tickets", tickets.length, "Press `New task` on a ticket to plan work for it.");
@@ -216,14 +215,22 @@ export class WeeklyBoardView extends BasesView {
       }
       weekCol(cols);
     } else if (step === 2) {
-      const cols = main.createDiv("samaya-wg-cols");
-      const col = cols.createDiv("samaya-plancol samaya-wg-col");
-      head(col, "Backlog", 0, "Press `This week` on a task, or drag it into the week.");
-      const bl = open.filter(t => !t.planned && t.week !== wk && !leftovers.includes(t));
-      (col.querySelector(".samaya-colhead-count") as HTMLElement).setText(String(bl.length));
-      const list = scroller(col, "backlog");
-      renderBacklogBuckets(this.plugin, list, sortTasks(bl), this.scope, { actionsSide: true, actions: t => [["This week", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: wk }); }]] }, { label: "samaya-colhead-count", list: "samaya-bucket-list", empty: "samaya-empty" });
-      addBox(col, "+ Add to backlog", () => ({ horizon: "someday" }));
+      // same layout as the Tickets step: a board of the backlog categories, with This week sticky on the right
+      const cols = main.createDiv("samaya-wg-cols is-board");
+      const bl = sortTasks(open.filter(t => !t.planned && t.week !== wk && !leftovers.includes(t)));
+      const area = cols.createDiv("samaya-plancol samaya-wg-col");
+      head(area, "Backlog", bl.length, "Press `This week` on a task, or drag it into the week or between the categories.");
+      const sc = scroller(area, "kb", "samaya-wg-kb");
+      const grid = sc.createDiv("samaya-kb-grid"); grid.style.setProperty("--cols", String(HORIZONS.length));
+      const hd = grid.createDiv("samaya-kb-cols"); const row = grid.createDiv("samaya-kb-row");
+      for (const [h, label] of HORIZONS) {
+        const ts = bl.filter(t => bucketOf(t.horizon, t.later, td) === h);
+        hd.createDiv({ cls: "samaya-kb-colhead", text: `${label} (${ts.length})` });
+        const cell = row.createDiv("samaya-kb-cell");
+        bindZone(this.scope, cell, path => { const f = this.app.vault.getAbstractFileByPath(path); if (f instanceof TFile) void parkTask(this.app, f, h); });
+        ts.forEach(t => renderTaskCard(this.plugin, cell, t, { scope: this.scope, compact: true, actions: [["This week", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: wk }); }]] }));
+      }
+      addBox(area, "+ Add to backlog", () => ({ horizon: "someday" }));
       weekCol(cols);
     } else if (step === 3) {
       const cols = main.createDiv("samaya-wg-cols is-schedule");

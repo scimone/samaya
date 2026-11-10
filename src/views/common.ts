@@ -112,7 +112,7 @@ export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent) {
   m.addItem(i => i.setTitle("Plan for this week").setIcon("calendar-range").onClick(() => { void patchTask(app, t.file, { planned: null, start: null, week: startOfWeek(today()) }); }));
   if (t.start) m.addItem(i => i.setTitle("Remove from timeline").setIcon("x").onClick(() => { void patchTask(app, t.file, { start: null }); }));
   if (t.planned || t.week) m.addItem(i => i.setTitle("Move to backlog").setIcon("inbox").onClick(() => { void parkTask(app, t.file, "someday"); }));
-  HORIZONS.forEach(([h, label]) => m.addItem(i => i.setTitle(`Backlog: ${label.toLowerCase()}`).setIcon("calendar-clock").onClick(() => { void parkTask(app, t.file, h); })));
+  HORIZONS.filter(([h]) => h !== "someday" && h !== "never").forEach(([h, label]) => m.addItem(i => i.setTitle(`Backlog: ${label.toLowerCase()}`).setIcon("calendar-clock").onClick(() => { void parkTask(app, t.file, h); })));
   m.addSeparator();
   m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { void app.workspace.getLeaf("tab").openFile(t.file); }));
   m.showAtMouseEvent(e);

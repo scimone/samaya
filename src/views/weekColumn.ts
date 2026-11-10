@@ -63,6 +63,7 @@ export function renderWeekColumn(plugin: SamayaPlugin, scope: DndScope, host: HT
   const box = col.createDiv({ cls: `samaya-loadbar is-${lvl}` });
   const bar = box.createDiv({ cls: `samaya-col-bar is-${lvl}` });
   bar.createDiv("samaya-col-bar-fill").style.width = `${o.free <= 0 ? (planned > 0 ? 100 : 0) : Math.min(100, (planned / o.free) * 100)}%`;
+  if (o.free > 0) { const mark = bar.createDiv("samaya-col-bar-mark"); mark.style.left = `${share * 100}%`; mark.title = `${Math.round(share * 100)}% of the free time`; } // where the recommended time ends
   const label = col.createDiv({ cls: "samaya-wg-info" }).createDiv({ cls: "samaya-total", text: `${fmtDur(planned)} planned · ${fmtDur(budget)} recommended` });
   label.title = `Free time of the week = work time - lunch - meetings = ${fmtDur(o.free)}. Plan at most ${Math.round(share * 100)}% of it (${fmtDur(budget)}).`;
   if (!schedule) addTaskInput(plugin, col, "+ Add weekly task", () => ({ week: wk }), o.refresh); // before the first task (the days have their own in Schedule)

@@ -39,7 +39,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   tasksPath: "[Tasks]/YYYY/MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", meetingsPath: "[Meetings]/YYYY/MM", journalSource: "auto", journalFolder: "[Journal]/YYYY/YYYY-MM", journalFormat: "YYYY-MM-DD", plannerFile: "Planner/Planner.base", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
   calendarSource: "ics", eventNotesFolder: "Meetings", eventNotePattern: "{{date}}_{{title}}",
   icsUrls: [], icsRefreshMinutes: 15,
-  dayStartHour: 7, dayEndHour: 20, slotMinutes: 15, defaultEstimate: 30, shutdownTime: "17:00", dayStartTime: "08:00", openOnStartup: false,
+  dayStartHour: 7, dayEndHour: 20, slotMinutes: 5, defaultEstimate: 30, shutdownTime: "17:00", dayStartTime: "08:00", openOnStartup: false,
   jiraFlavor: "cloud", jiraUrl: "", jiraEmail: "", jiraToken: "",
   jiraJql: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
   gitlabUrl: "https://gitlab.com", gitlabToken: "", gitlabScope: "assigned_to_me", syncOnStartup: false,

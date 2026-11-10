@@ -316,8 +316,9 @@ export class DailyPlannerView extends BasesView {
 
     const over = plannedAll > cap.free; const share = bufferShare(this.plugin.settings.bufferPercent); const lvl = loadLevel(plannedAll, cap.free, share);
     const load = host.createDiv({ cls: "samaya-info-card samaya-info-load" + (over ? " is-over" : "") });
-    load.createDiv({ cls: "samaya-info-label", text: "Capacity" });
-    const tot = load.createDiv({ cls: "samaya-info-big", text: `${fmtDur(plannedAll)} / ${fmtDur(cap.free)} planned` });
+    load.createDiv({ cls: "samaya-info-label", text: "Daily capacity" });
+    const tot = load.createDiv({ cls: "samaya-info-big", text: fmtDur(plannedAll) });
+    tot.createSpan({ cls: "samaya-info-rec", text: ` / ${fmtDur(Math.round(cap.free * share))} recommended` });
     tot.title = `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`;
     tot.title += `. Plan at most ${Math.round(share * 100)}% of it (${fmtDur(Math.round(cap.free * share))}) and keep the rest for what comes up.`;
     const bar = load.createDiv({ cls: `samaya-col-bar is-${lvl}` });
@@ -331,13 +332,16 @@ export class DailyPlannerView extends BasesView {
     const wLvl = loadLevel(weekPlanned, weekFree, share); const wOver = weekPlanned > weekFree;
     const wk = host.createDiv({ cls: "samaya-info-card samaya-info-load" + (wOver ? " is-over" : "") });
     wk.createDiv({ cls: "samaya-info-label", text: "Weekly capacity" });
-    const wtot = wk.createDiv({ cls: "samaya-info-big", text: `${fmtDur(weekPlanned)} / ${fmtDur(weekFree)} planned` });
+    const wtot = wk.createDiv({ cls: "samaya-info-big", text: fmtDur(weekPlanned) });
+    wtot.createSpan({ cls: "samaya-info-rec", text: ` / ${fmtDur(Math.round(weekFree * share))} recommended` });
     wtot.title = `Free time of the week = work time - lunch - meetings. Plan at most ${Math.round(share * 100)}% of it (${fmtDur(Math.round(weekFree * share))}) and keep the rest for what comes up.`;
     const wbar = wk.createDiv({ cls: `samaya-col-bar is-${wLvl}` });
     wbar.createDiv("samaya-col-bar-fill").style.width = `${wOver || weekFree <= 0 ? (weekPlanned > 0 ? 100 : 0) : (weekPlanned / weekFree) * 100}%`;
     if (weekFree > 0) { const mark = wbar.createDiv("samaya-col-bar-mark"); mark.style.left = `${share * 100}%`; mark.title = `${Math.round(share * 100)}% of the free time`; }
-    const wrow = wk.createDiv("samaya-wd-buttons");
-    wrow.createEl("button", { text: "Plan week" }).onclick = () => { void this.plugin.startWeekGuide(); };
+    if (startOfWeek(this.date) === startOfWeek(today())) {
+      const wrow = wk.createDiv("samaya-wd-buttons");
+      wrow.createEl("button", { text: "Plan week" }).onclick = () => { void this.plugin.startWeekGuide(); };
+    }
 
   }
 

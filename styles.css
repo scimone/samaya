@@ -656,6 +656,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-info-card { padding: 12px 14px; border-radius: var(--radius-l); background: var(--background-secondary); }
 .samaya-info-label, .samaya-info .samaya-wd-panel .samaya-wd-state { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
 .samaya-info-big, .samaya-wd-figure { margin-top: 2px; font-size: 1.35em; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.25; }
+.samaya-info-rec { font-size: 0.6em; font-weight: 500; color: var(--text-muted); }
 .samaya-info-load.is-over .samaya-info-big { color: var(--text-error); }
 .samaya-info-load .samaya-col-bar { margin: 8px 0 0; height: 6px; }
 .samaya-info .samaya-wd.samaya-wd-panel { display: block; padding: 0; margin: 0; background: none; border: none; }

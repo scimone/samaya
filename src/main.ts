@@ -26,6 +26,7 @@ import { ensureMeetingNote } from "./meetings";
 import { calendarEnabled, calendarEvents } from "./calendar";
 import { Emitter, addDays, hmToMin, minToHm, parseTitleEstimate as parseTitleEstimateSafe, parseYmd, today } from "./util";
 import { WorkdayManager } from "./workday";
+import { applyColors, clearColors } from "./colors";
 import { BUFFER_SHARE, isLeftover, weekSteps, weekToPlan } from "./weekplan";
 import { capacityOf, weekBuckets } from "./views/weekColumn";
 import type { DayLog } from "./worktime";
@@ -174,6 +175,7 @@ export default class SamayaPlugin extends Plugin {
   async onload() {
     this.data = (await this.loadData()) ?? {};
     this.settings = Object.assign({}, DEFAULT_SETTINGS, migrateSettings(this.data.settings ?? {}));
+    applyColors(this.settings);
     this.registerView(DASHBOARD_VIEW_TYPE, leaf => new DashboardView(leaf, this));
     this.registerView(TODAY_VIEW_TYPE, leaf => new TodayView(leaf, this));
     this.registerView(JOURNAL_CAL_TYPE, leaf => new JournalCalendarView(leaf, this));
@@ -362,7 +364,9 @@ export default class SamayaPlugin extends Plugin {
     await this.saveData(this.data); this.bus.emit();
   }
 
-  async saveSettings() { this.data.settings = this.settings; await this.saveData(this.data); }
+  onunload() { clearColors(); }
+
+  async saveSettings() { this.data.settings = this.settings; applyColors(this.settings); await this.saveData(this.data); }
 
   syncTickets(only?: "jira" | "gitlab") { return syncTickets(this, only); }
 

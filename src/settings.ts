@@ -1,6 +1,7 @@
 import { AbstractInputSuggest, App, PluginSettingTab, Setting, setIcon } from "obsidian";
 import type SamayaPlugin from "./main";
 import { ticketFolderFor, folderFor } from "./model";
+import { resolveColor } from "./colors";
 import { MEETING_SYNC_AHEAD_DAYS, syncMeetingNotes } from "./meetings";
 import { TICKET_VARIABLES, renderTicketFileName, TicketVars } from "./taskbody";
 import { JournalLoc, JournalPart, PERIODIC_KINDS, PeriodicKind, JournalSource, PERIOD_DEFAULT_FORMAT, Period, journalLocation, journalPathFor, journalSources, pickJournalSource } from "./journal";
@@ -17,7 +18,7 @@ export interface SamayaSettings {
   jiraFlavor: "cloud" | "server"; jiraUrl: string; jiraEmail: string; jiraToken: string; jiraJql: string;
   gitlabUrl: string; gitlabToken: string; gitlabScope: "assigned_to_me" | "created_by_me" | "all";
   syncOnStartup: boolean;
-  lunchStart: string; lunchEnd: string; weeklyHours: number; workDays: number; /** % of every day's free time to keep unplanned */ bufferPercent: number; autoLunch: boolean;
+  lunchStart: string; lunchEnd: string; weeklyHours: number; workDays: number; /** % of every day's free time to keep unplanned */ bufferPercent: number; /** hex colour of tasks everywhere ("" = theme accent) */ taskColor: string; /** hex colour of meetings everywhere ("" = cyan) */ meetingColor: string; autoLunch: boolean;
   /** optional modules; off by default for new installs */
   calendarOn: boolean; jiraOn: boolean; gitlabOn: boolean;
   /** journal module: write into the daily note, and which parts */
@@ -43,7 +44,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   jiraFlavor: "cloud", jiraUrl: "", jiraEmail: "", jiraToken: "",
   jiraJql: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
   gitlabUrl: "https://gitlab.com", gitlabToken: "", gitlabScope: "assigned_to_me", syncOnStartup: false,
-  lunchStart: "12:00", lunchEnd: "13:00", weeklyHours: 40, workDays: 5, bufferPercent: 20, autoLunch: true,
+  lunchStart: "12:00", lunchEnd: "13:00", weeklyHours: 40, workDays: 5, bufferPercent: 20, taskColor: "", meetingColor: "", autoLunch: true,
   calendarOn: false, jiraOn: false, gitlabOn: false,
   journalOn: false, journalPlanned: true, journalFinished: true, journalTomorrow: true,
   journalWorkTimes: true, journalBreaks: true, journalTracked: true, journalWeekPlan: true, journalWeekMeetings: true, journalWeekTasks: true,
@@ -341,6 +342,15 @@ export class SamayaSettingTab extends PluginSettingTab {
       num(b, "Working days per week", "Counted from Monday (5 = Mon–Fri). Work on other days is all overtime.", () => s.workDays, v => (s.workDays = v), { min: 1, max: 7, int: true });
       label(b, "Planning");
       num(b, "Free buffer (%)", "Share of every day's free time to keep unplanned, for unforeseen meetings and tasks. Plan my day and Plan my week turn orange past it and red when the day is over capacity.", () => s.bufferPercent, v => (s.bufferPercent = v), { min: 0, max: 90, int: true });
+      label(b, "Colours");
+      const colour = (name: string, desc: string, key: "taskColor" | "meetingColor", fallback: string) => {
+        const def = resolveColor(fallback) || "#808080";
+        new Setting(b).setName(name).setDesc(desc)
+          .addColorPicker(c => c.setValue(s[key] || def).onChange(async v => { s[key] = v; await changed(); }))
+          .addExtraButton(x => x.setIcon("rotate-ccw").setTooltip("Back to the theme colour").onClick(async () => { s[key] = ""; await changed(); this.display(); }));
+      };
+      colour("Task colour", "Tasks on the timelines, in the check step and in the week plan.", "taskColor", "var(--interactive-accent)");
+      colour("Meeting colour", "Calendar meetings on the timelines, in the check step and in the week plan.", "meetingColor", "var(--color-cyan)");
       label(b, "Timeboxing grid");
       range(b, "Visible hours", "The part of the day shown on the grid.", "hour",
         [() => s.dayStartHour, v => (s.dayStartHour = v)], [() => s.dayEndHour, v => (s.dayEndHour = v)]);

@@ -56,8 +56,8 @@ export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideC
     if (i < g.step) { li.addClass("is-link"); li.onclick = () => go(i); li.setAttr("title", `Back to ${st.title}`); }
     if (i === g.step) {
       richText(main.createDiv("samaya-plan-text"), st.text.replace("{done}", doneLabel));
-      if (i === 0) main.createDiv({ cls: "samaya-plan-alert" + (ctx.overdue ? "" : " is-clear"), text: ctx.overdue ? `There ${ctx.overdue === 1 ? "is 1 overdue task" : `are ${ctx.overdue} overdue tasks`} to review.` : "No overdue tasks left." });
-      if (i === 2 && ctx.planned) { const n = ctx.toSchedule ?? 0; main.createDiv({ cls: "samaya-plan-alert" + (n ? "" : " is-clear"), text: n ? `There ${n === 1 ? "is 1 task" : `are ${n} tasks`} to schedule.` : "All tasks are scheduled." }); }
+      if (i === 0) main.createDiv({ cls: "samaya-plan-alert" + (ctx.overdue ? "" : " is-clear"), text: ctx.overdue ? `There ${ctx.overdue === 1 ? "is 1 overdue task" : `are ${ctx.overdue} overdue tasks`} to review.` : "All overdue tasks have been handled." });
+      if (i === 2 && ctx.planned) { const n = ctx.toSchedule ?? 0; main.createDiv({ cls: "samaya-plan-alert" + (n ? "" : " is-clear"), text: n ? `There ${n === 1 ? "is 1 task" : `are ${n} tasks`} to schedule.` : "All tasks have been scheduled." }); }
     }
   });
 
@@ -108,7 +108,7 @@ function renderWeekGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideCtx)
     if (i < g.step) { li.addClass("is-link"); li.onclick = () => go(i); li.setAttr("title", `Back to ${st.title}`); }
     if (i === g.step) {
       richText(main.createDiv("samaya-plan-text"), st.text.replace("{done}", doneLabel));
-      if (i === 0) main.createDiv({ cls: "samaya-plan-alert" + (ctx.overdue ? "" : " is-clear"), text: ctx.overdue ? `There ${ctx.overdue === 1 ? "is 1 overdue task" : `are ${ctx.overdue} overdue tasks`} to review.` : "No overdue tasks left." });
+      if (i === 0) main.createDiv({ cls: "samaya-plan-alert" + (ctx.overdue ? "" : " is-clear"), text: ctx.overdue ? `There ${ctx.overdue === 1 ? "is 1 overdue task" : `are ${ctx.overdue} overdue tasks`} to review.` : "All overdue tasks have been handled." });
     }
   });
 

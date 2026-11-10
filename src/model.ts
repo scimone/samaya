@@ -37,6 +37,12 @@ export function readTask(app: App, file: TFile): Task {
   };
 }
 
+/** Unfinished and left behind: planned for an earlier day, or (with no day) assigned to an earlier week. */
+export function isOverdue(t: Task): boolean {
+  if (t.status === "done") return false;
+  return t.planned ? t.planned < today() : !!t.week && t.week < startOfWeek(today());
+}
+
 export function allTasks(app: App, s: SamayaSettings): Task[] {
   const prefix = prefixOf(s.tasksPath);
   return app.vault.getMarkdownFiles().filter(f => f.path.startsWith(prefix)).map(f => readTask(app, f));

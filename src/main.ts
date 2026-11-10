@@ -20,7 +20,7 @@ import { PERIOD_UI, identifyNote, findLatestPeriodNote, listPeriodNotes, neighbo
 import { PROJECTS_BASE_TEMPLATE, assignProject, createProject } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { HOME_VIEW_TYPE, HomeView } from "./views/HomeView";
-import { promoteParked, allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask } from "./model";
+import { promoteParked, allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask, isOverdue } from "./model";
 import { DayPlan, LEGACY_WEEK_HEADINGS, WEEK_MEETINGS, WEEK_ORDER, WEEK_OVERVIEW, WEEK_TASKS, removeSection, upsertSection, weekMeetings, weekOverview, bulletLines, journalPath, journalWants, meetingLines, readJournalSection, sortByStart, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
 import { ensureMeetingNote } from "./meetings";
 import { calendarEnabled, calendarEvents } from "./calendar";
@@ -657,7 +657,7 @@ export default class SamayaPlugin extends Plugin {
   async startGuide() {
     const ls = this.app.workspace.leftSplit;
     if (ls && !ls.collapsed) { ls.collapse(); this.leftCollapsedByGuide = true; } // room for the planner while planning
-    const overdue = allTasks(this.app, this.settings).some(t => t.planned && t.planned < today() && t.status !== "done");
+    const overdue = allTasks(this.app, this.settings).some(isOverdue);
     this.guide = { step: overdue ? 0 : 1, review: overdue, fresh: true, kind: "plan" };
     await this.openPlanner(); this.bus.emit();
   }

@@ -1,7 +1,7 @@
 import { BasesView, Notice, QueryController, TFile, WorkspaceLeaf, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
-import { Task, allTasks, prefixOf, createTask, patchTask, parkTask, placeInDay, readTask, sortTasks } from "../model";
+import { Task, allTasks, prefixOf, createTask, patchTask, parkTask, placeInDay, readTask, sortTasks, isOverdue } from "../model";
 import { addDays, fmtDur, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { bindCardDrop, bindZone, renderBacklogBuckets, renderTaskCard, richText } from "./common";
 import type { IcsEvent } from "../ics";
@@ -75,7 +75,7 @@ export class DailyPlannerView extends BasesView {
 
     const all = this.entryTasks(); const isToday = this.date === today();
     const day = sortTasks(all.filter(t => t.planned === this.date));
-    const overdue = isToday ? sortTasks(all.filter(t => t.planned && t.planned < today() && t.status !== "done")) : [];
+    const overdue = isToday ? sortTasks(all.filter(isOverdue)) : [];
 
     // free capacity = capacity - lunch - calendar meetings
     const s = this.plugin.settings; const dayMs = parseYmd(this.date).getTime();

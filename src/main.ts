@@ -599,8 +599,6 @@ export default class SamayaPlugin extends Plugin {
   }
   /** End of day: the planner with a one-step guide (tick off forgotten tasks), then finalize. */
   async startShutdown() {
-    const ls = this.app.workspace.leftSplit;
-    if (ls && !ls.collapsed) { ls.collapse(); this.leftCollapsedByGuide = true; }
     this.guide = { step: 0, review: false, fresh: true, kind: "shutdown" };
     await this.openPlanner(); this.bus.emit();
   }

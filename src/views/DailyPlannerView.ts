@@ -99,7 +99,7 @@ export class DailyPlannerView extends BasesView {
     }
     if (g) {
       // columns: guide | source tasks (Review: left over, Pick: this week/backlog) | today's tasks
-      const cols = left.createDiv("samaya-review-cols" + (step === 2 || sd ? " is-two" : ""));
+      const cols = left.createDiv("samaya-review-cols" + (sd ? " is-shutdown" : step === 2 ? " is-two" : ""));
       renderGuide(this.plugin, cols, { overdue: overdue.length });
       if (review) this.renderLeftOver(cols, overdue); else if (pick) this.renderPick(cols);
       body = cols.createDiv("samaya-plancol samaya-review-main");

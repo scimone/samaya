@@ -590,7 +590,9 @@ body { --samaya-green: #2fa862; }
 .samaya-daily.is-review .samaya-left { flex: 1 1 auto; max-width: none; }
 .samaya-review-cols { display: grid; grid-template-columns: minmax(230px, 300px) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .samaya-review-cols.is-two > .samaya-plancol { grid-column: 3; } /* Timebox: planned for today stays where it was in the steps before */
-@media (max-width: 900px) { .samaya-review-cols { grid-template-columns: 1fr; } .samaya-review-cols.is-two > .samaya-plancol { grid-column: auto; } }
+.samaya-review-cols.is-shutdown { grid-template-columns: minmax(230px, 300px) minmax(0, 1fr) 488px; } /* tasks column as wide as in the main daily view (520px minus padding) */
+.samaya-review-cols.is-shutdown > .samaya-plancol { grid-column: 3; padding: 0; }
+@media (max-width: 900px) { .samaya-review-cols { grid-template-columns: 1fr; } .samaya-review-cols.is-two > .samaya-plancol, .samaya-review-cols.is-shutdown > .samaya-plancol { grid-column: auto; } .samaya-review-cols.is-shutdown { grid-template-columns: 1fr; } }
 .samaya-plancol { min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 4px 6px; }
 .samaya-colhead { display: flex; align-items: center; gap: 8px; }
 .samaya-colhead-title { font-weight: 700; font-size: var(--font-ui-medium); }

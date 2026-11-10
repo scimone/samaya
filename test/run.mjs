@@ -7,7 +7,7 @@ await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timelin
 await bundle("src/settings.ts", "test/.settings.mjs");
 await bundle("src/monthgrid.ts", "test/.monthgrid.mjs"); await bundle("src/kanban.ts", "test/.kanban.mjs"); await bundle("src/gantt.ts", "test/.gantt.mjs"); await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
 const { parseIcs } = await import("./.ics.mjs");
-const { horizonTarget, horizonOf, parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify } = await import("./.util.mjs");
+const { horizonTarget, horizonOf, bucketOf, parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify } = await import("./.util.mjs");
 const { latestOnOrBefore, neighbours } = await import("./.journal.mjs");
 const { fmtEstimate, meetingLines, sortByStart, taskLines, bulletLines, upsertSection, readSection, pickJournalSource: pick } = await import("./.journal.mjs");
 const { fetchJira, fetchGitlab, adfToText } = await import("./.tickets.mjs");
@@ -53,6 +53,13 @@ assert.equal(horizonOf("2026-12-01", "2026-11-10"), "month");
 assert.equal(horizonOf("2027-01-01", "2026-11-10"), "quarter");
 assert.equal(horizonOf("2026-12-01", "2026-11-25"), "week"); // cascades closer as the date nears
 assert.equal(horizonOf("2027-01-01", "2026-12-05"), "month");
+assert.equal(horizonTarget("year", "2026-11-10"), "2027-01-01");
+assert.equal(horizonTarget("someday", "2026-11-10"), "");
+assert.equal(bucketOf("year", "2027-01-01", "2026-11-10"), "year"); // no cascade, even though it is also next quarter's date
+assert.equal(bucketOf("quarter", "2027-01-01", "2026-12-05"), "month");
+assert.equal(bucketOf("never", "", "2026-11-10"), "never");
+assert.equal(bucketOf("", "", "2026-11-10"), "");
+assert.equal(bucketOf("", "2026-11-16", "2026-11-10"), "week");
 assert.equal(addDays("2026-11-30", 1), "2026-12-01");
 assert.equal(fmtDur(90), "1h 30m");
 

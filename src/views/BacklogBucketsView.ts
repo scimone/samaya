@@ -1,0 +1,43 @@
+import { BasesView, QueryController } from "obsidian";
+import type SamayaPlugin from "../main";
+import { DndScope } from "../dnd";
+import { allTasks, sortTasks, ticketPathOf } from "../model";
+import { startOfWeek, today } from "../util";
+import { renderBacklogBuckets } from "./common";
+
+export const BACKLOG_BUCKETS_VIEW_TYPE = "samaya-backlog-buckets";
+
+/** The backlog grouped by when it is due: Next week / month / quarter / year, Someday, Never, Unsorted. Drag a task between groups to re-park it. Meant for the Tickets base, so it lists tasks that belong to a ticket (switchable). */
+export class BacklogBucketsView extends BasesView {
+  readonly type = BACKLOG_BUCKETS_VIEW_TYPE;
+  private root: HTMLElement;
+  private scope = new DndScope();
+  private pending = false;
+  private timer = 0;
+
+  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
+    super(controller);
+    this.root = parentEl.createDiv("samaya-backlog-view samaya-bucketview");
+    this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
+    // the base only feeds tickets; tasks change on their own
+    this.registerEvent(this.app.metadataCache.on("changed", () => this.schedule()));
+    this.registerEvent(this.app.metadataCache.on("deleted", () => this.schedule()));
+  }
+  onunload() { window.clearTimeout(this.timer); this.scope.dispose(); }
+  onDataUpdated(): void { this.schedule(); }
+  private schedule() {
+    if (this.scope.active) { this.pending = true; return; }
+    window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.render(), 150);
+  }
+
+  private render() {
+    const keep = this.root.scrollTop;
+    this.root.empty(); this.scope.clear();
+    const onlyTicket = this.config.get("onlyWithTicket") !== false; const wk = startOfWeek(today());
+    const tasks = sortTasks(allTasks(this.app, this.plugin.settings).filter(t => !t.planned && t.status !== "done" && t.week !== wk && (!onlyTicket || !!ticketPathOf(this.app, t))));
+    const head = this.root.createDiv("samaya-backlog-head");
+    head.createEl("h2", { text: "Backlog by date" });
+    renderBacklogBuckets(this.plugin, this.root.createDiv("samaya-buckets"), tasks, this.scope, {}, { label: "samaya-today-label", list: "samaya-bucket-list", empty: "samaya-empty" });
+    this.root.scrollTop = keep;
+  }
+}

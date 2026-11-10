@@ -1,7 +1,7 @@
 import { App, Notice, TFile, normalizePath, requestUrl } from "obsidian";
 import { IcsEvent, parseIcs } from "./ics";
 import type { SamayaSettings } from "./settings";
-import { Horizon, horizonTarget, safeFileName, startOfWeek, today } from "./util";
+import { Horizon, horizonTarget, isHorizon, safeFileName, startOfWeek, today } from "./util";
 import { DEFAULT_TASK_TEMPLATE, ensureSubtasksHeading, insertSubtask, renderPath, pathRoot, renderTemplate, TicketVars, DEFAULT_TICKET_TEMPLATE, renderTicketNote, renderTicketFileName, renderTicketPath } from "./taskbody";
 import type { RawTicket } from "./tickets";
 import { Seg, parseSegments } from "./segments";
@@ -11,7 +11,8 @@ export interface Task {
   planned: string; start: string; estimate: number; actual: number; order: number; channel: string;
   /** link path of the assigned ticket note ("" = none) */ ticket: string;
   /** week-start date (YYYY-MM-DD) for "this week" tasks without a day */ week: string;
-  /** date a parked backlog task becomes due ("" = not parked); once reached it counts as this week's task */ later: string;
+  /** date a parked backlog task becomes due ("" = none); once reached it counts as this week's task */ later: string;
+  /** backlog bucket the task is parked in ("" = unsorted) */ horizon: Horizon | "";
   /** time segments when the task is split around meetings (2+), else empty; `start` is the first one, `estimate` the total */ segments: Seg[];
 }
 
@@ -24,7 +25,7 @@ export function readTask(app: App, file: TFile): Task {
   const ymdOf = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(str(v).slice(0, 10)) ? str(v).slice(0, 10) : "");
   const later = ymdOf(fm.later); const due = !!later && later <= today() && !planned;
   return {
-    file, title: file.basename, later,
+    file, title: file.basename, later, horizon: isHorizon(str(fm.horizon)) ? (str(fm.horizon) as Horizon) : "",
     status: fm.status === "done" ? "done" : "todo",
     planned: /^\d{4}-\d{2}-\d{2}$/.test(planned) ? planned : "",
     start: /^\d{1,2}:\d{2}$/.test(str(fm.start)) ? str(fm.start) : "",
@@ -50,7 +51,7 @@ export async function patchTask(app: App, file: TFile, patch: Record<string, str
     // a split task keeps its segments only when they are written together with the new time or length
     if (!("segments" in patch) && ("start" in patch || ("estimate" in patch && fm.estimate !== patch.estimate))) delete fm.segments;
     // giving a task a day or a week ends its parking
-    if (!("later" in patch) && (patch.planned || patch.week)) delete fm.later;
+    if (!("later" in patch) && (patch.planned || patch.week)) { delete fm.later; delete fm.horizon; }
     for (const [k, v] of Object.entries(patch)) {
       if (v === undefined || v === null || v === "") delete fm[k]; else fm[k] = v;
     }
@@ -58,7 +59,7 @@ export async function patchTask(app: App, file: TFile, patch: Record<string, str
 }
 /** Park a task in the backlog under Next week / month / quarter (null = plain backlog). It moves to this week by itself when the date arrives. */
 export async function parkTask(app: App, file: TFile, h: Horizon | null): Promise<void> {
-  await patchTask(app, file, { planned: null, start: null, week: null, later: h ? horizonTarget(h, today()) : null });
+  await patchTask(app, file, { planned: null, start: null, week: null, later: h ? horizonTarget(h, today()) : null, horizon: h });
 }
 /** Persist the move of parked tasks whose date has arrived into this week. Returns how many moved. */
 export async function promoteParked(app: App, s: SamayaSettings): Promise<number> {

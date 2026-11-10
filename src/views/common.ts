@@ -4,7 +4,7 @@ import { DndScope, DropInfo } from "../dnd";
 import { Task, addSubtask, assignTicket, parkTask, patchTask, readSubtasks, readTicket, setDone, ticketPathOf, toggleSubtask } from "../model";
 import { ProjectSuggestModal, TicketSuggestModal } from "../modals";
 import { assignProject, projectPathOf } from "../projects";
-import { HORIZONS, Horizon, fmtHm, horizonOf, minToHm, parseDuration, startOfWeek, today } from "../util";
+import { HORIZONS, Horizon, bucketOf, fmtHm, minToHm, parseDuration, startOfWeek, today } from "../util";
 
 export interface CardOpts {
   scope: DndScope; showTime?: boolean; /** show the actions under the estimate on the right instead of below the title */ actionsSide?: boolean; /** hide subtasks (sidebar) */ compact?: boolean;
@@ -82,7 +82,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
 /** Backlog tasks grouped under Next week / Next month / Next quarter / Unsorted; every group is a drop zone that parks the dragged task there. */
 export function renderBacklogBuckets(plugin: SamayaPlugin, host: HTMLElement, tasks: Task[], scope: DndScope, o: { compact?: boolean; actionsSide?: boolean; actions?: (t: Task) => Array<[string, () => void]> }, cls = { label: "samaya-today-label", list: "samaya-today-cards", empty: "samaya-today-empty" }) {
   const from = today();
-  const groups: Array<[Horizon | null, string, Task[]]> = [...HORIZONS.map(([h, label]) => [h, label, tasks.filter(t => t.later && horizonOf(t.later, from) === h)] as [Horizon | null, string, Task[]]), [null, "Unsorted", tasks.filter(t => !t.later)]];
+  const groups: Array<[Horizon | null, string, Task[]]> = [...HORIZONS.map(([h, label]) => [h, label, tasks.filter(t => bucketOf(t.horizon, t.later, from) === h)] as [Horizon | null, string, Task[]]), [null, "Unsorted", tasks.filter(t => !bucketOf(t.horizon, t.later, from))]];
   for (const [h, label, ts] of groups) {
     const box = host.createDiv("samaya-bucket");
     box.createDiv({ cls: cls.label, text: `${label} · ${ts.length}` });

@@ -7,21 +7,29 @@ export function startOfWeek(s: string, mondayFirst = true): string {
   const d = parseYmd(s); const dow = d.getDay();
   const diff = mondayFirst ? (dow + 6) % 7 : dow; d.setDate(d.getDate() - diff); return ymd(d);
 }
-/** Backlog buckets: tasks parked until next week, next month or next quarter. */
-export type Horizon = "week" | "month" | "quarter";
-export const HORIZONS: Array<[Horizon, string]> = [["week", "Next week"], ["month", "Next month"], ["quarter", "Next quarter"]];
-/** Date a task parked in `h` becomes due (start of next week / month / quarter), counted from `from`. */
+/** Backlog buckets: tasks parked until next week / month / quarter / year (they move to this week by themselves), or for "someday" / "never" (they stay). */
+export type Horizon = "week" | "month" | "quarter" | "year" | "someday" | "never";
+export const HORIZONS: Array<[Horizon, string]> = [["week", "Next week"], ["month", "Next month"], ["quarter", "Next quarter"], ["year", "Next year"], ["someday", "Someday"], ["never", "Never"]];
+export const isHorizon = (v: string): v is Horizon => HORIZONS.some(([h]) => h === v);
+/** Date a task parked in `h` becomes due (start of next week / month / quarter / year), counted from `from`; "" for someday / never. */
 export function horizonTarget(h: Horizon, from: string): string {
   if (h === "week") return addDays(startOfWeek(from), 7);
   const d = parseYmd(from);
   if (h === "month") return ymd(new Date(d.getFullYear(), d.getMonth() + 1, 1));
-  return ymd(new Date(d.getFullYear(), (Math.floor(d.getMonth() / 3) + 1) * 3, 1));
+  if (h === "quarter") return ymd(new Date(d.getFullYear(), (Math.floor(d.getMonth() / 3) + 1) * 3, 1));
+  if (h === "year") return ymd(new Date(d.getFullYear() + 1, 0, 1));
+  return "";
 }
-/** Bucket a parked task currently shows in: closer targets cascade (a "next month" task whose date falls in next week shows under Next week). */
+/** Bucket a due date falls in relative to `from` (week / month / quarter). */
 export function horizonOf(later: string, from: string): Horizon {
   if (later <= addDays(startOfWeek(from), 13)) return "week";
   const d = parseYmd(from);
   return later < ymd(new Date(d.getFullYear(), d.getMonth() + 2, 1)) ? "month" : "quarter";
+}
+/** Bucket a parked task shows in. Month / quarter tasks cascade closer as their date nears (a "next month" task whose date falls in next week shows under Next week). */
+export function bucketOf(h: Horizon | "", later: string, from: string): Horizon | "" {
+  if (!h) return later ? horizonOf(later, from) : "";
+  return later && (h === "month" || h === "quarter") ? horizonOf(later, from) : h;
 }
 export function hmToMin(hm: string): number { const [h, m] = hm.split(":").map(Number); return h * 60 + (m || 0); }
 export function minToHm(min: number): string { const m = Math.max(0, Math.min(24 * 60 - 1, Math.round(min))); return `${pad(Math.floor(m / 60))}:${pad(m % 60)}`; }

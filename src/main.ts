@@ -153,9 +153,6 @@ export default class SamayaPlugin extends Plugin {
   /** week (monday, ymd) shown by the Weekly Board while it is open ("" = none) */
   boardWeek = "";
   guide: GuideState | null = null;
-  /** which half of the Planner view is in front when no guide is running */
-  plannerMode: "day" | "week" = "day";
-  setPlannerMode(m: "day" | "week") { this.plannerMode = m; this.bus.emit(); }
 
   async onload() {
     this.data = (await this.loadData()) ?? {};

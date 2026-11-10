@@ -103,7 +103,7 @@ export class DailyPlannerView extends BasesView {
     }
     if (pg) {
       // columns: guide | source tasks (Review: left over, Pick: this week/backlog) | today's tasks
-      const cols = left.createDiv("samaya-review-cols" + (step === 2 ? " is-two" : ""));
+      const cols = left.createDiv("samaya-review-cols" + (step === 2 ? " is-two" : "") + (pick ? " is-pick" : ""));
       renderGuide(this.plugin, cols, { overdue: overdue.length });
       if (review) this.renderLeftOver(cols, overdue); else if (pick) this.renderPick(cols);
       body = cols.createDiv("samaya-plancol samaya-review-main");
@@ -162,7 +162,7 @@ export class DailyPlannerView extends BasesView {
       b.onclick = () => { this.pickTab = key; void this.render(); };
     });
     richText(col.createDiv("samaya-guide-text samaya-colhint"), "Press `Today` on a task, or drag it into today's list.");
-    const list = col.createDiv("samaya-leftover-list");
+    const list = col.createDiv("samaya-leftover-list samaya-pick-list");
     if (this.pickTab === "week") {
       if (!tasks.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned for this week yet." });
       tasks.forEach(t => renderTaskCard(this.plugin, list, t, { scope: this.scope, actionsSide: true, actions: [["Today", () => { void placeInDay(this.app, s, t.file.path, this.date, 9999); }]] }));

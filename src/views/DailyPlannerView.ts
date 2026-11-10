@@ -103,7 +103,10 @@ export class DailyPlannerView extends BasesView {
       renderGuide(this.plugin, cols, { overdue: overdue.length });
       if (review) this.renderLeftOver(cols, overdue); else if (pick) this.renderPick(cols);
       body = cols.createDiv("samaya-plancol samaya-review-main");
-      if (sd) this.colHead(body, "Tasks", day.length, "Tick the checkbox of every task you have finished.");
+      if (sd) {
+        this.colHead(body, "Tasks", day.length, "Tick the checkbox of every task you have finished.");
+        renderDoneBar(body, day.filter(t => t.status === "done").length, day.length, false);
+      }
       else this.colHead(body, "Today", day.length, review || pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
       if (!sd) renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
     }

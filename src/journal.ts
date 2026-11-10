@@ -228,8 +228,8 @@ export function loadBar(planned: number, free: number): string {
   return `${"█".repeat(n)}${"░".repeat(10 - n)} ${pct}%`;
 }
 /** "" while there is room, else why the day is full. */
-export function loadNote(planned: number, free: number): string {
-  const l = loadLevel(planned, free); return l === "over" ? "over capacity" : l === "tight" ? `past the ${Math.round(BUFFER_SHARE * 100)}% buffer` : "";
+export function loadNote(planned: number, free: number, share = BUFFER_SHARE): string {
+  const l = loadLevel(planned, free, share); return l === "over" ? "over capacity" : l === "tight" ? `past the ${Math.round(share * 100)}% buffer` : "";
 }
 /** The "Week plan" section: totals and a table with one row per day that links to the day's section. Pure. */
 export function weekOverview(days: DayPlan[], noDay: number): string {

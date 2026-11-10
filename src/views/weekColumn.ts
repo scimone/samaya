@@ -7,7 +7,7 @@ import { Task, createTask, patchTask, sortTasks } from "../model";
 import { calendarEnabled, calendarEvents } from "../calendar";
 import { addDays, fmtDur, parseTitleEstimate, parseYmd } from "../util";
 import { Capacity, capacityWindow } from "../worktime";
-import { BUFFER_SHARE, loadLevel } from "../weekplan";
+import { bufferShare, loadLevel } from "../weekplan";
 import { renderTaskCard, bindZone } from "./common";
 
 /** Everything that belongs to the week (done tasks included: they used up time), and the part without a day. */
@@ -59,12 +59,12 @@ export function renderWeekColumn(plugin: SamayaPlugin, scope: DndScope, host: HT
 
   const col = host.createDiv("samaya-plancol samaya-wg-col samaya-wg-side");
   const h = col.createDiv("samaya-colhead"); h.createSpan({ cls: "samaya-colhead-title", text: "This week" }); h.createSpan({ cls: "samaya-colhead-count", text: String(shown.length) });
-  const lvl = loadLevel(planned, o.free); const budget = Math.round(o.free * BUFFER_SHARE);
+  const share = bufferShare(s.bufferPercent); const lvl = loadLevel(planned, o.free, share); const budget = Math.round(o.free * share);
   const box = col.createDiv({ cls: `samaya-loadbar is-${lvl}` });
   const bar = box.createDiv({ cls: `samaya-col-bar is-${lvl}` });
   bar.createDiv("samaya-col-bar-fill").style.width = `${o.free <= 0 ? (planned > 0 ? 100 : 0) : Math.min(100, (planned / o.free) * 100)}%`;
   const label = col.createDiv({ cls: "samaya-wg-info" }).createDiv({ cls: "samaya-total", text: `${fmtDur(planned)} planned · ${fmtDur(budget)} recommended` });
-  label.title = `Free time of the week = work time - lunch - meetings = ${fmtDur(o.free)}. Plan at most ${Math.round(BUFFER_SHARE * 100)}% of it (${fmtDur(budget)}).`;
+  label.title = `Free time of the week = work time - lunch - meetings = ${fmtDur(o.free)}. Plan at most ${Math.round(share * 100)}% of it (${fmtDur(budget)}).`;
   if (!schedule) addTaskInput(plugin, col, "+ Add weekly task", () => ({ week: wk }), o.refresh); // before the first task (the days have their own in Schedule)
   const list = col.createDiv("samaya-wg-scroll samaya-leftover-list");
   if (!shown.length) list.createDiv({ cls: "samaya-empty", text: schedule ? "Every task has a day." : "Nothing planned for this week yet." });

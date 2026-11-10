@@ -3,6 +3,11 @@ import { addDays, startOfWeek } from "./util";
 
 /** Share of a day's free time that planning should not exceed: the rest is for what nobody can foresee. */
 export const BUFFER_SHARE = 0.8;
+/** The share of the free time that may be planned, from the "free buffer" setting in percent (20 -> 0.8). */
+export function bufferShare(bufferPercent: number | undefined): number {
+  const p = typeof bufferPercent === "number" && isFinite(bufferPercent) ? Math.min(90, Math.max(0, bufferPercent)) : 20;
+  return 1 - p / 100;
+}
 
 /** The week to plan: the current one, or the coming one when it is planned on the weekend. */
 export function weekToPlan(date: string, dow: number): string {
@@ -11,9 +16,9 @@ export function weekToPlan(date: string, dow: number): string {
 }
 
 /** ok = room to spare, tight = past the buffer, over = more than there is time for. */
-export function loadLevel(planned: number, free: number): "ok" | "tight" | "over" {
+export function loadLevel(planned: number, free: number, share = BUFFER_SHARE): "ok" | "tight" | "over" {
   if (planned > free) return "over";
-  return free > 0 && planned > free * BUFFER_SHARE ? "tight" : "ok";
+  return free > 0 && planned > free * share ? "tight" : "ok";
 }
 
 /** Planned work of earlier days, or weekly tasks of earlier weeks, that never got done: the Review step of the week guide. */
@@ -29,10 +34,10 @@ export function weekSteps(review: boolean, tickets: boolean): number[] {
 }
 
 /** How the whole week looks: the worst of its days. `over` / `tight` count the days. */
-export function weekVerdict(days: Array<{ planned: number; free: number }>): { level: "ok" | "tight" | "over"; over: number; tight: number } {
-  const lv = days.map(d => loadLevel(d.planned, d.free));
+export function weekVerdict(days: Array<{ planned: number; free: number }>, share = BUFFER_SHARE): { level: "ok" | "tight" | "over"; over: number; tight: number } {
+  const lv = days.map(d => loadLevel(d.planned, d.free, share));
   const over = lv.filter(l => l === "over").length, tight = lv.filter(l => l === "tight").length;
   return { level: over ? "over" : tight ? "tight" : "ok", over, tight };
 }
 /** Minutes to take off a day to be back inside the buffer (0 when it already is). */
-export function trimToBuffer(planned: number, free: number): number { return Math.max(0, Math.round(planned - free * BUFFER_SHARE)); }
+export function trimToBuffer(planned: number, free: number, share = BUFFER_SHARE): number { return Math.max(0, Math.round(planned - free * share)); }

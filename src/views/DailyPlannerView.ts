@@ -11,7 +11,7 @@ import { renderGuide } from "./guide";
 import { renderLoadBar } from "./loadBar";
 import { renderWorkdayCard } from "./workdayCard";
 import { capacityWindow, Capacity } from "../worktime";
-import { BUFFER_SHARE, loadLevel, trimToBuffer } from "../weekplan";
+import { bufferShare, loadLevel, trimToBuffer } from "../weekplan";
 
 export const DAILY_VIEW_TYPE = "samaya-daily";
 
@@ -117,7 +117,7 @@ export class DailyPlannerView extends BasesView {
         if (allSet && this.lastBoxed && this.lastBoxed.date === this.date && !this.lastBoxed.all) { todayBadge.addClass("is-pop"); celebrate(todayBadge); }
         this.lastBoxed = { date: this.date, all: allSet };
       } else this.lastBoxed = null;
-      renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
+      renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`, bufferShare(s.bufferPercent));
     }
 
     const list = body.createDiv("samaya-list" + (step === 2 ? " is-timebox" : ""));
@@ -208,7 +208,7 @@ export class DailyPlannerView extends BasesView {
   /** Check step: a verdict on the day, its numbers, one bar (meetings, planned work, the 80% buffer line) and what is left to fix. */
   private renderCheck(host: HTMLElement, day: Task[], cap: Capacity, planned: number) {
     const g = this.plugin.guide; const go = (to: number) => { if (g) { g.step = to; this.plugin.bus.emit(); } };
-    const level = loadLevel(planned, cap.free); const pct0 = Math.round(BUFFER_SHARE * 100);
+    const share = bufferShare(this.plugin.settings.bufferPercent); const level = loadLevel(planned, cap.free, share); const pct0 = Math.round(share * 100);
     const open = day.filter(t => t.status !== "done");
     const noSlot = open.filter(t => !t.start); const noEst = open.filter(t => !t.estimate);
     const box = host.createDiv("samaya-chk samaya-chk-day-view");
@@ -216,7 +216,7 @@ export class DailyPlannerView extends BasesView {
     // ---- verdict
     const copy = !day.length ? ["An empty day", "Nothing is planned for today yet.", "inbox", "ok"]
       : level === "over" ? ["An overloaded day", `You planned ${fmtDur(planned - cap.free)} more than there is time for.`, "alert-octagon", "over"]
-      : level === "tight" ? ["A full day", `You are ${fmtDur(trimToBuffer(planned, cap.free))} past the ${pct0}% buffer. Something will probably slip.`, "alert-triangle", "tight"]
+      : level === "tight" ? ["A full day", `You are ${fmtDur(trimToBuffer(planned, cap.free, share))} past the ${pct0}% buffer. Something will probably slip.`, "alert-triangle", "tight"]
       : ["A realistic day", "You keep room for the unexpected.", "check-circle-2", "ok"];
     const hero = box.createDiv(`samaya-chk-hero is-${copy[3]}`);
     setIcon(hero.createDiv("samaya-chk-hero-icon"), copy[2]);
@@ -227,7 +227,7 @@ export class DailyPlannerView extends BasesView {
     // ---- the day in numbers
     const stats = box.createDiv("samaya-chk-stats");
     const stat = (label: string, value: string, sub: string, cls: string) => { const t = stats.createDiv("samaya-chk-stat " + cls); t.createDiv({ cls: "samaya-chk-stat-label", text: label }); t.createDiv({ cls: "samaya-chk-stat-value", text: value }); t.createDiv({ cls: "samaya-chk-stat-sub", text: sub }); };
-    stat("Tasks", fmtDur(planned), `${day.length} planned · ${fmtDur(Math.round(cap.free * BUFFER_SHARE))} recommended`, `is-tasks is-${level}`);
+    stat("Tasks", fmtDur(planned), `${day.length} planned · ${fmtDur(Math.round(cap.free * share))} recommended`, `is-tasks is-${level}`);
     stat("Meetings", fmtDur(cap.meetings), cap.meetings ? "from your calendar" : "none today", "is-meet");
     stat("Unplanned time", fmtDur(Math.max(0, cap.free - planned)), "no meetings or tasks", "is-open");
 
@@ -239,14 +239,14 @@ export class DailyPlannerView extends BasesView {
       const pct = (m: number) => `${Math.min(100, Math.max(0, (m / avail) * 100))}%`;
       const meet = bar.createDiv("samaya-chk-hseg is-meet"); meet.style.width = pct(cap.meetings);
       const work = bar.createDiv(`samaya-chk-hseg is-work is-${level}`); work.style.left = pct(cap.meetings); work.style.width = pct(Math.min(planned, cap.free + (planned > cap.free ? cap.meetings : 0)));
-      const line = bar.createDiv("samaya-chk-hline"); line.style.left = pct(cap.meetings + cap.free * BUFFER_SHARE); line.title = `${pct0}% of the free time`;
+      const line = bar.createDiv("samaya-chk-hline"); line.style.left = pct(cap.meetings + cap.free * share); line.title = `${pct0}% of the free time`;
     }
     const legend = box.createDiv("samaya-chk-legend");
     for (const [cls, text] of [["is-meet", "Meetings"], ["is-work", "Tasks"], ["is-open", "Unplanned"], ["is-line", `${pct0}% line`]]) { const l = legend.createSpan("samaya-chk-legend-item"); l.createSpan({ cls: `samaya-chk-swatch ${cls}` }); l.createSpan({ text }); }
 
     // ---- what is left to fix
     const todo: Array<{ title: string; text: string; label: string; step: number }> = [];
-    if (level !== "ok") todo.push({ title: "Lighten today", text: `Take about ${fmtDur(trimToBuffer(planned, cap.free))} off: send a task back to This week or the Backlog.`, label: "Back to Pick", step: 1 });
+    if (level !== "ok") todo.push({ title: "Lighten today", text: `Take about ${fmtDur(trimToBuffer(planned, cap.free, share))} off: send a task back to This week or the Backlog.`, label: "Back to Pick", step: 1 });
     if (noSlot.length) todo.push({ title: `${noSlot.length} ${noSlot.length === 1 ? "task has" : "tasks have"} no time slot`, text: `${noSlot.slice(0, 3).map(t => t.title).join(", ")}${noSlot.length > 3 ? ` and ${noSlot.length - 3} more` : ""}. Drag ${noSlot.length === 1 ? "it" : "them"} onto the timeline.`, label: "Back to Timebox", step: 2 });
     if (noEst.length) todo.push({ title: `${noEst.length} ${noEst.length === 1 ? "task has" : "tasks have"} no estimate`, text: `${noEst.slice(0, 3).map(t => t.title).join(", ")}${noEst.length > 3 ? ` and ${noEst.length - 3} more` : ""}. Without one the day looks emptier than it is.`, label: "Back to Timebox", step: 2 });
     const fix = box.createDiv("samaya-chk-fix" + (todo.length ? "" : " is-clear"));
@@ -305,12 +305,13 @@ export class DailyPlannerView extends BasesView {
 
     renderWorkdayCard(this.plugin, host.createDiv("samaya-info-card"), { panel: true, date: this.date });
 
-    const over = plannedAll > cap.free;
+    const over = plannedAll > cap.free; const share = bufferShare(this.plugin.settings.bufferPercent); const lvl = loadLevel(plannedAll, cap.free, share);
     const load = host.createDiv({ cls: "samaya-info-card samaya-info-load" + (over ? " is-over" : "") });
     load.createDiv({ cls: "samaya-info-label", text: "Capacity" });
     const tot = load.createDiv({ cls: "samaya-info-big", text: `${fmtDur(plannedAll)} / ${fmtDur(cap.free)} planned` });
     tot.title = `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`;
-    const bar = load.createDiv({ cls: "samaya-col-bar" + (over ? " is-over" : "") });
+    tot.title += `. Plan at most ${Math.round(share * 100)}% of it (${fmtDur(Math.round(cap.free * share))}) and keep the rest for what comes up.`;
+    const bar = load.createDiv({ cls: `samaya-col-bar is-${lvl}` });
     bar.createDiv("samaya-col-bar-fill").style.width = `${over || cap.free <= 0 ? (plannedAll > 0 ? 100 : 0) : (plannedAll / cap.free) * 100}%`;
     if (isToday) {
       const row = load.createDiv("samaya-wd-buttons");

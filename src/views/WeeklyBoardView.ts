@@ -3,7 +3,7 @@ import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, Ticket, allTasks, allTickets, ticketPathOf, createTask, parkTask, patchTask, placeInDay, prefixOf, readTask, sortTasks } from "../model";
 import type { IcsEvent } from "../ics";
-import { BUFFER_SHARE, isLeftover, loadLevel, trimToBuffer, weekVerdict } from "../weekplan";
+import { bufferShare, isLeftover, loadLevel, trimToBuffer, weekVerdict } from "../weekplan";
 import { renderGuide } from "./guide";
 import { addTaskInput, capacityOf, weekBuckets } from "./weekColumn";
 import { TicketTaskModal } from "../modals";
@@ -220,13 +220,13 @@ export class WeeklyBoardView extends BasesView {
   private guidedDay(parent: HTMLElement, date: string, cap: Capacity, events: IcsEvent[], tasks: Task[], isToday: boolean, addBox: (col: HTMLElement, placeholder: string, props: () => Record<string, string | number>) => void) {
     const s = this.plugin.settings; const dayMs = parseYmd(date).getTime();
     const col = parent.createDiv({ cls: "samaya-col samaya-wg-day" + (isToday ? " is-today" : "") });
-    const planned = tasks.reduce((a, t) => a + (t.estimate || 0), 0); const lvl = loadLevel(planned, cap.free);
+    const share = bufferShare(s.bufferPercent); const planned = tasks.reduce((a, t) => a + (t.estimate || 0), 0); const lvl = loadLevel(planned, cap.free, share);
     const h = col.createDiv("samaya-col-head");
     const left = h.createDiv("samaya-col-headl");
     left.createSpan({ cls: "samaya-col-title samaya-colhead-title", text: parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }) });
     left.createSpan({ cls: "samaya-colhead-count", text: String(tasks.length) });
     const sum = h.createSpan({ cls: `samaya-col-cap is-${lvl}`, text: `${fmtDur(planned)}/${fmtDur(cap.free)}` });
-    sum.title = `Free to plan = ${fmtDur(cap.total)} work time - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings. Keep about ${Math.round((1 - BUFFER_SHARE) * 100)}% of it free.`;
+    sum.title = `Free to plan = ${fmtDur(cap.total)} work time - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings. Keep about ${Math.round((1 - share) * 100)}% of it free.`;
     const bar = col.createDiv({ cls: `samaya-col-bar is-${lvl}` });
     bar.createDiv("samaya-col-bar-fill").style.width = `${cap.free <= 0 ? (planned > 0 ? 100 : 0) : Math.min(100, (planned / cap.free) * 100)}%`;
     const evs = events.filter(e => e.end.getTime() > dayMs && e.start.getTime() < dayMs + 86400000).sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.getTime() - b.start.getTime());
@@ -248,13 +248,13 @@ export class WeeklyBoardView extends BasesView {
 
   /** Check step: a verdict on the week, the week's numbers, a column per day (meetings, planned work, the 80% buffer line) and what is left to fix. */
   private renderCheck(main: HTMLElement, days: string[], caps: Map<string, Capacity>, tasks: Task[], noDay: Task[], plannedTotal: number, freeTotal: number) {
-    const s = this.plugin.settings; const td = today(); const g = this.plugin.guide;
+    const s = this.plugin.settings; const td = today(); const g = this.plugin.guide; const share = bufferShare(s.bufferPercent);
     const rows = days.map(date => {
       const cap = caps.get(date)!; const ts = tasks.filter(t => t.planned === date);
       const planned = ts.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0);
-      return { date, cap, planned, count: ts.length, done: ts.filter(t => t.status === "done").length, level: loadLevel(planned, cap.free) };
+      return { date, cap, planned, count: ts.length, done: ts.filter(t => t.status === "done").length, level: loadLevel(planned, cap.free, share) };
     });
-    const v = weekVerdict(rows.map(r => ({ planned: r.planned, free: r.cap.free })));
+    const v = weekVerdict(rows.map(r => ({ planned: r.planned, free: r.cap.free })), share);
     const name = (d: string, long = true) => parseYmd(d).toLocaleDateString(undefined, { weekday: long ? "long" : "short" });
     const back = () => { if (g) { g.step = 3; this.plugin.bus.emit(); } };
 
@@ -262,7 +262,7 @@ export class WeeklyBoardView extends BasesView {
     // ---- verdict
     const copy = {
       ok: ["A realistic week", "Every day keeps room for the unexpected.", "check-circle-2"],
-      tight: ["A full week", `${v.tight} ${v.tight === 1 ? "day is" : "days are"} past the ${Math.round(BUFFER_SHARE * 100)}% buffer. Something will probably slip.`, "alert-triangle"],
+      tight: ["A full week", `${v.tight} ${v.tight === 1 ? "day is" : "days are"} past the ${Math.round(share * 100)}% buffer. Something will probably slip.`, "alert-triangle"],
       over: ["An overloaded week", `${v.over} ${v.over === 1 ? "day plans" : "days plan"} more than there is time for.`, "alert-octagon"],
     }[v.level];
     const hero = box.createDiv(`samaya-chk-hero is-${v.level}`);
@@ -277,7 +277,7 @@ export class WeeklyBoardView extends BasesView {
     const stats = box.createDiv("samaya-chk-stats");
     const stat = (label: string, value: string, sub = "", cls = "") => { const t = stats.createDiv("samaya-chk-stat " + cls); t.createDiv({ cls: "samaya-chk-stat-label", text: label }); t.createDiv({ cls: "samaya-chk-stat-value", text: value }); if (sub) t.createDiv({ cls: "samaya-chk-stat-sub", text: sub }); };
     const spare = rows.reduce((a, r) => a + Math.max(0, r.cap.free - r.planned), 0); // time with neither a meeting nor a task (a day that is over does not eat into another one)
-    stat("Tasks", fmtDur(plannedTotal), `${nPlaced} planned · ${fmtDur(Math.round(freeTotal * BUFFER_SHARE))} recommended`, `is-tasks is-${loadLevel(plannedTotal, freeTotal)}`);
+    stat("Tasks", fmtDur(plannedTotal), `${nPlaced} planned · ${fmtDur(Math.round(freeTotal * share))} recommended`, `is-tasks is-${loadLevel(plannedTotal, freeTotal, share)}`);
     stat("Meetings", fmtDur(meetings), `${rows.filter(r => r.cap.meetings).length} of ${rows.length} days`, "is-meet");
     stat("Unplanned time", fmtDur(spare), "no meetings or tasks", "is-open");
 
@@ -295,23 +295,23 @@ export class WeeklyBoardView extends BasesView {
         const pct = (m: number) => `${Math.min(100, Math.max(0, (m / avail) * 100))}%`;
         bar.createDiv("samaya-chk-seg is-meet").style.height = pct(r.cap.meetings);
         const work = bar.createDiv(`samaya-chk-seg is-work is-${r.level}`); work.style.bottom = pct(r.cap.meetings); work.style.height = pct(Math.min(r.planned, r.cap.free + (r.planned > r.cap.free ? r.cap.meetings : 0)));
-        const line = bar.createDiv("samaya-chk-line"); line.style.bottom = pct(r.cap.meetings + r.cap.free * BUFFER_SHARE); line.title = `${Math.round(BUFFER_SHARE * 100)}% of the free time`;
+        const line = bar.createDiv("samaya-chk-line"); line.style.bottom = pct(r.cap.meetings + r.cap.free * share); line.title = `${Math.round(share * 100)}% of the free time`;
       } else bar.addClass("is-off");
       const kv = card.createDiv("samaya-chk-kvs");
       const row = (cls: string, label: string, value: string, extra = "") => { const k = kv.createDiv("samaya-chk-kv"); k.createSpan({ cls: `samaya-chk-swatch ${cls}` }); k.createSpan({ cls: "samaya-chk-kv-label", text: label }); k.createSpan({ cls: "samaya-chk-kv-value", text: value }); if (extra) k.createSpan({ cls: "samaya-chk-kv-extra", text: extra }); };
       row("is-work", `Tasks (${r.count})`, fmtDur(r.planned));
       row("is-meet", "Meetings", fmtDur(r.cap.meetings));
       row("is-open", "Unplanned", fmtDur(Math.max(0, r.cap.free - r.planned)));
-      const trim = trimToBuffer(r.planned, r.cap.free);
-      card.createDiv({ cls: "samaya-chk-day-flag", text: r.level === "over" ? `Over by ${fmtDur(r.planned - r.cap.free)}` : r.level === "tight" ? `${fmtDur(trim)} past the buffer` : r.count ? `${fmtDur(Math.max(0, Math.round(r.cap.free * BUFFER_SHARE) - r.planned))} to spare` : "Nothing planned" });
+      const trim = trimToBuffer(r.planned, r.cap.free, share);
+      card.createDiv({ cls: "samaya-chk-day-flag", text: r.level === "over" ? `Over by ${fmtDur(r.planned - r.cap.free)}` : r.level === "tight" ? `${fmtDur(trim)} past the buffer` : r.count ? `${fmtDur(Math.max(0, Math.round(r.cap.free * share) - r.planned))} to spare` : "Nothing planned" });
     }
     const legend = box.createDiv("samaya-chk-legend");
-    for (const [cls, text] of [["is-meet", "Meetings"], ["is-work", "Tasks"], ["is-open", "Unplanned"], ["is-line", `${Math.round(BUFFER_SHARE * 100)}% line`]]) { const l = legend.createSpan("samaya-chk-legend-item"); l.createSpan({ cls: `samaya-chk-swatch ${cls}` }); l.createSpan({ text }); }
+    for (const [cls, text] of [["is-meet", "Meetings"], ["is-work", "Tasks"], ["is-open", "Unplanned"], ["is-line", `${Math.round(share * 100)}% line`]]) { const l = legend.createSpan("samaya-chk-legend-item"); l.createSpan({ cls: `samaya-chk-swatch ${cls}` }); l.createSpan({ text }); }
 
     // ---- what is left to fix
     const todo: Array<[string, string]> = [];
     const heavy = rows.filter(r => r.level !== "ok");
-    if (heavy.length) todo.push(["Lighten " + heavy.map(r => name(r.date)).join(", "), `Move about ${fmtDur(Math.max(...heavy.map(r => trimToBuffer(r.planned, r.cap.free))))} off the fullest day to a lighter one, or back to the backlog.`]);
+    if (heavy.length) todo.push(["Lighten " + heavy.map(r => name(r.date)).join(", "), `Move about ${fmtDur(Math.max(...heavy.map(r => trimToBuffer(r.planned, r.cap.free, share))))} off the fullest day to a lighter one, or back to the backlog.`]);
     if (noDay.length) todo.push([`${noDay.length} ${noDay.length === 1 ? "task has" : "tasks have"} no day`, `${noDay.slice(0, 3).map(t => t.title).join(", ")}${noDay.length > 3 ? ` and ${noDay.length - 3} more` : ""}. Give ${noDay.length === 1 ? "it" : "them"} a day, or keep ${noDay.length === 1 ? "it" : "them"} as a pool to draw from.`]);
     const fix = box.createDiv("samaya-chk-fix" + (todo.length ? "" : " is-clear"));
     if (!todo.length) { setIcon(fix.createDiv("samaya-chk-fix-icon"), "check"); fix.createDiv({ cls: "samaya-chk-fix-title", text: "Nothing left to fix. Press Finish week plan when you are ready." }); }

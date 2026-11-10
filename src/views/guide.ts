@@ -17,7 +17,15 @@ export const WEEK_GUIDE_STEPS = [
   { title: "Schedule", text: "Drag the week's tasks onto the days. Each day shows its meetings on top and how full it is. Tasks without a day stay in the list on the left." },
   { title: "Check", text: "Look at the whole week: is any day too full, is anything still without a day? Fix it with the `Back` button, then press `{done}`." },
 ];
-export const WEEK_REMINDER = "Don't plan 100% of your days. Unforeseen meetings, calls, emergencies and tasks will cross your way: keep about 20% of every day free.";
+/** The buffer reminder under every step of the day and week guides. */
+export function bufferReminder(bufferPercent: number): string {
+  return `Don't plan 100% of your day. Unforeseen meetings, calls, emergencies and tasks will cross your way: keep about ${Math.round(bufferPercent)}% of your free time open.`;
+}
+function addReminder(plugin: SamayaPlugin, box: HTMLElement) {
+  const rem = box.createDiv("samaya-plan-reminder");
+  setIcon(rem.createSpan("samaya-plan-reminder-icon"), "life-buoy");
+  rem.createSpan({ text: bufferReminder(plugin.settings.bufferPercent) });
+}
 
 export interface GuideCtx { overdue: number; }
 
@@ -56,6 +64,8 @@ export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideC
   if (g.step > first) nav.createEl("button", { text: "Back", cls: "samaya-plan-back" }).onclick = () => go(g.step - 1);
   const last = g.step === GUIDE_STEPS.length - 1;
   nav.createEl("button", { text: last ? doneLabel : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) void plugin.finishGuide(); else go(g.step + 1); };
+
+  addReminder(plugin, box);
 }
 
 /** End of day: a single step. Tick off forgotten tasks in the Tasks column, then finalize. */
@@ -106,7 +116,5 @@ function renderWeekGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideCtx)
   const last = pos === vis.length - 1;
   nav.createEl("button", { text: last ? doneLabel : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) void plugin.finishWeekGuide(); else go(vis[pos + 1]); };
 
-  const rem = box.createDiv("samaya-plan-reminder");
-  setIcon(rem.createSpan("samaya-plan-reminder-icon"), "life-buoy");
-  rem.createSpan({ text: WEEK_REMINDER });
+  addReminder(plugin, box);
 }

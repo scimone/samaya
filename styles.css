@@ -738,6 +738,9 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-agenda-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .samaya-agenda-empty { color: var(--text-faint); font-style: italic; }
 .samaya-col-cap.is-tight, .samaya-wg-rowflag.is-tight { color: var(--color-orange); }
+.samaya-total.is-tight { color: var(--color-orange); font-weight: 600; }
+.samaya-col-bar { position: relative; }
+.samaya-col-bar-mark { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid var(--background-primary); opacity: 0.9; }
 .samaya-col-bar.is-tight .samaya-col-bar-fill, .samaya-loadbar.is-tight .samaya-col-bar-fill { background: var(--color-orange); }
 .samaya-loadbar.is-over .samaya-col-bar-fill { background: var(--text-error); }
 .samaya-wg-rowflag.is-over { color: var(--text-error); }

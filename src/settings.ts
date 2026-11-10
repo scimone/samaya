@@ -17,7 +17,7 @@ export interface SamayaSettings {
   jiraFlavor: "cloud" | "server"; jiraUrl: string; jiraEmail: string; jiraToken: string; jiraJql: string;
   gitlabUrl: string; gitlabToken: string; gitlabScope: "assigned_to_me" | "created_by_me" | "all";
   syncOnStartup: boolean;
-  lunchStart: string; lunchEnd: string; weeklyHours: number; workDays: number; autoLunch: boolean;
+  lunchStart: string; lunchEnd: string; weeklyHours: number; workDays: number; /** % of every day's free time to keep unplanned */ bufferPercent: number; autoLunch: boolean;
   /** optional modules; off by default for new installs */
   calendarOn: boolean; jiraOn: boolean; gitlabOn: boolean;
   /** journal module: write into the daily note, and which parts */
@@ -43,7 +43,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   jiraFlavor: "cloud", jiraUrl: "", jiraEmail: "", jiraToken: "",
   jiraJql: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
   gitlabUrl: "https://gitlab.com", gitlabToken: "", gitlabScope: "assigned_to_me", syncOnStartup: false,
-  lunchStart: "12:00", lunchEnd: "13:00", weeklyHours: 40, workDays: 5, autoLunch: true,
+  lunchStart: "12:00", lunchEnd: "13:00", weeklyHours: 40, workDays: 5, bufferPercent: 20, autoLunch: true,
   calendarOn: false, jiraOn: false, gitlabOn: false,
   journalOn: false, journalPlanned: true, journalFinished: true, journalTomorrow: true,
   journalWorkTimes: true, journalBreaks: true, journalTracked: true, journalWeekPlan: true, journalWeekMeetings: true, journalWeekTasks: true,
@@ -339,6 +339,8 @@ export class SamayaSettingTab extends PluginSettingTab {
       label(b, "Week");
       num(b, "Required hours per week", "Used by the work time dashboard for overtime.", () => s.weeklyHours, v => (s.weeklyHours = v), { min: 1, max: 168, step: 0.5 });
       num(b, "Working days per week", "Counted from Monday (5 = Mon–Fri). Work on other days is all overtime.", () => s.workDays, v => (s.workDays = v), { min: 1, max: 7, int: true });
+      label(b, "Planning");
+      num(b, "Free buffer (%)", "Share of every day's free time to keep unplanned, for unforeseen meetings and tasks. Plan my day and Plan my week turn orange past it and red when the day is over capacity.", () => s.bufferPercent, v => (s.bufferPercent = v), { min: 0, max: 90, int: true });
       label(b, "Timeboxing grid");
       range(b, "Visible hours", "The part of the day shown on the grid.", "hour",
         [() => s.dayStartHour, v => (s.dayStartHour = v)], [() => s.dayEndHour, v => (s.dayEndHour = v)]);

@@ -298,11 +298,13 @@ console.log("home ok");
 
 // ---- week plan
 {
-  const { weekToPlan, loadLevel, isLeftover, BUFFER_SHARE } = await import("./.weekplan.mjs");
+  const { weekToPlan, loadLevel, isLeftover, BUFFER_SHARE, bufferShare } = await import("./.weekplan.mjs");
   assert.equal(weekToPlan("2026-11-10", 2), "2026-11-09"); // tuesday: this week
   assert.equal(weekToPlan("2026-11-14", 6), "2026-11-16"); // saturday: next week
   assert.equal(weekToPlan("2026-11-15", 0), "2026-11-16"); // sunday: next week
   assert.equal(BUFFER_SHARE, 0.8);
+  assert.equal(bufferShare(20), 0.8); assert.equal(bufferShare(0), 1); assert.equal(bufferShare(undefined), 0.8); assert.equal(bufferShare(500), 0.1);
+  assert.equal(loadLevel(400, 480, bufferShare(40)), "tight"); assert.equal(loadLevel(400, 480, bufferShare(10)), "ok");
   assert.equal(loadLevel(300, 480), "ok"); assert.equal(loadLevel(400, 480), "tight"); assert.equal(loadLevel(481, 480), "over"); assert.equal(loadLevel(0, 0), "ok"); assert.equal(loadLevel(30, 0), "over");
   assert.ok(isLeftover({ planned: "2026-11-09", week: "", status: "todo" }, "2026-11-10", "2026-11-09"));
   assert.ok(!isLeftover({ planned: "2026-11-10", week: "", status: "todo" }, "2026-11-10", "2026-11-09"));

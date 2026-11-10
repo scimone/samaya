@@ -109,9 +109,9 @@ export class DailyPlannerView extends BasesView {
       if (review) this.renderLeftOver(cols, overdue); else if (pick) this.renderPick(cols);
       body = cols.createDiv("samaya-plancol samaya-review-main");
       const todayBadge = this.colHead(body, "Today", day.length, review || pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
-      if (step === 2) { // Timebox: the badge counts the tasks that already have a time slot
+      if (step === 2) { // Timebox: the badge counts the tasks still waiting for a time slot
         const ns = day.filter(t => t.start).length; const allSet = day.length > 0 && ns === day.length;
-        todayBadge.setText(`${ns} / ${day.length}`); todayBadge.toggleClass("is-complete", allSet);
+        todayBadge.setText(`${day.length - ns} / ${day.length}`); todayBadge.toggleClass("is-complete", allSet);
         if (allSet && this.lastBoxed && this.lastBoxed.date === this.date && !this.lastBoxed.all) { todayBadge.addClass("is-pop"); celebrate(todayBadge); }
         this.lastBoxed = { date: this.date, all: allSet };
       } else this.lastBoxed = null;

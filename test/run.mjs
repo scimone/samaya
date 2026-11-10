@@ -316,3 +316,10 @@ console.log("home ok");
   assert.deepEqual(weekSteps(true, true), [0, 1, 2, 3, 4]); assert.deepEqual(weekSteps(false, true), [1, 2, 3, 4]);
   assert.deepEqual(weekSteps(false, false), [2, 3, 4]); assert.deepEqual(weekSteps(true, false), [0, 2, 3, 4]);
 }
+{
+  const { weekVerdict, trimToBuffer } = await import("./.weekplan.mjs");
+  assert.deepEqual(weekVerdict([{ planned: 100, free: 480 }, { planned: 0, free: 480 }]), { level: "ok", over: 0, tight: 0 });
+  assert.deepEqual(weekVerdict([{ planned: 420, free: 480 }, { planned: 100, free: 480 }]), { level: "tight", over: 0, tight: 1 });
+  assert.deepEqual(weekVerdict([{ planned: 500, free: 480 }, { planned: 420, free: 480 }]), { level: "over", over: 1, tight: 1 });
+  assert.equal(trimToBuffer(500, 480), 116); assert.equal(trimToBuffer(300, 480), 0);
+}

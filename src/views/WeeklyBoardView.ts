@@ -3,7 +3,7 @@ import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, Ticket, allTasks, allTickets, ticketPathOf, createTask, parkTask, patchTask, placeInDay, prefixOf, readTask, setDone, sortTasks } from "../model";
 import type { IcsEvent } from "../ics";
-import { BUFFER_SHARE, isLeftover, loadLevel } from "../weekplan";
+import { BUFFER_SHARE, isLeftover, loadLevel, trimToBuffer, weekVerdict } from "../weekplan";
 import { renderGuide } from "./guide";
 import { addTaskInput, capacityOf, weekBuckets } from "./weekColumn";
 import { TicketTaskModal } from "../modals";
@@ -247,28 +247,75 @@ export class WeeklyBoardView extends BasesView {
     bindZone(this.scope, col, path => { void placeInDay(this.app, s, path, date, tasks.length); });
   }
 
-  /** Check step: every day against its free time, what still has no day, and the week as a whole. */
+  /** Check step: a verdict on the week, the week's numbers, a column per day (meetings, planned work, the 80% buffer line) and what is left to fix. */
   private renderCheck(main: HTMLElement, days: string[], caps: Map<string, Capacity>, tasks: Task[], noDay: Task[], plannedTotal: number, freeTotal: number) {
-    const box = main.createDiv("samaya-wg-check");
-    box.createEl("h3", { text: "The week at a glance" });
-    let warn = 0;
-    const rows = box.createDiv("samaya-wg-rows");
-    days.forEach(date => {
-      const cap = caps.get(date)!; const planned = tasks.filter(t => t.planned === date).reduce((a, t) => a + (t.estimate || 0), 0);
-      const lvl = loadLevel(planned, cap.free); if (lvl !== "ok") warn++;
-      const r = rows.createDiv("samaya-wg-row");
-      r.createSpan({ cls: "samaya-wg-rowday", text: parseYmd(date).toLocaleDateString(undefined, { weekday: "long", day: "numeric" }) });
-      const bar = r.createDiv({ cls: `samaya-col-bar is-${lvl}` });
-      bar.createDiv("samaya-col-bar-fill").style.width = `${cap.free <= 0 ? (planned > 0 ? 100 : 0) : Math.min(100, (planned / cap.free) * 100)}%`;
-      r.createSpan({ cls: "samaya-wg-rownum", text: `${fmtDur(planned)} / ${fmtDur(cap.free)}` });
-      r.createSpan({ cls: `samaya-wg-rowflag is-${lvl}`, text: lvl === "over" ? "Over capacity" : lvl === "tight" ? `Past ${Math.round(BUFFER_SHARE * 100)}%` : "Room left" });
+    const s = this.plugin.settings; const td = today(); const g = this.plugin.guide;
+    const rows = days.map(date => {
+      const cap = caps.get(date)!; const ts = tasks.filter(t => t.planned === date);
+      const planned = ts.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0);
+      return { date, cap, planned, count: ts.length, done: ts.filter(t => t.status === "done").length, level: loadLevel(planned, cap.free) };
     });
-    const lines: Array<[string, string]> = [];
-    if (warn) lines.push(["alert", `${warn} ${warn === 1 ? "day is" : "days are"} past the ${Math.round(BUFFER_SHARE * 100)}% buffer. Move something to a lighter day or back to the backlog.`]);
-    if (noDay.length) lines.push(["alert", `${noDay.length} ${noDay.length === 1 ? "task has" : "tasks have"} no day yet: ${noDay.slice(0, 4).map(t => t.title).join(", ")}${noDay.length > 4 ? "…" : ""}. Give ${noDay.length === 1 ? "it" : "them"} a day, or that is fine as a pool to draw from.`]);
-    if (!warn && !noDay.length) lines.push(["check", "This looks realistic."]);
-    lines.push(["life-buoy", `Week: ${fmtDur(plannedTotal)} planned of ${fmtDur(freeTotal)} free. Things will come up. If everything fits perfectly on paper, it will not fit in real life.`]);
-    const notes = box.createDiv("samaya-wg-notes");
-    lines.forEach(([icon, text]) => { const n = notes.createDiv("samaya-wg-note"); setIcon(n.createSpan("samaya-wg-note-icon"), icon); n.createSpan({ text }); });
+    const v = weekVerdict(rows.map(r => ({ planned: r.planned, free: r.cap.free })));
+    const name = (d: string, long = true) => parseYmd(d).toLocaleDateString(undefined, { weekday: long ? "long" : "short" });
+    const back = () => { if (g) { g.step = 3; this.plugin.bus.emit(); } };
+
+    const box = main.createDiv("samaya-chk");
+    // ---- verdict
+    const copy = {
+      ok: ["A realistic week", "Every day keeps room for the unexpected.", "check-circle-2"],
+      tight: ["A full week", `${v.tight} ${v.tight === 1 ? "day is" : "days are"} past the ${Math.round(BUFFER_SHARE * 100)}% buffer. Something will probably slip.`, "alert-triangle"],
+      over: ["An overloaded week", `${v.over} ${v.over === 1 ? "day plans" : "days plan"} more than there is time for.`, "alert-octagon"],
+    }[v.level];
+    const hero = box.createDiv(`samaya-chk-hero is-${v.level}`);
+    setIcon(hero.createDiv("samaya-chk-hero-icon"), copy[2]);
+    const ht = hero.createDiv("samaya-chk-hero-text");
+    ht.createDiv({ cls: "samaya-chk-hero-title", text: copy[0] }); ht.createDiv({ cls: "samaya-chk-hero-sub", text: copy[1] });
+
+    // ---- the week in numbers
+    const meetings = rows.reduce((a, r) => a + r.cap.meetings, 0); const nTasks = rows.reduce((a, r) => a + r.count, 0);
+    const stats = box.createDiv("samaya-chk-stats");
+    const stat = (label: string, value: string, sub = "", cls = "") => { const t = stats.createDiv("samaya-chk-stat " + cls); t.createDiv({ cls: "samaya-chk-stat-label", text: label }); t.createDiv({ cls: "samaya-chk-stat-value", text: value }); if (sub) t.createDiv({ cls: "samaya-chk-stat-sub", text: sub }); };
+    stat("Planned", fmtDur(plannedTotal), `${fmtDur(Math.round(freeTotal * BUFFER_SHARE))} recommended`, `is-${loadLevel(plannedTotal, freeTotal)}`);
+    stat("Free time", fmtDur(freeTotal), `${fmtDur(meetings)} in meetings`);
+    stat("Tasks", String(nTasks + noDay.length), `${nTasks} scheduled`);
+    stat("Without a day", String(noDay.length), noDay.length ? "still to place" : "all placed", noDay.length ? "is-tight" : "");
+
+    // ---- day by day
+    box.createDiv({ cls: "samaya-chk-h", text: "Day by day" });
+    const grid = box.createDiv("samaya-chk-days"); grid.style.setProperty("--n", String(rows.length));
+    for (const r of rows) {
+      const card = grid.createDiv(`samaya-chk-day is-${r.level}` + (r.date === td ? " is-today" : ""));
+      const top = card.createDiv("samaya-chk-day-top");
+      top.createSpan({ cls: "samaya-chk-day-name", text: name(r.date, false) });
+      top.createSpan({ cls: "samaya-chk-day-date", text: parseYmd(r.date).toLocaleDateString(undefined, { day: "numeric", month: "short" }) });
+      const avail = r.cap.free + r.cap.meetings; // time in the workday that is not lunch
+      const bar = card.createDiv("samaya-chk-bar");
+      if (avail > 0) {
+        const pct = (m: number) => `${Math.min(100, Math.max(0, (m / avail) * 100))}%`;
+        bar.createDiv("samaya-chk-seg is-meet").style.height = pct(r.cap.meetings);
+        const work = bar.createDiv(`samaya-chk-seg is-work is-${r.level}`); work.style.bottom = pct(r.cap.meetings); work.style.height = pct(Math.min(r.planned, r.cap.free + (r.planned > r.cap.free ? r.cap.meetings : 0)));
+        const line = bar.createDiv("samaya-chk-line"); line.style.bottom = pct(r.cap.meetings + r.cap.free * BUFFER_SHARE); line.title = `${Math.round(BUFFER_SHARE * 100)}% of the free time`;
+      } else bar.addClass("is-off");
+      card.createDiv({ cls: "samaya-chk-day-value", text: fmtDur(r.planned) });
+      card.createDiv({ cls: "samaya-chk-day-sub", text: avail > 0 ? `of ${fmtDur(r.cap.free)} free` : "no work time" });
+      const trim = trimToBuffer(r.planned, r.cap.free);
+      card.createDiv({ cls: "samaya-chk-day-flag", text: r.level === "over" ? `Over by ${fmtDur(r.planned - r.cap.free)}` : r.level === "tight" ? `${fmtDur(trim)} past the buffer` : r.count ? `${fmtDur(Math.max(0, Math.round(r.cap.free * BUFFER_SHARE) - r.planned))} to spare` : "Nothing planned" });
+      card.createDiv({ cls: "samaya-chk-day-meta", text: `${r.count} ${r.count === 1 ? "task" : "tasks"}${r.cap.meetings ? ` · ${fmtDur(r.cap.meetings)} meetings` : ""}` });
+    }
+    const legend = box.createDiv("samaya-chk-legend");
+    for (const [cls, text] of [["is-meet", "Meetings"], ["is-work", "Planned tasks"], ["is-line", `${Math.round(BUFFER_SHARE * 100)}% line`]]) { const l = legend.createSpan("samaya-chk-legend-item"); l.createSpan({ cls: `samaya-chk-swatch ${cls}` }); l.createSpan({ text }); }
+
+    // ---- what is left to fix
+    const todo: Array<[string, string]> = [];
+    const heavy = rows.filter(r => r.level !== "ok");
+    if (heavy.length) todo.push(["Lighten " + heavy.map(r => name(r.date)).join(", "), `Move about ${fmtDur(Math.max(...heavy.map(r => trimToBuffer(r.planned, r.cap.free))))} off the fullest day to a lighter one, or back to the backlog.`]);
+    if (noDay.length) todo.push([`${noDay.length} ${noDay.length === 1 ? "task has" : "tasks have"} no day`, `${noDay.slice(0, 3).map(t => t.title).join(", ")}${noDay.length > 3 ? ` and ${noDay.length - 3} more` : ""}. Give ${noDay.length === 1 ? "it" : "them"} a day, or keep ${noDay.length === 1 ? "it" : "them"} as a pool to draw from.`]);
+    const fix = box.createDiv("samaya-chk-fix" + (todo.length ? "" : " is-clear"));
+    if (!todo.length) { setIcon(fix.createDiv("samaya-chk-fix-icon"), "check"); fix.createDiv({ cls: "samaya-chk-fix-title", text: "Nothing left to fix. Press Finish week plan when you are ready." }); }
+    else {
+      fix.createDiv({ cls: "samaya-chk-fix-head", text: "Before you finish" });
+      for (const [title, text] of todo) { const it = fix.createDiv("samaya-chk-fix-item"); const t = it.createDiv("samaya-chk-fix-text"); t.createDiv({ cls: "samaya-chk-fix-title", text: title }); t.createDiv({ cls: "samaya-chk-fix-sub", text }); }
+      fix.createEl("button", { cls: "samaya-chk-fix-btn", text: "Back to Schedule" }).onclick = back;
+    }
   }
 }

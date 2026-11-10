@@ -27,3 +27,12 @@ export const WEEK_STEP = { review: 0, tickets: 1, backlog: 2, schedule: 3, check
 export function weekSteps(review: boolean, tickets: boolean): number[] {
   return [WEEK_STEP.review, WEEK_STEP.tickets, WEEK_STEP.backlog, WEEK_STEP.schedule, WEEK_STEP.check].filter(i => (i === WEEK_STEP.review ? review : i === WEEK_STEP.tickets ? tickets : true));
 }
+
+/** How the whole week looks: the worst of its days. `over` / `tight` count the days. */
+export function weekVerdict(days: Array<{ planned: number; free: number }>): { level: "ok" | "tight" | "over"; over: number; tight: number } {
+  const lv = days.map(d => loadLevel(d.planned, d.free));
+  const over = lv.filter(l => l === "over").length, tight = lv.filter(l => l === "tight").length;
+  return { level: over ? "over" : tight ? "tight" : "ok", over, tight };
+}
+/** Minutes to take off a day to be back inside the buffer (0 when it already is). */
+export function trimToBuffer(planned: number, free: number): number { return Math.max(0, Math.round(planned - free * BUFFER_SHARE)); }

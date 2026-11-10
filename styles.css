@@ -745,16 +745,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-plan-reminder { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: var(--radius-m); background: color-mix(in srgb, var(--color-orange) 12%, var(--background-primary)); border-left: 3px solid var(--color-orange); color: var(--text-muted); font-size: var(--font-ui-smaller); line-height: 1.45; }
 .samaya-plan-reminder-icon { flex: none; color: var(--color-orange); display: inline-flex; }
 .samaya-plan-reminder-icon svg { width: 14px; height: 14px; }
-.samaya-wg-check { max-width: 720px; overflow-y: auto; padding: 0 4px; }
-.samaya-wg-rows { display: flex; flex-direction: column; gap: 10px; margin: 12px 0 18px; }
-.samaya-wg-row { display: grid; grid-template-columns: 130px minmax(0, 1fr) 100px 100px; gap: 12px; align-items: center; }
-.samaya-wg-row .samaya-col-bar { margin: 0; height: 8px; }
-.samaya-wg-rownum { font-variant-numeric: tabular-nums; color: var(--text-muted); font-size: var(--font-ui-small); text-align: right; }
-.samaya-wg-rowflag { font-size: var(--font-ui-smaller); font-weight: 600; }
-.samaya-wg-notes { display: flex; flex-direction: column; gap: 8px; }
-.samaya-wg-note { display: flex; gap: 8px; align-items: flex-start; color: var(--text-muted); font-size: var(--font-ui-small); line-height: 1.45; }
-.samaya-wg-note-icon { flex: none; display: inline-flex; margin-top: 2px; }
-.samaya-wg-note-icon svg { width: 14px; height: 14px; }
+
 @media (max-width: 900px) { .samaya-wg { grid-template-columns: 1fr; } .samaya-wg-cols { grid-template-columns: 1fr; } }
 .samaya-wg-info .samaya-total { margin-top: 0; font-size: var(--font-ui-smaller); font-style: italic; line-height: 1.4; }
 .samaya-agenda-row { line-height: 1.4; }
@@ -806,3 +797,53 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-wg-side > .samaya-wg-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 /* Plan my week: task card titles as small and light as the ticket titles */
 .samaya-wg .samaya-card-title, .samaya-wg-side .samaya-card-title { font-size: var(--font-ui-small); font-weight: 400; }
+
+/* ---- Plan my week: Check step ---- */
+.samaya-chk { max-width: 980px; overflow-y: auto; padding: 2px 6px 24px 2px; display: flex; flex-direction: column; gap: 18px; }
+.samaya-chk-hero { --tone: var(--color-green); display: flex; gap: 16px; align-items: center; padding: 18px 20px; border-radius: var(--radius-l); background: color-mix(in srgb, var(--tone) 12%, var(--background-primary)); border: 1px solid color-mix(in srgb, var(--tone) 35%, transparent); }
+.samaya-chk-hero.is-tight { --tone: var(--color-orange); }
+.samaya-chk-hero.is-over { --tone: var(--text-error); }
+.samaya-chk-hero-icon { flex: none; display: flex; width: 44px; height: 44px; border-radius: 50%; align-items: center; justify-content: center; background: var(--tone); color: #fff; }
+.samaya-chk-hero-icon svg { width: 24px; height: 24px; }
+.samaya-chk-hero-title { font-size: var(--font-ui-large); font-weight: 700; color: var(--text-normal); }
+.samaya-chk-hero-sub { margin-top: 2px; color: var(--text-muted); font-size: var(--font-ui-small); }
+.samaya-chk-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.samaya-chk-stat { padding: 12px 14px; border-radius: var(--radius-m); background: var(--background-primary-alt); border: 1px solid var(--background-modifier-border); }
+.samaya-chk-stat-label { font-size: var(--font-ui-smaller); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); font-weight: 600; }
+.samaya-chk-stat-value { margin-top: 2px; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-normal); }
+.samaya-chk-stat-sub { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.samaya-chk-stat.is-tight .samaya-chk-stat-value { color: var(--color-orange); }
+.samaya-chk-stat.is-over .samaya-chk-stat-value { color: var(--text-error); }
+.samaya-chk-h { font-size: var(--font-ui-small); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: -8px; }
+.samaya-chk-days { display: grid; grid-template-columns: repeat(var(--n), minmax(110px, 1fr)); gap: 12px; }
+.samaya-chk-day { --tone: var(--interactive-accent); display: flex; flex-direction: column; gap: 2px; padding: 12px; border-radius: var(--radius-m); background: var(--background-primary-alt); border: 1px solid var(--background-modifier-border); }
+.samaya-chk-day.is-tight { --tone: var(--color-orange); }
+.samaya-chk-day.is-over { --tone: var(--text-error); border-color: color-mix(in srgb, var(--text-error) 45%, transparent); }
+.samaya-chk-day.is-today { box-shadow: inset 0 2px 0 var(--interactive-accent); }
+.samaya-chk-day-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+.samaya-chk-day-name { font-weight: 700; color: var(--text-normal); }
+.samaya-chk-day-date { font-size: var(--font-ui-smaller); color: var(--text-faint); }
+.samaya-chk-bar { position: relative; height: 120px; border-radius: 6px; background: var(--background-modifier-border); overflow: hidden; margin-bottom: 8px; }
+.samaya-chk-bar.is-off { background: repeating-linear-gradient(45deg, transparent 0 6px, var(--background-modifier-border) 6px 7px); }
+.samaya-chk-seg { position: absolute; left: 0; right: 0; bottom: 0; }
+.samaya-chk-seg.is-meet, .samaya-chk-swatch.is-meet { background: color-mix(in srgb, var(--text-faint) 55%, var(--background-primary)); }
+.samaya-chk-seg.is-work, .samaya-chk-swatch.is-work { background: var(--tone, var(--interactive-accent)); }
+.samaya-chk-seg.is-work.is-tight { background: var(--color-orange); } .samaya-chk-seg.is-work.is-over { background: var(--text-error); }
+.samaya-chk-seg.is-work.is-ok { background: var(--interactive-accent); }
+.samaya-chk-line { position: absolute; left: 0; right: 0; height: 0; border-top: 2px dashed var(--text-normal); opacity: 0.7; }
+.samaya-chk-day-value { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-normal); }
+.samaya-chk-day-sub { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.samaya-chk-day-flag { margin-top: 4px; font-size: var(--font-ui-smaller); font-weight: 700; color: var(--text-muted); }
+.samaya-chk-day.is-tight .samaya-chk-day-flag { color: var(--color-orange); } .samaya-chk-day.is-over .samaya-chk-day-flag { color: var(--text-error); }
+.samaya-chk-day-meta { font-size: var(--font-ui-smaller); color: var(--text-faint); }
+.samaya-chk-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: -8px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.samaya-chk-legend-item { display: inline-flex; gap: 6px; align-items: center; }
+.samaya-chk-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.samaya-chk-swatch.is-line { height: 0; border-top: 2px dashed var(--text-normal); border-radius: 0; opacity: 0.7; }
+.samaya-chk-fix { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: var(--radius-m); border: 1px solid var(--background-modifier-border); background: var(--background-primary-alt); }
+.samaya-chk-fix.is-clear { flex-direction: row; align-items: center; gap: 10px; color: var(--text-muted); }
+.samaya-chk-fix-icon { display: flex; color: var(--color-green); } .samaya-chk-fix-icon svg { width: 18px; height: 18px; }
+.samaya-chk-fix-head { font-weight: 700; color: var(--text-normal); }
+.samaya-chk-fix-title { font-weight: 600; color: var(--text-normal); font-size: var(--font-ui-small); }
+.samaya-chk-fix-sub { color: var(--text-muted); font-size: var(--font-ui-small); line-height: 1.45; }
+.samaya-chk-fix-btn { align-self: flex-start; }

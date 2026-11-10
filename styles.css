@@ -46,8 +46,7 @@
 .samaya-week { display: flex; flex-direction: column; height: 100%; padding: 12px; overflow: auto; }
 .samaya-week-head h2 { margin: 0 8px; }
 .samaya-cols { display: flex; flex: none; gap: 10px; margin-top: 10px; align-items: stretch; min-width: min-content; }
-.samaya-col { flex: 1 0 250px; display: flex; flex-direction: column; padding: 8px; border-top: 2px solid var(--background-modifier-border); min-height: 200px; }
-.samaya-col.is-today { border-top-color: var(--interactive-accent); }
+.samaya-col { flex: 1 0 250px; display: flex; flex-direction: column; padding: 8px; min-height: 200px; }
 .samaya-col.is-today .samaya-col-title { color: var(--interactive-accent); }
 .samaya-col > .samaya-add { margin: 0 0 8px; width: 100%; }
 .samaya-col-head { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 6px; }

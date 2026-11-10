@@ -57,10 +57,9 @@ export async function renderDayStatus(plugin: SamayaPlugin, host: HTMLElement, o
     const bar = load.createDiv({ cls: `samaya-col-bar is-${lvl}` });
     bar.createDiv("samaya-col-bar-fill").style.width = `${over || cap.free <= 0 ? (plannedAll > 0 ? 100 : 0) : (plannedAll / cap.free) * 100}%`;
     if (cap.free > 0) { const mark = bar.createDiv("samaya-col-bar-mark"); mark.style.left = `${share * 100}%`; mark.title = `${Math.round(share * 100)}% of the free time`; }
-    if (isToday) {
-      const row = load.createDiv("samaya-wd-buttons");
-      if (!plugin.guide) row.createEl("button", { text: "Plan day" }).onclick = () => { void plugin.startGuide(); };
-    }
+    const row = load.createDiv("samaya-wd-buttons");
+    row.createEl("button", { text: "Open day" }).onclick = () => { void plugin.openPlanner().then(() => plugin.plannerGoTo?.(date)); };
+    if (isToday && !plugin.guide) row.createEl("button", { text: "Plan day" }).onclick = () => { void plugin.startGuide(); };
 
     const wLvl = loadLevel(weekPlanned, weekFree, share); const wOver = weekPlanned > weekFree;
     const wk = host.createDiv({ cls: "samaya-info-card samaya-info-load" + (wOver ? " is-over" : "") });
@@ -71,8 +70,7 @@ export async function renderDayStatus(plugin: SamayaPlugin, host: HTMLElement, o
     const wbar = wk.createDiv({ cls: `samaya-col-bar is-${wLvl}` });
     wbar.createDiv("samaya-col-bar-fill").style.width = `${wOver || weekFree <= 0 ? (weekPlanned > 0 ? 100 : 0) : (weekPlanned / weekFree) * 100}%`;
     if (weekFree > 0) { const mark = wbar.createDiv("samaya-col-bar-mark"); mark.style.left = `${share * 100}%`; mark.title = `${Math.round(share * 100)}% of the free time`; }
-    if (startOfWeek(date) === startOfWeek(today())) {
-      if (!plugin.guide) wk.createDiv("samaya-wd-buttons").createEl("button", { text: "Plan week" }).onclick = () => { void plugin.startWeekGuide(); };
-    }
-
+    const wrow = wk.createDiv("samaya-wd-buttons");
+    wrow.createEl("button", { text: "Open week" }).onclick = () => { void plugin.openWeekPlanner(); };
+    if (startOfWeek(date) === startOfWeek(today()) && !plugin.guide) wrow.createEl("button", { text: "Plan week" }).onclick = () => { void plugin.startWeekGuide(); };
 }

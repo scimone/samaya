@@ -43,17 +43,7 @@ export class DailyPlannerView extends BasesView {
     const evRef = plugin.app.metadataCache.on("changed", f => { if (inEventFolder(plugin.settings, f.path) || (this.plugin.guide && f.path.startsWith(prefixOf(plugin.settings.tasksPath)))) this.schedule(); });
     this.register(() => plugin.app.metadataCache.offref(evRef));
     this.registerInterval(window.setInterval(() => { if (!this.host?.hidden() && this.root.isConnected) this.schedule(); }, 60000)); // the now line moves
-    this.showSidebar();
-  }
-
-  /** The status column lives in the right sidebar: open it with this view, and give the focus back to the planner. */
-  private showSidebar() {
-    const ws = this.app.workspace;
-    ws.onLayoutReady(() => window.setTimeout(() => {
-      const mine: WorkspaceLeaf[] = []; ws.iterateRootLeaves(l => { if (l.view.containerEl.contains(this.root)) mine.push(l); });
-      const was = mine.length > 0 && ws.getMostRecentLeaf() === mine[0];
-      void this.plugin.openToday().then(() => { if (was) ws.setActiveLeaf(mine[0], { focus: true }); });
-    }, 0));
+    this.plugin.showStatusSidebar(this.root);
   }
 
   private get showIcs() { return this.config.get("showIcs") !== false; }

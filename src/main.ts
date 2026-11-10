@@ -601,6 +601,15 @@ export default class SamayaPlugin extends Plugin {
     await this.openToday(); // the timeline lives in the sidebar while the planner is open
     ws.setActiveLeaf(leaf, { focus: true });
   }
+  /** Pages without a sidebar view of their own get the status column in the right sidebar; focus stays on the page. */
+  showStatusSidebar(root: HTMLElement) {
+    const ws = this.app.workspace;
+    ws.onLayoutReady(() => window.setTimeout(() => {
+      const mine: import("obsidian").WorkspaceLeaf[] = []; ws.iterateRootLeaves(l => { if (l.view.containerEl.contains(root)) mine.push(l); });
+      const was = mine.length > 0 && ws.getMostRecentLeaf() === mine[0];
+      void this.openToday().then(() => { if (was) ws.setActiveLeaf(mine[0], { focus: true }); });
+    }, 0));
+  }
   async openToday() {
     const ws = this.app.workspace;
     let leaf = ws.getLeavesOfType(TODAY_VIEW_TYPE)[0];

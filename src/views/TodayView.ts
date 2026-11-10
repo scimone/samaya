@@ -102,51 +102,9 @@ export class TodayView extends ItemView {
       return;
     }
     c.removeClass("is-wg");
-    if (daily) { // next to the planner: the status column (the planner itself holds the timeline)
-      const info = c.createDiv("samaya-info is-side");
-      await renderDayStatus(this.plugin, info, { date, events, go: d => this.plugin.plannerGoTo?.(d) });
-      return;
-    }
-
-    // ---- header: title, workday strip, capacity - kept minimal
-    const head = c.createDiv("samaya-today-head");
-    const d = parseYmd(date); const isToday = date === today();
-    const title = head.createDiv("samaya-today-title");
-    if (this.mode !== "week") {
-      const nav = (icon: string, label: string, to: () => string) => {
-        const b = title.createEl("button", { cls: "samaya-day-nav clickable-icon", attr: { "aria-label": label } }); setIcon(b, icon);
-        b.addEventListener("click", () => { const n = to(); this.viewDate = n === today() ? "" : n; void this.render(); });
-      };
-      nav("chevron-left", "Previous day", () => addDays(date, -1));
-      title.createSpan({ cls: "samaya-today-dow", text: d.toLocaleDateString(undefined, { weekday: "long" }) });
-      title.createSpan({ cls: "samaya-today-date", text: d.toLocaleDateString(undefined, { day: "numeric", month: "short" }) });
-      nav("chevron-right", "Next day", () => addDays(date, 1));
-      if (!isToday) { const t = title.createEl("button", { cls: "samaya-mini", text: "Today" }); t.addEventListener("click", () => { this.viewDate = ""; void this.render(); }); }
-    }
-    const dayMs = parseYmd(date).getTime();
-    renderWorkdayCard(this.plugin, head.createDiv(), { compact: true });
-    renderDoneBar(head, day.filter(t => t.status === "done").length, day.length);
-    events.filter(e => e.allDay).forEach(e => c.createDiv({ cls: "samaya-allday", text: e.title }));
-
-    { // unscheduled cards
-    // ---- unscheduled cards (drop here to unschedule)
-    const unscheduled = day.filter(t => !t.start && t.status !== "done");
-    const usec = c.createDiv("samaya-today-unsched");
-    usec.createDiv({ cls: "samaya-today-label", text: `Unscheduled · ${unscheduled.length}` });
-    const cards = usec.createDiv("samaya-today-cards");
-    if (!unscheduled.length) cards.createDiv({ cls: "samaya-today-empty", text: "Everything has a time slot" });
-    unscheduled.forEach(t => renderTaskCard(this.plugin, cards, t, { scope: this.dnd, compact: true }));
-    cards.scrollTop = uTop;
-    bindZone(this.dnd, usec, path => {
-      const f = this.app.vault.getAbstractFileByPath(path);
-      if (f instanceof TFile) void patchTask(this.app, f, { planned: date, week: null, start: null });
-    });
-
-    }
-
-    // ---- timeline
-    c.createDiv({ cls: "samaya-today-label", text: "Timeline" });
-    this.seenH = c.clientHeight;
-    renderTimeline(this.plugin, this.dnd, c, { date, day, events, notes, ro: false, state: this.tlState });
+    // the status column: next to the planner it steps the planner's day, elsewhere it shows (and steps) the day on its own
+    const info = c.createDiv("samaya-info is-side");
+    const go = (d: string) => { if (daily) this.plugin.plannerGoTo?.(d); else { this.viewDate = d === today() ? "" : d; void this.render(); } };
+    await renderDayStatus(this.plugin, info, { date, events, go });
   }
 }

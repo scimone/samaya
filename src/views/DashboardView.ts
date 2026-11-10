@@ -14,7 +14,7 @@ export class DashboardView extends ItemView {
   getDisplayText() { return "Work time"; }
   getIcon() { return "bar-chart-3"; }
   async onOpen() {
-    this.contentEl.addClass("samaya-dash");
+    this.contentEl.addClass("samaya-dash"); this.plugin.showStatusSidebar(this.contentEl);
     this.registerEvent(this.app.metadataCache.on("changed", () => this.schedule()));
     this.register(this.plugin.bus.on(() => this.schedule()));
     this.registerInterval(window.setInterval(() => this.render(), 30000));

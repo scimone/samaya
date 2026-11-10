@@ -642,7 +642,7 @@ export default class SamayaPlugin extends Plugin {
     if (!wk) return;
     let saved: TFile | null = null;
     try { saved = await this.writeWeekPlan(wk, days); } catch (e) { console.error("Samaya: could not write the weekly note", e); new Notice("Samaya: could not write the weekly note (see the console)."); }
-    this.noticeWithNote(`Week of ${parseYmd(wk).toLocaleDateString(undefined, { month: "short", day: "numeric" })} planned${saved ? " and saved to your weekly note" : ""}. Leave room for the unexpected.`, saved, "Open weekly note");
+    this.noticeWithNote(`Week of ${parseYmd(wk).toLocaleDateString(undefined, { month: "short", day: "numeric" })} planned${saved ? " and saved to your weekly note" : ""}. Leave room for the unexpected.`, saved, "Open weekly note", true);
   }
   /** The weekly note (created if missing) gets an "Overview", the week's "Meetings" by weekday and its "Planned tasks". False when nothing is written. */
   private async writeWeekPlan(wk: string, nDays: number): Promise<TFile | null> {
@@ -677,8 +677,9 @@ export default class SamayaPlugin extends Plugin {
 
 
   /** A notice with a button that opens the note the planning just wrote. */
-  private noticeWithNote(msg: string, file: TFile | null, label: string) {
+  private noticeWithNote(msg: string, file: TFile | null, label: string, autoOpen = false) {
     if (!file) { new Notice(msg); return; }
+    if (autoOpen && this.settings.journalOpenAfterPlan) { new Notice(msg); void this.openNoteInMain(file); return; }
     const frag = document.createDocumentFragment(); frag.createDiv({ text: msg });
     const n = new Notice(frag, 12000);
     frag.createEl("button", { text: label, cls: "mod-cta" }).onclick = () => { n.hide(); void this.openNoteInMain(file); };
@@ -703,7 +704,7 @@ export default class SamayaPlugin extends Plugin {
     await this.workday.startDay();
     this.closeGuide();
     const note = s.journalOn ? (await periodNotePath(this.app, s, "daily", td))?.file ?? null : null;
-    this.noticeWithNote(`Day planned${wasStarted ? "" : " and started"}.${s.journalOn ? " Saved to your journal." : ""}`, note, "Open daily note");
+    this.noticeWithNote(`Day planned${wasStarted ? "" : " and started"}.${s.journalOn ? " Saved to your journal." : ""}`, note, "Open daily note", true);
   }
   /** End of day: the planner with a one-step guide (tick off forgotten tasks), then finalize. */
   async startShutdown() {

@@ -29,6 +29,8 @@ export interface SamayaSettings {
   journalNotes: Record<PeriodicKind, PeriodCfg>;
   /** hide the title and properties block in journal notes */
   journalHideProps: boolean;
+  /** open the daily / weekly note right after finishing the day / week plan */
+  journalOpenAfterPlan: boolean;
   /** navigation bar above journal notes */
   journalNavBar: boolean;
   /** projects module: folder of project notes and the base that shows them */
@@ -48,7 +50,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   calendarOn: false, jiraOn: false, gitlabOn: false,
   journalOn: false, journalPlanned: true, journalFinished: true, journalTomorrow: true,
   journalWorkTimes: true, journalBreaks: true, journalTracked: true, journalWeekPlan: true, journalWeekMeetings: true, journalWeekTasks: true,
-  journalHideProps: true, journalNavBar: true,
+  journalHideProps: true, journalOpenAfterPlan: false, journalNavBar: true,
   journalNotes: {
     weekly: { on: false, source: "auto", folder: "[Journal]/YYYY/[Weekly]", format: PERIOD_DEFAULT_FORMAT.weekly },
     monthly: { on: false, source: "auto", folder: "[Journal]/YYYY/YYYY-MM", format: PERIOD_DEFAULT_FORMAT.monthly },
@@ -423,6 +425,7 @@ export class SamayaSettingTab extends PluginSettingTab {
         status: () => { const n = JOURNAL_PARTS.filter(([k]) => s[k]).length; return n ? [`${n} of ${JOURNAL_PARTS.length} items`, "ok"] : ["Nothing selected", "warn"]; },
       });
       toggle(b, "Hide title and properties in journal notes", "Hides the note title and the properties block at the top of your daily, weekly, monthly, quarterly and yearly notes. The properties are still there (work times are stored in them); turn this off to see and edit them.", () => s.journalHideProps, v => { s.journalHideProps = v; this.plugin.bus.emit(); });
+      toggle(b, "Open the note after planning", "Opens the daily note when you finish planning your day, and the weekly note when you finish planning your week. Off: a button in the confirmation message opens it instead.", () => s.journalOpenAfterPlan, v => { s.journalOpenAfterPlan = v; });
       toggle(b, "Navigation bar in journal notes", "Shows a bar above your daily, weekly, monthly, quarterly and yearly notes to jump to the previous / next note, to today, or to the note of another period.", () => s.journalNavBar, v => { s.journalNavBar = v; this.plugin.bus.emit(); });
       label(b, "Write into the daily note");
       for (const [k, name, desc] of JOURNAL_PARTS) toggle(b, name, desc, () => s[k], v => (s[k] = v));

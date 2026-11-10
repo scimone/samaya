@@ -599,11 +599,13 @@ export default class SamayaPlugin extends Plugin {
   }
   /** End of day: the planner with a one-step guide (tick off forgotten tasks), then finalize. */
   async startShutdown() {
+    const td = today(); const day = allTasks(this.app, this.settings).filter(t => t.planned === td);
+    if (day.every(t => t.status === "done")) { await this.finishShutdown(); return; } // nothing left to check off: end the day right away
     this.guide = { step: 0, review: false, fresh: true, kind: "shutdown" };
     await this.openPlanner(); this.bus.emit();
   }
   async finishShutdown() {
-    if (this.guide?.kind !== "shutdown") return; const s = this.settings; const td = today(); const tm = addDays(td, 1);
+    const s = this.settings; const td = today(); const tm = addDays(td, 1);
     const all = allTasks(this.app, s);
     const finished = sortTasks(all.filter(t => t.status === "done" && t.planned === td));
     const tomorrow = sortTasks(all.filter(t => t.planned === tm && t.status !== "done"));

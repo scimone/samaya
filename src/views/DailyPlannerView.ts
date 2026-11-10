@@ -6,7 +6,7 @@ import { addDays, fmtDur, parseTitleEstimate, parseYmd, startOfWeek, today } fro
 import { bindCardDrop, bindZone, renderTaskCard, richText } from "./common";
 import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
-import { renderDoneBar } from "./doneBar";
+import { celebrate, renderDoneBar } from "./doneBar";
 import { renderGuide } from "./guide";
 import { renderLoadBar } from "./loadBar";
 import { renderWorkdayCard } from "./workdayCard";
@@ -24,6 +24,7 @@ export class DailyPlannerView extends BasesView {
   private token = 0;
   private leftScroll = 0;
   private announced = false;
+  private lastAll: { date: string; all: boolean } | null = null; // to spot the moment the last task of the day gets checked
   private pickTab: "week" | "backlog" = "week";
 
   constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
@@ -94,8 +95,11 @@ export class DailyPlannerView extends BasesView {
       const head = left.createDiv("samaya-tasks-head");
       const row = head.createDiv("samaya-tasks-row");
       row.createEl("h3", { text: "Tasks" });
-      row.createSpan({ cls: "samaya-tasks-count" + (day.length && nd === day.length ? " is-complete" : ""), text: day.length ? `${nd} / ${day.length} done` : "0" });
+      const badge = row.createSpan({ cls: "samaya-tasks-count" + (day.length && nd === day.length ? " is-complete" : ""), text: day.length ? `${nd} / ${day.length} done` : "0" });
       renderDoneBar(head, nd, day.length, false);
+      const all = day.length > 0 && nd === day.length;
+      if (all && this.lastAll && this.lastAll.date === this.date && !this.lastAll.all) window.setTimeout(() => celebrate(badge), 50);
+      this.lastAll = { date: this.date, all };
     }
     if (pg) {
       // columns: guide | source tasks (Review: left over, Pick: this week/backlog) | today's tasks

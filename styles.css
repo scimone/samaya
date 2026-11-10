@@ -697,3 +697,9 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-plan-nav { display: flex; gap: 8px; padding-top: 4px; }
 .samaya-plan-next { flex: 1; height: 34px; }
 .samaya-plan-back { height: 34px; }
+
+/* sparks: reward when all of today's tasks are checked */
+.samaya-sparks { position: fixed; width: 0; height: 0; z-index: 9999; pointer-events: none; }
+.samaya-spark { position: absolute; left: 0; top: 0; width: var(--s, 5px); height: var(--s, 5px); margin: calc(var(--s, 5px) / -2); border-radius: 50%; background: var(--c); box-shadow: 0 0 6px var(--c); opacity: 0; animation: samaya-spark 900ms cubic-bezier(.15,.7,.3,1) forwards; }
+@keyframes samaya-spark { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 70% { opacity: 1; } 100% { transform: translate(var(--dx), calc(var(--dy) + 24px)) scale(0.2); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .samaya-sparks { display: none; } }

@@ -8,6 +8,7 @@ import { HORIZONS, Horizon, bucketOf, fmtHm, minToHm, parseDuration, startOfWeek
 
 export interface CardOpts {
   scope: DndScope; showTime?: boolean; /** show the actions under the estimate on the right instead of below the title */ actionsSide?: boolean; /** hide subtasks (sidebar) */ compact?: boolean;
+  /** a chip with the day the task is planned for */ dayLabel?: string;
   /** extra quick-action buttons (label, handler) */ actions?: Array<[string, () => void]>;
 }
 
@@ -51,6 +52,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
     const pp = projectPathOf(app, t.file);
     if (pp) meta.createSpan({ cls: "samaya-chip samaya-chip-project", text: pp.split("/").pop()!.replace(/\.md$/, "") });
   }
+  if (o.dayLabel) meta.createSpan({ cls: "samaya-chip samaya-chip-day", text: o.dayLabel });
   if (t.channel) meta.createSpan({ cls: "samaya-chip samaya-chip-channel", text: t.channel });
   if (!o.actionsSide) o.actions?.forEach(([label, fn]) => { const b = meta.createEl("button", { cls: "samaya-mini", text: label }); b.addEventListener("click", fn); });
   if (!meta.childElementCount) meta.remove();

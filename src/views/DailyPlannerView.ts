@@ -11,6 +11,7 @@ import { renderGuide } from "./guide";
 import { renderLoadBar } from "./loadBar";
 import { renderWorkdayCard } from "./workdayCard";
 import { capacityWindow, Capacity } from "../worktime";
+import { BUFFER_SHARE, loadLevel, trimToBuffer } from "../weekplan";
 
 export const DAILY_VIEW_TYPE = "samaya-daily";
 
@@ -85,7 +86,7 @@ export class DailyPlannerView extends BasesView {
     const plannedAll = day.reduce((a, t) => a + (t.estimate || 0), 0);
 
     const g = isToday ? guide : null; const step = g?.step ?? -1;
-    const sd = g?.kind === "shutdown"; const pg = sd ? null : g; const review = !sd && step === 0, pick = !sd && step === 1;
+    const sd = g?.kind === "shutdown"; const pg = sd ? null : g; const review = !sd && step === 0, pick = !sd && step === 1, check = !sd && step === 3;
     this.root.toggleClass("is-review", !!pg); // plan my day: guide + columns; otherwise one column of task cards on the right
     const info = pg ? null : this.root.createDiv("samaya-info"); // day title, workday, navigation, totals
     const left = this.root.createDiv("samaya-left");
@@ -106,6 +107,7 @@ export class DailyPlannerView extends BasesView {
       // columns: guide | source tasks (Review: left over, Pick: this week/backlog) | today's tasks
       const cols = left.createDiv("samaya-review-cols" + (step === 2 ? " is-two" : "") + (pick ? " is-pick" : ""));
       renderGuide(this.plugin, cols, { overdue: overdue.length });
+      if (check) { this.renderCheck(cols, day, cap, plannedAll); return void this.finishRender(left); }
       if (review) this.renderLeftOver(cols, overdue); else if (pick) this.renderPick(cols);
       body = cols.createDiv("samaya-plancol samaya-review-main");
       const todayBadge = this.colHead(body, "Today", day.length, review || pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
@@ -136,6 +138,10 @@ export class DailyPlannerView extends BasesView {
       this.bindAdd(add, () => ({ planned: this.date, order: day.length }));
     }
 
+    this.finishRender(left);
+  }
+
+  private finishRender(left: HTMLElement) {
     left.scrollTop = this.leftScroll;
 
     if (!this.announced || this.plugin.plannerDate !== this.date) { this.announced = true; this.plugin.plannerDate = this.date; this.plugin.modeBus.emit(); }
@@ -197,6 +203,62 @@ export class DailyPlannerView extends BasesView {
         .then(() => { window.setTimeout(() => this.schedule(), 250); }) // the metadata cache needs a moment to index the new note
         .catch((err: unknown) => { console.error("Samaya: could not create task", err); new Notice(`Samaya: could not create the task (${err instanceof Error ? err.message : String(err)})`); });
     });
+  }
+
+  /** Check step: a verdict on the day, its numbers, one bar (meetings, planned work, the 80% buffer line) and what is left to fix. */
+  private renderCheck(host: HTMLElement, day: Task[], cap: Capacity, planned: number) {
+    const g = this.plugin.guide; const go = (to: number) => { if (g) { g.step = to; this.plugin.bus.emit(); } };
+    const level = loadLevel(planned, cap.free); const pct0 = Math.round(BUFFER_SHARE * 100);
+    const open = day.filter(t => t.status !== "done");
+    const noSlot = open.filter(t => !t.start); const noEst = open.filter(t => !t.estimate);
+    const box = host.createDiv("samaya-chk samaya-chk-day-view");
+
+    // ---- verdict
+    const copy = !day.length ? ["An empty day", "Nothing is planned for today yet.", "inbox", "ok"]
+      : level === "over" ? ["An overloaded day", `You planned ${fmtDur(planned - cap.free)} more than there is time for.`, "alert-octagon", "over"]
+      : level === "tight" ? ["A full day", `You are ${fmtDur(trimToBuffer(planned, cap.free))} past the ${pct0}% buffer. Something will probably slip.`, "alert-triangle", "tight"]
+      : ["A realistic day", "You keep room for the unexpected.", "check-circle-2", "ok"];
+    const hero = box.createDiv(`samaya-chk-hero is-${copy[3]}`);
+    setIcon(hero.createDiv("samaya-chk-hero-icon"), copy[2]);
+    const ht = hero.createDiv("samaya-chk-hero-text");
+    ht.createDiv({ cls: "samaya-chk-hero-title", text: copy[0] }); ht.createDiv({ cls: "samaya-chk-hero-sub", text: copy[1] });
+    ht.createDiv({ cls: "samaya-chk-hero-count", text: `${day.length} ${day.length === 1 ? "task" : "tasks"} · ${day.length - noSlot.length} scheduled${noSlot.length ? ` · ${noSlot.length} without a time slot` : ""}` });
+
+    // ---- the day in numbers
+    const stats = box.createDiv("samaya-chk-stats");
+    const stat = (label: string, value: string, sub: string, cls: string) => { const t = stats.createDiv("samaya-chk-stat " + cls); t.createDiv({ cls: "samaya-chk-stat-label", text: label }); t.createDiv({ cls: "samaya-chk-stat-value", text: value }); t.createDiv({ cls: "samaya-chk-stat-sub", text: sub }); };
+    stat("Tasks", fmtDur(planned), `${day.length} planned · ${fmtDur(Math.round(cap.free * BUFFER_SHARE))} recommended`, `is-tasks is-${level}`);
+    stat("Meetings", fmtDur(cap.meetings), cap.meetings ? "from your calendar" : "none today", "is-meet");
+    stat("Unplanned time", fmtDur(Math.max(0, cap.free - planned)), "no meetings or tasks", "is-open");
+
+    // ---- the working day as one bar
+    box.createDiv({ cls: "samaya-chk-h", text: "Your day" });
+    const avail = cap.free + cap.meetings; // the workday without lunch
+    const bar = box.createDiv("samaya-chk-hbar" + (avail > 0 ? "" : " is-off"));
+    if (avail > 0) {
+      const pct = (m: number) => `${Math.min(100, Math.max(0, (m / avail) * 100))}%`;
+      const meet = bar.createDiv("samaya-chk-hseg is-meet"); meet.style.width = pct(cap.meetings);
+      const work = bar.createDiv(`samaya-chk-hseg is-work is-${level}`); work.style.left = pct(cap.meetings); work.style.width = pct(Math.min(planned, cap.free + (planned > cap.free ? cap.meetings : 0)));
+      const line = bar.createDiv("samaya-chk-hline"); line.style.left = pct(cap.meetings + cap.free * BUFFER_SHARE); line.title = `${pct0}% of the free time`;
+    }
+    const legend = box.createDiv("samaya-chk-legend");
+    for (const [cls, text] of [["is-meet", "Meetings"], ["is-work", "Tasks"], ["is-open", "Unplanned"], ["is-line", `${pct0}% line`]]) { const l = legend.createSpan("samaya-chk-legend-item"); l.createSpan({ cls: `samaya-chk-swatch ${cls}` }); l.createSpan({ text }); }
+
+    // ---- what is left to fix
+    const todo: Array<{ title: string; text: string; label: string; step: number }> = [];
+    if (level !== "ok") todo.push({ title: "Lighten today", text: `Take about ${fmtDur(trimToBuffer(planned, cap.free))} off: send a task back to This week or the Backlog.`, label: "Back to Pick", step: 1 });
+    if (noSlot.length) todo.push({ title: `${noSlot.length} ${noSlot.length === 1 ? "task has" : "tasks have"} no time slot`, text: `${noSlot.slice(0, 3).map(t => t.title).join(", ")}${noSlot.length > 3 ? ` and ${noSlot.length - 3} more` : ""}. Drag ${noSlot.length === 1 ? "it" : "them"} onto the timeline.`, label: "Back to Timebox", step: 2 });
+    if (noEst.length) todo.push({ title: `${noEst.length} ${noEst.length === 1 ? "task has" : "tasks have"} no estimate`, text: `${noEst.slice(0, 3).map(t => t.title).join(", ")}${noEst.length > 3 ? ` and ${noEst.length - 3} more` : ""}. Without one the day looks emptier than it is.`, label: "Back to Timebox", step: 2 });
+    const fix = box.createDiv("samaya-chk-fix" + (todo.length ? "" : " is-clear"));
+    if (!todo.length) { setIcon(fix.createDiv("samaya-chk-fix-icon"), "check"); fix.createDiv({ cls: "samaya-chk-fix-title", text: `Nothing left to fix. Press ${this.plugin.workday.started ? "Finalize plan" : "Start my day"} when you are ready.` }); }
+    else {
+      fix.createDiv({ cls: "samaya-chk-fix-head", text: "Before you start" });
+      for (const it of todo) {
+        const row = fix.createDiv("samaya-chk-fix-item"); const t = row.createDiv("samaya-chk-fix-text");
+        t.createDiv({ cls: "samaya-chk-fix-title", text: it.title }); t.createDiv({ cls: "samaya-chk-fix-sub", text: it.text });
+        row.createEl("button", { cls: "samaya-chk-fix-btn", text: it.label }).onclick = () => go(it.step);
+      }
+    }
   }
 
   private renderLeftOver(host: HTMLElement, overdue: Task[]) {

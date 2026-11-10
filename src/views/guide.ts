@@ -6,7 +6,8 @@ import { weekSteps } from "./../weekplan";
 export const GUIDE_STEPS = [
   { title: "Review", text: "Unfinished tasks from earlier days: move them to `Today`, `Tomorrow` or `This week`, back to the `Backlog`, or mark them done." },
   { title: "Pick", text: "Choose what you want to do today from `This week` or `Backlog`: press `Today` on a card, or drag it into the list. You can also add new tasks here, or drag a planned task back to `This week` or `Backlog` to swap it out." },
-  { title: "Timebox", text: "Drag your tasks onto the timeline to give them a time slot. Move the start and finish lines to set your day, then press `{done}`." },
+  { title: "Timebox", text: "Drag your tasks onto the timeline to give them a time slot. Move the start and finish lines to set your day, then press `Next`." },
+  { title: "Check", text: "Look at the whole day: is it too full, does every task have a time slot? Fix it with the `Back` button, then press `{done}`." },
 ];
 
 export const WEEK_GUIDE_STEPS = [

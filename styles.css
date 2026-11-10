@@ -870,3 +870,17 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-chk-stat.is-meet { --tone: var(--color-cyan); background: color-mix(in srgb, var(--tone) 10%, var(--background-primary-alt)); }
 .samaya-chk-stat.is-open { --tone: var(--background-modifier-border-hover); }
 .samaya-chk-stat.is-tasks .samaya-chk-stat-value, .samaya-chk-stat.is-meet .samaya-chk-stat-value { color: var(--tone); }
+
+/* daily Check step: the day as one horizontal bar */
+.samaya-chk-day-view { grid-column: 2 / -1; }
+.samaya-chk-hbar { position: relative; height: 30px; border-radius: 8px; background: var(--background-modifier-border); overflow: hidden; }
+.samaya-chk-hbar.is-off { background: repeating-linear-gradient(45deg, transparent 0 6px, var(--background-modifier-border) 6px 7px); }
+.samaya-chk-hseg { position: absolute; top: 0; bottom: 0; left: 0; }
+.samaya-chk-hseg.is-meet { background: var(--color-cyan); }
+.samaya-chk-hseg.is-work { background: var(--interactive-accent); }
+.samaya-chk-hseg.is-work.is-tight { background: var(--color-orange); } .samaya-chk-hseg.is-work.is-over { background: var(--text-error); }
+.samaya-chk-hline { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px dashed var(--text-normal); opacity: 0.7; }
+.samaya-chk-day-view .samaya-chk-legend { margin-top: -8px; }
+.samaya-chk-day-view .samaya-chk-fix-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.samaya-chk-day-view .samaya-chk-fix-btn { flex: none; }
+@media (max-width: 900px) { .samaya-chk-day-view { grid-column: auto; } }

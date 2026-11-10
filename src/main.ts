@@ -1,7 +1,7 @@
 import { Editor, MarkdownView, Notice, Plugin, TFile, normalizePath, setIcon } from "obsidian";
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FOCUS_VIEW_TYPE, FocusManager, FocusState, FocusView } from "./focus";
-import { IcsClient, assignTicket, createTask, momentFmt } from "./model";
+import { IcsClient, allTickets, assignTicket, createTask, momentFmt } from "./model";
 import { DAILY_VIEW_TYPE, DailyPlannerView } from "./views/DailyPlannerView";
 import { WEEK_VIEW_TYPE, WeeklyBoardView } from "./views/WeeklyBoardView";
 import { WTL_VIEW_TYPE, WeeklyTimelineView } from "./views/WeeklyTimelineView";
@@ -26,11 +26,11 @@ import { ensureMeetingNote } from "./meetings";
 import { calendarEnabled, calendarEvents } from "./calendar";
 import { Emitter, addDays, hmToMin, minToHm, parseTitleEstimate as parseTitleEstimateSafe, parseYmd, today } from "./util";
 import { WorkdayManager } from "./workday";
-import { isLeftover, weekToPlan } from "./weekplan";
+import { isLeftover, weekSteps, weekToPlan } from "./weekplan";
 import type { DayLog } from "./worktime";
 
 interface PluginData { settings?: Partial<SamayaSettings>; focus?: FocusState | null; workday?: DayLog | null; /** per-day workday start/end set with the timeline lines */ dayWindows?: Record<string, [string, string]>; }
-export interface GuideState { step: number; /** the Review step exists (there were unfinished overdue tasks) */ review: boolean; fresh: boolean; /** "shutdown": the one-step end-of-day guide; "week": the guided week plan */ kind: "plan" | "shutdown" | "week"; /** week guide: the monday (ymd) being planned */ week?: string; }
+export interface GuideState { step: number; /** the Review step exists (there were unfinished overdue tasks) */ review: boolean; fresh: boolean; /** "shutdown": the one-step end-of-day guide; "week": the guided week plan */ kind: "plan" | "shutdown" | "week"; /** week guide: the monday (ymd) being planned */ week?: string; /** week guide: the Tickets step exists (there are open tickets) */ tickets?: boolean; }
 
 const BASE_TEMPLATE = (folder: string) => `filters:
   and:
@@ -603,7 +603,8 @@ export default class SamayaPlugin extends Plugin {
   async startWeekGuide() {
     const ws = this.app.workspace; const now = new Date(); const wk = weekToPlan(today(), now.getDay());
     const leftover = allTasks(this.app, this.settings).some(t => isLeftover(t, today(), wk));
-    this.guide = { step: leftover ? 0 : 1, review: leftover, fresh: true, kind: "week", week: wk };
+    const tickets = allTickets(this.app, this.settings).some(t => !/(done|closed|resolved|complete|finished|released|cancel)/i.test(t.state));
+    this.guide = { step: weekSteps(leftover, tickets)[0], review: leftover, fresh: true, kind: "week", week: wk, tickets };
     await this.openWeekPlanner();
     if (ws.leftSplit && !ws.leftSplit.collapsed) { ws.leftSplit.collapse(); this.leftCollapsedByGuide = true; }
     if (ws.rightSplit && !ws.rightSplit.collapsed) { ws.rightSplit.collapse(); this.rightCollapsedByGuide = true; } // the day timeline has no use while planning the week

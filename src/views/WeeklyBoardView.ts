@@ -1,10 +1,12 @@
 import { BasesView, Notice, QueryController, TFile, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
-import { Task, allTasks, createTask, parkTask, patchTask, placeInDay, prefixOf, readTask, setDone, sortTasks } from "../model";
+import { Task, Ticket, allTasks, allTickets, ticketPathOf, createTask, parkTask, patchTask, placeInDay, prefixOf, readTask, setDone, sortTasks } from "../model";
 import type { IcsEvent } from "../ics";
 import { BUFFER_SHARE, isLeftover, loadLevel } from "../weekplan";
 import { renderGuide } from "./guide";
+import { TextPromptModal } from "../modals";
+import { orderStatuses, statusRank } from "../kanban";
 import { renderBacklogBuckets, richText } from "./common";
 import { addDays, fmtDur, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
@@ -158,18 +160,18 @@ export class WeeklyBoardView extends BasesView {
     const weekCol = (host: HTMLElement) => {
       const col = host.createDiv("samaya-plancol samaya-wg-col");
       // Schedule: only what still needs a day; Backlog: everything, the day written on cards that have one
-      const shown = step === 2 ? noDay : [...noDay, ...sortTasks(weekTasks.filter(t => t.planned)).sort((a, b) => a.planned.localeCompare(b.planned))];
+      const shown = step === 3 ? noDay : [...noDay, ...sortTasks(weekTasks.filter(t => t.planned)).sort((a, b) => a.planned.localeCompare(b.planned))];
       head(col, "This week", shown.length);
       const info = weekLoad(col);
-      richText(info.createDiv("samaya-guide-text samaya-colhint"), step === 2 ? "Drag a task onto a day." : "Press `This week` on a task, or drag it here. Tasks that already have a day show it on the card.");
-      if (step === 2) addBox(col, "+ Add weekly task", () => ({ week: wk })); // Schedule: right under the description
+      richText(info.createDiv("samaya-guide-text samaya-colhint"), step === 3 ? "Drag a task onto a day." : "Press `This week` on a task, or drag it here. Tasks that already have a day show it on the card.");
+      if (step === 3) addBox(col, "+ Add weekly task", () => ({ week: wk })); // Schedule: right under the description
       const list = scroller(col, "week", "samaya-leftover-list");
-      if (!shown.length) list.createDiv({ cls: "samaya-empty", text: step === 2 ? "Every task has a day." : "Nothing planned for this week yet." });
+      if (!shown.length) list.createDiv({ cls: "samaya-empty", text: step === 3 ? "Every task has a day." : "Nothing planned for this week yet." });
       shown.forEach(t => {
-        renderTaskCard(this.plugin, list, t, { scope: this.scope, compact: step === 2, dayLabel: t.planned ? parseYmd(t.planned).toLocaleDateString(undefined, { weekday: "long" }) : undefined });
+        renderTaskCard(this.plugin, list, t, { scope: this.scope, compact: step === 3, dayLabel: t.planned ? parseYmd(t.planned).toLocaleDateString(undefined, { weekday: "long" }) : undefined });
       });
       bindZone(this.scope, col, toWeek);
-      if (step !== 2) addBox(col, "+ Add weekly task", () => ({ week: wk }));
+      if (step !== 3) addBox(col, "+ Add weekly task", () => ({ week: wk }));
     };
 
     if (step === 0) {
@@ -187,6 +189,19 @@ export class WeeklyBoardView extends BasesView {
     } else if (step === 1) {
       const cols = main.createDiv("samaya-wg-cols");
       const col = cols.createDiv("samaya-plancol samaya-wg-col");
+      const tickets = allTickets(this.app, s).filter(tk => statusRank(tk.state) < 3);
+      head(col, "Tickets", tickets.length, "Make a task of a ticket, or give it a task of your own. The ticket is assigned either way.");
+      const list = scroller(col, "tickets", "samaya-wg-tickets");
+      if (!tickets.length) list.createDiv({ cls: "samaya-empty", text: "No open tickets." });
+      for (const st of orderStatuses(tickets.map(tk => tk.state || "No status"))) {
+        const group = tickets.filter(tk => (tk.state || "No status") === st);
+        list.createDiv({ cls: "samaya-wg-group", text: `${st} · ${group.length}` });
+        group.forEach(tk => this.ticketCard(list, tk, all.filter(t => ticketPathOf(this.app, t) === tk.file.path), wk));
+      }
+      weekCol(cols);
+    } else if (step === 2) {
+      const cols = main.createDiv("samaya-wg-cols");
+      const col = cols.createDiv("samaya-plancol samaya-wg-col");
       head(col, "Backlog", 0, "Press `This week` on a task, or drag it into the week.");
       const bl = open.filter(t => !t.planned && t.week !== wk && !leftovers.includes(t));
       (col.querySelector(".samaya-colhead-count") as HTMLElement).setText(String(bl.length));
@@ -194,7 +209,7 @@ export class WeeklyBoardView extends BasesView {
       renderBacklogBuckets(this.plugin, list, sortTasks(bl), this.scope, { actionsSide: true, actions: t => [["This week", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: wk }); }]] }, { label: "samaya-colhead-count", list: "samaya-bucket-list", empty: "samaya-empty" });
       addBox(col, "+ Add to backlog", () => ({ horizon: "someday" }));
       weekCol(cols);
-    } else if (step === 2) {
+    } else if (step === 3) {
       const cols = main.createDiv("samaya-wg-cols is-schedule");
       weekCol(cols);
       const board = scroller(cols, "board", "samaya-wg-board");
@@ -203,6 +218,32 @@ export class WeeklyBoardView extends BasesView {
       this.renderCheck(main, days, caps, all, noDay.filter(t => t.status !== "done"), plannedTotal, freeTotal);
     }
     keep.forEach((v, k) => { const e = this.root.querySelector<HTMLElement>(`[data-scroll="${k}"]`); if (e) e.scrollTop = v; });
+  }
+
+  /** Tickets step: a ticket with its status and the tasks that already exist for it, and the two ways to make a task of it. */
+  private ticketCard(list: HTMLElement, tk: Ticket, tasks: Task[], wk: string) {
+    const s = this.plugin.settings; const title = tk.summary || tk.key;
+    const el = list.createDiv("samaya-card"); const body = el.createDiv("samaya-card-row").createDiv("samaya-card-body");
+    const line = body.createDiv("samaya-card-line");
+    line.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}`, text: tk.key });
+    line.createDiv({ cls: "samaya-card-title", text: title }).addEventListener("click", e => { void this.app.workspace.getLeaf(e.ctrlKey || e.metaKey ? "tab" : false).openFile(tk.file); });
+    const meta = body.createDiv("samaya-card-meta");
+    meta.createSpan({ cls: `samaya-chip samaya-chip-status is-rank-${String(statusRank(tk.state)).replace(".", "_")}`, text: tk.state || "No status" });
+    if (tk.issueType) meta.createSpan({ cls: "samaya-chip", text: tk.issueType });
+    if (tk.assignee) meta.createSpan({ cls: "samaya-chip", text: tk.assignee });
+    if (tasks.length) meta.createSpan({ cls: "samaya-chip samaya-chip-channel", text: tasks.length === 1 ? "1 task" : `${tasks.length} tasks`, attr: { title: tasks.map(t => t.title).join("\n") } });
+    const make = (name: string) => createTask(this.app, s, name, { week: wk, estimate: s.defaultEstimate, ticket: `[[${tk.file.basename}]]` })
+      .then(() => { window.setTimeout(() => this.schedule(), 250); })
+      .catch((err: unknown) => { new Notice(`Samaya: could not create the task (${err instanceof Error ? err.message : String(err)})`); });
+    meta.createEl("button", { cls: "samaya-mini", text: "Make task" }).addEventListener("click", () => { void make(title); });
+    meta.createEl("button", { cls: "samaya-mini", text: "New task…" }).addEventListener("click", () => {
+      new TextPromptModal(this.plugin, `New task for ${tk.key} (append 30m / 1h for an estimate)`, raw => {
+        const p = parseTitleEstimate(raw);
+        void createTask(this.app, s, p.title, { week: wk, estimate: p.estimate ?? s.defaultEstimate, ticket: `[[${tk.file.basename}]]` })
+          .then(() => { window.setTimeout(() => this.schedule(), 250); })
+          .catch((err: unknown) => { new Notice(`Samaya: could not create the task (${err instanceof Error ? err.message : String(err)})`); });
+      }).open();
+    });
   }
 
   /** One day of the Schedule step: its meetings as a compact agenda on top, then the load bar and the day's tasks. */

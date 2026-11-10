@@ -311,3 +311,8 @@ console.log("home ok");
   assert.ok(!isLeftover({ planned: "", week: "2026-11-09", status: "todo" }, "2026-11-10", "2026-11-09"));
   assert.ok(!isLeftover({ planned: "", week: "", status: "todo" }, "2026-11-10", "2026-11-09"));
 }
+{
+  const { weekSteps } = await import("./.weekplan.mjs");
+  assert.deepEqual(weekSteps(true, true), [0, 1, 2, 3, 4]); assert.deepEqual(weekSteps(false, true), [1, 2, 3, 4]);
+  assert.deepEqual(weekSteps(false, false), [2, 3, 4]); assert.deepEqual(weekSteps(true, false), [0, 2, 3, 4]);
+}

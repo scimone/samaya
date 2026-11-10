@@ -21,3 +21,9 @@ export function isLeftover(t: { planned: string; week: string; status: string },
   if (t.status === "done") return false;
   return t.planned ? t.planned < today : !!t.week && t.week < weekStart;
 }
+
+export const WEEK_STEP = { review: 0, tickets: 1, backlog: 2, schedule: 3, check: 4 } as const;
+/** The steps of the week guide that take part: Review only with left over tasks, Tickets only when there are tickets. */
+export function weekSteps(review: boolean, tickets: boolean): number[] {
+  return [WEEK_STEP.review, WEEK_STEP.tickets, WEEK_STEP.backlog, WEEK_STEP.schedule, WEEK_STEP.check].filter(i => (i === WEEK_STEP.review ? review : i === WEEK_STEP.tickets ? tickets : true));
+}

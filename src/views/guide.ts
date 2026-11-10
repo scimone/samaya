@@ -1,6 +1,7 @@
 import { setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { richText } from "./common";
+import { weekSteps } from "./../weekplan";
 
 export const GUIDE_STEPS = [
   { title: "Review", text: "Unfinished tasks from earlier days: move them to `Today`, `Tomorrow` or `This week`, back to the `Backlog`, or mark them done." },
@@ -10,6 +11,7 @@ export const GUIDE_STEPS = [
 
 export const WEEK_GUIDE_STEPS = [
   { title: "Review", text: "Unfinished tasks from earlier days and weeks: move them to `This week`, back to the `Backlog`, or mark them done." },
+  { title: "Tickets", text: "Your open tickets and where they stand. Press `Make task` to turn a ticket into a task of this week with the ticket's title, or `New task…` to give the task your own title. Either way the ticket is assigned to the task." },
   { title: "Backlog", text: "Pull what belongs into the week: press `This week` on a backlog card, or drag it across. Add anything new that is on your mind, and drag tasks you will not get to back to the `Backlog`." },
   { title: "Schedule", text: "Drag the week's tasks onto the days. Each day shows its meetings on top and how full it is. Tasks without a day stay in the list on the left." },
   { title: "Check", text: "Look at the whole week: is any day too full, is anything still without a day? Fix it with the `Back` button, then press `{done}`." },
@@ -71,7 +73,7 @@ function renderShutdownGuide(plugin: SamayaPlugin, host: HTMLElement) {
 
 /** "Plan my week": same stepper as the day guide, with the reminder to leave room for the unexpected under every step. */
 function renderWeekGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideCtx) {
-  const g = plugin.guide!; const first = g.review ? 0 : 1;
+  const g = plugin.guide!; const vis = weekSteps(g.review, !!g.tickets); const pos = vis.indexOf(g.step);
   const go = (to: number) => { g.step = to; plugin.bus.emit(); };
   const doneLabel = "Finish week plan";
   const box = host.createDiv("samaya-plan");
@@ -82,11 +84,11 @@ function renderWeekGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideCtx)
 
   const list = box.createEl("ol", { cls: "samaya-plan-steps" });
   WEEK_GUIDE_STEPS.forEach((st, i) => {
-    if (i < first) return;
+    if (!vis.includes(i)) return;
     const state = i === g.step ? "is-active" : i < g.step ? "is-done" : "is-todo";
     const li = list.createEl("li", { cls: `samaya-plan-step ${state}` });
     const marker = li.createDiv("samaya-plan-marker");
-    if (i < g.step) setIcon(marker, "check"); else marker.setText(String(i + 1 - first));
+    if (i < g.step) setIcon(marker, "check"); else marker.setText(String(vis.indexOf(i) + 1));
     const main = li.createDiv("samaya-plan-main");
     const title = main.createDiv("samaya-plan-title"); title.createSpan({ text: st.title });
     if (i === 0 && ctx.overdue && i >= g.step) title.createSpan({ cls: "samaya-plan-badge", text: String(ctx.overdue) });
@@ -95,9 +97,9 @@ function renderWeekGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideCtx)
   });
 
   const nav = box.createDiv("samaya-plan-nav");
-  if (g.step > first) nav.createEl("button", { text: "Back", cls: "samaya-plan-back" }).onclick = () => go(g.step - 1);
-  const last = g.step === WEEK_GUIDE_STEPS.length - 1;
-  nav.createEl("button", { text: last ? doneLabel : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) plugin.finishWeekGuide(); else go(g.step + 1); };
+  if (pos > 0) nav.createEl("button", { text: "Back", cls: "samaya-plan-back" }).onclick = () => go(vis[pos - 1]);
+  const last = pos === vis.length - 1;
+  nav.createEl("button", { text: last ? doneLabel : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) plugin.finishWeekGuide(); else go(vis[pos + 1]); };
 
   const rem = box.createDiv("samaya-plan-reminder");
   setIcon(rem.createSpan("samaya-plan-reminder-icon"), "life-buoy");

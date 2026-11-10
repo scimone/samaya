@@ -213,6 +213,7 @@ export class TodayView extends ItemView {
       const b = lane.createDiv({ cls: it.ev ? "samaya-event" : "samaya-block" + (it.task!.status === "done" ? " is-done" : "") });
       b.style.top = `${top}px`; b.style.height = `${height}px`; b.style.left = `${(pl.col * 100) / pl.n}%`; b.style.width = `calc(${100 / pl.n}% - 3px)`;
       if (isToday && nowMin >= it.s && nowMin < it.s + it.dur && it.task?.status !== "done") b.addClass("is-current");
+      if (it.ev && (date < today() || (isToday && nowMin >= it.s + it.dur))) b.addClass("is-past"); // a meeting that is over
       const bt = b.createDiv({ cls: it.ev ? "samaya-event-title" : "samaya-block-title" });
       if (!it.ev) {
         const task = it.task!;

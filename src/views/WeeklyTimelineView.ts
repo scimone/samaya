@@ -150,6 +150,7 @@ export class WeeklyTimelineView extends BasesView {
         const b = lane.createDiv({ cls: it.ev ? "samaya-event" : "samaya-block" + (it.task!.status === "done" ? " is-done" : "") });
         b.style.top = `${top}px`; b.style.height = `${height}px`; b.style.left = `${(pl.col * 100) / pl.n}%`; b.style.width = `calc(${100 / pl.n}% - 2px)`;
         if (it.ev) {
+          const nd = new Date(); if (date < today() || (isToday && nd.getHours() * 60 + nd.getMinutes() >= it.s + it.dur)) b.addClass("is-past"); // a meeting that is over
           b.createDiv({ cls: "samaya-event-title", text: it.ev.title });
           b.createDiv({ cls: "samaya-event-time", text: `${minToHm(it.s)}–${minToHm(it.s + it.dur)}` });
           return;

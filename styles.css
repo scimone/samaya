@@ -213,7 +213,7 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 .samaya-daily .samaya-block.is-done { background: var(--background-modifier-border); color: var(--text-muted); }
 .samaya-daily .samaya-block.is-done .samaya-block-state { background: var(--text-faint); border-color: var(--text-faint); opacity: 1; }
 /* sidebar: tinted blocks */
-.samaya-today .samaya-block.is-done { background: color-mix(in srgb, var(--text-muted) 12%, var(--background-primary)); border-left-color: var(--text-faint); color: var(--text-muted); box-shadow: none; }
+.samaya-today .samaya-block.is-done { background: color-mix(in srgb, var(--text-muted) 12%, var(--background-primary)); border-left-color: var(--samaya-task); color: var(--text-muted); box-shadow: none; }
 .samaya-today .samaya-block.is-done:hover { background: color-mix(in srgb, var(--text-muted) 18%, var(--background-primary)); }
 .samaya-today .samaya-block.is-done .samaya-block-state { background: var(--text-faint); border-color: var(--text-faint); opacity: 1; }
 
@@ -399,7 +399,7 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 .samaya-wtl-hour { position: absolute; left: 0; right: 0; border-top: 1px solid color-mix(in srgb, var(--background-modifier-border) 60%, transparent); }
 .samaya-wtl .samaya-block { background: color-mix(in srgb, var(--samaya-task) 20%, var(--background-primary)); color: var(--text-normal); border-left: 3px solid var(--samaya-task); border-radius: 6px; }
 .samaya-wtl .samaya-block-time { color: var(--text-muted); font-size: 10px; }
-.samaya-wtl .samaya-block.is-done { background: color-mix(in srgb, var(--text-muted) 12%, var(--background-primary)); border-left-color: var(--text-faint); color: var(--text-muted); }
+.samaya-wtl .samaya-block.is-done { background: color-mix(in srgb, var(--text-muted) 12%, var(--background-primary)); border-left-color: var(--samaya-task); color: var(--text-muted); }
 .samaya-wtl .samaya-block.is-done .samaya-block-state { background: var(--text-faint); border-color: var(--text-faint); opacity: 1; }
 .samaya-wtl .samaya-event { cursor: default; }
 .samaya-week-backlog { display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; }
@@ -887,3 +887,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-chk-day-view .samaya-chk-fix-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .samaya-chk-day-view .samaya-chk-fix-btn { flex: none; }
 @media (max-width: 900px) { .samaya-chk-day-view { grid-column: auto; } }
+
+/* meetings that are over: greyed out like finished tasks, the left border keeps the meeting colour */
+.samaya-event.is-past { background: color-mix(in srgb, var(--text-muted) 12%, var(--background-primary)); color: var(--text-muted); border-left-color: var(--samaya-meeting); }
+.samaya-lane .samaya-event.is-past { opacity: 0.6; }

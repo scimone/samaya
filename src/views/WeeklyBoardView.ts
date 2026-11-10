@@ -1,7 +1,7 @@
 import { BasesView, Notice, QueryController, TFile, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
-import { Task, Ticket, allTasks, allTickets, ticketPathOf, createTask, parkTask, patchTask, placeInDay, prefixOf, readTask, setDone, sortTasks } from "../model";
+import { Task, Ticket, allTasks, allTickets, ticketPathOf, createTask, parkTask, patchTask, placeInDay, prefixOf, readTask, sortTasks } from "../model";
 import type { IcsEvent } from "../ics";
 import { BUFFER_SHARE, isLeftover, loadLevel, trimToBuffer, weekVerdict } from "../weekplan";
 import { renderGuide } from "./guide";
@@ -141,7 +141,6 @@ export class WeeklyBoardView extends BasesView {
       leftovers.forEach(t => renderTaskCard(this.plugin, list, t, { scope: this.scope, actions: [
         ["This week", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: wk }); }],
         ["Backlog", () => { void parkTask(this.app, t.file, "someday"); }],
-        ["Done", () => { void setDone(this.app, t, true); }],
       ] }));
     } else if (step === 1) {
       // the ticket board scrolls on its own; This week is in the right sidebar, so new tasks are always in sight

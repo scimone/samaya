@@ -125,9 +125,9 @@ export class TodayView extends ItemView {
       if (!guide) { // one clear way into the week: the timeline expands to the whole week
         const bar = c.createDiv("samaya-tl-bar");
         bar.createSpan({ cls: "samaya-tl-bar-title", text: "Timeline" });
-        const ex = bar.createEl("button", { cls: "samaya-tl-expand", attr: { "aria-label": "Expand to the week timeline", title: "Expand to the week timeline" } });
-        setIcon(ex.createSpan("samaya-tl-expand-icon"), "maximize-2"); ex.createSpan({ text: "Week" });
-        ex.onclick = () => this.plugin.expandTimeline();
+        const sw = bar.createDiv("samaya-modeswitch");
+        sw.createEl("button", { text: "Day", cls: "is-active" });
+        sw.createEl("button", { text: "Week", attr: { title: "Expand to the week timeline" } }).onclick = () => this.plugin.expandTimeline();
       }
     }
     else {

@@ -899,10 +899,10 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-planner-pane.is-hidden { display: none; }
 .samaya-tl-bar { display: flex; align-items: center; justify-content: space-between; margin: 0 0 6px; }
 .samaya-tl-bar-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); }
-.samaya-tl-expand { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; font-size: var(--font-ui-smaller); background: transparent; box-shadow: none; color: var(--text-muted); border-radius: var(--radius-m); }
-.samaya-tl-expand:hover { background: var(--background-modifier-hover); color: var(--interactive-accent); }
-.samaya-tl-expand-icon, .samaya-wtl-back-icon { display: inline-flex; }
-.samaya-tl-expand-icon svg, .samaya-wtl-back-icon svg { width: 14px; height: 14px; }
-.samaya-wtl-back { display: inline-flex; align-items: center; gap: 6px; margin-right: 6px; }
 .samaya-wtl-day.is-link { cursor: pointer; }
 .samaya-wtl-day.is-link:hover { color: var(--interactive-accent); text-decoration: underline; }
+.samaya-modeswitch { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--radius-m); background: var(--background-modifier-hover); }
+.samaya-modeswitch button { box-shadow: none; background: transparent; height: 22px; padding: 0 12px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.samaya-modeswitch button:hover { color: var(--text-normal); }
+.samaya-modeswitch button.is-active { background: var(--background-primary); color: var(--text-normal); font-weight: 600; box-shadow: var(--input-shadow); }
+.samaya-modeswitch.is-right { margin-left: auto; }

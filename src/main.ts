@@ -245,6 +245,7 @@ export default class SamayaPlugin extends Plugin {
     this.addCommand({ id: "plan-week", name: "Plan my week (guided)", callback: () => this.startWeekGuide() });
     this.addCommand({ id: "review-week", name: "Review my week", callback: () => this.reviewWeek() });
     this.addCommand({ id: "open-week-board", name: "Open weekly board", callback: () => this.openWeekPlanner() });
+    this.addCommand({ id: "toggle-week-timeline", name: "Toggle week timeline (expand / collapse)", callback: () => { if (this.timelineWide) this.collapseTimeline(); else { void this.openPlanner().then(() => this.expandTimeline()); } } });
     this.addCommand({ id: "open-planner", name: "Open planner", callback: () => this.openPlanner() });
     this.addCommand({ id: "plan-day", name: "Plan my day (guided)", callback: () => this.startGuide() });
     this.addCommand({ id: "start-day", name: "Start workday now", callback: () => this.workday.startDay() });

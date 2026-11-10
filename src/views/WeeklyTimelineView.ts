@@ -75,16 +75,16 @@ export class WeeklyTimelineView extends BasesView {
     if (this.plugin.boardWeek !== this.weekStart) { this.plugin.boardWeek = this.weekStart; this.plugin.modeBus.emit(); }
     const head = this.root.createDiv("samaya-week-head");
     const go = (w: string) => { this.weekStart = w; this.scrolledFor = ""; void this.render(); };
-    if (this.host?.back) { // expanded from the day planner: one obvious way back
-      const back = head.createEl("button", { cls: "samaya-wtl-back mod-cta", attr: { "aria-label": "Back to the day planner (Esc)", title: "Back to the day planner (Esc)" } });
-      setIcon(back.createSpan("samaya-wtl-back-icon"), "arrow-left"); back.createSpan({ text: "Day planner" });
-      back.onclick = () => this.host?.back?.();
-    }
     head.createEl("button", { text: "‹" }).onclick = () => go(addDays(this.weekStart, -7));
     head.createEl("button", { text: "This week" }).onclick = () => go(startOfWeek(today()));
     head.createEl("button", { text: "›" }).onclick = () => go(addDays(this.weekStart, 7));
     const fmt = (x: string) => parseYmd(x).toLocaleDateString(undefined, { month: "short", day: "numeric" });
     head.createEl("h2", { text: `${fmt(this.weekStart)} – ${fmt(addDays(this.weekStart, 6))}` });
+    if (this.host?.back) { // the same Day | Week switch as in the sidebar timeline, at the same top-right spot: click there again to fold back
+      const sw = head.createDiv("samaya-modeswitch is-right");
+      const day = sw.createEl("button", { text: "Day", attr: { title: "Back to the day planner (Esc)" } }); day.onclick = () => this.host?.back?.();
+      sw.createEl("button", { text: "Week", cls: "is-active" });
+    }
 
     const scroll = this.root.createDiv("samaya-wtl-scroll");
     const cols = scroll.createDiv("samaya-wtl-heads");

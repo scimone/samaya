@@ -71,6 +71,6 @@ export async function renderDayStatus(plugin: SamayaPlugin, host: HTMLElement, o
     wbar.createDiv("samaya-col-bar-fill").style.width = `${wOver || weekFree <= 0 ? (weekPlanned > 0 ? 100 : 0) : (weekPlanned / weekFree) * 100}%`;
     if (weekFree > 0) { const mark = wbar.createDiv("samaya-col-bar-mark"); mark.style.left = `${share * 100}%`; mark.title = `${Math.round(share * 100)}% of the free time`; }
     const wrow = wk.createDiv("samaya-wd-buttons");
-    wrow.createEl("button", { text: "Open week" }).onclick = () => { void plugin.openWeekPlanner(); };
+    wrow.createEl("button", { text: "Open week" }).onclick = () => { void plugin.openPlanner().then(() => plugin.expandTimeline()); };
     if (startOfWeek(date) === startOfWeek(today()) && !plugin.guide) wrow.createEl("button", { text: "Plan week" }).onclick = () => { void plugin.startWeekGuide(); };
 }

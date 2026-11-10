@@ -1,7 +1,7 @@
 import { App, Notice, TFile, normalizePath, requestUrl } from "obsidian";
 import { IcsEvent, parseIcs } from "./ics";
 import type { SamayaSettings } from "./settings";
-import { safeFileName } from "./util";
+import { Horizon, horizonTarget, safeFileName, startOfWeek, today } from "./util";
 import { DEFAULT_TASK_TEMPLATE, ensureSubtasksHeading, insertSubtask, renderPath, pathRoot, renderTemplate, TicketVars, DEFAULT_TICKET_TEMPLATE, renderTicketNote, renderTicketFileName, renderTicketPath } from "./taskbody";
 import type { RawTicket } from "./tickets";
 import { Seg, parseSegments } from "./segments";
@@ -11,6 +11,7 @@ export interface Task {
   planned: string; start: string; estimate: number; actual: number; order: number; channel: string;
   /** link path of the assigned ticket note ("" = none) */ ticket: string;
   /** week-start date (YYYY-MM-DD) for "this week" tasks without a day */ week: string;
+  /** date a parked backlog task becomes due ("" = not parked); once reached it counts as this week's task */ later: string;
   /** time segments when the task is split around meetings (2+), else empty; `start` is the first one, `estimate` the total */ segments: Seg[];
 }
 
@@ -20,15 +21,17 @@ const num = (v: unknown): number => { const n = Number(v); return isNaN(n) ? 0 :
 export function readTask(app: App, file: TFile): Task {
   const fm = (app.metadataCache.getFileCache(file)?.frontmatter ?? {}) as Record<string, unknown>;
   const planned = fm.planned instanceof Date ? "" : str(fm.planned).slice(0, 10);
+  const ymdOf = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(str(v).slice(0, 10)) ? str(v).slice(0, 10) : "");
+  const later = ymdOf(fm.later); const due = !!later && later <= today() && !planned;
   return {
-    file, title: file.basename,
+    file, title: file.basename, later,
     status: fm.status === "done" ? "done" : "todo",
     planned: /^\d{4}-\d{2}-\d{2}$/.test(planned) ? planned : "",
     start: /^\d{1,2}:\d{2}$/.test(str(fm.start)) ? str(fm.start) : "",
     estimate: num(fm.estimate), actual: num(fm.actual), order: fm.order == null ? 1e6 : num(fm.order),
     channel: str(fm.channel),
     ticket: str(fm.ticket).replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0].trim(),
-    week: /^\d{4}-\d{2}-\d{2}$/.test(str(fm.week).slice(0, 10)) ? str(fm.week).slice(0, 10) : "",
+    week: due ? startOfWeek(today()) : ymdOf(fm.week),
     segments: (() => { const g = parseSegments(fm.segments); return g.length > 1 ? g : []; })(),
   };
 }
@@ -46,11 +49,24 @@ export async function patchTask(app: App, file: TFile, patch: Record<string, str
   await app.fileManager.processFrontMatter(file, fm => {
     // a split task keeps its segments only when they are written together with the new time or length
     if (!("segments" in patch) && ("start" in patch || ("estimate" in patch && fm.estimate !== patch.estimate))) delete fm.segments;
+    // giving a task a day or a week ends its parking
+    if (!("later" in patch) && (patch.planned || patch.week)) delete fm.later;
     for (const [k, v] of Object.entries(patch)) {
       if (v === undefined || v === null || v === "") delete fm[k]; else fm[k] = v;
     }
   });
 }
+/** Park a task in the backlog under Next week / month / quarter (null = plain backlog). It moves to this week by itself when the date arrives. */
+export async function parkTask(app: App, file: TFile, h: Horizon | null): Promise<void> {
+  await patchTask(app, file, { planned: null, start: null, week: null, later: h ? horizonTarget(h, today()) : null });
+}
+/** Persist the move of parked tasks whose date has arrived into this week. Returns how many moved. */
+export async function promoteParked(app: App, s: SamayaSettings): Promise<number> {
+  const t0 = today(); const due = allTasks(app, s).filter(t => t.later && t.later <= t0 && !t.planned && t.status !== "done");
+  await Promise.all(due.map(t => patchTask(app, t.file, { week: startOfWeek(t0), later: null })));
+  return due.length;
+}
+
 export async function setDone(app: App, t: Task, done: boolean): Promise<void> {
   await patchTask(app, t.file, { status: done ? "done" : "todo", completed: done ? new Date().toISOString().slice(0, 10) : null });
 }

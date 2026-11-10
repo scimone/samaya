@@ -1,9 +1,9 @@
 import { BasesView, Notice, QueryController, TFile, WorkspaceLeaf, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
-import { Task, allTasks, prefixOf, createTask, patchTask, placeInDay, readTask, sortTasks } from "../model";
+import { Task, allTasks, prefixOf, createTask, patchTask, parkTask, placeInDay, readTask, sortTasks } from "../model";
 import { addDays, fmtDur, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
-import { bindCardDrop, bindZone, renderTaskCard, richText } from "./common";
+import { bindCardDrop, bindZone, renderBacklogBuckets, renderTaskCard, richText } from "./common";
 import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { celebrate, renderDoneBar } from "./doneBar";
@@ -163,16 +163,16 @@ export class DailyPlannerView extends BasesView {
     });
     richText(col.createDiv("samaya-guide-text samaya-colhint"), "Press `Today` on a task, or drag it into today's list.");
     const list = col.createDiv("samaya-leftover-list");
-    if (!tasks.length) list.createDiv({ cls: "samaya-empty", text: this.pickTab === "week" ? "Nothing planned for this week yet." : "Backlog is empty." });
-    tasks.forEach(t => renderTaskCard(this.plugin, list, t, {
-      scope: this.scope,
-      actionsSide: true,
-      actions: [["Today", () => { void placeInDay(this.app, s, t.file.path, this.date, 9999); }]],
-    }));
-    bindZone(this.scope, col, path => {
-      const f = this.app.vault.getAbstractFileByPath(path);
-      if (f instanceof TFile) void patchTask(this.app, f, { planned: null, start: null, week: this.pickTab === "week" ? wk : null });
-    });
+    if (this.pickTab === "week") {
+      if (!tasks.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned for this week yet." });
+      tasks.forEach(t => renderTaskCard(this.plugin, list, t, { scope: this.scope, actionsSide: true, actions: [["Today", () => { void placeInDay(this.app, s, t.file.path, this.date, 9999); }]] }));
+      bindZone(this.scope, col, path => {
+        const f = this.app.vault.getAbstractFileByPath(path);
+        if (f instanceof TFile) void patchTask(this.app, f, { planned: null, start: null, week: wk });
+      });
+    } else {
+      renderBacklogBuckets(this.plugin, list, tasks, this.scope, { actionsSide: true, actions: t => [["Today", () => { void placeInDay(this.app, s, t.file.path, this.date, 9999); }]] }, { label: "samaya-colhead-count", list: "samaya-bucket-list", empty: "samaya-empty" });
+    }
     const add = col.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: this.pickTab === "week" ? "+ Add weekly task" : "+ Add to backlog" } });
     this.bindAdd(add, (): Record<string, string | number> => (this.pickTab === "week" ? { week: wk } : {}));
   }
@@ -202,7 +202,7 @@ export class DailyPlannerView extends BasesView {
         ["Today", () => { void patchTask(this.app, t.file, { planned: today(), start: null }); }],
         ["Tomorrow", () => { void patchTask(this.app, t.file, { planned: tomorrow, start: null }); }],
         ["This week", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: startOfWeek(today()) }); }],
-        ["Backlog", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: null }); }],
+        ["Backlog", () => { void parkTask(this.app, t.file, null); }],
       ],
     }));
   }

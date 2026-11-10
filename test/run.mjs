@@ -7,7 +7,7 @@ await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timelin
 await bundle("src/settings.ts", "test/.settings.mjs");
 await bundle("src/monthgrid.ts", "test/.monthgrid.mjs"); await bundle("src/kanban.ts", "test/.kanban.mjs"); await bundle("src/gantt.ts", "test/.gantt.mjs"); await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
 const { parseIcs } = await import("./.ics.mjs");
-const { parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify } = await import("./.util.mjs");
+const { horizonTarget, horizonOf, parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify } = await import("./.util.mjs");
 const { latestOnOrBefore, neighbours } = await import("./.journal.mjs");
 const { fmtEstimate, meetingLines, sortByStart, taskLines, bulletLines, upsertSection, readSection, pickJournalSource: pick } = await import("./.journal.mjs");
 const { fetchJira, fetchGitlab, adfToText } = await import("./.tickets.mjs");
@@ -44,6 +44,15 @@ assert.deepEqual(names.filter(n => n.startsWith("Weekly")), ["Weekly@2"]);
 assert.deepEqual(parseTitleEstimate("Write report 1h"), { title: "Write report", estimate: 60 });
 assert.deepEqual(parseTitleEstimate("Call mom"), { title: "Call mom" });
 assert.equal(startOfWeek("2026-11-03"), "2026-11-02");
+assert.equal(horizonTarget("week", "2026-11-10"), "2026-11-16");
+assert.equal(horizonTarget("month", "2026-11-10"), "2026-12-01");
+assert.equal(horizonTarget("quarter", "2026-11-10"), "2027-01-01");
+assert.equal(horizonTarget("month", "2026-12-20"), "2027-01-01");
+assert.equal(horizonOf("2026-11-16", "2026-11-10"), "week");
+assert.equal(horizonOf("2026-12-01", "2026-11-10"), "month");
+assert.equal(horizonOf("2027-01-01", "2026-11-10"), "quarter");
+assert.equal(horizonOf("2026-12-01", "2026-11-25"), "week"); // cascades closer as the date nears
+assert.equal(horizonOf("2027-01-01", "2026-12-05"), "month");
 assert.equal(addDays("2026-11-30", 1), "2026-12-01");
 assert.equal(fmtDur(90), "1h 30m");
 

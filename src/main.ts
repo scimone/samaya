@@ -19,7 +19,7 @@ import { PERIOD_UI, identifyNote, findLatestPeriodNote, listPeriodNotes, neighbo
 import { PROJECTS_BASE_TEMPLATE, assignProject, createProject } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { HOME_VIEW_TYPE, HomeView } from "./views/HomeView";
-import { allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask } from "./model";
+import { promoteParked, allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask } from "./model";
 import { bulletLines, journalPath, journalWants, meetingLines, readJournalSection, sortByStart, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
 import { ensureMeetingNote } from "./meetings";
 import { calendarEnabled, calendarEvents } from "./calendar";
@@ -275,6 +275,8 @@ export default class SamayaPlugin extends Plugin {
       if (this.settings.openOnStartup) await this.openPlanner();
       if (this.settings.homeOn && this.settings.homeOnStartup) await this.openHome();
       this.registerInterval(window.setInterval(() => this.shutdownNudge(), 60000));
+      const promote = () => { void promoteParked(this.app, this.settings); };
+      promote(); this.registerInterval(window.setInterval(promote, 10 * 60000)); // parked backlog tasks reaching their date move to this week
       void this.meetingSyncLoop();
     });
   }

@@ -7,7 +7,7 @@ import { ensureMeetingNote } from "../meetings";
 import { Task, prefixOf, allTasks, createTask, patchTask, readTask, setDone, sortTasks } from "../model";
 import { layoutItems } from "../timeline";
 import { addDays, fmtDur, hmToMin, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
-import { bindZone, renderTaskCard, richText, showTaskMenu } from "./common";
+import { bindZone, renderBacklogBuckets, renderTaskCard, richText, showTaskMenu } from "./common";
 import { renderLoadBar } from "./loadBar";
 import { renderDayLines } from "./dayLines";
 import { decorateSegment, dragDur, dropOnTimeline, resizeBlock, segLabel, taskBlocks } from "./place";
@@ -256,15 +256,20 @@ export class TodayView extends ItemView {
     const isWeek = this.tab === "week"; const tasks = isWeek ? unscheduled : backlog;
     const keep = c.querySelector<HTMLElement>(".samaya-today-cards")?.scrollTop ?? this.listTop;
     const sec = c.createDiv(isWeek ? "samaya-week-unsched" : "samaya-week-backlog");
-    if (isWeek) sec.createDiv({ cls: "samaya-today-label", text: `Not scheduled yet · ${unscheduled.length}` });
-    const list = sec.createDiv("samaya-today-cards");
-    if (!tasks.length) list.createDiv({ cls: "samaya-today-empty", text: isWeek ? "Every weekly task has a day" : "Backlog is empty" });
-    tasks.forEach(t => renderTaskCard(this.plugin, list, t, { scope: this.dnd, compact: true }));
-    list.scrollTop = keep;
-    bindZone(this.dnd, sec, path => {
-      const f = this.app.vault.getAbstractFileByPath(path);
-      if (f instanceof TFile) void patchTask(this.app, f, { planned: null, start: null, week: isWeek ? wk : null });
-    });
+    if (isWeek) {
+      sec.createDiv({ cls: "samaya-today-label", text: `Not scheduled yet · ${unscheduled.length}` });
+      const list = sec.createDiv("samaya-today-cards");
+      if (!tasks.length) list.createDiv({ cls: "samaya-today-empty", text: "Every weekly task has a day" });
+      tasks.forEach(t => renderTaskCard(this.plugin, list, t, { scope: this.dnd, compact: true }));
+      list.scrollTop = keep;
+      bindZone(this.dnd, sec, path => {
+        const f = this.app.vault.getAbstractFileByPath(path);
+        if (f instanceof TFile) void patchTask(this.app, f, { planned: null, start: null, week: wk });
+      });
+    } else {
+      const wrap = sec.createDiv("samaya-buckets"); wrap.scrollTop = keep;
+      renderBacklogBuckets(this.plugin, wrap, tasks, this.dnd, { compact: true });
+    }
     const add = sec.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: isWeek ? "+ Add weekly task" : "+ Add to backlog" } });
     add.addEventListener("keydown", e => {
       if (e.key !== "Enter" || !add.value.trim()) return;

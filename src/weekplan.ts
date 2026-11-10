@@ -6,7 +6,7 @@ export const BUFFER_SHARE = 0.8;
 /** The share of the free time that may be planned, from the "free buffer" setting in percent (20 -> 0.8). */
 export function bufferShare(bufferPercent: number | undefined): number {
   const p = typeof bufferPercent === "number" && isFinite(bufferPercent) ? Math.min(90, Math.max(0, bufferPercent)) : 20;
-  return 1 - p / 100;
+  return (100 - p) / 100;
 }
 
 /** The week to plan: the current one, or the coming one when it is planned on the weekend. */

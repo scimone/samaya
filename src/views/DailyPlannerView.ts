@@ -25,6 +25,7 @@ export class DailyPlannerView extends BasesView {
   private leftScroll = 0;
   private announced = false;
   private lastAll: { date: string; all: boolean } | null = null; // to spot the moment the last task of the day gets checked
+  private lastBoxed: { date: string; all: boolean } | null = null; // Timebox: to spot the moment the last task gets a time slot
   private pickTab: "week" | "backlog" = "week";
 
   constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
@@ -107,14 +108,21 @@ export class DailyPlannerView extends BasesView {
       renderGuide(this.plugin, cols, { overdue: overdue.length });
       if (review) this.renderLeftOver(cols, overdue); else if (pick) this.renderPick(cols);
       body = cols.createDiv("samaya-plancol samaya-review-main");
-      this.colHead(body, "Today", day.length, review || pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
+      const todayBadge = this.colHead(body, "Today", day.length, review || pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
+      if (step === 2) { // Timebox: the badge counts the tasks that already have a time slot
+        const ns = day.filter(t => t.start).length; const allSet = day.length > 0 && ns === day.length;
+        todayBadge.setText(`${ns} / ${day.length}`); todayBadge.toggleClass("is-complete", allSet);
+        if (allSet && this.lastBoxed && this.lastBoxed.date === this.date && !this.lastBoxed.all) { todayBadge.addClass("is-pop"); celebrate(todayBadge); }
+        this.lastBoxed = { date: this.date, all: allSet };
+      } else this.lastBoxed = null;
       renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
     }
 
     const list = body.createDiv("samaya-list" + (step === 2 ? " is-timebox" : ""));
+    // Timebox: tasks with a time slot live on the timeline, so only the ones still waiting for a slot are listed
+    const shown = step === 2 ? day.filter(t => !t.start) : day;
     if (!day.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned." });
-    // Timebox: tasks without a time slot always first
-    const shown = step === 2 ? [...day.filter(t => !t.start && t.status !== "done"), ...day.filter(t => t.start || t.status === "done")] : day;
+    else if (!shown.length) list.createDiv({ cls: "samaya-empty samaya-allset", text: "All tasks are scheduled. Check the timeline in the sidebar, then finish your plan." });
     shown.forEach(t => {
       const idx = day.indexOf(t);
       const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true });
@@ -144,8 +152,9 @@ export class DailyPlannerView extends BasesView {
   private colHead(host: HTMLElement, title: string, count: number, hint: string) {
     const h = host.createDiv("samaya-colhead");
     h.createSpan({ cls: "samaya-colhead-title", text: title });
-    h.createSpan({ cls: "samaya-colhead-count", text: String(count) });
+    const badge = h.createSpan({ cls: "samaya-colhead-count", text: String(count) });
     richText(host.createDiv("samaya-guide-text samaya-colhint"), hint);
+    return badge;
   }
 
   /** Pick step: This week / Backlog with full task cards. Press Today or drag a card into today's list; new tasks can be added here too. */

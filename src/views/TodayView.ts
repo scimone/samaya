@@ -14,6 +14,7 @@ import { decorateSegment, dragDur, dropOnTimeline, resizeBlock, segLabel, taskBl
 import { addBands } from "./bands";
 import { renderWorkdayCard } from "./workdayCard";
 import { renderDoneBar } from "./doneBar";
+import { renderWeekColumn, weekFreeTime } from "./weekColumn";
 
 export const TODAY_VIEW_TYPE = "samaya-today";
 const MIN_HOUR_H = 28;
@@ -32,6 +33,7 @@ export class TodayView extends ItemView {
   private shownWeek = "";
   private viewDate = ""; // day shown on the timeline ("" = today)
   private listTop = 0;
+  private wgScroll = 0;
   private seenH = 0;
   constructor(leaf: WorkspaceLeaf, private plugin: SamayaPlugin) { super(leaf); this.dnd.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } }; }
   getViewType() { return TODAY_VIEW_TYPE; }
@@ -81,6 +83,8 @@ export class TodayView extends ItemView {
     const date = daily ? this.plugin.plannerDate || today() : this.viewDate || today();
     this.shownDate = this.plugin.plannerDate;
     const wkStart = this.plugin.boardWeek || startOfWeek(today()); this.shownWeek = this.plugin.boardWeek;
+    const wg = this.mode === "week" && this.plugin.guide?.kind === "week" ? this.plugin.guide : null; // Plan my week: this sidebar holds the This week column
+    const free = wg ? await weekFreeTime(this.plugin, wkStart, wg.days ?? 5) : 0;
     const events: IcsEvent[] = calendarEnabled(s) ? await calendarEvents(this.plugin, parseYmd(date), new Date(parseYmd(date).getTime() + 86400000)) : [];
     const notes = new Map<IcsEvent, TFile>();
     for (const ev of events.filter(e => !e.allDay)) { try { notes.set(ev, await ensureMeetingNote(this.app, s, ev, events)); } catch { /* ignore */ } }
@@ -93,6 +97,12 @@ export class TodayView extends ItemView {
     const all = allTasks(this.app, s);
     const day = sortTasks(all.filter(t => t.planned === date));
     const byPath = new Map(day.map(t => [t.file.path, t]));
+    if (wg) {
+      c.addClass("is-wg");
+      renderWeekColumn(this.plugin, this.dnd, c, { step: wg.step, wk: wkStart, all, free, refresh: () => this.schedule(), keepScroll: this.wgScroll, onScroll: y => { this.wgScroll = y; } });
+      return;
+    }
+    c.removeClass("is-wg");
 
     // ---- header: title, workday strip, capacity - kept minimal
     const head = c.createDiv("samaya-today-head");

@@ -37,7 +37,7 @@ export class WeeklyTimelineView extends BasesView {
     this.register(plugin.bus.on(() => this.schedule()));
     const ref = plugin.app.metadataCache.on("changed", f => { if (inEventFolder(plugin.settings, f.path)) this.schedule(); });
     this.register(() => plugin.app.metadataCache.offref(ref));
-    if (plugin.guide?.kind !== "week") void plugin.openToday(); // same sidebar as the Weekly Board (the week guide hides it)
+    void plugin.openToday(); // same sidebar as the Weekly Board
   }
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); if (this.plugin.boardWeek === this.weekStart) { this.plugin.boardWeek = ""; this.plugin.modeBus.emit(); } }
   onDataUpdated(): void { this.schedule(); }

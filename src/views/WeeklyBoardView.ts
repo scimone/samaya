@@ -5,6 +5,7 @@ import { Task, Ticket, allTasks, allTickets, ticketPathOf, createTask, parkTask,
 import type { IcsEvent } from "../ics";
 import { BUFFER_SHARE, isLeftover, loadLevel } from "../weekplan";
 import { renderGuide } from "./guide";
+import { addTaskInput, capacityOf, weekBuckets } from "./weekColumn";
 import { TicketTaskModal } from "../modals";
 import { groupTickets, statusRank } from "../kanban";
 import { HORIZONS, addDays, bucketOf, fmtDur, horizonTarget, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
@@ -32,7 +33,7 @@ export class WeeklyBoardView extends BasesView {
     this.register(plugin.bus.on(() => this.schedule()));
     const ref = plugin.app.metadataCache.on("changed", f => { if (!this.plugin.guide) return; if (inEventFolder(plugin.settings, f.path) || f.path.startsWith(prefixOf(plugin.settings.tasksPath))) this.schedule(); });
     this.register(() => plugin.app.metadataCache.offref(ref));
-    if (plugin.guide?.kind !== "week") void this.plugin.openToday(); // the sidebar shows the week's unscheduled tasks while the board is open (the week guide hides it)
+    void this.plugin.openToday(); // the sidebar shows the week's tasks while the board is open
   }
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); if (this.plugin.boardWeek === this.weekStart) { this.plugin.boardWeek = ""; this.plugin.modeBus.emit(); } }
   onDataUpdated(): void { this.schedule(); }
@@ -100,12 +101,6 @@ export class WeeklyBoardView extends BasesView {
 
   // ---------------------------------------------------------------- Plan my week
 
-  private capOf(date: string, events: IcsEvent[]): Capacity {
-    const dayMs = parseYmd(date).getTime();
-    return capacityWindow(...this.plugin.workWindowFor(date), this.plugin.lunchFor(date),
-      events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
-  }
-
   /** The guided layout: the guide on the left, the step's columns next to it. Reads the vault directly, so new tasks show up at once. */
   private async renderGuided(step: number, from: Date) {
     const s = this.plugin.settings; const wk = this.weekStart; const td = today();
@@ -113,17 +108,16 @@ export class WeeklyBoardView extends BasesView {
     const days = Array.from({ length: weekends ? 7 : 5 }, (_, i) => addDays(wk, i));
     const events = calendarEnabled(s) ? await calendarEvents(this.plugin, from, parseYmd(addDays(wk, 7))).catch(() => [] as IcsEvent[]) : [];
     if (this.scope.active) { this.pending = true; return; }
+    const g = this.plugin.guide; if (g && g.days !== days.length) { g.days = days.length; window.setTimeout(() => this.plugin.bus.emit(), 0); } // the sidebar needs to know how many days count
     const keep = new Map<string, number>(); this.root.querySelectorAll<HTMLElement>("[data-scroll]").forEach(e => { keep.set(e.dataset.scroll!, e.scrollTop); if (e.dataset.scroll === "kb") this.kbX = e.scrollLeft; });
     this.root.empty(); this.scope.clear(); this.root.addClass("is-guided");
     if (this.plugin.boardWeek !== wk) { this.plugin.boardWeek = wk; this.plugin.modeBus.emit(); }
 
     const all = allTasks(this.app, s);
     const open = all.filter(t => t.status !== "done");
-    const inWeek = (t: Task) => (t.planned ? t.planned >= wk && t.planned < addDays(wk, 7) : t.week === wk);
-    const weekTasks = all.filter(inWeek); // done tasks stay: they used up time and are worth seeing
-    const noDay = sortTasks(weekTasks.filter(t => !t.planned));
+    const { weekTasks, noDay } = weekBuckets(all, wk); // done tasks stay: they used up time and are worth seeing
     const leftovers = sortTasks(open.filter(t => isLeftover(t, td, wk)));
-    const caps = new Map(days.map(d => [d, this.capOf(d, events.filter(e => e.end.getTime() > parseYmd(d).getTime() && e.start.getTime() < parseYmd(addDays(d, 1)).getTime()))]));
+    const caps = new Map(days.map(d => [d, capacityOf(this.plugin, d, events)]));
     const freeTotal = [...caps.values()].reduce((a, c) => a + c.free, 0);
     const plannedTotal = weekTasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0);
 
@@ -131,50 +125,14 @@ export class WeeklyBoardView extends BasesView {
     renderGuide(this.plugin, grid, { overdue: leftovers.length });
     const main = grid.createDiv("samaya-wg-main");
     const scroller = (host: HTMLElement, key: string, cls = "") => { const el = host.createDiv("samaya-wg-scroll " + cls); el.dataset.scroll = key; return el; };
-    const toWeek = (path: string) => { const f = this.app.vault.getAbstractFileByPath(path); if (f instanceof TFile) void patchTask(this.app, f, { planned: null, start: null, week: wk }); };
     const head = (col: HTMLElement, title: string, count: number, hint?: string) => {
       const h = col.createDiv("samaya-colhead"); h.createSpan({ cls: "samaya-colhead-title", text: title }); h.createSpan({ cls: "samaya-colhead-count", text: String(count) });
       if (hint) richText(col.createDiv("samaya-guide-text samaya-colhint"), hint);
     };
-    const addBox = (col: HTMLElement, placeholder: string, props: () => Record<string, string | number>) => {
-      const add = col.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder } });
-      add.addEventListener("keydown", e => {
-        if (e.key !== "Enter" || e.isComposing || !add.value.trim()) return;
-        const p = parseTitleEstimate(add.value); add.value = "";
-        createTask(this.app, s, p.title, { ...props(), estimate: p.estimate ?? s.defaultEstimate })
-          .then(() => { window.setTimeout(() => this.schedule(), 250); })
-          .catch((err: unknown) => { new Notice(`Samaya: could not create the task (${err instanceof Error ? err.message : String(err)})`); });
-      });
-    };
-    /** planned vs 80% of the free time, with a bar that turns orange past the buffer and red past the capacity */
-    const weekLoad = (col: HTMLElement): HTMLElement => {
-      const lvl = loadLevel(plannedTotal, freeTotal);
-      const box = col.createDiv({ cls: `samaya-loadbar is-${lvl}` });
-      const budget = Math.round(freeTotal * BUFFER_SHARE);
-      const bar = box.createDiv({ cls: `samaya-col-bar is-${lvl}` });
-      bar.createDiv("samaya-col-bar-fill").style.width = `${freeTotal <= 0 ? (plannedTotal > 0 ? 100 : 0) : Math.min(100, (plannedTotal / freeTotal) * 100)}%`;
-      const info = col.createDiv("samaya-wg-info"); // status text + description; a fixed height in Schedule so the day columns line up with it
-      const label = info.createDiv({ cls: "samaya-total", text: `${fmtDur(plannedTotal)} planned · ${fmtDur(budget)} recommended` });
-      label.title = `Free time of the week = work time - lunch - meetings = ${fmtDur(freeTotal)}. Plan at most ${Math.round(BUFFER_SHARE * 100)}% of it (${fmtDur(budget)}).`;
-      return info;
-    };
-    const weekCol = (host: HTMLElement) => {
-      const col = host.createDiv("samaya-plancol samaya-wg-col");
-      // Schedule: only what still needs a day; the other steps list everything, the weekday written on cards that have one
-      const shown = step === 3 ? noDay : [...noDay, ...sortTasks(weekTasks.filter(t => t.planned)).sort((a, b) => a.planned.localeCompare(b.planned))];
-      head(col, "This week", shown.length);
-      weekLoad(col);
-      if (step !== 3) addBox(col, "+ Add weekly task", () => ({ week: wk })); // before the first task (the Schedule step has none: the days have their own)
-      const list = scroller(col, "week", "samaya-leftover-list");
-      if (!shown.length) list.createDiv({ cls: "samaya-empty", text: step === 3 ? "Every task has a day." : "Nothing planned for this week yet." });
-      shown.forEach(t => {
-        renderTaskCard(this.plugin, list, t, { scope: this.scope, dayLabel: t.planned ? parseYmd(t.planned).toLocaleDateString(undefined, { weekday: "long" }) : undefined });
-      });
-      bindZone(this.scope, col, toWeek);
-    };
+    const addBox = (col: HTMLElement, placeholder: string, props: () => Record<string, string | number>) => { addTaskInput(this.plugin, col, placeholder, props, () => this.schedule()); };
 
     if (step === 0) {
-      const cols = main.createDiv("samaya-wg-cols is-board is-review"); // the Overdue column sits next to the sticky This week column
+      const cols = main.createDiv("samaya-wg-cols is-board is-review"); // the Overdue column sits at the right, next to the sidebar with This week
       const col = cols.createDiv("samaya-plancol samaya-wg-col");
       head(col, "Overdue", leftovers.length, "Decide for each task what happens to it.");
       if (leftovers.length) col.querySelector(".samaya-colhead-count")?.addClass("is-overdue"); // orange only while something is overdue
@@ -185,9 +143,8 @@ export class WeeklyBoardView extends BasesView {
         ["Backlog", () => { void parkTask(this.app, t.file, "someday"); }],
         ["Done", () => { void setDone(this.app, t, true); }],
       ] }));
-      weekCol(cols);
     } else if (step === 1) {
-      // the ticket board scrolls on its own; the This week column stays put on the right, so new tasks are always in sight
+      // the ticket board scrolls on its own; This week is in the right sidebar, so new tasks are always in sight
       const cols = main.createDiv("samaya-wg-cols is-board");
       const tickets = allTickets(this.app, s).filter(tk => statusRank(tk.state) < 3);
       const area = cols.createDiv("samaya-plancol samaya-wg-col");
@@ -212,9 +169,8 @@ export class WeeklyBoardView extends BasesView {
           }
         }
       }
-      weekCol(cols);
     } else if (step === 2) {
-      // same layout as the Tickets step: a board of the backlog categories, with This week sticky on the right
+      // same layout as the Tickets step: a board of the backlog categories, with This week in the sidebar
       const cols = main.createDiv("samaya-wg-cols is-board");
       const bl = sortTasks(open.filter(t => !t.planned && t.week !== wk && !leftovers.includes(t)));
       const area = cols.createDiv("samaya-plancol samaya-wg-col");
@@ -230,12 +186,10 @@ export class WeeklyBoardView extends BasesView {
         addBox(cell, "+ Add task", () => ({ horizon: h, ...(horizonTarget(h, td) ? { later: horizonTarget(h, td) } : {}) }));
         ts.forEach(t => renderTaskCard(this.plugin, cell, t, { scope: this.scope, compact: true, actions: [["This week", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: wk }); }]] }));
       }
-      weekCol(cols);
     } else if (step === 3) {
       const cols = main.createDiv("samaya-wg-cols is-schedule");
       const board = scroller(cols, "board", "samaya-wg-board");
       days.forEach(date => this.guidedDay(board, date, caps.get(date)!, events, sortTasks(all.filter(t => t.planned === date)), date === td, addBox));
-      weekCol(cols); // sticky on the right, as in the steps before
     } else {
       this.renderCheck(main, days, caps, all, noDay.filter(t => t.status !== "done"), plannedTotal, freeTotal);
     }

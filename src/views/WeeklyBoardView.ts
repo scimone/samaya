@@ -176,11 +176,12 @@ export class WeeklyBoardView extends BasesView {
     };
 
     if (step === 0) {
-      const cols = main.createDiv("samaya-wg-cols");
+      const cols = main.createDiv("samaya-wg-cols is-board is-review"); // the Overdue column sits next to the sticky This week column
       const col = cols.createDiv("samaya-plancol samaya-wg-col");
-      head(col, "Left over", leftovers.length, "Decide for each task what happens to it.");
+      head(col, "Overdue", leftovers.length, "Decide for each task what happens to it.");
+      col.querySelector(".samaya-colhead-count")?.addClass("is-overdue");
       const list = scroller(col, "left", "samaya-leftover-list");
-      if (!leftovers.length) list.createDiv({ cls: "samaya-empty", text: "Nothing left over." });
+      if (!leftovers.length) list.createDiv({ cls: "samaya-empty", text: "Nothing overdue." });
       leftovers.forEach(t => renderTaskCard(this.plugin, list, t, { scope: this.scope, actions: [
         ["This week", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: wk }); }],
         ["Backlog", () => { void parkTask(this.app, t.file, "someday"); }],
@@ -228,15 +229,15 @@ export class WeeklyBoardView extends BasesView {
         hd.createDiv({ cls: "samaya-kb-colhead", text: `${label} (${ts.length})` });
         const cell = row.createDiv("samaya-kb-cell");
         bindZone(this.scope, cell, path => { const f = this.app.vault.getAbstractFileByPath(path); if (f instanceof TFile) void parkTask(this.app, f, h); });
+        addBox(cell, "+ Add task", () => ({ horizon: h, ...(horizonTarget(h, td) ? { later: horizonTarget(h, td) } : {}) }));
         ts.forEach(t => renderTaskCard(this.plugin, cell, t, { scope: this.scope, compact: true, actions: [["This week", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: wk }); }]] }));
       }
-      addBox(area, "+ Add to backlog", () => ({ horizon: "someday" }));
       weekCol(cols);
     } else if (step === 3) {
       const cols = main.createDiv("samaya-wg-cols is-schedule");
-      weekCol(cols);
       const board = scroller(cols, "board", "samaya-wg-board");
       days.forEach(date => this.guidedDay(board, date, caps.get(date)!, events, sortTasks(all.filter(t => t.planned === date)), date === td, addBox));
+      weekCol(cols); // sticky on the right, as in the steps before
     } else {
       this.renderCheck(main, days, caps, all, noDay.filter(t => t.status !== "done"), plannedTotal, freeTotal);
     }

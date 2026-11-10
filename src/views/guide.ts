@@ -91,9 +91,11 @@ function renderWeekGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideCtx)
     if (i < g.step) setIcon(marker, "check"); else marker.setText(String(vis.indexOf(i) + 1));
     const main = li.createDiv("samaya-plan-main");
     const title = main.createDiv("samaya-plan-title"); title.createSpan({ text: st.title });
-    if (i === 0 && ctx.overdue && i >= g.step) title.createSpan({ cls: "samaya-plan-badge", text: String(ctx.overdue) });
     if (i < g.step) { li.addClass("is-link"); li.onclick = () => go(i); li.setAttr("title", `Back to ${st.title}`); }
-    if (i === g.step) richText(main.createDiv("samaya-plan-text"), st.text.replace("{done}", doneLabel));
+    if (i === g.step) {
+      richText(main.createDiv("samaya-plan-text"), st.text.replace("{done}", doneLabel));
+      if (i === 0) main.createDiv({ cls: "samaya-plan-alert", text: ctx.overdue ? `There ${ctx.overdue === 1 ? "is 1 overdue task" : `are ${ctx.overdue} overdue tasks`} to reschedule.` : "No overdue tasks left." });
+    }
   });
 
   const nav = box.createDiv("samaya-plan-nav");

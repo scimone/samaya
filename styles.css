@@ -721,7 +721,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-wg > .samaya-plan { max-height: 100%; overflow-y: auto; }
 .samaya-wg-main { min-width: 0; min-height: 0; height: 100%; display: flex; flex-direction: column; }
 .samaya-wg-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 420px)); gap: 16px; flex: 1 1 0; min-height: 0; grid-template-rows: minmax(0, 1fr); }
-.samaya-wg-cols.is-schedule { grid-template-columns: 230px minmax(0, 1fr); }
+.samaya-wg-cols.is-schedule { grid-template-columns: minmax(0, 1fr) 230px; }
 .samaya-wg-cols.is-schedule > .samaya-wg-col { padding: 8px; box-sizing: border-box; }
 .samaya-wg-cols.is-schedule > .samaya-wg-col > * { margin-left: 0; margin-right: 0; } /* same inner width as a day column */
 .samaya-wg-day > .samaya-add { margin: 0 0 8px; width: 100%; }
@@ -789,3 +789,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-modal-custom.is-invalid { border-color: var(--text-error); }
 .samaya-modal-hint { margin: -6px 0 12px 90px; color: var(--text-faint); font-size: var(--font-ui-smaller); }
 .samaya-wg-kb .samaya-kb-cell > .samaya-card { background: var(--background-primary); }
+.samaya-colhead-count.is-overdue { background: var(--color-orange); color: #fff; }
+.samaya-plan-alert { margin-top: 6px; font-size: var(--font-ui-small); color: var(--color-orange); font-weight: 600; }
+.samaya-wg-cols.is-review > .samaya-wg-col:first-child { justify-self: end; width: 380px; max-width: 100%; }
+.samaya-kb-cell > .samaya-add { width: 100%; box-sizing: border-box; margin: 0 0 2px; }

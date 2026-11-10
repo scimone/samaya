@@ -11,7 +11,7 @@ export const GUIDE_STEPS = [
 
 export const WEEK_GUIDE_STEPS = [
   { title: "Review", text: "Unfinished tasks from earlier days and weeks: move them to `This week`, back to the `Backlog`, or mark them done." },
-  { title: "Tickets", text: "Your open tickets as a board, one row per project. Press `New task` on a ticket to plan work for it this week: leave the name empty to use the ticket title. The ticket is assigned to the task, and the task appears in `This week` on the right." },
+  { title: "Tickets", text: "Your open tickets, one row per project. Press `New task` on a ticket to plan work for it. New tasks for this week appear in `This week` on the right." },
   { title: "Backlog", text: "Pull what belongs into the week: press `This week` on a backlog card, or drag it across. Add anything new that is on your mind, and drag tasks you will not get to back to the `Backlog`." },
   { title: "Schedule", text: "Drag the week's tasks onto the days. Each day shows its meetings on top and how full it is. Tasks without a day stay in the list on the left." },
   { title: "Check", text: "Look at the whole week: is any day too full, is anything still without a day? Fix it with the `Back` button, then press `{done}`." },

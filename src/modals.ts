@@ -2,7 +2,7 @@ import { FuzzySuggestModal, Modal } from "obsidian";
 import type SamayaPlugin from "./main";
 import { Project, allProjects } from "./projects";
 import { Ticket, allTickets } from "./model";
-import { fmtDur } from "./util";
+import { HORIZONS, Horizon, fmtDur, parseDuration } from "./util";
 
 export class TextPromptModal extends Modal {
   constructor(private plugin: SamayaPlugin, private label: string, private onSubmit: (v: string) => void, private initial = "") { super(plugin.app); }
@@ -63,17 +63,40 @@ export class MergeSegmentsModal extends Modal {
   onClose() { if (!this.answered) { this.answered = true; this.answer(false); } }
 }
 
-/** New task for a ticket: leaving the field empty takes the ticket's title as the task name. An estimate like "1h" can be typed on its own or after a title. */
+export interface TicketTaskResult { /** "" = the ticket title */ name: string; /** minutes, null = the default estimate */ estimate: number | null; /** "week", "today" or a backlog horizon */ when: "week" | "today" | Horizon; }
+const DURATIONS = [15, 30, 45, 60, 90, 120, 180, 240];
+
+/** New task for a ticket: name (empty = the ticket's title), duration and where the task goes (this week, today or a backlog section). */
 export class TicketTaskModal extends Modal {
-  constructor(plugin: SamayaPlugin, private key: string, private ticketTitle: string, private onSubmit: (raw: string) => void) { super(plugin.app); }
+  constructor(private plugin: SamayaPlugin, private key: string, private ticketTitle: string, private onSubmit: (r: TicketTaskResult) => void) { super(plugin.app); }
   onOpen() {
     this.titleEl.setText(`New task for ${this.key}`);
-    this.contentEl.createEl("p", { text: "Task name. Leave empty to use the ticket title. Append 30m / 1h for an estimate." });
-    const inp = this.contentEl.createEl("input", { type: "text", attr: { placeholder: this.ticketTitle } }); inp.style.width = "100%"; inp.focus();
-    const go = () => { const v = inp.value.trim(); this.close(); this.onSubmit(v); };
-    inp.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) go(); });
+    const field = (label: string) => { const r = this.contentEl.createDiv("samaya-modal-field"); r.createDiv({ cls: "samaya-modal-label", text: label }); return r; };
+    const name = field("Name").createEl("input", { type: "text", attr: { placeholder: this.ticketTitle } });
+    this.contentEl.createDiv({ cls: "samaya-modal-hint", text: "Leave empty to use the ticket title." });
+
+    const dur = field("Duration"); const dsel = dur.createEl("select", { cls: "dropdown" });
+    dsel.createEl("option", { value: "", text: `Default (${fmtDur(this.plugin.settings.defaultEstimate)})` });
+    DURATIONS.forEach(m => dsel.createEl("option", { value: String(m), text: fmtDur(m) }));
+    dsel.createEl("option", { value: "custom", text: "Custom…" });
+    const custom = dur.createEl("input", { type: "text", cls: "samaya-modal-custom", attr: { placeholder: "e.g. 1:30, 1.5h, 90m" } }); custom.hide();
+    dsel.addEventListener("change", () => { if (dsel.value === "custom") { custom.show(); custom.focus(); } else custom.hide(); });
+
+    const whenSel = field("Schedule").createEl("select", { cls: "dropdown" });
+    whenSel.createEl("option", { value: "week", text: "This week" });
+    whenSel.createEl("option", { value: "today", text: "Today" });
+    HORIZONS.forEach(([h, label]) => whenSel.createEl("option", { value: h, text: `Backlog: ${label}` }));
+
+    const go = () => {
+      let estimate: number | null = null;
+      if (dsel.value === "custom") { estimate = parseDuration(custom.value); if (!estimate || estimate <= 0) { custom.addClass("is-invalid"); custom.focus(); return; } }
+      else if (dsel.value) estimate = Number(dsel.value);
+      this.close(); this.onSubmit({ name: name.value.trim(), estimate, when: whenSel.value as TicketTaskResult["when"] });
+    };
+    for (const el of [name, custom]) el.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) go(); });
     const nav = this.contentEl.createDiv("samaya-ritual-nav");
     nav.createEl("button", { text: "Cancel" }).onclick = () => this.close();
     nav.createEl("button", { text: "Create task", cls: "mod-cta" }).onclick = go;
+    name.focus();
   }
 }

@@ -8,7 +8,7 @@ import { renderGuide } from "./guide";
 import { TicketTaskModal } from "../modals";
 import { groupTickets, statusRank } from "../kanban";
 import { renderBacklogBuckets, richText } from "./common";
-import { addDays, fmtDur, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
+import { addDays, fmtDur, horizonTarget, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { Capacity, capacityWindow } from "../worktime";
 import { bindCardDrop, bindZone, renderTaskCard } from "./common";
@@ -193,7 +193,7 @@ export class WeeklyBoardView extends BasesView {
       const cols = main.createDiv("samaya-wg-cols is-tickets");
       const tickets = allTickets(this.app, s).filter(tk => statusRank(tk.state) < 3);
       const area = cols.createDiv("samaya-plancol samaya-wg-col");
-      head(area, "Tickets", tickets.length, "Press `New task` on a ticket to plan work for it this week. The ticket is assigned to the task.");
+      head(area, "Tickets", tickets.length, "Press `New task` on a ticket to plan work for it.");
       const sc = scroller(area, "kb", "samaya-wg-kb");
       if (!tickets.length) sc.createDiv({ cls: "samaya-empty", text: "No open tickets." });
       const { columns, lanes } = groupTickets(tickets);
@@ -247,9 +247,9 @@ export class WeeklyBoardView extends BasesView {
     const meta = [tk.issueType, tk.assignee].filter(Boolean).join(" · "); if (meta) card.createDiv({ cls: "samaya-kb-meta", text: meta });
     card.createEl("button", { cls: "samaya-mini samaya-kb-new", text: "New task" }).addEventListener("click", e => {
       e.stopPropagation();
-      new TicketTaskModal(this.plugin, tk.key, title, raw => {
-        const p = parseTitleEstimate(raw);
-        createTask(this.app, s, p.title || title, { week: wk, estimate: p.estimate ?? s.defaultEstimate, ticket: `[[${tk.file.basename}]]` })
+      new TicketTaskModal(this.plugin, tk.key, title, r => {
+        const when: Record<string, string | number> = r.when === "week" ? { week: wk } : r.when === "today" ? { planned: today() } : { horizon: r.when, ...(horizonTarget(r.when, today()) ? { later: horizonTarget(r.when, today()) } : {}) };
+        createTask(this.app, s, r.name || title, { ...when, estimate: r.estimate ?? s.defaultEstimate, ticket: `[[${tk.file.basename}]]` })
           .then(() => { window.setTimeout(() => this.schedule(), 250); })
           .catch((err: unknown) => { new Notice(`Samaya: could not create the task (${err instanceof Error ? err.message : String(err)})`); });
       }).open();

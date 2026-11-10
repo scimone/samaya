@@ -782,3 +782,9 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-wg-kb .samaya-kb-cols { top: 0; padding-top: 0; }
 .samaya-kb-cardtop { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .samaya-kb-new { margin-top: 6px; }
+.samaya-modal-field { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.samaya-modal-field > .samaya-modal-label { flex: none; width: 80px; color: var(--text-muted); }
+.samaya-modal-field > input[type="text"]:not(.samaya-modal-custom) { flex: 1; }
+.samaya-modal-custom { flex: 1; min-width: 0; }
+.samaya-modal-custom.is-invalid { border-color: var(--text-error); }
+.samaya-modal-hint { margin: -6px 0 12px 90px; color: var(--text-faint); font-size: var(--font-ui-smaller); }

@@ -195,12 +195,14 @@ export class TodayView extends ItemView {
     items.sort((a, b) => a.s - b.s || b.dur - a.dur);
     const slots = layoutItems(items);
     const open = (f: TFile) => { void this.app.workspace.getLeaf("tab").openFile(f); };
+    const nowD = new Date(); const nowMin = nowD.getHours() * 60 + nowD.getMinutes();
     items.forEach(it => {
       if (it.s + it.dur <= startH * 60 || it.s >= endH * 60) return;
       const pl = slots.get(it)!; const top = px(Math.max(it.s, startH * 60));
       const height = Math.max(22, px(Math.min(it.s + it.dur, endH * 60)) - top - 2);
       const b = lane.createDiv({ cls: it.ev ? "samaya-event" : "samaya-block" + (it.task!.status === "done" ? " is-done" : "") });
       b.style.top = `${top}px`; b.style.height = `${height}px`; b.style.left = `${(pl.col * 100) / pl.n}%`; b.style.width = `calc(${100 / pl.n}% - 3px)`;
+      if (isToday && nowMin >= it.s && nowMin < it.s + it.dur && it.task?.status !== "done") b.addClass("is-current");
       const bt = b.createDiv({ cls: it.ev ? "samaya-event-title" : "samaya-block-title" });
       if (!it.ev) {
         const task = it.task!;

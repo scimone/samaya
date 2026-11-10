@@ -23,6 +23,7 @@ export interface SamayaSettings {
   /** journal module: write into the daily note, and which parts */
   journalOn: boolean; journalPlanned: boolean; journalFinished: boolean; journalTomorrow: boolean;
   journalWorkTimes: boolean; journalBreaks: boolean; journalTracked: boolean;
+  /** parts of the weekly note written when the week plan is finished */ journalWeekPlan: boolean; journalWeekTasks: boolean;
   /** weekly / monthly / quarterly / yearly notes of the journal calendar */
   journalNotes: Record<PeriodicKind, PeriodCfg>;
   /** hide the title and properties block in journal notes */
@@ -45,7 +46,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   lunchStart: "12:00", lunchEnd: "13:00", weeklyHours: 40, workDays: 5, autoLunch: true,
   calendarOn: false, jiraOn: false, gitlabOn: false,
   journalOn: false, journalPlanned: true, journalFinished: true, journalTomorrow: true,
-  journalWorkTimes: true, journalBreaks: true, journalTracked: true,
+  journalWorkTimes: true, journalBreaks: true, journalTracked: true, journalWeekPlan: true, journalWeekTasks: true,
   journalHideProps: true, journalNavBar: true,
   journalNotes: {
     weekly: { on: false, source: "auto", folder: "[Journal]/YYYY/[Weekly]", format: PERIOD_DEFAULT_FORMAT.weekly },
@@ -94,6 +95,10 @@ const JOURNAL_PARTS: Array<[JournalPart, string, string]> = [
   ["journalWorkTimes", "Work start & end", "work_start and work_end properties."],
   ["journalBreaks", "Breaks & lunch", "breaks, break_minutes and lunch properties."],
   ["journalTracked", "Tracked work time", "work_minutes property: total time worked that day."],
+];
+const JOURNAL_WEEK_PARTS: Array<[JournalPart, string, string]> = [
+  ["journalWeekPlan", "Week plan", "“Week plan” section: planned time against free time, meetings and every day's load. Written when you finish planning the week."],
+  ["journalWeekTasks", "Planned tasks", "“Planned tasks” section: the week's tasks by day. Written when you finish planning the week."],
 ];
 const SAMPLE_TICKET: TicketVars = { id: "OPS-12", title: "Fix the deploy pipeline", type: "Bug", status: "In Progress", assignedTo: "Ada", url: "", description: "", source: "Jira", project: "OPS" };
 const HM = /^\d{1,2}:\d{2}$/;
@@ -421,6 +426,10 @@ export class SamayaSettingTab extends PluginSettingTab {
         const box = b.createDiv(); void this.renderLocation(box, p, changedJ);
         const vis = () => { box.style.display = cfg.on ? "" : "none"; }; vis(); refreshers.push(vis);
       }
+      const weekBox = b.createDiv(); // only while weekly notes are on
+      label(weekBox, "Write into the weekly note");
+      for (const [k, name, desc] of JOURNAL_WEEK_PARTS) toggle(weekBox, name, desc, () => s[k], v => (s[k] = v));
+      const weekVis = () => { weekBox.style.display = s.journalNotes.weekly.on ? "" : "none"; }; weekVis(); refreshers.push(weekVis);
     }
 
     tab("projects", "Projects", "folder-kanban");

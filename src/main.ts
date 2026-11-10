@@ -625,7 +625,7 @@ export default class SamayaPlugin extends Plugin {
   /** The weekly note (created if missing) gets a "Week plan" summary and the "Planned tasks" of the week by day. False when weekly notes are off. */
   private async writeWeekPlan(wk: string, nDays: number): Promise<boolean> {
     const s = this.settings;
-    if (!s.journalOn || !s.journalNotes.weekly.on) return false;
+    if (!s.journalNotes.weekly.on || !(journalWants(s, "journalWeekPlan") || journalWants(s, "journalWeekTasks"))) return false;
     const file = await openPeriodNote(this.app, s, "weekly", wk); if (!file) return false;
     const { weekTasks, noDay } = weekBuckets(allTasks(this.app, s), wk);
     const events = calendarEnabled(s) ? await calendarEvents(this, parseYmd(wk), parseYmd(addDays(wk, 7))).catch(() => []) : [];
@@ -637,8 +637,8 @@ export default class SamayaPlugin extends Plugin {
       days: rows.map(r => ({ label: label(r.date), planned: r.tasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0), free: r.cap.free })) });
     const groups = [...await Promise.all(rows.map(async r => ({ label: label(r.date), tasks: await toJournalTasks(this.app, r.tasks, false, true) }))),
       { label: "No day yet", tasks: await toJournalTasks(this.app, noDay) }];
-    await writeFileSection(this.app, file, "Week plan", summary, WEEK_SECTIONS);
-    await writeFileSection(this.app, file, "Planned tasks", groupedTaskLines(groups), WEEK_SECTIONS);
+    if (journalWants(s, "journalWeekPlan")) await writeFileSection(this.app, file, "Week plan", summary, WEEK_SECTIONS);
+    if (journalWants(s, "journalWeekTasks")) await writeFileSection(this.app, file, "Planned tasks", groupedTaskLines(groups), WEEK_SECTIONS);
     return true;
   }
 

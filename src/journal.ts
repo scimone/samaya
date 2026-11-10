@@ -6,7 +6,7 @@ import { Task, ensureFolder, loadTemplate, momentFmt, readSubtasks, rootOf } fro
 import { hmToMin, minToHm, today } from "./util";
 import { fmtSegments } from "./segments";
 
-export type JournalPart = "journalPlanned" | "journalFinished" | "journalTomorrow" | "journalWorkTimes" | "journalBreaks" | "journalTracked";
+export type JournalPart = "journalPlanned" | "journalFinished" | "journalTomorrow" | "journalWorkTimes" | "journalBreaks" | "journalTracked" | "journalWeekPlan" | "journalWeekTasks";
 /** Whether the journal module is on and the given part of it is enabled. */
 export const journalWants = (s: SamayaSettings, part: JournalPart): boolean => s.journalOn && s[part];
 

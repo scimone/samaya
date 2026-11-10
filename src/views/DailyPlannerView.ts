@@ -105,7 +105,10 @@ export class DailyPlannerView extends BasesView {
       body = cols.createDiv("samaya-plancol samaya-review-main");
       if (sd) {
         this.colHead(body, "Tasks", day.length, "Tick the checkbox of every task you have finished.");
-        renderDoneBar(body, day.filter(t => t.status === "done").length, day.length, false);
+        const nd = day.filter(t => t.status === "done").length;
+        const cnt = body.querySelector<HTMLElement>(".samaya-colhead-count");
+        if (cnt) { cnt.className = "samaya-tasks-count" + (day.length && nd === day.length ? " is-complete" : ""); cnt.setText(day.length ? `${nd} / ${day.length} done` : "0"); }
+        renderDoneBar(body, nd, day.length, false);
       }
       else this.colHead(body, "Today", day.length, review || pick ? "Drag tasks here, or press `Today` on a task." : "Drag tasks onto the timeline in the sidebar to give them a time slot, and back here to take it away.");
       if (!sd) renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);

@@ -117,7 +117,7 @@ export class WeeklyBoardView extends BasesView {
     const all = allTasks(this.app, s);
     const open = all.filter(t => t.status !== "done");
     const inWeek = (t: Task) => (t.planned ? t.planned >= wk && t.planned < addDays(wk, 7) : t.week === wk);
-    const weekTasks = open.filter(inWeek);
+    const weekTasks = all.filter(inWeek); // done tasks stay: they used up time and are worth seeing
     const noDay = sortTasks(weekTasks.filter(t => !t.planned));
     const leftovers = sortTasks(open.filter(t => isLeftover(t, td, wk)));
     const caps = new Map(days.map(d => [d, this.capOf(d, events.filter(e => e.end.getTime() > parseYmd(d).getTime() && e.start.getTime() < parseYmd(addDays(d, 1)).getTime()))]));
@@ -196,9 +196,9 @@ export class WeeklyBoardView extends BasesView {
       const cols = main.createDiv("samaya-wg-cols is-schedule");
       weekCol(cols);
       const board = scroller(cols, "board", "samaya-wg-board");
-      days.forEach(date => this.guidedDay(board, date, caps.get(date)!, events, sortTasks(open.filter(t => t.planned === date)), date === td));
+      days.forEach(date => this.guidedDay(board, date, caps.get(date)!, events, sortTasks(all.filter(t => t.planned === date)), date === td));
     } else {
-      this.renderCheck(main, days, caps, open, noDay, plannedTotal, freeTotal);
+      this.renderCheck(main, days, caps, all, noDay.filter(t => t.status !== "done"), plannedTotal, freeTotal);
     }
     keep.forEach((v, k) => { const e = this.root.querySelector<HTMLElement>(`[data-scroll="${k}"]`); if (e) e.scrollTop = v; });
   }
@@ -231,13 +231,13 @@ export class WeeklyBoardView extends BasesView {
   }
 
   /** Check step: every day against its free time, what still has no day, and the week as a whole. */
-  private renderCheck(main: HTMLElement, days: string[], caps: Map<string, Capacity>, open: Task[], noDay: Task[], plannedTotal: number, freeTotal: number) {
+  private renderCheck(main: HTMLElement, days: string[], caps: Map<string, Capacity>, tasks: Task[], noDay: Task[], plannedTotal: number, freeTotal: number) {
     const box = main.createDiv("samaya-wg-check");
     box.createEl("h3", { text: "The week at a glance" });
     let warn = 0;
     const rows = box.createDiv("samaya-wg-rows");
     days.forEach(date => {
-      const cap = caps.get(date)!; const planned = open.filter(t => t.planned === date).reduce((a, t) => a + (t.estimate || 0), 0);
+      const cap = caps.get(date)!; const planned = tasks.filter(t => t.planned === date).reduce((a, t) => a + (t.estimate || 0), 0);
       const lvl = loadLevel(planned, cap.free); if (lvl !== "ok") warn++;
       const r = rows.createDiv("samaya-wg-row");
       r.createSpan({ cls: "samaya-wg-rowday", text: parseYmd(date).toLocaleDateString(undefined, { weekday: "long", day: "numeric" }) });

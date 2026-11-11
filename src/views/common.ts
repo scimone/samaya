@@ -3,7 +3,7 @@ import type SamayaPlugin from "../main";
 import { DndScope, DropInfo } from "../dnd";
 import { Source, Task, addSubtask, assignTicket, patchTask, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
 import { ConfirmDeleteModal, ProjectSuggestModal, TicketSuggestModal } from "../modals";
-import { focusButton, isOngoing, joinParts, splitTitle } from "./place";
+import { beginCut, focusButton, isOngoing, joinParts, splitInHalf, splitTitle } from "./place";
 import { PartsModal } from "./partsModal";
 import { assignProject, projectPathOf } from "../projects";
 import { HORIZONS, Horizon, bucketOf, fmtDur, fmtHm, minToHm, parseDuration, parseYmd, startOfWeek, today } from "../util";
@@ -50,7 +50,7 @@ export const canSplit = (t: Task): boolean => !!t.planned && t.status !== "done"
 
 /** Chip of a task that is planned in parts: where its other parts are (click: jump to that day). */
 function partChip(plugin: SamayaPlugin, meta: HTMLElement, t: Task) {
-  const p = t.part!; const bits = p.others.map(o => `${parseYmd(o.date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" })} ${fmtDur(o.dur)}`);
+  const p = t.part!; const bits = p.others.map(o => `${parseYmd(o.date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" })}, ${fmtDur(o.dur)}`);
   if (p.kind === "day" && p.rest) bits.push(`${fmtDur(p.rest)} left`);
   if (p.kind === "rest") bits.unshift(`of ${fmtDur(p.total)}`);
   const chip = meta.createSpan({ cls: "samaya-chip samaya-chip-split", attr: { title: splitTitle(t) } });
@@ -65,7 +65,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   el.dataset.path = t.file.path; el.dataset.day = t.planned; el.dataset.link = t.file.path; // (link: hovering a card lights up its timeline block, and the other way round)
   const row = el.createDiv("samaya-card-row");
   const body = row.createDiv("samaya-card-body");
-  if (o.showTime && t.start) body.createDiv({ cls: "samaya-card-time", text: t.segments.length > 1 ? t.segments.map(g => minToHm(g.s)).join(", ") : t.start }); // a split task lists all its start times
+  if (o.showTime && t.start) body.createDiv({ cls: "samaya-card-time", text: t.segments.length > 1 ? t.segments.map(g => `${minToHm(g.s)}-${minToHm(g.s + g.dur)}`).join(", ") : t.start }); // a split task lists all its time slots
   const line = body.createDiv("samaya-card-line");
   const cb = line.createEl("input", { type: "checkbox", cls: "samaya-check" }); cb.checked = t.status === "done";
   cb.addEventListener("change", () => { void setDone(app, t, cb.checked); });
@@ -104,10 +104,10 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
 
   if (o.actionsSide) o.actions?.forEach(([label, fn]) => { side.createEl("button", { cls: "samaya-mini", text: label }).addEventListener("click", fn); });
   if (canSplit(t)) { // scissors: cut the task into parts, here or on other days
-    const cut = side.createEl("button", { cls: "samaya-mini samaya-split-btn", attr: { title: "Split into parts, and give a part to another day", "aria-label": `Split: ${t.title}` } });
+    const cut = side.createEl("button", { cls: "samaya-mini samaya-split-btn", attr: { title: "Split in two parts", "aria-label": `Split: ${t.title}` } });
     setIcon(cut, "scissors");
     cut.addEventListener("pointerdown", e => e.stopPropagation()); // not a drag
-    cut.addEventListener("click", e => { e.stopPropagation(); new PartsModal(plugin, t, "split").open(); });
+    cut.addEventListener("click", e => { e.stopPropagation(); splitInHalf(plugin, t, null, { x: e.clientX, y: e.clientY }); });
   }
 
   if (o.focus) {
@@ -155,7 +155,7 @@ export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent, seg: 
   }
   m.addSeparator();
   if (canSplit(t)) {
-    m.addItem(i => i.setTitle("Split task…").setIcon("scissors").onClick(() => new PartsModal(plugin, t, "split", seg).open()));
+    m.addItem(i => i.setTitle("Split task…").setIcon("scissors").onClick(() => { const blk = (e.target as HTMLElement | null)?.closest<HTMLElement>(".samaya-block"); if (blk) beginCut(plugin, blk, t, seg); else splitInHalf(plugin, t, seg, { x: e.clientX, y: e.clientY }); }));
     m.addItem(i => i.setTitle(part ? "Move this part to another day…" : "Move to another day…").setIcon("calendar-days").onClick(() => new PartsModal(plugin, t, "move", seg).open()));
     if (part) m.addItem(i => i.setTitle("Join all parts here").setIcon("combine").onClick(() => { void joinParts(plugin, t.file, t.planned); }));
   }

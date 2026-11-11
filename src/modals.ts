@@ -32,6 +32,22 @@ export class ConfirmCreateModal extends Modal {
   }
 }
 
+/** "A plan is already saved in this note - overwrite it?" Closing the dialog keeps the saved plan. */
+export class ConfirmOverwriteModal extends Modal {
+  private answered = false;
+  constructor(plugin: SamayaPlugin, private noteLabel: string, private answer: (overwrite: boolean) => void) { super(plugin.app); }
+  onOpen() {
+    this.titleEl.setText("Overwrite the existing plan?");
+    this.contentEl.createEl("p", { text: `${this.noteLabel} already contains a plan. Saving this one replaces what is written under its plan headings.` });
+    const nav = this.contentEl.createDiv("samaya-ritual-nav");
+    const done = (v: boolean) => { this.answered = true; this.close(); this.answer(v); };
+    const keep = nav.createEl("button", { text: "Keep existing plan" }); keep.onclick = () => done(false);
+    nav.createEl("button", { text: "Overwrite", cls: "mod-warning" }).onclick = () => done(true);
+    keep.focus();
+  }
+  onClose() { if (!this.answered) { this.answered = true; this.answer(false); } }
+}
+
 /** "Delete this task?" - the delete button is the warning one; Cancel has the focus. */
 export class ConfirmDeleteModal extends Modal {
   constructor(plugin: SamayaPlugin, private title: string, private onDelete: () => void) { super(plugin.app); }

@@ -19,7 +19,8 @@ import { PROJECTS_BASE_TEMPLATE, assignProject, createProject } from "./projects
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { HOME_VIEW_TYPE, HomeView } from "./views/HomeView";
 import { promoteParked, allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask, isOverdue, onDay } from "./model";
-import { DayPlan, LEGACY_WEEK_HEADINGS, WEEK_MEETINGS, WEEK_ORDER, WEEK_OVERVIEW, WEEK_TASKS, removeSection, upsertSection, weekMeetings, weekOverview, bulletLines, journalPath, journalWants, meetingLines, readJournalSection, sortByStart, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
+import { ConfirmOverwriteModal } from "./modals";
+import { DayPlan, LEGACY_WEEK_HEADINGS, readSection, WEEK_MEETINGS, WEEK_ORDER, WEEK_OVERVIEW, WEEK_TASKS, removeSection, upsertSection, weekMeetings, weekOverview, bulletLines, journalPath, journalWants, meetingLines, readJournalSection, sortByStart, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
 import { ensureMeetingNote } from "./meetings";
 import { calendarEnabled, calendarEvents } from "./calendar";
 import { Emitter, addDays, hmToMin, minToHm, parseTitleEstimate as parseTitleEstimateSafe, parseYmd, today } from "./util";
@@ -581,6 +582,8 @@ export default class SamayaPlugin extends Plugin {
     const s = this.settings; const wantPlan = journalWants(s, "journalWeekPlan"), wantMeet = journalWants(s, "journalWeekMeetings"), wantTasks = journalWants(s, "journalWeekTasks");
     if (!s.journalNotes.weekly.on || !(wantPlan || wantMeet || wantTasks)) return null;
     const file = await openPeriodNote(this.app, s, "weekly", wk); if (!file) return null;
+    const before = await this.app.vault.read(file);
+    if ([WEEK_OVERVIEW, WEEK_MEETINGS, WEEK_TASKS].some(h => readSection(before, h as Parameters<typeof readSection>[1]).length) && !(await this.askOverwrite("The weekly note"))) return file; // planned before: ask first
     const { weekTasks, noDay } = weekBuckets(allTasks(this.app, s), wk);
     const events = calendarEnabled(s) ? await calendarEvents(this, parseYmd(wk), parseYmd(addDays(wk, 7))).catch(() => []) : [];
     const dates = Array.from({ length: nDays }, (_, i) => addDays(wk, i));
@@ -624,19 +627,25 @@ export default class SamayaPlugin extends Plugin {
     this.guide = { step: overdue ? 0 : 1, review: overdue, fresh: true, kind: "plan" };
     await this.openPlanner(); this.bus.emit();
   }
+  /** Ask whether a plan that is already written in a note may be replaced. Closing the dialog says no. */
+  private askOverwrite(noteLabel: string): Promise<boolean> {
+    return new Promise(res => { new ConfirmOverwriteModal(this, noteLabel, res).open(); });
+  }
   async finishGuide() {
     const g = this.guide; if (!g) return; const s = this.settings; const td = today();
     const day = sortTasks(onDay(allTasks(this.app, s), td));
-    if (s.journalOn && calendarEnabled(s)) {
+    const planned = journalWants(s, "journalPlanned") && (await readJournalSection(this.app, s, td, "Planned tasks")).length > 0;
+    const write = !planned || (await this.askOverwrite("Today's note")); // planned before: ask first
+    if (write && s.journalOn && calendarEnabled(s)) {
       const from = parseYmd(td); const evs = await calendarEvents(this, from, parseYmd(addDays(td, 1))).catch(() => null);
       if (evs) await writeSection(this.app, s, td, "Meetings", meetingLines(await Promise.all(evs.map(async e => ({ ...e, note: e.allDay ? undefined : await ensureMeetingNote(this.app, s, e, evs).then(f => f.basename, () => undefined) })))));
     }
-    if (journalWants(s, "journalPlanned")) await writeSection(this.app, s, td, "Planned tasks", taskLines(await toJournalTasks(this.app, sortByStart(day), false, true)));
+    if (write && journalWants(s, "journalPlanned")) await writeSection(this.app, s, td, "Planned tasks", taskLines(await toJournalTasks(this.app, sortByStart(day), false, true)));
     const wasStarted = this.workday.started;
     await this.workday.startDay();
     this.closeGuide();
     const note = s.journalOn ? (await periodNotePath(this.app, s, "daily", td))?.file ?? null : null;
-    this.noticeWithNote(`Day planned${wasStarted ? "" : " and started"}.${s.journalOn ? " Saved to your journal." : ""}`, note, "Open daily note", true);
+    this.noticeWithNote(`Day planned${wasStarted ? "" : " and started"}.${s.journalOn && write ? " Saved to your journal." : ""}`, note, "Open daily note", true);
   }
   /** End of day: the planner with a one-step guide (tick off forgotten tasks), then finalize. */
   async startShutdown() {

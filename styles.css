@@ -1138,3 +1138,6 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-parts-chip-icon svg { width: 14px; height: 14px; }
 .samaya-parts-date { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 @media (prefers-reduced-motion: reduce) { .samaya-parts-bar > div, .samaya-split-btn, .samaya-block-split { transition: none; } }
+.samaya-block.is-cutting { cursor: row-resize; outline: 2px dashed var(--samaya-task); outline-offset: 1px; overflow: visible; z-index: 4; }
+.samaya-cut-line { position: absolute; left: 0; right: 0; height: 0; border-top: 2px dashed var(--text-normal); pointer-events: none; z-index: 5; }
+.samaya-cut-tip { position: absolute; right: 4px; top: 2px; padding: 0 6px; border-radius: var(--samaya-r-pill); background: var(--background-primary); color: var(--text-normal); font-size: var(--font-ui-smaller); font-variant-numeric: tabular-nums; box-shadow: 0 1px 3px rgba(0,0,0,.25); white-space: nowrap; }

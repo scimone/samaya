@@ -141,7 +141,7 @@ export default class SamayaPlugin extends Plugin {
   /** Back to the day planner, and the sidebars as they were. */
   collapseTimeline(keepSidebars = false): boolean {
     if (!this.timelineWide) return false; const ws = this.app.workspace; const sv = this.wideSaved; this.timelineWide = false; this.wideSaved = null;
-    if (keepSidebars) { this.bus.emit(); this.modeBus.emit(); return !!sv?.left; } // a guide follows: the sidebars stay folded (no flicker)
+    if (keepSidebars) return !!sv?.left; // no redraw here: the caller sets the guide first, so the day view never flashes // a guide follows: the sidebars stay folded (no flicker)
     if (sv?.left) ws.leftSplit?.expand(); if (sv?.right) ws.rightSplit?.expand();
     this.bus.emit(); this.modeBus.emit(); return false;
   }
@@ -589,7 +589,7 @@ export default class SamayaPlugin extends Plugin {
     this.guide = { step: weekSteps(leftover, tickets)[0], review: leftover, fresh: true, kind: "week", week: wk, tickets };
     await this.openPlanner();
     if (ws.leftSplit && !ws.leftSplit.collapsed) { ws.leftSplit.collapse(); this.leftCollapsedByGuide = true; }
-    this.bus.emit();
+    this.modeBus.emit(); this.bus.emit();
   }
   async finishWeekGuide() {
     const g = this.guide; const wk = g?.week; const days = g?.days ?? 5;

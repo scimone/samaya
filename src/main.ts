@@ -149,7 +149,7 @@ export default class SamayaPlugin extends Plugin {
     applyColors(this.settings);
     this.registerView(PLANNER_VIEW_TYPE, leaf => new PlannerView(leaf, this));
     this.registerView(DASHBOARD_VIEW_TYPE, leaf => new DashboardView(leaf, this));
-    this.registerView(TODAY_VIEW_TYPE, leaf => new TodayView(leaf, this));
+    this.registerView(TODAY_VIEW_TYPE, leaf => new TodayView(leaf));
     this.registerView(JOURNAL_CAL_TYPE, leaf => new JournalCalendarView(leaf, this));
     this.registerView(FOCUS_VIEW_TYPE, leaf => new FocusView(leaf, this));
     this.addSettingTab(new SamayaSettingTab(this.app, this));
@@ -179,8 +179,8 @@ export default class SamayaPlugin extends Plugin {
     this.focus.init(this.addStatusBarItem(), this.data.focus ?? null);
     this.workday.init(this.addStatusBarItem(), this.data.workday ?? null);
 
-    this.registerEvent(this.app.workspace.on("active-leaf-change", leaf => { // switching to the planner tab folds the right sidebar away (the guides need it)
-      const k = this.guide?.kind; if (k === "plan" || k === "week" || !leaf || leaf.getRoot() !== this.app.workspace.rootSplit) return;
+    this.registerEvent(this.app.workspace.on("active-leaf-change", leaf => { // switching to the planner tab folds the right sidebar away
+      if (!leaf || leaf.getRoot() !== this.app.workspace.rootSplit) return;
       if (leaf.view.containerEl.querySelector(".samaya-planner, .samaya-daily")) this.app.workspace.rightSplit?.collapse();
     }));
     const journalFollow = () => { void this.showJournalSidebarFor(this.app.workspace.getActiveFile()); }; // a journal page was opened or switched to: show the journal calendar
@@ -536,19 +536,11 @@ export default class SamayaPlugin extends Plugin {
     let leaf = ws.getLeavesOfType(PLANNER_VIEW_TYPE)[0];
     if (!leaf) { leaf = ws.getLeaf("tab"); await leaf.setViewState({ type: PLANNER_VIEW_TYPE, active: true }); }
     await ws.revealLeaf(leaf);
-    const k = this.guide?.kind; // the day's status is part of the planner now; only Plan my day (timeline) and Plan my week (This week) still use the sidebar
-    if (k === "plan" || k === "week") await this.openToday(); else ws.rightSplit?.collapse();
+    ws.rightSplit?.collapse(); // the planner and its guides need no sidebar
     ws.setActiveLeaf(leaf, { focus: true });
   }
   /** Redraw the open planner (its options changed). */
   refreshPlanner() { this.app.workspace.getLeavesOfType(PLANNER_VIEW_TYPE).forEach(l => (l.view as PlannerView).onDataUpdated()); }
-  /** The right sidebar only serves the guides: the timeline of Plan my day, the This week column of Plan my week. */
-  async openToday() {
-    const ws = this.app.workspace;
-    let leaf = ws.getLeavesOfType(TODAY_VIEW_TYPE)[0];
-    if (!leaf) { leaf = ws.getRightLeaf(false) ?? ws.getLeaf("split", "vertical"); await leaf.setViewState({ type: TODAY_VIEW_TYPE, active: true }); }
-    await ws.revealLeaf(leaf);
-  }
   /** The work time dashboard lives in the Planner: it takes the place of the day / week there, with a button back. */
   async openDashboard() {
     await this.openPlanner();
@@ -558,17 +550,13 @@ export default class SamayaPlugin extends Plugin {
   /** Interactive planning: opens the daily planner and walks through it (see views/guide.ts). */
   private leftCollapsedByGuide = false;
   /** Leaves the guide and brings the left sidebar back if the guide hid it. */
-  /** the right sidebar was closed when the week guide opened it: close it again afterwards */
-  private rightOpenedByGuide = false;
   closeGuide() {
-    const was = this.guide?.kind; this.guide = null;
-    if (was === "plan") { this.rightOpenedByGuide = false; this.app.workspace.rightSplit?.collapse(); } // the timeline sidebar was only for planning
+    this.guide = null;
     if (this.leftCollapsedByGuide) { this.leftCollapsedByGuide = false; this.app.workspace.leftSplit?.expand(); }
-    if (this.rightOpenedByGuide) { this.rightOpenedByGuide = false; this.app.workspace.rightSplit?.collapse(); }
     this.modeBus.emit();
     this.bus.emit();
   }
-  /** Interactive week plan: Review, Tickets, Backlog, Schedule, Check (see views/guide.ts and WeeklyBoardView). The left sidebar makes room, the right one shows This week. */
+  /** Interactive week plan: Review, Tickets, Backlog, Schedule, Check (see views/guide.ts and WeeklyBoardView). The left sidebar makes room; This week is the last column. */
   async startWeekGuide() {
     this.collapseTimeline();
     const ws = this.app.workspace; const now = new Date(); const wk = weekToPlan(today(), now.getDay());
@@ -577,8 +565,6 @@ export default class SamayaPlugin extends Plugin {
     this.guide = { step: weekSteps(leftover, tickets)[0], review: leftover, fresh: true, kind: "week", week: wk, tickets };
     await this.openPlanner();
     if (ws.leftSplit && !ws.leftSplit.collapsed) { ws.leftSplit.collapse(); this.leftCollapsedByGuide = true; }
-    if (ws.rightSplit?.collapsed) this.rightOpenedByGuide = true;
-    await this.openToday(); // opens the right sidebar: it shows This week while the guide runs
     this.bus.emit();
   }
   async finishWeekGuide() {

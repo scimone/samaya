@@ -10,7 +10,7 @@ import { renderGuide } from "./guide";
 import { celebrate } from "./doneBar";
 import { renderWeekHead } from "./plannerHead";
 import { renderCapBar } from "./capBar";
-import { addTaskInput, capacityOf, weekBuckets } from "./weekColumn";
+import { addTaskInput, capacityOf, weekBuckets, renderWeekColumn } from "./weekColumn";
 import { TicketTaskModal } from "../modals";
 import { groupTickets, statusRank } from "../kanban";
 import { HORIZONS, addDays, bucketOf, fmtDur, horizonTarget, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
@@ -28,6 +28,7 @@ export class WeeklyBoardView extends PlannerPane {
   private token = 0;
   private kbCollapsed = new Set<string>();
   private kbX = 0;
+  private sideScroll = 0;
   private lastLeft: number | null = null; // Overdue step: to spot the moment the last overdue task gets sorted out
 
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin, private host?: PlannerHost) {
@@ -141,7 +142,7 @@ export class WeeklyBoardView extends PlannerPane {
     const addBox = (col: HTMLElement, placeholder: string, props: () => Record<string, string | number>) => { addTaskInput(this.plugin, col, placeholder, props, () => this.schedule()); };
 
     if (step === 0) {
-      const cols = main.createDiv("samaya-wg-cols is-board is-review"); // the Overdue column sits at the right, next to the sidebar with This week
+      const cols = main.createDiv("samaya-wg-cols is-board is-review"); // the Overdue column sits at the right, next to This week
       const col = cols.createDiv("samaya-plancol samaya-wg-col");
       const badge = head(col, "Overdue", leftovers.length, "Decide for each task what happens to it.");
       badge.toggleClass("is-overdue", leftovers.length > 0); // orange only while something is overdue
@@ -154,7 +155,7 @@ export class WeeklyBoardView extends PlannerPane {
         ["Backlog", () => { void parkTask(this.app, t.file, "someday"); }],
       ] }));
     } else if (step === 1) {
-      // the ticket board scrolls on its own; This week is in the right sidebar, so new tasks are always in sight
+      // the ticket board scrolls on its own; This week is the last column, so new tasks are always in sight
       const cols = main.createDiv("samaya-wg-cols is-board");
       const tickets = allTickets(this.app, s).filter(tk => statusRank(tk.state) < 3);
       const area = cols.createDiv("samaya-plancol samaya-wg-col");
@@ -180,7 +181,7 @@ export class WeeklyBoardView extends PlannerPane {
         }
       }
     } else if (step === 2) {
-      // same layout as the Tickets step: a board of the backlog categories, with This week in the sidebar
+      // same layout as the Tickets step: a board of the backlog categories, with This week next to it
       const cols = main.createDiv("samaya-wg-cols is-board");
       const bl = sortTasks(open.filter(t => !t.planned && t.week !== wk && !leftovers.includes(t)));
       const area = cols.createDiv("samaya-plancol samaya-wg-col");
@@ -203,6 +204,8 @@ export class WeeklyBoardView extends PlannerPane {
     } else {
       this.renderCheck(main, days, caps, all, noDay.filter(t => t.status !== "done"), plannedTotal, freeTotal);
     }
+    // This week: the last column, on the background the right sidebar had
+    renderWeekColumn(this.plugin, this.scope, grid.createDiv("samaya-wg-sidecol"), { step, wk, all, free: freeTotal, meetings: [...caps.values()].reduce((a, c) => a + c.meetings, 0), refresh: () => this.schedule(), keepScroll: this.sideScroll, onScroll: y => { this.sideScroll = y; } });
     keep.forEach((v, k) => { const e = this.root.querySelector<HTMLElement>(`[data-scroll="${k}"]`); if (e) { e.scrollTop = v; if (k === "kb") e.scrollLeft = this.kbX; } });
   }
 

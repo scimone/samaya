@@ -1,4 +1,4 @@
-// The "This week" column of the week guide. It lives in the right sidebar (TodayView), and the Weekly Board feeds the same helpers.
+// The "This week" column of the week guide. It is the last column of the Weekly Board's guide.
 import { Notice, TFile } from "obsidian";
 import type SamayaPlugin from "../main";
 import type { DndScope } from "../dnd";

@@ -45,7 +45,8 @@ export class DailyPlannerView extends PlannerPane {
       const el = (e.target as HTMLElement).closest<HTMLElement>("[data-link]"); if (!el) return;
       this.root.querySelectorAll<HTMLElement>("[data-link]").forEach(x => { if (x !== el && x.dataset.link === el.dataset.link) x.toggleClass("is-linked", on); });
     };
-    this.root.addEventListener("mouseover", e => light(e, true)); this.root.addEventListener("mouseout", e => light(e, false));
+    this.root.addEventListener("mouseover", e => { light(e, true); if ((e.target as HTMLElement).closest("[data-link]")) this.root.addClass("is-hovering-task"); });
+    this.root.addEventListener("mouseout", e => { light(e, false); if (!(e.relatedTarget as HTMLElement | null)?.closest?.("[data-link]")) this.root.removeClass("is-hovering-task"); });
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
     this.register(plugin.bus.on(() => this.schedule()));
     const evRef = plugin.app.metadataCache.on("changed", f => { if (inEventFolder(plugin.settings, f.path) || (this.plugin.guide && f.path.startsWith(prefixOf(plugin.settings.tasksPath)))) this.schedule(); });
@@ -201,6 +202,9 @@ export class DailyPlannerView extends PlannerPane {
 
   private finishRender(left: HTMLElement) {
     left.scrollTop = this.leftScroll;
+    const cur = new Set<string>(); // the task being worked on right now (its timeline block is current): its card stays lit
+    this.root.querySelectorAll<HTMLElement>(".samaya-block.is-current[data-link]").forEach(b => cur.add(b.dataset.link!));
+    this.root.querySelectorAll<HTMLElement>(".samaya-card[data-link]").forEach(c => c.toggleClass("is-current", cur.has(c.dataset.link!)));
 
     this.plugin.plannerGoTo = d => this.goTo(d); // "Open day" on other pages jumps here
     if (!this.announced || this.plugin.plannerDate !== this.date) { this.announced = true; this.plugin.plannerDate = this.date; this.plugin.modeBus.emit(); }

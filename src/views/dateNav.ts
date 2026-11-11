@@ -6,6 +6,8 @@ export interface DateNavOpts {
   onPrev(): void; onNext(): void;
   /** the label opens a date picker preset to `value` (the native input sits invisibly over it); `label` names it for assistive tech */
   pick?: { value: string; label?: string; run(value: string): void };
+  /** show this icon as the (picker) button instead of the date text: the heading already says which date it is */
+  icon?: string;
 }
 
 /** ‹ date › in one bordered control: the date navigation of the day and week headings and of the Today sidebar. */
@@ -13,10 +15,12 @@ export function renderDateNav(parent: HTMLElement, o: DateNavOpts): HTMLElement 
   const nav = parent.createDiv("samaya-weeknav");
   const step = (icon: string, label: string, run: () => void) => { const b = nav.createEl("button", { cls: "samaya-weeknav-step", attr: { "aria-label": label, title: label } }); setIcon(b, icon); b.onclick = run; };
   step("chevron-left", o.prevLabel, o.onPrev);
-  const lab = nav.createSpan({ cls: "samaya-weeknav-label", text: o.label });
+  const asIcon = !!(o.icon && o.pick);
+  const lab = nav.createSpan({ cls: "samaya-weeknav-label", text: asIcon ? "" : o.label });
+  if (asIcon) { lab.addClass("is-icon"); setIcon(lab, o.icon!); }
   if (o.pick) {
     const pick = o.pick; const name = pick.label ?? "Pick a date";
-    lab.addClass("is-pickable"); lab.setAttr("role", "button"); lab.setAttr("tabindex", "0"); lab.setAttr("aria-label", `${name} (${o.label})`); lab.setAttr("title", name);
+    lab.addClass("is-pickable"); lab.setAttr("role", "button"); lab.setAttr("tabindex", "0"); lab.setAttr("aria-label", `${name} (${o.label})`); lab.setAttr("title", asIcon ? `${name} (${o.label})` : name);
     const picker = lab.createEl("input", { type: "date", cls: "samaya-weeknav-datepick", attr: { tabindex: "-1", "aria-hidden": "true" } }); picker.value = pick.value;
     picker.addEventListener("change", () => { if (picker.value) pick.run(picker.value); });
     const open = () => { try { picker.showPicker(); } catch { picker.focus(); picker.click(); } };

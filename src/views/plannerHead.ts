@@ -14,6 +14,21 @@ export function weekRangeLabel(weekStart: string): string {
   return range + (a.getFullYear() !== new Date().getFullYear() ? `, ${a.getFullYear()}` : "");
 }
 
+/** The heading's title with its muted line underneath (the date and week), the same in the day and the week heading. */
+export function renderHeadTitle(head: HTMLElement, title: string, sub: string): HTMLElement {
+  const box = head.createDiv("samaya-planner-titles");
+  box.createEl("h2", { cls: "samaya-planner-title", text: title });
+  box.createDiv({ cls: "samaya-planner-sub", text: sub });
+  return box;
+}
+
+/** "Thursday, Nov 12 · Week 46" for today, "Nov 13 · Week 46" for another day (+ the year when it is not the current one). */
+export function dayHeadSub(date: string): string {
+  const d = parseYmd(date); const year = d.getFullYear() !== new Date().getFullYear();
+  const text = d.toLocaleDateString(undefined, { weekday: date === today() ? "long" : undefined, month: "short", day: "numeric", year: year ? "numeric" : undefined });
+  return `${text} · Week ${isoWeek(d)}`;
+}
+
 /** The Day | Week switch, the same control in the day heading, the week heading and the standalone week views. Clicking the active side does nothing. */
 export function renderModeSwitch(parent: HTMLElement, active: "day" | "week", go: { day?: () => void; week?: () => void }): HTMLElement {
   const sw = parent.createDiv("samaya-modeswitch"); sw.setAttr("role", "group"); sw.setAttr("aria-label", "Planner view");
@@ -27,16 +42,16 @@ export function renderModeSwitch(parent: HTMLElement, active: "day" | "week", go
   return sw;
 }
 
-/** The week heading: "Week 46", then [This week pill] ‹ Nov 9 – 15 › (the label opens a date picker: pick any day to jump to its week) and Day | Week. */
+/** The week heading: "Week 46" over its date range, then [This week pill] ‹ 📅 › (the calendar button opens a date picker: pick any day to jump to its week) and Day | Week. */
 export function renderWeekHead(head: HTMLElement, weekStart: string, go: (weekStart: string) => void, back?: () => void): void {
   const cur = startOfWeek(today());
-  head.createEl("h2", { cls: "samaya-planner-title", text: `Week ${isoWeek(parseYmd(weekStart))}` });
+  renderHeadTitle(head, `Week ${isoWeek(parseYmd(weekStart))}`, weekRangeLabel(weekStart) + (weekStart === cur ? " · This week" : ""));
   const right = head.createDiv("samaya-planner-right"); // same spot as the day heading's controls: navigation, then the Day | Week switch
   if (weekStart !== cur) renderResetPill(right, "This week", "Back to the current week", weekStart < cur ? "right" : "left", () => go(cur)); // only when you are somewhere else
   renderDateNav(right, {
     label: weekRangeLabel(weekStart), prevLabel: "Previous week", nextLabel: "Next week",
     onPrev: () => go(addDays(weekStart, -7)), onNext: () => go(addDays(weekStart, 7)),
-    pick: { value: weekStart, label: "Pick a week", run: d => go(startOfWeek(d)) },
+    pick: { value: weekStart, label: "Pick a week", run: d => go(startOfWeek(d)) }, icon: "calendar",
   });
   if (back) renderModeSwitch(right, "week", { day: back });
 }

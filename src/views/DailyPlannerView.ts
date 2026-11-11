@@ -16,7 +16,7 @@ import { capacityWindow, Capacity } from "../worktime";
 import { bufferShare, loadLevel, trimToBuffer } from "../weekplan";
 import { renderDayStatus } from "./dayStatus";
 import { renderDateNav, renderResetPill } from "./dateNav";
-import { renderModeSwitch } from "./plannerHead";
+import { dayHeadSub, renderHeadTitle, renderModeSwitch } from "./plannerHead";
 
 export const DAILY_VIEW_TYPE = "samaya-daily";
 
@@ -111,10 +111,6 @@ export class DailyPlannerView extends BasesView {
       row.createEl("h3", { text: "Tasks" });
       const badge = row.createSpan({ cls: "samaya-tasks-count" + (day.length && nd === day.length ? " is-complete" : ""), text: day.length ? `${nd} / ${day.length} done` : "0" });
       renderDoneBar(head, nd, day.length, false);
-      if (!sd && this.date >= today()) { // the quick add sits right under the bar and sticks with it
-        const add = head.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
-        this.bindAdd(add, () => ({ planned: this.date, order: day.length }));
-      }
       const all = day.length > 0 && nd === day.length;
       if (all && this.lastAll && this.lastAll.date === this.date && !this.lastAll.all) celebrate(badge); // right away: a delayed call can find the badge already replaced by the next re-render (the End day view re-renders several times per tick)
       this.lastAll = { date: this.date, all };
@@ -150,7 +146,7 @@ export class DailyPlannerView extends BasesView {
     });
     bindZone(this.scope, list, (path, i) => { void this.place(path, day.length, i.fromTimeline); });
 
-    if (pg && !sd && !review && step !== 2 && this.date >= today()) { // (no quick add in Review and Timebox: go back to Pick to add tasks)
+    if (!sd && this.date >= today() && (!pg ? true : !review && step !== 2)) { // below the list; in the day view it sticks to the bottom edge. (no quick add in Review and Timebox: go back to Pick to add tasks)
       const add = body.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
       this.bindAdd(add, () => ({ planned: this.date, order: day.length }));
     }
@@ -161,16 +157,16 @@ export class DailyPlannerView extends BasesView {
     this.finishRender(left);
   }
 
-  /** The title bar, same design as the week heading: title, then reset pill, ‹ date ›, Day | Week. Everything else starts below it. */
+  /** The title bar, same design as the week heading: title, then reset pill, ‹ 📅 ›, Day | Week. Everything else starts below it. */
   private renderHead(isToday: boolean) {
     const h = this.root.createDiv("samaya-week-head samaya-day-head");
-    h.createEl("h2", { cls: "samaya-planner-title", text: isToday ? "Today" : parseYmd(this.date).toLocaleDateString(undefined, { weekday: "long" }) });
+    renderHeadTitle(h, isToday ? "Today" : parseYmd(this.date).toLocaleDateString(undefined, { weekday: "long" }), dayHeadSub(this.date));
     const right = h.createDiv("samaya-planner-right");
     if (!isToday) renderResetPill(right, "Today", "Jump to today", this.date < today() ? "right" : "left", () => this.goTo(today()));
     renderDateNav(right, {
       label: parseYmd(this.date).toLocaleDateString(undefined, { weekday: isToday ? "short" : undefined, month: "short", day: "numeric" }),
       prevLabel: "Previous day", nextLabel: "Next day", onPrev: () => this.goTo(addDays(this.date, -1)), onNext: () => this.goTo(addDays(this.date, 1)),
-      pick: { value: this.date, label: "Pick a day", run: d => this.goTo(d) },
+      pick: { value: this.date, label: "Pick a day", run: d => this.goTo(d) }, icon: "calendar",
     });
     renderModeSwitch(right, "day", { week: () => this.plugin.expandTimeline() });
   }
@@ -178,7 +174,8 @@ export class DailyPlannerView extends BasesView {
   /** The timeline next to the task list: Day/Week switch, all-day events, then the hours. */
   private renderPane(pane: HTMLElement, day: Task[], events: IcsEvent[], notes: Map<IcsEvent, TFile>) {
     if (this.plugin.guide) pane.createDiv({ cls: "samaya-today-label", text: "Timeline" });
-    events.filter(e => e.allDay).forEach(e => pane.createDiv({ cls: "samaya-allday", text: e.title }));
+    const allDay = events.filter(e => e.allDay); // the same chips as the all-day events in the week timeline's day heads
+    if (allDay.length) { const chips = pane.createDiv("samaya-tl-allday"); allDay.forEach(e => chips.createDiv({ cls: "samaya-wtl-chip is-event", text: e.title })); }
     this.tlHeight = renderTimeline(this.plugin, this.scope, pane, { date: this.date, day, events, notes, ro: false, state: this.tlState });
     if (!this.tlWatch) { // the hours stretch to the pane height
       this.tlWatch = new ResizeObserver(() => { const el = this.root.querySelector<HTMLElement>(".samaya-tlpane"); if (el && el.clientHeight !== this.tlHeight) this.schedule(); });

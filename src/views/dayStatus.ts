@@ -44,30 +44,27 @@ export async function renderDayStatus(plugin: SamayaPlugin, host: HTMLElement, o
 
     renderWorkdayCard(plugin, host.createDiv("samaya-info-card"), { panel: true, date: date });
 
-    const over = plannedAll > cap.free; const share = bufferShare(plugin.settings.bufferPercent); const lvl = loadLevel(plannedAll, cap.free, share);
-    const load = host.createDiv({ cls: "samaya-info-card samaya-info-load" + (over ? " is-over" : "") });
-    load.createDiv({ cls: "samaya-info-label", text: "Daily capacity" });
-    const tot = load.createDiv({ cls: "samaya-info-big", text: fmtDur(plannedAll) });
-    tot.createSpan({ cls: "samaya-info-rec", text: ` / ${fmtDur(Math.round(cap.free * share))} recommended` });
-    tot.title = `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`;
-    tot.title += `. Plan at most ${Math.round(share * 100)}% of it (${fmtDur(Math.round(cap.free * share))}) and keep the rest for what comes up.`;
-    const bar = load.createDiv({ cls: `samaya-col-bar is-${lvl}` });
-    bar.createDiv("samaya-col-bar-fill").style.width = `${over || cap.free <= 0 ? (plannedAll > 0 ? 100 : 0) : (plannedAll / cap.free) * 100}%`;
-    if (cap.free > 0) { const mark = bar.createDiv("samaya-col-bar-mark"); mark.style.left = `${share * 100}%`; mark.title = `${Math.round(share * 100)}% of the free time`; }
-    const row = load.createDiv("samaya-wd-buttons");
-    if (o.nav !== false) row.createEl("button", { text: "Open day" }).onclick = () => { void plugin.openPlanner().then(() => plugin.plannerGoTo?.(date)); };
-    if (isToday && !plugin.guide) row.createEl("button", { text: "Plan day" }).onclick = () => { void plugin.startGuide(); };
+    // one card, two rows: today's and the week's load (planned time / recommended time, one bar each)
+    const share = bufferShare(plugin.settings.bufferPercent); const pct = Math.round(share * 100);
+    const card = host.createDiv("samaya-info-card samaya-info-load samaya-info-caps");
+    const capRow = (label: string, planned: number, free: number, what: string): HTMLElement => {
+      const over = planned > free; const lvl = loadLevel(planned, free, share);
+      const row = card.createDiv({ cls: "samaya-cap-row" + (over ? " is-over" : "") });
+      const top = row.createDiv("samaya-cap-top");
+      top.createSpan({ cls: "samaya-info-label", text: label });
+      const tot = top.createSpan({ cls: "samaya-info-big samaya-cap-fig", text: fmtDur(planned) });
+      tot.createSpan({ cls: "samaya-info-rec", text: ` / ${fmtDur(Math.round(free * share))} recommended` });
+      tot.title = `${what}. Plan at most ${pct}% of it (${fmtDur(Math.round(free * share))}) and keep the rest for what comes up.`;
+      const bar = row.createDiv({ cls: `samaya-col-bar is-${lvl}` });
+      bar.createDiv("samaya-col-bar-fill").style.width = `${over || free <= 0 ? (planned > 0 ? 100 : 0) : (planned / free) * 100}%`;
+      if (free > 0) { const mark = bar.createDiv("samaya-col-bar-mark"); mark.style.left = `${share * 100}%`; mark.title = `${pct}% of the free time`; }
+      return top.createDiv("samaya-cap-btns"); // the buttons of this row
+    };
+    const dayBtns = capRow("Daily capacity", plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
+    if (o.nav !== false) dayBtns.createEl("button", { cls: "samaya-cap-btn", text: "Open day" }).onclick = () => { void plugin.openPlanner().then(() => plugin.plannerGoTo?.(date)); };
+    if (isToday && !plugin.guide) dayBtns.createEl("button", { cls: "samaya-cap-btn", text: "Plan day" }).onclick = () => { void plugin.startGuide(); };
 
-    const wLvl = loadLevel(weekPlanned, weekFree, share); const wOver = weekPlanned > weekFree;
-    const wk = host.createDiv({ cls: "samaya-info-card samaya-info-load" + (wOver ? " is-over" : "") });
-    wk.createDiv({ cls: "samaya-info-label", text: "Weekly capacity" });
-    const wtot = wk.createDiv({ cls: "samaya-info-big", text: fmtDur(weekPlanned) });
-    wtot.createSpan({ cls: "samaya-info-rec", text: ` / ${fmtDur(Math.round(weekFree * share))} recommended` });
-    wtot.title = `Free time of the week = work time - lunch - meetings. Plan at most ${Math.round(share * 100)}% of it (${fmtDur(Math.round(weekFree * share))}) and keep the rest for what comes up.`;
-    const wbar = wk.createDiv({ cls: `samaya-col-bar is-${wLvl}` });
-    wbar.createDiv("samaya-col-bar-fill").style.width = `${wOver || weekFree <= 0 ? (weekPlanned > 0 ? 100 : 0) : (weekPlanned / weekFree) * 100}%`;
-    if (weekFree > 0) { const mark = wbar.createDiv("samaya-col-bar-mark"); mark.style.left = `${share * 100}%`; mark.title = `${Math.round(share * 100)}% of the free time`; }
-    const wrow = wk.createDiv("samaya-wd-buttons");
-    wrow.createEl("button", { text: "Open week" }).onclick = () => { void plugin.openPlanner().then(() => plugin.expandTimeline()); };
-    if (startOfWeek(date) === startOfWeek(today()) && !plugin.guide) wrow.createEl("button", { text: "Plan week" }).onclick = () => { void plugin.startWeekGuide(); };
+    const weekBtns = capRow("Weekly capacity", weekPlanned, weekFree, "Free time of the week = work time - lunch - meetings");
+    if (o.nav !== false) weekBtns.createEl("button", { cls: "samaya-cap-btn", text: "Open week" }).onclick = () => { void plugin.openPlanner().then(() => plugin.expandTimeline()); }; // in the planner itself the Day | Week switch does this
+    if (startOfWeek(date) === startOfWeek(today()) && !plugin.guide) weekBtns.createEl("button", { cls: "samaya-cap-btn", text: "Plan week" }).onclick = () => { void plugin.startWeekGuide(); };
 }

@@ -1,6 +1,6 @@
 import { BasesView, QueryController, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
-import { today } from "../util";
+import { addDays, parseYmd, startOfWeek, today } from "../util";
 import { DailyPlannerView, DAILY_VIEW_TYPE } from "./DailyPlannerView";
 import { WeeklyBoardView } from "./WeeklyBoardView";
 import { WeeklyTimelineView } from "./WeeklyTimelineView";
@@ -21,6 +21,7 @@ export class PlannerView extends BasesView {
   private dayPane: HTMLElement;
   private weekPane: HTMLElement; // the task board (and the week guide)
   private tlPane: HTMLElement;
+  private headEl: HTMLElement; // the week heading: one for the whole expanded week, so it never moves when the layout changes
   private bar: HTMLElement; // between the panes
   private barIn: HTMLElement; // board alone: right under the board's heading
   private day: DailyPlannerView;
@@ -33,19 +34,20 @@ export class PlannerView extends BasesView {
   constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
     super(controller);
     const root = this.rootEl = parentEl.createDiv("samaya-planner");
+    this.headEl = root.createDiv("samaya-week-head samaya-planner-head");
     this.dayPane = root.createDiv("samaya-planner-pane");
     this.tlPane = root.createDiv("samaya-planner-pane");
     this.bar = root.createDiv("samaya-splitbar");
     this.weekPane = root.createDiv("samaya-planner-pane");
     this.barIn = createDiv("samaya-splitbar is-inline");
-    const sync = (w: string) => { this.tl.showWeekOf(w); this.week.showWeekOf(w); };
+    const sync = (w: string) => { this.tl.showWeekOf(w); this.week.showWeekOf(w); this.renderHead(); };
     this.day = new DailyPlannerView(controller, this.dayPane, plugin, { hidden: () => this.mode() !== "day" });
     this.week = new WeeklyBoardView(controller, this.weekPane, plugin, {
       hidden: () => this.mode() === "day", back: () => plugin.collapseTimeline(), weekChanged: sync,
       aligned: () => this.mode() === "expanded", placeBar: (r, head) => { if (head) head.after(this.barIn); else r.prepend(this.barIn); },
     });
     this.tl = new WeeklyTimelineView(controller, this.tlPane, plugin, {
-      hidden: () => this.mode() !== "expanded", layout: () => this.plugin.weekLayout, flow: () => this.mode() === "expanded", viewH: () => this.rootEl.clientHeight,
+      hidden: () => this.mode() !== "expanded", layout: () => this.plugin.weekLayout, flow: () => this.mode() === "expanded", viewH: () => this.rootEl.clientHeight - this.headEl.offsetHeight,
       back: () => plugin.collapseTimeline(), weekChanged: sync, openDay: d => { this.day.goTo(d); plugin.collapseTimeline(); },
     });
     for (const c of [this.day, this.week, this.tl]) { // the panes read the data and settings of this view
@@ -62,7 +64,7 @@ export class PlannerView extends BasesView {
       if (m === this.shown && l === this.shownLayout) return;
       const prev = this.shown; this.shown = m; this.shownLayout = l;
       this.applyMode(prev === "expanded" && m === "expanded"); // layout change inside the expanded week: animated, nothing is redrawn
-      if (m === "expanded" && prev !== "expanded") { const wk = plugin.plannerDate || today(); this.tl.showWeekOf(wk); this.week.showWeekOf(wk); }
+      if (m === "expanded" && prev !== "expanded") { const wk = plugin.plannerDate || today(); this.tl.showWeekOf(wk); this.week.showWeekOf(wk); this.renderHead(); }
       else if (m !== "expanded") this.active().refresh();
     }));
     this.registerDomEvent(document, "keydown", e => { // Esc folds the expanded week back
@@ -78,6 +80,20 @@ export class PlannerView extends BasesView {
 
   /** The bars between timeline and board: arrows that move the divider. Up gives the board more room, down the timeline.
    *  Both: ▲ ▼ (either view can take over) · Timeline only: ▲ (bring the board back) · Board only: ▼ (bring the timeline back). */
+  /** ‹ This week › and the Day | Week switch, once, above both panes. */
+  private renderHead() {
+    const h = this.headEl; h.empty(); const wk = this.tl.getWeek();
+    const go = (w: string) => { this.tl.showWeekOf(w); this.week.showWeekOf(w); this.renderHead(); };
+    h.createEl("button", { text: "‹" }).onclick = () => go(addDays(wk, -7));
+    h.createEl("button", { text: "This week" }).onclick = () => go(startOfWeek(today()));
+    h.createEl("button", { text: "›" }).onclick = () => go(addDays(wk, 7));
+    const fmt = (x: string) => parseYmd(x).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    h.createEl("h2", { text: `${fmt(wk)} – ${fmt(addDays(wk, 6))}` });
+    const sw = h.createDiv("samaya-modeswitch is-right");
+    sw.createEl("button", { text: "Day", attr: { title: "Back to the day planner (Esc)" } }).onclick = () => this.plugin.collapseTimeline();
+    sw.createEl("button", { text: "Week", cls: "is-active" });
+  }
+
   private renderBars() {
     const l = this.shownLayout;
     for (const bar of [this.bar, this.barIn]) {

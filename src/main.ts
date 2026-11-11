@@ -15,6 +15,7 @@ import { JOURNAL_CAL_TYPE, JournalCalendarView } from "./views/JournalCalendarVi
 import { JOURNAL_BASE_VIEW_TYPE, JournalBaseView } from "./views/JournalBaseView";
 import type { Period } from "./journal";
 import { PERIOD_UI, identifyNote, findLatestPeriodNote, listPeriodNotes, neighbours, journalLocation, openPeriodNote, periodNotePath } from "./journal";
+import { affectsTaskLists, syncTaskLists } from "./tasklinks";
 import { PROJECTS_BASE_TEMPLATE, assignProject, createProject } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { HOME_VIEW_TYPE, HomeView } from "./views/HomeView";
@@ -240,7 +241,12 @@ export default class SamayaPlugin extends Plugin {
     this.registerEvent(this.app.workspace.on("file-open", marks)); this.registerEvent(this.app.workspace.on("layout-change", marks)); this.registerEvent(this.app.workspace.on("active-leaf-change", marks));
     this.register(this.bus.on(marks));
     this.registerEvent(this.app.metadataCache.on("changed", f => { if (this.indexLunch(f)) this.bus.emit(); void this.fileByPlanned(f); }));
-    const ref = this.app.metadataCache.on("resolved", () => { this.scanLunch(); void this.fileAllByPlanned(); this.app.metadataCache.offref(ref); });
+    // Tasks sections of project / ticket notes follow task assignments (and their dates)
+    const tl = (f: { path: string }) => { if (affectsTaskLists(this.settings, f.path)) this.scheduleTaskLists(); };
+    this.registerEvent(this.app.metadataCache.on("changed", tl));
+    this.registerEvent(this.app.vault.on("delete", tl)); this.registerEvent(this.app.vault.on("rename", tl));
+    this.registerEvent(this.app.vault.on("create", f => { if (this.app.workspace.layoutReady) this.scheduleTaskLists(); void f; }));
+    const ref = this.app.metadataCache.on("resolved", () => { this.scheduleTaskLists(); this.scanLunch(); void this.fileAllByPlanned(); this.app.metadataCache.offref(ref); });
     // body class while the left sidebar is folded: the planner centres its columns then
     const leftState = () => document.body.toggleClass("samaya-left-collapsed", !!this.app.workspace.leftSplit?.collapsed);
     this.register(() => document.body.removeClass("samaya-left-collapsed"));
@@ -269,6 +275,14 @@ export default class SamayaPlugin extends Plugin {
   }
 
   /** Keep task notes in the tasks-path subfolder of their scheduled (planned) date; unscheduled ones go to "Unscheduled". */
+  private taskListTimer = 0; private taskListRun: Promise<void> = Promise.resolve();
+  /** Rewrite the Tasks sections of project and ticket notes (debounced; runs one at a time). */
+  scheduleTaskLists() {
+    window.clearTimeout(this.taskListTimer);
+    this.taskListTimer = window.setTimeout(() => {
+      this.taskListRun = this.taskListRun.then(() => syncTaskLists(this.app, this.settings)).catch(e => { console.warn("Samaya: task lists failed", e); });
+    }, 1500);
+  }
   async fileByPlanned(f: TFile) {
     const root = rootOf(this.settings.tasksPath); // never reshuffle a whole vault
     if (root === "/" || f.extension !== "md" || !f.path.startsWith(root + "/")) return;

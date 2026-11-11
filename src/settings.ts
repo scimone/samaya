@@ -41,7 +41,7 @@ export interface SamayaSettings {
   homeOn: boolean; homePath: string; homeOnStartup: boolean;
 }
 export const DEFAULT_SETTINGS: SamayaSettings = {
-  tasksPath: "[Tasks]/YYYY/MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", meetingsPath: "[Meetings]/YYYY/MM", journalSource: "auto", journalFolder: "[Journal]/YYYY/YYYY-MM", journalFormat: "YYYY-MM-DD", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
+  tasksPath: "[Tasks]/YYYY/YYYY-MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", meetingsPath: "[Meetings]/YYYY/MM", journalSource: "auto", journalFolder: "[Journal]/YYYY/YYYY-MM", journalFormat: "YYYY-MM-DD", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
   calendarSource: "ics", eventNotesFolder: "Meetings", eventNotePattern: "{{date}}_{{title}}",
   icsUrls: [], icsRefreshMinutes: 15,
   plannerWeekends: false, plannerShowIcs: true,
@@ -461,7 +461,7 @@ export class SamayaSettingTab extends PluginSettingTab {
     tab("projects", "Projects", "folder-kanban");
     {
       const b = card("Projects", "Group tasks and tickets into projects, and plan them on a Gantt chart.", {
-        enabled: { get: () => s.projectsOn, set: v => { s.projectsOn = v; if (v) void this.plugin.scaffoldProjects(true); this.plugin.bus.emit(); } },
+        enabled: { get: () => s.projectsOn, set: v => { s.projectsOn = v; if (v) { void this.plugin.scaffoldProjects(true); this.plugin.scheduleTaskLists(); } this.plugin.bus.emit(); } },
         status: () => s.projectsPath.trim() ? ["On", "ok"] : ["Needs a folder", "warn"],
       });
       text(b, "Projects folder", "One note per project, with start, end and status properties.", () => s.projectsPath, v => (s.projectsPath = v.replace(/\/+$/, "") || "Projects"), { placeholder: "Projects", suggest: folders });
@@ -479,7 +479,7 @@ export class SamayaSettingTab extends PluginSettingTab {
     tab("jira", "Jira", "ticket");
     {
       const b = card("Jira", "Import the issues assigned to you as ticket notes.", {
-        enabled: { get: () => s.jiraOn, set: v => { s.jiraOn = v; if (v) void this.plugin.scaffoldTickets(false); } },
+        enabled: { get: () => s.jiraOn, set: v => { s.jiraOn = v; if (v) { void this.plugin.scaffoldTickets(false); this.plugin.scheduleTaskLists(); } } },
         status: () => (s.jiraUrl && s.jiraToken && (s.jiraFlavor === "server" || s.jiraEmail)) ? ["Configured", "ok"] : ["Needs setup", "warn"],
       });
       label(b, "Connection");

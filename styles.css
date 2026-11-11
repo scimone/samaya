@@ -1011,22 +1011,38 @@ button.samaya-datereset:hover, button.samaya-datereset:focus-visible { backgroun
 .samaya-wd-chip.is-break .samaya-wd-state { color: var(--color-orange); }
 .samaya-wd-chip-fig { color: var(--text-muted); font-weight: 600; font-variant-numeric: tabular-nums; }
 .samaya-wd.is-part-actions { display: contents; }
-.samaya-hs-cap { display: flex; flex-direction: column; gap: 4px; min-width: 150px; }
+.samaya-hs-cap { display: flex; flex-direction: column; gap: 3px; min-width: 150px; }
 .samaya-hs-cap-top { display: flex; align-items: baseline; gap: 7px; white-space: nowrap; }
-.samaya-hs-cap-label { font-size: var(--samaya-fs-label); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
+.samaya-hs-cap-label { line-height: 1.2; font-size: var(--samaya-fs-label); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
 .samaya-hs-cap-fig { font-size: var(--font-ui-small); font-weight: 600; font-variant-numeric: tabular-nums; }
 .samaya-hs-cap-rec { font-weight: 500; color: var(--text-muted); }
 .samaya-hs-cap.is-over .samaya-hs-cap-fig { color: var(--text-error); }
-.samaya-hs-bar { position: relative; height: 4px; border-radius: var(--samaya-r-pill); background: var(--background-modifier-border); overflow: hidden; }
-.samaya-hs-bar-fill { height: 100%; background: var(--interactive-accent); }
-.samaya-hs-bar.is-tight .samaya-hs-bar-fill { background: var(--color-orange); }
-.samaya-hs-bar.is-over .samaya-hs-bar-fill { background: var(--text-error); }
-.samaya-hs-bar-mark { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid var(--background-primary); opacity: 0.9; }
 .samaya-head-actions { display: flex; align-items: center; gap: 6px; }
 .samaya-head-actions:has(button) { padding-right: var(--samaya-sp-3); margin-right: var(--samaya-sp-1); border-right: 1px solid var(--background-modifier-border); }
 .samaya-hd-btn { height: 26px; padding: 0 var(--samaya-sp-3); font-size: var(--font-ui-smaller); white-space: nowrap; }
-.samaya-hs-group.is-cap { box-sizing: border-box; width: 290px; } /* daily and weekly capacity: the same width, with or without the Plan button */
+.samaya-hs-group.is-cap { box-sizing: border-box; width: 310px; } /* daily and weekly capacity: the same width, with or without the Plan button */
 .samaya-hs-group.is-cap .samaya-hs-cap { flex: 1 1 auto; min-width: 0; }
-.samaya-hs-group.is-cap .samaya-hd-btn { flex: none; width: 82px; }
-.samaya-hs-group.is-status { box-sizing: border-box; min-width: 230px; }
+.samaya-hs-group.is-cap .samaya-hd-btn { flex: none; width: 76px; }
+.samaya-hs-group.is-status { box-sizing: border-box; width: 270px; }
 .samaya-hs-group.is-status .samaya-hd-btn { margin-left: auto; }
+
+/* ---------- capacity bars: meetings and tasks in their colours; orange / red over the whole bar when past the limits ---------- */
+.samaya-col-bar { display: flex; }
+.samaya-col-bar-fill { flex: none; }
+.samaya-col-bar-fill.is-task { background: var(--samaya-task, var(--interactive-accent)); }
+.samaya-col-bar-fill.is-meet { background: var(--samaya-meeting, var(--color-cyan)); }
+.samaya-col-bar.is-tight .samaya-col-bar-fill, .samaya-loadbar.is-tight .samaya-col-bar-fill { background: var(--color-orange); }
+.samaya-col-bar.is-over .samaya-col-bar-fill, .samaya-loadbar.is-over .samaya-col-bar-fill { background: var(--text-error); }
+.samaya-col-bar:is(.is-tight, .is-over) .samaya-col-bar-fill.is-meet { opacity: 0.55; }
+.samaya-hs-cap .samaya-col-bar { margin: 0; height: 4px; }
+.samaya-planner.is-expanded:not(.is-board-only) .samaya-planner-head .samaya-col-bar { display: flex; } /* (the week pane's own day bars are hidden there, the heading's capacity bar is not) */
+.samaya-hs-cap-top { gap: 10px; }
+.samaya-hs-cap-item { display: inline-flex; align-items: baseline; gap: 4px; }
+.samaya-hs-dot { width: 7px; height: 7px; border-radius: 2px; align-self: center; }
+.samaya-hs-dot.is-task { background: var(--samaya-task, var(--interactive-accent)); }
+.samaya-hs-dot.is-meet { background: var(--samaya-meeting, var(--color-cyan)); }
+input.is-invalid { border-color: var(--text-error); }
+/* fixed places: browsing through days or weeks never moves the title or the two groups */
+.samaya-week-head > .samaya-planner-titles, .samaya-day-head > .samaya-planner-titles { flex: none; min-width: 200px; }
+.samaya-hs-group { flex: none; }
+.samaya-daily:not(.is-review) > .samaya-day-head { max-width: 1440px; }

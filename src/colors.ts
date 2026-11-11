@@ -15,6 +15,12 @@ export function onColor(hex: string): string {
   return l > 0.4 ? "#000000" : "#ffffff";
 }
 const HEX = /^#[0-9a-f]{6}$/i;
+/** "#rrggbb" from what a person types: with or without the #, 3 or 6 digits, any case; "" when it is not a hex colour. */
+export function normalizeHex(raw: string): string {
+  const m = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(raw.trim()); if (!m) return "";
+  const h = m[1].length === 3 ? m[1].split("").map(c => c + c).join("") : m[1];
+  return "#" + h.toLowerCase();
+}
 /** Publish the task and meeting colours as CSS variables on <body>; an empty setting falls back to the theme (accent for tasks, cyan for meetings). */
 export function applyColors(s: Pick<SamayaSettings, "taskColor" | "meetingColor">) {
   const st = document.body.style;

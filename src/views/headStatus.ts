@@ -3,27 +3,29 @@ import type SamayaPlugin from "../main";
 import { allTasks } from "../model";
 import { addDays, fmtDur, parseYmd, startOfWeek, today } from "../util";
 import { calendarEnabled, calendarEvents } from "../calendar";
-import { weekBuckets, weekFreeTime } from "./weekColumn";
+import { weekBuckets, weekCapacity } from "./weekColumn";
 import { renderWorkdayCard } from "./workdayCard";
-import { bufferShare, loadLevel } from "../weekplan";
+import { bufferShare } from "../weekplan";
+import { renderCapBar } from "./capBar";
 import { openPeriodNote } from "../journal";
 import { vacationDates, weekAverageWorked } from "../worktime";
 
 /** The planner heading's status and actions (day and week alike): `mid` gets the workday chip and a capacity meter, `actions` the buttons. */
 
 /** A compact capacity meter: LABEL planned / recommended over a thin bar with the buffer mark. */
-export function renderCapMeter(plugin: SamayaPlugin, host: HTMLElement, o: { label: string; planned: number; free: number; what: string }): HTMLElement {
+export function renderCapMeter(plugin: SamayaPlugin, host: HTMLElement, o: { label: string; planned: number; meetings: number; free: number; what: string }): HTMLElement {
   const share = bufferShare(plugin.settings.bufferPercent); const pct = Math.round(share * 100);
-  const rec = Math.round(o.free * share); const lvl = loadLevel(o.planned, o.free, share); const over = o.planned > o.free;
+  const rec = Math.round(o.free * share); const over = o.planned > o.free;
   const m = host.createDiv({ cls: "samaya-hs-cap" + (over ? " is-over" : "") });
   m.title = `${o.what}. Plan at most ${pct}% of it (${fmtDur(rec)}) and keep the rest for what comes up.`;
-  const top = m.createDiv("samaya-hs-cap-top");
-  top.createSpan({ cls: "samaya-hs-cap-label", text: o.label });
-  const fig = top.createSpan({ cls: "samaya-hs-cap-fig", text: fmtDur(o.planned) });
-  fig.createSpan({ cls: "samaya-hs-cap-rec", text: ` / ${fmtDur(rec)}` });
-  const bar = m.createDiv({ cls: `samaya-hs-bar is-${lvl}` });
-  bar.createDiv("samaya-hs-bar-fill").style.width = `${over || o.free <= 0 ? (o.planned > 0 ? 100 : 0) : (o.planned / o.free) * 100}%`;
-  if (o.free > 0) bar.createDiv("samaya-hs-bar-mark").style.left = `${share * 100}%`;
+  m.createDiv({ cls: "samaya-hs-cap-label", text: o.label });
+  const top = m.createDiv("samaya-hs-cap-top"); // tasks (planned / recommended) and meetings, each with its colour
+  const tasks = top.createSpan("samaya-hs-cap-item"); tasks.createSpan("samaya-hs-dot is-task");
+  tasks.createSpan({ cls: "samaya-hs-cap-fig", text: fmtDur(o.planned) }).createSpan({ cls: "samaya-hs-cap-rec", text: ` / ${fmtDur(rec)}` });
+  const meet = top.createSpan("samaya-hs-cap-item"); meet.createSpan("samaya-hs-dot is-meet");
+  meet.createSpan({ cls: "samaya-hs-cap-fig", text: fmtDur(o.meetings) }); meet.title = "Meetings";
+  tasks.title = "Planned tasks / recommended";
+  renderCapBar(m, { tasks: o.planned, meetings: o.meetings, free: o.free, share });
   return m;
 }
 
@@ -42,13 +44,13 @@ const btn = (host: HTMLElement, text: string, run: () => void, title?: string) =
 const workTimeBtn = (plugin: SamayaPlugin, host: HTMLElement) => btn(host, "Work time", () => { void plugin.openDashboard(); }, "Open the work time dashboard");
 
 /** Day heading: workday status, then the daily capacity grouped with Plan day; Break / End day (the workday's own buttons) and Daily note in the actions. */
-export function renderDayHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, actions: HTMLElement, o: { date: string; planned: number; free: number; what: string }): void {
+export function renderDayHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, actions: HTMLElement, o: { date: string; planned: number; meetings: number; free: number; what: string }): void {
   const s = plugin.settings; const isToday = o.date === today();
   const sg = mid.createDiv("samaya-hs-group is-status");
   renderWorkdayCard(plugin, sg.createDiv("samaya-hs-wd"), { part: "status", date: o.date });
   workTimeBtn(plugin, sg);
   const group = mid.createDiv("samaya-hs-group is-cap");
-  renderCapMeter(plugin, group, { label: "Daily capacity", planned: o.planned, free: o.free, what: o.what });
+  renderCapMeter(plugin, group, { label: "Daily capacity", planned: o.planned, meetings: o.meetings, free: o.free, what: o.what });
   if (isToday && !plugin.guide) btn(group, "Plan day", () => { void plugin.startGuide(); });
   if (isToday) renderWorkdayCard(plugin, actions.createDiv("samaya-hs-wd-actions"), { part: "actions" });
   if (s.journalOn) btn(actions, "Daily note", () => openNote(plugin, "daily", o.date), "Open this day's note");
@@ -72,9 +74,9 @@ export function renderWeekHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, act
     if (!slot.isConnected) { off(); metaOff(); window.clearTimeout(timer); return; }
     const my = ++token;
     const planned = weekBuckets(allTasks(plugin.app, s), weekStart).weekTasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0);
-    const free = await weekFreeTime(plugin, weekStart, s.workDays);
+    const { free, meetings } = await weekCapacity(plugin, weekStart, s.workDays);
     if (my !== token || !slot.isConnected) return;
-    slot.empty(); renderCapMeter(plugin, slot, { label: "Weekly capacity", planned, free, what: "Free time of the week = work time - lunch - meetings" });
+    slot.empty(); renderCapMeter(plugin, slot, { label: "Weekly capacity", planned, meetings, free, what: "Free time of the week = work time - lunch - meetings" });
   };
   const later = () => { window.clearTimeout(timer); timer = window.setTimeout(() => { void paint(); }, 200); };
   const off = plugin.bus.on(later);

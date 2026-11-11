@@ -8,6 +8,7 @@ import { bufferShare, isLeftover, loadLevel, trimToBuffer, weekVerdict } from ".
 import { renderGuide } from "./guide";
 import { celebrate } from "./doneBar";
 import { renderWeekHead } from "./plannerHead";
+import { renderCapBar } from "./capBar";
 import { addTaskInput, capacityOf, weekBuckets } from "./weekColumn";
 import { TicketTaskModal } from "../modals";
 import { groupTickets, statusRank } from "../kanban";
@@ -88,9 +89,7 @@ export class WeeklyBoardView extends BasesView {
       if (this.host?.openDay) { ttl.addClass("is-link"); ttl.title = "Open this day in the planner"; ttl.onclick = () => this.host?.openDay?.(key); keyActivate(ttl, `Open ${key} in the planner`, () => this.host?.openDay?.(key)); }
       const planned = tasks.reduce((a, t) => a + (t.estimate || 0), 0);
       const share = bufferShare(this.plugin.settings.bufferPercent); const lvl = loadLevel(planned, cap.free, share); // orange past the buffer, red over capacity, like the week guide
-      const bar = top.createDiv({ cls: `samaya-col-bar is-${lvl}` });
-      bar.createDiv("samaya-col-bar-fill").style.width = `${cap.free <= 0 ? (planned > 0 ? 100 : 0) : Math.min(100, (planned / cap.free) * 100)}%`;
-      if (cap.free > 0) { const mark = bar.createDiv("samaya-col-bar-mark"); mark.style.left = `${share * 100}%`; mark.title = `${Math.round(share * 100)}% of the free time: keep the rest open for what comes up`; }
+      renderCapBar(top, { tasks: planned, meetings: cap.meetings, free: cap.free, share, markTip: `${Math.round(share * 100)}% of the free time: keep the rest open for what comes up` });
       const sum = h.createSpan({ cls: "samaya-col-cap" + (lvl === "ok" ? "" : ` is-${lvl}`), text: `${fmtDur(planned)}/${fmtDur(cap.free)}` });
       sum.title = `Free to plan = ${fmtDur(cap.total)} work time - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`;
     }
@@ -240,8 +239,7 @@ export class WeeklyBoardView extends BasesView {
     left.createSpan({ cls: "samaya-colhead-count", text: String(tasks.length) });
     const sum = h.createSpan({ cls: `samaya-col-cap is-${lvl}`, text: `${fmtDur(planned)}/${fmtDur(cap.free)}` });
     sum.title = `Free to plan = ${fmtDur(cap.total)} work time - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings. Keep about ${Math.round((1 - share) * 100)}% of it free.`;
-    const bar = col.createDiv({ cls: `samaya-col-bar is-${lvl}` });
-    bar.createDiv("samaya-col-bar-fill").style.width = `${cap.free <= 0 ? (planned > 0 ? 100 : 0) : Math.min(100, (planned / cap.free) * 100)}%`;
+    renderCapBar(col, { tasks: planned, meetings: cap.meetings, free: cap.free, share });
     const evs = events.filter(e => e.end.getTime() > dayMs && e.start.getTime() < dayMs + 86400000).sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.getTime() - b.start.getTime());
     const ag = col.createDiv("samaya-agenda");
     if (!evs.length) ag.createDiv({ cls: "samaya-agenda-empty", text: "No meetings" });

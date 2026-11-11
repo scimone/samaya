@@ -14,7 +14,7 @@ import { decorateSegment, dragDur, dropOnTimeline, resizeBlock, segLabel, taskBl
 import { addBands } from "./bands";
 import { renderWorkdayCard } from "./workdayCard";
 import { renderDoneBar } from "./doneBar";
-import { renderWeekColumn, weekFreeTime } from "./weekColumn";
+import { renderWeekColumn, weekCapacity } from "./weekColumn";
 
 export const TODAY_VIEW_TYPE = "samaya-today";
 
@@ -84,7 +84,7 @@ export class TodayView extends ItemView {
     this.shownDate = this.plugin.plannerDate;
     const wkStart = this.plugin.boardWeek || startOfWeek(today()); this.shownWeek = this.plugin.boardWeek;
     const wg = this.mode === "week" && this.plugin.guide?.kind === "week" ? this.plugin.guide : null; // Plan my week: this sidebar holds the This week column
-    const free = wg ? await weekFreeTime(this.plugin, wkStart, wg.days ?? 5) : 0;
+    const wcap = wg ? await weekCapacity(this.plugin, wkStart, wg.days ?? 5) : { free: 0, meetings: 0 }; const free = wcap.free;
     const events: IcsEvent[] = calendarEnabled(s) ? await calendarEvents(this.plugin, parseYmd(date), new Date(parseYmd(date).getTime() + 86400000)) : [];
     const notes = new Map<IcsEvent, TFile>();
     for (const ev of events.filter(e => !e.allDay)) { try { notes.set(ev, await ensureMeetingNote(this.app, s, ev, events)); } catch { /* ignore */ } }
@@ -98,7 +98,7 @@ export class TodayView extends ItemView {
     const day = sortTasks(all.filter(t => t.planned === date));
     if (wg) {
       c.addClass("is-wg");
-      renderWeekColumn(this.plugin, this.dnd, c, { step: wg.step, wk: wkStart, all, free, refresh: () => this.schedule(), keepScroll: this.wgScroll, onScroll: y => { this.wgScroll = y; } });
+      renderWeekColumn(this.plugin, this.dnd, c, { step: wg.step, wk: wkStart, all, free, meetings: wcap.meetings, refresh: () => this.schedule(), keepScroll: this.wgScroll, onScroll: y => { this.wgScroll = y; } });
       return;
     }
     c.removeClass("is-wg");

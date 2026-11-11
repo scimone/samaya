@@ -2,7 +2,7 @@ import esbuild from "esbuild";
 import assert from "node:assert/strict";
 const bundle = async (entry, out) => esbuild.build({ entryPoints: [entry], bundle: true, format: "esm", outfile: out, alias: { obsidian: "./test/obsidian-stub.mjs" }, logLevel: "error" });
 await bundle("src/home.ts", "test/.home.mjs"); await bundle("src/ics.ts", "test/.ics.mjs"); await bundle("src/util.ts", "test/.util.mjs");
-await bundle("src/worktime.ts", "test/.worktime.mjs"); await bundle("src/segments.ts", "test/.segments.mjs");
+await bundle("src/colors.ts", "test/.colors.mjs"); await bundle("src/worktime.ts", "test/.worktime.mjs"); await bundle("src/segments.ts", "test/.segments.mjs");
 await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timeline.ts", "test/.timeline.mjs");
 await bundle("src/settings.ts", "test/.settings.mjs"); await bundle("src/weekplan.ts", "test/.weekplan.mjs");
 await bundle("src/monthgrid.ts", "test/.monthgrid.mjs"); await bundle("src/kanban.ts", "test/.kanban.mjs"); await bundle("src/gantt.ts", "test/.gantt.mjs"); await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
@@ -87,6 +87,13 @@ assert.equal(pathRoot("[Tickets]", mfmt), "Tickets");
 const L = layoutItems([{ s: 0, dur: 60 }, { s: 30, dur: 60 }, { s: 120, dur: 30 }]);
 assert.deepEqual([...L.values()], [{ col: 0, n: 2 }, { col: 1, n: 2 }, { col: 0, n: 1 }]);
 
+// ---- colours and capacity bar
+{
+  const { normalizeHex } = await import("./.colors.mjs"); const { capBarShape } = await import("./.weekplan.mjs");
+  assert.equal(normalizeHex("#A1b2C3"), "#a1b2c3"); assert.equal(normalizeHex(" fa0 "), "#ffaa00"); assert.equal(normalizeHex("#12345"), ""); assert.equal(normalizeHex("rgb(1,2,3)"), "");
+  assert.deepEqual(capBarShape(120, 120, 360, 0.8), { meet: 25, task: 25, mark: (120 + 288) / 480 * 100 }); // 6h free + 2h meetings = the 8h bar
+  assert.deepEqual(capBarShape(600, 120, 360, 0.8).task, 75); assert.deepEqual(capBarShape(0, 0, 0), { meet: 0, task: 0, mark: null }); assert.equal(capBarShape(30, 0, 0).task, 100);
+}
 // ---- worktime
 const W = await import("./.worktime.mjs");
 { // vacation days and the average work time of a week

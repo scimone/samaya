@@ -41,3 +41,12 @@ export function weekVerdict(days: Array<{ planned: number; free: number }>, shar
 }
 /** Minutes to take off a day to be back inside the buffer (0 when it already is). */
 export function trimToBuffer(planned: number, free: number, share = BUFFER_SHARE): number { return Math.max(0, Math.round(planned - free * share)); }
+
+/** Shape of a capacity bar whose scale is the plannable time plus the meetings (the work time without lunch): the meetings first, then the tasks,
+ *  and the mark where the recommended share of the free time ends. All values are percent of the bar. */
+export function capBarShape(tasks: number, meetings: number, free: number, share = BUFFER_SHARE): { meet: number; task: number; mark: number | null } {
+  const total = free + meetings;
+  if (total <= 0) return { meet: 0, task: tasks > 0 ? 100 : 0, mark: null };
+  const pct = (m: number) => Math.min(100, Math.max(0, (m / total) * 100));
+  return { meet: pct(meetings), task: pct(Math.min(tasks, free)), mark: free > 0 ? pct(meetings + free * share) : null };
+}

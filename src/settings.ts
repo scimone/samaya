@@ -1,7 +1,7 @@
-import { AbstractInputSuggest, App, PluginSettingTab, Setting, setIcon } from "obsidian";
+import { AbstractInputSuggest, App, ColorComponent, PluginSettingTab, Setting, TextComponent, setIcon } from "obsidian";
 import type SamayaPlugin from "./main";
 import { ticketFolderFor, folderFor } from "./model";
-import { resolveColor } from "./colors";
+import { normalizeHex, resolveColor } from "./colors";
 import { MEETING_SYNC_AHEAD_DAYS, syncMeetingNotes } from "./meetings";
 import { TICKET_VARIABLES, renderTicketFileName, TicketVars } from "./taskbody";
 import { JournalLoc, JournalPart, PERIODIC_KINDS, PeriodicKind, JournalSource, PERIOD_DEFAULT_FORMAT, Period, journalLocation, journalPathFor, journalSources, pickJournalSource } from "./journal";
@@ -348,8 +348,13 @@ export class SamayaSettingTab extends PluginSettingTab {
       label(b, "Colours");
       const colour = (name: string, desc: string, key: "taskColor" | "meetingColor", fallback: string) => {
         const def = resolveColor(fallback) || "#808080";
+        let pick: ColorComponent | undefined; let hex: TextComponent | undefined; // the picker and the hex field show the same colour
         new Setting(b).setName(name).setDesc(desc)
-          .addColorPicker(c => c.setValue(s[key] || def).onChange(async v => { s[key] = v; await changed(); }))
+          .addColorPicker(c => { pick = c; c.setValue(s[key] || def).onChange(async v => { s[key] = v; hex?.setValue(v); hex?.inputEl.removeClass("is-invalid"); await changed(); }); })
+          .addText(t => {
+            hex = t; t.setPlaceholder("#rrggbb").setValue(s[key] || def); t.inputEl.size = 8; t.inputEl.spellcheck = false; t.inputEl.setAttr("aria-label", `${name} as hex code`);
+            t.onChange(async v => { const h = normalizeHex(v); t.inputEl.toggleClass("is-invalid", !h); if (!h) return; s[key] = h; pick?.setValue(h); await changed(); });
+          })
           .addExtraButton(x => x.setIcon("rotate-ccw").setTooltip("Back to the theme colour").onClick(async () => { s[key] = ""; await changed(); this.display(); }));
       };
       colour("Task colour", "Tasks on the timelines, in the check step and in the week plan.", "taskColor", "var(--interactive-accent)");

@@ -8,6 +8,7 @@ import { calendarEnabled, calendarEvents } from "../calendar";
 import { addDays, fmtDur, parseTitleEstimate, parseYmd } from "../util";
 import { Capacity, capacityWindow } from "../worktime";
 import { bufferShare, loadLevel } from "../weekplan";
+import { renderCapBar } from "./capBar";
 import { renderTaskCard, bindZone } from "./common";
 
 /** Everything that belongs to the week (done tasks included: they used up time), and the part without a day. */
@@ -23,10 +24,13 @@ export function capacityOf(plugin: SamayaPlugin, date: string, events: IcsEvent[
 }
 
 /** Free minutes of the first `days` days of the week: work time - lunch - meetings. */
-export async function weekFreeTime(plugin: SamayaPlugin, wk: string, days: number): Promise<number> {
+export async function weekFreeTime(plugin: SamayaPlugin, wk: string, days: number): Promise<number> { return (await weekCapacity(plugin, wk, days)).free; }
+/** Free and meeting minutes of the first `days` days of the week. */
+export async function weekCapacity(plugin: SamayaPlugin, wk: string, days: number): Promise<{ free: number; meetings: number }> {
   const s = plugin.settings;
   const events = calendarEnabled(s) ? await calendarEvents(plugin, parseYmd(wk), parseYmd(addDays(wk, 7))).catch(() => [] as IcsEvent[]) : [];
-  return Array.from({ length: days }, (_, i) => capacityOf(plugin, addDays(wk, i), events).free).reduce((a, b) => a + b, 0);
+  const caps = Array.from({ length: days }, (_, i) => capacityOf(plugin, addDays(wk, i), events));
+  return { free: caps.reduce((a, c) => a + c.free, 0), meetings: caps.reduce((a, c) => a + c.meetings, 0) };
 }
 
 /** "+ Add task" field: Enter creates the task with `props` (and the estimate typed after the title), then `done` runs once the note is indexed. */
@@ -44,7 +48,7 @@ export function addTaskInput(plugin: SamayaPlugin, host: HTMLElement, placeholde
 }
 
 export interface WeekColumnOpts {
-  step: number; wk: string; all: Task[]; /** free minutes of the week */ free: number; /** repaint after a task was added */ refresh: () => void;
+  step: number; wk: string; all: Task[]; /** free minutes of the week */ free: number; /** meeting minutes of the week */ meetings?: number; /** repaint after a task was added */ refresh: () => void;
   /** scroll position to keep, and a callback to remember it */ keepScroll?: number; onScroll?: (y: number) => void;
 }
 export const SCHEDULE_STEP = 3;
@@ -61,10 +65,9 @@ export function renderWeekColumn(plugin: SamayaPlugin, scope: DndScope, host: HT
   const h = col.createDiv("samaya-colhead"); h.createSpan({ cls: "samaya-colhead-title", text: "This week" }); h.createSpan({ cls: "samaya-colhead-count", text: String(shown.length) });
   const share = bufferShare(s.bufferPercent); const lvl = loadLevel(planned, o.free, share); const budget = Math.round(o.free * share);
   const box = col.createDiv({ cls: `samaya-loadbar is-${lvl}` });
-  const bar = box.createDiv({ cls: `samaya-col-bar is-${lvl}` });
-  bar.createDiv("samaya-col-bar-fill").style.width = `${o.free <= 0 ? (planned > 0 ? 100 : 0) : Math.min(100, (planned / o.free) * 100)}%`;
-  if (o.free > 0) { const mark = bar.createDiv("samaya-col-bar-mark"); mark.style.left = `${share * 100}%`; mark.title = `${Math.round(share * 100)}% of the free time`; } // where the recommended time ends
-  const label = col.createDiv({ cls: "samaya-wg-info" }).createDiv({ cls: "samaya-total", text: `${fmtDur(planned)} planned · ${fmtDur(budget)} recommended` });
+  const meetings = o.meetings ?? 0;
+  renderCapBar(box, { tasks: planned, meetings, free: o.free, share });
+  const label = col.createDiv({ cls: "samaya-wg-info" }).createDiv({ cls: "samaya-total", text: `${fmtDur(planned)} planned · ${meetings ? fmtDur(meetings) + " meetings · " : ""}${fmtDur(budget)} recommended` });
   label.title = `Free time of the week = work time - lunch - meetings = ${fmtDur(o.free)}. Plan at most ${Math.round(share * 100)}% of it (${fmtDur(budget)}).`;
   if (!schedule) addTaskInput(plugin, col, "+ Add weekly task", () => ({ week: wk }), o.refresh); // before the first task (the days have their own in Schedule)
   const list = col.createDiv("samaya-wg-scroll samaya-leftover-list");

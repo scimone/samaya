@@ -134,7 +134,7 @@ export class DailyPlannerView extends BasesView {
         if (allSet && this.lastBoxed && this.lastBoxed.date === this.date && !this.lastBoxed.all) { todayBadge.addClass("is-pop"); celebrate(todayBadge); }
         this.lastBoxed = { date: this.date, all: allSet };
       } else this.lastBoxed = null;
-      renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`, bufferShare(s.bufferPercent));
+      renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`, bufferShare(s.bufferPercent), cap.meetings);
     }
 
     const list = body.createDiv("samaya-list" + (step === 2 ? " is-timebox" : ""));
@@ -166,7 +166,7 @@ export class DailyPlannerView extends BasesView {
     renderHeadTitle(h, isToday ? "Today" : parseYmd(this.date).toLocaleDateString(undefined, { weekday: "long" }), dayHeadSub(this.date));
     const mid = h.createDiv("samaya-head-mid");
     const right = h.createDiv("samaya-planner-right");
-    renderDayHeadStatus(this.plugin, mid, right.createDiv("samaya-head-actions"), { date: this.date, planned, free: cap.free, what: `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings` });
+    renderDayHeadStatus(this.plugin, mid, right.createDiv("samaya-head-actions"), { date: this.date, planned, meetings: cap.meetings, free: cap.free, what: `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings` });
     if (!isToday) renderResetPill(right, "Today", "Jump to today", this.date < today() ? "right" : "left", () => this.goTo(today()));
     renderDateNav(right, {
       label: parseYmd(this.date).toLocaleDateString(undefined, { weekday: isToday ? "short" : undefined, month: "short", day: "numeric" }),

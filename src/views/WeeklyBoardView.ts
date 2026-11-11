@@ -118,7 +118,7 @@ export class WeeklyBoardView extends PlannerPane {
     if (this.scope.active) { this.pending = true; return; }
     const g = this.plugin.guide; if (g && g.days !== days.length) { g.days = days.length; window.setTimeout(() => this.plugin.bus.emit(), 0); } // the sidebar needs to know how many days count
     const keep = new Map<string, number>(); this.root.querySelectorAll<HTMLElement>("[data-scroll]").forEach(e => { keep.set(e.dataset.scroll!, e.scrollTop); if (e.dataset.scroll === "kb") this.kbX = e.scrollLeft; });
-    this.root.empty(); this.scope.clear(); this.root.addClass("is-guided");
+    this.root.empty(); this.scope.clear(); this.root.removeClass("is-aligned"); this.root.addClass("is-guided"); // (a leftover is-aligned from the expanded week would squeeze the day columns)
     if (this.plugin.boardWeek !== wk) { this.plugin.boardWeek = wk; this.plugin.modeBus.emit(); }
 
     const all = allTasks(this.app, s);

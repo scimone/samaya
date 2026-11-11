@@ -571,7 +571,10 @@ body {
 .samaya-dayline.is-end .samaya-dayline-label { bottom: 1px; }
 .samaya-dayshade { position: absolute; left: 0; right: 0; z-index: 1; pointer-events: none; background: color-mix(in srgb, var(--background-modifier-border) 45%, transparent); }
 .samaya-daily.is-review .samaya-left { flex: 1 1 auto; max-width: none; }
-.samaya-daily.is-review .samaya-tlpane { flex: 0 0 340px; min-width: 0; background: var(--background-secondary); } /* Plan my day: the timeline is the last column, on the background the right sidebar had */
+.samaya-daily.is-review { position: relative; }
+.samaya-daily.is-review > .samaya-daily-cols { box-sizing: border-box; padding-right: 340px; }
+.samaya-daily.is-review .samaya-tlpane { position: absolute; top: 0; right: 0; bottom: 0; width: 340px; height: auto; min-width: 0; background: var(--background-secondary); }
+.view-content:has(> .samaya-planner) { padding: 0; } /* Plan my day: the timeline is the last column, on the background the right sidebar had */
 .samaya-review-cols { display: grid; grid-template-columns: minmax(230px, 300px) minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .samaya-review-cols.is-two > .samaya-plancol { grid-column: 3; } /* Timebox: planned for today stays where it was in the steps before */
 /* Pick: the This week / Backlog list and the Today column scroll on their own instead of the whole window */
@@ -687,7 +690,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: var(--sa
 
 /* ---- Plan my week (guided) ---- */
 .samaya-week.is-guided { padding: 12px 16px; overflow: hidden; }
-.samaya-wg { display: grid; grid-template-columns: minmax(240px, 280px) minmax(0, 1fr) 300px; gap: 20px; height: 100%; min-height: 0; align-items: start; }
+.samaya-wg { display: grid; grid-template-columns: minmax(240px, 280px) minmax(0, 1fr); gap: 20px; box-sizing: border-box; padding-right: 320px; height: 100%; min-height: 0; align-items: start; }
 .samaya-wg > .samaya-plan { max-height: 100%; overflow-y: auto; }
 .samaya-wg-main { min-width: 0; min-height: 0; height: 100%; display: flex; flex-direction: column; }
 .samaya-wg-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 420px)); gap: 16px; flex: 1 1 0; min-height: 0; grid-template-rows: minmax(0, 1fr); }
@@ -700,11 +703,12 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: var(--sa
 .samaya-wg-col > .samaya-loadbar { margin: 4px 14px 6px; }
 .samaya-wg-col > .samaya-add { margin: 0 14px; width: auto; }
 .samaya-wg-board { display: flex; gap: 10px; overflow: auto; align-items: stretch; min-width: 0; padding-bottom: 6px; }
+.samaya-week.is-guided .samaya-wg-day { flex: 0 0 345px; width: 345px; min-width: 345px; }
 .samaya-wg-day { flex: 0 0 345px; width: 345px; box-sizing: border-box; min-height: 0; overflow-y: auto; }
 .samaya-wg-day .samaya-col-bar { flex: none; }
 .samaya-agenda { display: flex; flex-direction: column; gap: 1px; margin-bottom: 8px; padding: 4px 0; font-size: var(--font-ui-smaller); max-height: 96px; overflow-y: auto; flex: none; }
 .samaya-agenda-row { display: flex; gap: 6px; min-width: 0; color: var(--text-muted); }
-.samaya-agenda-time { flex: none; color: var(--samaya-meeting); font-variant-numeric: tabular-nums; }
+.samaya-agenda-time { flex: none; color: var(--samaya-meeting); font-size: var(--font-ui-smaller); font-weight: 500; font-variant-numeric: tabular-nums; }
 .samaya-agenda-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .samaya-agenda-empty { color: var(--text-faint); font-style: italic; }
 .samaya-col-cap.is-tight, .samaya-wg-rowflag.is-tight { color: var(--color-orange); }
@@ -719,7 +723,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: var(--sa
 .samaya-plan-reminder-icon { flex: none; color: var(--color-orange); display: inline-flex; }
 .samaya-plan-reminder-icon svg { width: 14px; height: 14px; }
 
-@media (max-width: 900px) { .samaya-wg { grid-template-columns: 1fr; } .samaya-wg-sidecol { margin: 0; height: 400px; } .samaya-wg-cols { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .samaya-wg { grid-template-columns: 1fr; } .samaya-wg-cols { grid-template-columns: 1fr; } }
 .samaya-wg-info .samaya-total { margin-top: 0; font-size: var(--font-ui-smaller); font-style: italic; line-height: 1.4; }
 .samaya-agenda-row { line-height: 1.4; }
 .samaya-col-headl { display: flex; align-items: center; gap: 8px; }
@@ -767,7 +771,8 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: var(--sa
 .samaya-wg-kb .samaya-kb-cell { background: none; padding: 0; gap: 6px; min-height: 40px; }
 .samaya-wg-kb .samaya-kb-card { padding: 8px 10px; background: var(--background-primary-alt); border-radius: var(--samaya-r-m); }
 /* This week, the last column of Plan my week: on the background the right sidebar had, running to the window's edges */
-.samaya-wg-sidecol { align-self: stretch; display: flex; flex-direction: column; min-height: 0; box-sizing: border-box; margin: -12px -16px -12px 0; padding: 12px 8px; background: var(--background-secondary); }
+.samaya-week.is-guided { position: relative; }
+.samaya-wg-sidecol { position: absolute; top: 0; right: 0; bottom: 0; width: 300px; display: flex; flex-direction: column; min-height: 0; box-sizing: border-box; padding: 12px 8px; background: var(--background-secondary); }
 .samaya-wg-side { flex: 1 1 auto; min-height: 0; padding: 4px 2px; overflow: hidden; }
 .samaya-wg-side > .samaya-colhead { margin: 0; }
 .samaya-wg-side > .samaya-loadbar { margin: 0; }
@@ -972,7 +977,7 @@ button.samaya-datereset:hover, button.samaya-datereset:focus-visible { backgroun
 .samaya-weeknav .samaya-weeknav-label input.samaya-weeknav-datepick { position: absolute; inset: 0; width: 100%; height: 100%; min-width: 0; margin: 0; padding: 0; opacity: 0; pointer-events: none; border: none; }
 /* tasks and timeline columns share one width */
 .samaya-daily.is-review .samaya-left { flex: 1 1 auto; }
-@media (max-width: 700px) { .samaya-daily-cols { flex-direction: column; overflow-y: auto; } .samaya-left, .samaya-tlpane, .samaya-daily-cols > .samaya-info { flex: none; } .samaya-tlpane { height: 520px; } }
+@media (max-width: 700px) { .samaya-daily.is-review > .samaya-daily-cols { padding-right: 0; } .samaya-daily.is-review .samaya-tlpane { position: static; width: auto; } .samaya-daily-cols { flex-direction: column; overflow-y: auto; } .samaya-left, .samaya-tlpane, .samaya-daily-cols > .samaya-info { flex: none; } .samaya-tlpane { height: 520px; } }
 .samaya-day-head { flex: none; display: flex; align-items: center; gap: var(--samaya-sp-2); min-height: 30px; box-sizing: content-box; padding: var(--samaya-sp-1) var(--samaya-sp-4) var(--samaya-sp-2) var(--samaya-sp-6); background: var(--background-primary); }
 
 /* ---------- keyboard focus: one ring for every control of the planner ---------- */
@@ -1080,3 +1085,5 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-card.is-linked { background: var(--background-modifier-hover); box-shadow: 0 0 0 2px color-mix(in srgb, var(--samaya-task, var(--interactive-accent)) 55%, transparent); }
 .samaya-block.is-linked { background: color-mix(in srgb, var(--samaya-task) calc(var(--samaya-tint) + 10%), var(--background-primary)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--samaya-task, var(--interactive-accent)) 55%, transparent); z-index: 3; }
 :is(.samaya-week-head, .samaya-day-head)[data-fit="2"] .samaya-head-var, :is(.samaya-week-head, .samaya-day-head)[data-fit="3"] .samaya-head-var, :is(.samaya-week-head, .samaya-day-head)[data-fit="4"] .samaya-head-var { min-width: 150px; }
+
+@media (max-width: 900px) { }

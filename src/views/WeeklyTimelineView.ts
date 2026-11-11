@@ -198,7 +198,7 @@ export class WeeklyTimelineView extends BasesView {
   /** Expanded week: hour height for the current layout. Timeline only: the hours fill the window. Otherwise: about two thirds of it, the board takes the rest. */
   private fitFor(hours: number, fixed: number) {
     const h = this.host?.viewH?.() ?? 700;
-    return Math.max(MIN_HOUR_H, Math.floor((this.host?.layout?.() === "timeline" ? h - 28 - fixed : h * 0.66 - 90) / hours));
+    return Math.max(MIN_HOUR_H, Math.floor((this.host?.layout?.() === "timeline" ? h - 34 - fixed : h * 0.66 - 90) / hours));
   }
   /** The layout changed: stretch or shrink the hours to fit, as a CSS transition (no redraw). */
   fit() {

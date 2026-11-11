@@ -14,7 +14,7 @@ export function runMinutesOn(runs: unknown[], date: string): number {
 }
 
 export interface ReviewItem {
-  title: string; /** minutes planned for this day (0 = not planned for the day) */ planned: number; /** minutes actually worked on this day */ actual: number; done: boolean;
+  title: string; /** it was on the day's plan this morning */ wasPlanned: boolean; /** minutes planned for this day (0 = not planned for the day) */ planned: number; /** minutes actually worked on this day */ actual: number; done: boolean;
   /** ticket key or project name, "" = none */ ticket: string; project: string;
 }
 export type Grouping = "ticket" | "project";
@@ -23,7 +23,7 @@ export interface GroupRow { label: string; planned: number; actual: number; task
 
 /** One row per task that was planned or worked on, the biggest first. */
 export function taskRows(items: ReviewItem[]): Row[] {
-  return items.filter(i => i.planned > 0 || i.actual > 0).map(i => ({ label: i.title, planned: i.planned, actual: i.actual, done: i.done, unplanned: i.planned === 0 }))
+  return items.filter(i => i.planned > 0 || i.actual > 0 || i.done).map(i => ({ label: i.title, planned: i.planned, actual: i.actual, done: i.done, unplanned: !i.wasPlanned }))
     .sort((a, b) => Math.max(b.planned, b.actual) - Math.max(a.planned, a.actual) || a.label.localeCompare(b.label));
 }
 /** Time per ticket or project; what has none is gathered in "No ticket" / "No project" (always last). */

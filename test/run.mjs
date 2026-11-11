@@ -474,12 +474,13 @@ await bundle("src/dayreview.ts", "test/.dayreview.mjs");
   const { runMinutesOn, taskRows, groupRows, daySplit, verdict } = await import("./.dayreview.mjs");
   assert.equal(runMinutesOn(["2026-11-11 09:05–09:40", "2026-11-11 10:00-10:30", "2026-11-10 09:00–10:00", "2026-11-11 23:30–2026-11-12 00:20", "junk"], "2026-11-11"), 35 + 30 + 30);
   const items = [
-    { title: "A", planned: 60, actual: 90, done: true, ticket: "T-1", project: "" },
-    { title: "B", planned: 30, actual: 0, done: false, ticket: "", project: "" },
-    { title: "C", planned: 0, actual: 20, done: false, ticket: "T-1", project: "" },
+    { title: "A", wasPlanned: true, planned: 60, actual: 90, done: true, ticket: "T-1", project: "" },
+    { title: "B", wasPlanned: true, planned: 30, actual: 0, done: false, ticket: "", project: "" },
+    { title: "C", wasPlanned: false, planned: 0, actual: 20, done: false, ticket: "T-1", project: "" },
   ];
   assert.deepEqual(taskRows(items).map(r => [r.label, r.unplanned]), [["A", false], ["B", false], ["C", true]]);
   assert.deepEqual(groupRows(items, "ticket").map(g => [g.label, g.planned, g.actual]), [["T-1", 60, 110], ["No ticket", 30, 0]]);
+  assert.deepEqual(taskRows([...items, { title: "D", wasPlanned: false, planned: 0, actual: 0, done: true, ticket: "", project: "" }]).map(r => r.label).includes("D"), true);
   const sp = daySplit(120, 100, 40, 15); assert.equal(sp.focus, 80); assert.equal(sp.other, 0); assert.equal(sp.total, 135);
   assert.equal(verdict(60, 62, 1, 1).title, "Right on plan"); assert.equal(verdict(60, 90, 1, 1).title, "More than planned");
 }

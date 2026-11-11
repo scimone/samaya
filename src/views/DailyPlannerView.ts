@@ -107,10 +107,12 @@ export class DailyPlannerView extends PlannerPane {
     const cols = this.root.createDiv("samaya-daily-cols"); // everything else sits below the title bar
     const info = sd ? cols.createDiv("samaya-info") : null; // End day: the shutdown guide takes the first column; otherwise tasks and timeline, status lives in the heading (Plan my day: guide and tasks)
     const left = cols.createDiv("samaya-left");
-    this.renderPane(cols.createDiv("samaya-today samaya-tlpane"), day, tlEvents, notes, pg); // the timeline is the last column (Plan my day: read-only until Timebox, on the sidebar's background)
+    const reviewDay = sd && step === 1; // End day, step 2: the review spans both columns, no timeline
+    if (!reviewDay) this.renderPane(cols.createDiv("samaya-today samaya-tlpane"), day, tlEvents, notes, pg); // the timeline is the last column (Plan my day: read-only until Timebox, on the sidebar's background)
     let body = left; // where today's planned list goes
-    if (sd && step === 1) { // End day, step 2: the review replaces the task list
+    if (reviewDay) { // the review replaces the task list and the timeline; the guide stays on the left
       left.addClass("is-review-col"); renderDayReview(this.plugin, left, { date: this.date, all, meetings: cap.meetings });
+      if (info) { renderGuide(this.plugin, info, { overdue: 0 }); info.scrollTop = this.infoScroll; }
       return void this.finishRender(left);
     }
     if (!pg) { // tasks heading: title, done count, progress
@@ -154,7 +156,7 @@ export class DailyPlannerView extends PlannerPane {
     else if (!shown.length) list.createDiv({ cls: "samaya-empty samaya-allset", text: "Nothing left to schedule." });
     shown.forEach(t => {
       const idx = day.indexOf(t);
-      const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true, focus: pg ? undefined : "today", split: step === 2 });
+      const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true, focus: pg || sd ? undefined : "today", split: step === 2 });
       c.toggleClass("is-timed", !!t.start);
       bindCardDrop(this.scope, c, (path, after, i) => { void this.place(path, idx + (after ? 1 : 0), i); });
     });
@@ -198,7 +200,7 @@ export class DailyPlannerView extends PlannerPane {
       if (this.plugin.guide) pane.createDiv({ cls: "samaya-today-label", text: "Timeline" });
       if (allDay.length) { const chips = pane.createDiv("samaya-tl-allday"); allDay.forEach(e => chips.createDiv({ cls: "samaya-wtl-chip is-event", text: e.title })); } // the same chips as the all-day events in the week timeline's day heads
     }
-    this.tlHeight = renderTimeline(this.plugin, this.scope, pane, { date: this.date, day, events, notes, ro: !!plan && plan.step <= 1, split: plan?.step === 2, state: this.tlState });
+    this.tlHeight = renderTimeline(this.plugin, this.scope, pane, { date: this.date, day, events, notes, ro: !!plan && plan.step <= 1, split: plan?.step === 2, noCurrent: this.plugin.guide?.kind === "shutdown", state: this.tlState });
     if (!this.tlWatch) { // the hours stretch to the pane height
       this.tlWatch = new ResizeObserver(() => { const el = this.root.querySelector<HTMLElement>(".samaya-tlpane"); if (el && el.clientHeight !== this.tlHeight) this.schedule(); });
       this.tlWatch.observe(this.root); this.register(() => this.tlWatch?.disconnect());

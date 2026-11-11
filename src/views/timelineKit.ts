@@ -17,7 +17,7 @@ const MIN_HOUR_H = 28;
 export interface TimelineState { scrolled: string; scrollTop: number; }
 
 /** The draggable day timeline (hours, meetings, task blocks). Fills `c`; returns the height it was laid out for. */
-export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLElement, o: { date: string; day: Task[]; events: IcsEvent[]; notes: Map<IcsEvent, TFile>; ro: boolean; /** scissors on the blocks */ split?: boolean; state: TimelineState }): number {
+export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLElement, o: { date: string; day: Task[]; events: IcsEvent[]; notes: Map<IcsEvent, TFile>; ro: boolean; /** scissors on the blocks */ split?: boolean; /** do not light up the task being worked on right now (End my day) */ noCurrent?: boolean; state: TimelineState }): number {
   const { date, day, events, notes, ro, state } = o;
   {
     const s = plugin.settings; const dayMs = parseYmd(date).getTime(); const isToday = date === today();
@@ -80,7 +80,7 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
       const b = lane.createDiv({ cls: it.ev ? "samaya-event" : "samaya-block" + (it.task!.status === "done" ? " is-done" : "") });
       if (it.task) { b.dataset.link = it.task.file.path; b.dataset.day = date; }
       b.style.top = `${top}px`; b.style.height = `${height}px`; b.style.left = `${(pl.col * 100) / pl.n}%`; b.style.width = `calc(${100 / pl.n}% - 3px)`;
-      if (isToday && nowMin >= it.s && nowMin < it.s + it.dur && it.task?.status !== "done") b.addClass("is-current");
+      if (isToday && !o.noCurrent && nowMin >= it.s && nowMin < it.s + it.dur && it.task?.status !== "done") b.addClass("is-current");
       if (it.ev && (date < today() || (isToday && nowMin >= it.s + it.dur))) b.addClass("is-past"); // a meeting that is over
       const bt = b.createDiv({ cls: it.ev ? "samaya-event-title" : "samaya-block-title" });
       if (!it.ev) {

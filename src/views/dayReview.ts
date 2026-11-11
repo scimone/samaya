@@ -15,10 +15,11 @@ function reviewItems(plugin: SamayaPlugin, all: Task[], date: string): ReviewIte
     const fm = (app.metadataCache.getFileCache(t.file)?.frontmatter ?? {}) as Record<string, unknown>;
     const runs = Array.isArray(fm.focus_sessions) ? fm.focus_sessions : fm.focus_sessions ? [fm.focus_sessions] : [];
     const actual = runMinutesOn(runs, date); const p = planned.get(t.file.path);
-    if (!p && !actual) continue;
+    const doneToday = t.status === "done" && String(fm.day_completed ?? "").slice(0, 10) === date; // ticked off today, even if never planned or timed
+    if (!p && !actual && !doneToday) continue;
     const tf = t.ticket ? app.metadataCache.getFirstLinkpathDest(t.ticket, t.file.path) : null;
     const pp = plugin.settings.projectsOn ? projectPathOf(app, t.file) : "";
-    items.push({ title: t.title, planned: p?.estimate ?? 0, actual, done: t.status === "done", ticket: tf ? readTicket(app, tf).key : "", project: pp ? pp.split("/").pop()!.replace(/\.md$/, "") : "" });
+    items.push({ title: t.title, wasPlanned: !!p, planned: p?.estimate ?? 0, actual, done: t.status === "done", ticket: tf ? readTicket(app, tf).key : "", project: pp ? pp.split("/").pop()!.replace(/\.md$/, "") : "" });
   }
   return items;
 }
@@ -32,14 +33,15 @@ const ICON_OK = "check", ICON_UP = "trending-up", ICON_DOWN = "trending-down";
 /** Second step of "End my day": the day in numbers and charts - how the time was spent, and how that compares with the plan. */
 export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { date: string; all: Task[]; meetings: number }) {
   anim = Date.now() - lastShown > 4000; lastShown = Date.now();
-  const box = host.createDiv("samaya-rv"); const items = reviewItems(plugin, o.all, o.date);
+  const grid = host.createDiv("samaya-rv"); const box = grid.createDiv("samaya-rv-col"); const side = grid.createDiv("samaya-rv-col"); const items = reviewItems(plugin, o.all, o.date);
   const log = plugin.workday.log; const worked = workedMinutes(log, nowMin()); const breaks = log ? breakMinutes(log) + (log.open ? Math.max(0, nowMin() - Number(log.open.start.slice(0, 2)) * 60 - Number(log.open.start.slice(3, 5))) : 0) : 0;
   const focus = items.reduce((a, i) => a + i.actual, 0); const planned = items.reduce((a, i) => a + i.planned, 0);
-  const plannedItems = items.filter(i => i.planned > 0); const done = plannedItems.filter(i => i.done).length;
+  const plannedItems = items.filter(i => i.wasPlanned); const added = items.filter(i => !i.wasPlanned); const done = plannedItems.filter(i => i.done).length;
   const comparable = plannedItems.reduce((a, i) => a + i.planned, 0); const comparableActual = plannedItems.reduce((a, i) => a + i.actual, 0);
   const sp = daySplit(worked, focus, o.meetings, breaks);
 
   // ---- hero: completion ring and a one-line verdict
+  const addedDone = added.filter(i => i.done).length;
   const v = verdict(comparable, comparableActual, done, plannedItems.length);
   const hero = box.createDiv("samaya-rv-hero");
   const ring = hero.createDiv("samaya-rv-ring"); const R = 34, C = 2 * Math.PI * R; const frac = plannedItems.length ? done / plannedItems.length : 0;
@@ -47,7 +49,7 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   svg.createSvg("circle", { cls: "samaya-rv-ring-bg", attr: { cx: "40", cy: "40", r: String(R) } });
   const arc = svg.createSvg("circle", { cls: "samaya-rv-ring-fg" + (frac >= 1 ? " is-complete" : ""), attr: { cx: "40", cy: "40", r: String(R), "stroke-dasharray": String(C), "stroke-dashoffset": String(C), transform: "rotate(-90 40 40)" } });
   const mid = ring.createDiv("samaya-rv-ring-mid"); mid.createSpan({ cls: "samaya-rv-ring-n", text: `${done}/${plannedItems.length}` }); mid.createSpan({ cls: "samaya-rv-ring-l", text: "done" });
-  const vt = hero.createDiv("samaya-rv-verdict"); vt.createDiv({ cls: "samaya-rv-vtitle", text: v.title }); vt.createDiv({ cls: "samaya-rv-vtext", text: v.text });
+  const vt = hero.createDiv("samaya-rv-verdict"); vt.createDiv({ cls: "samaya-rv-vtitle", text: v.title }); vt.createDiv({ cls: "samaya-rv-vtext", text: v.text + (addedDone ? ` Plus ${addedDone} ${addedDone === 1 ? "task" : "tasks"} you added along the way.` : "") });
   settle(() => arc.setAttribute("stroke-dashoffset", String(C * (1 - frac))));
 
   // ---- stat tiles
@@ -70,20 +72,24 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
     if (!focus && worked) box.createDiv({ cls: "samaya-rv-note", text: "Time on tasks comes from the focus timer. Start it on a task to see where the day goes." });
   }
 
-  // ---- planned vs actual
-  const rows = taskRows(items);
-  box.createDiv({ cls: "samaya-rv-h", text: "Planned vs. actual" });
-  const keyEl = box.createDiv("samaya-rv-legend");
+  // ---- planned vs actual (right column), then what was added during the day
+  const rows = taskRows(items); const planRows = rows.filter(r => !r.unplanned), addRows = rows.filter(r => r.unplanned);
+  side.createDiv({ cls: "samaya-rv-h", text: "Planned vs. actual" });
+  const keyEl = side.createDiv("samaya-rv-legend");
   for (const [cls, name] of [["is-plan", "Planned"], ["is-act", "Actual"], ["is-over", "Over plan"]]) { const l = keyEl.createSpan("samaya-rv-legend-item"); l.createSpan({ cls: `samaya-rv-swatch ${cls}` }); l.createSpan({ text: name }); }
-  if (!rows.length) box.createDiv({ cls: "samaya-empty", text: "No tasks were planned or worked on today." });
-  else drawBars(box, rows.map(r => ({ label: r.label, planned: r.planned, actual: r.actual, done: r.done, tag: r.unplanned ? "unplanned" : "" })));
+  if (!planRows.length) side.createDiv({ cls: "samaya-empty", text: "Nothing was planned for today." });
+  else drawBars(side, planRows.map(r => ({ label: r.label, planned: r.planned, actual: r.actual, done: r.done, tag: "" })));
+  if (addRows.length) {
+    const h = side.createDiv({ cls: "samaya-rv-h samaya-rv-h-row" }); h.createSpan({ text: "Added during the day" }); h.createSpan({ cls: "samaya-rv-row-tag", text: `${addRows.length} not in this morning's plan` });
+    drawBars(side, addRows.map(r => ({ label: r.label, planned: 0, actual: r.actual, done: r.done, tag: "" })), false, true);
+  }
 
   // ---- by ticket / project, when those are in use
   const kinds = (["ticket", "project"] as Grouping[]).filter(k => hasGroups(items, k));
   if (kinds.length) {
     let by = kinds[0];
-    const head = box.createDiv({ cls: "samaya-rv-h samaya-rv-h-row" }); const title = head.createSpan();
-    const body = box.createDiv("samaya-rv-groups");
+    const head = side.createDiv({ cls: "samaya-rv-h samaya-rv-h-row" }); const title = head.createSpan();
+    const body = side.createDiv("samaya-rv-groups");
     const paint = () => {
       title.setText(by === "ticket" ? "By ticket" : "By project"); body.empty();
       const g = groupRows(items, by); drawBars(body, g.map(r => ({ label: r.label, planned: r.planned, actual: r.actual, done: false, tag: `${r.tasks} ${r.tasks === 1 ? "task" : "tasks"}` })), true);
@@ -99,7 +105,7 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
 
 interface Bar { label: string; planned: number; actual: number; done: boolean; tag: string; }
 /** Two thin bars per row on a shared scale: the plan as a pale track, the actual time in front of it (orange where it passes the plan). */
-function drawBars(host: HTMLElement, rows: Bar[], plain = false) {
+function drawBars(host: HTMLElement, rows: Bar[], plain = false, added = false) {
   const max = Math.max(1, ...rows.flatMap(r => [r.planned, r.actual])); const list = host.createDiv("samaya-rv-rows"); const fills: Array<[HTMLElement, number]> = [];
   for (const r of rows) {
     const row = list.createDiv("samaya-rv-row"); const top = row.createDiv("samaya-rv-row-top");
@@ -109,7 +115,7 @@ function drawBars(host: HTMLElement, rows: Bar[], plain = false) {
     const nums = top.createSpan("samaya-rv-row-nums");
     nums.createSpan({ cls: "samaya-rv-row-act", text: r.actual ? fmtDur(r.actual) : "–" });
     if (r.planned) nums.createSpan({ cls: "samaya-rv-row-plan", text: ` / ${fmtDur(r.planned)}` });
-    const track = row.createDiv("samaya-rv-track"); track.title = `Planned ${r.planned ? fmtDur(r.planned) : "-"} · Actual ${r.actual ? fmtDur(r.actual) : "-"}`;
+    const track = row.createDiv("samaya-rv-track" + (added ? " is-added" : "")); track.title = `Planned ${r.planned ? fmtDur(r.planned) : "-"} · Actual ${r.actual ? fmtDur(r.actual) : "-"}`;
     if (r.planned) { const p = track.createDiv("samaya-rv-fill is-plan"); fills.push([p, (r.planned / max) * 100]); }
     if (r.actual) { const over = r.planned > 0 && r.actual > r.planned * 1.1; const a = track.createDiv("samaya-rv-fill is-act" + (over ? " is-over" : "")); fills.push([a, (r.actual / max) * 100]); }
     if (r.planned && r.actual) {

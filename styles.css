@@ -1148,9 +1148,10 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-daily { scrollbar-gutter: stable; }
 
 /* ---- End my day, step 2: review of the day */
-.samaya-left.is-review-col { overflow-y: auto; }
+.samaya-left.is-review-col { overflow-y: auto; flex: 1 1 0; min-width: 0; }
 .samaya-rv { --rv-focus: var(--samaya-task); --rv-meet: var(--samaya-meeting); --rv-over: var(--color-orange); --rv-other: color-mix(in srgb, var(--text-muted) 45%, var(--background-primary)); --rv-break: color-mix(in srgb, var(--text-faint) 25%, var(--background-primary));
-  display: flex; flex-direction: column; gap: 14px; padding: 14px 18px 28px; max-width: 760px; width: 100%; box-sizing: border-box; margin: 0 auto; }
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 22px; align-items: start; padding: 14px 22px 28px; width: 100%; box-sizing: border-box; }
+.samaya-rv-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .samaya-rv-hero { display: flex; align-items: center; gap: 18px; padding: 14px 16px; border-radius: var(--samaya-r-l); background: var(--background-primary-alt); border: 1px solid var(--background-modifier-border); }
 .samaya-rv-ring { position: relative; width: 84px; height: 84px; flex: none; }
 .samaya-rv-ring svg { display: block; }
@@ -1202,5 +1203,7 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-rv-switch { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--samaya-r-pill); background: var(--background-modifier-hover); }
 .samaya-rv-switch button { all: unset; cursor: pointer; padding: 1px 10px; border-radius: var(--samaya-r-pill); font-size: var(--font-ui-smaller); text-transform: none; letter-spacing: 0; color: var(--text-muted); }
 .samaya-rv-switch button.is-on { background: var(--background-primary); color: var(--text-normal); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15); }
+@media (max-width: 900px) { .samaya-rv { grid-template-columns: 1fr; } }
+.samaya-rv-track.is-added { background: color-mix(in srgb, var(--rv-focus) 8%, var(--background-modifier-border)); }
 @media (max-width: 640px) { .samaya-rv-tiles { grid-template-columns: repeat(2, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .samaya-rv-fill, .samaya-rv-seg, .samaya-rv-ring-fg { transition: none; } }

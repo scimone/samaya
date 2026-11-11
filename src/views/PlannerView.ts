@@ -139,6 +139,6 @@ export class PlannerView extends BasesView {
     }
     this.plugin.modeBus.emit(); // the sidebar follows the pane in front
   }
-  private setDays() { this.rootEl.style.setProperty("--wk-days", this.config.get("showWeekends") === true ? "7" : "5"); } // the column lines run through the arrow bar
+  private setDays() { this.rootEl.style.setProperty("--wk-days", this.config?.get("showWeekends") === true ? "7" : "5"); } // the column lines run through the arrow bar
   onDataUpdated(): void { this.setDays(); this.day.onDataUpdated(); this.week.onDataUpdated(); this.tl.onDataUpdated(); }
 }

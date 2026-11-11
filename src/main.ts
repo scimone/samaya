@@ -697,13 +697,18 @@ export default class SamayaPlugin extends Plugin {
     this.guide = { step: 0, review: false, fresh: true, kind: "shutdown" };
     await this.openPlanner(); this.bus.emit();
   }
-  async finishShutdown() {
-    const s = this.settings; const td = today(); const tm = addDays(td, 1);
+  /** Closing a day (by hand or automatically, because it was forgotten) writes its finished tasks and what is planned for the next day into that day's note. */
+  async writeDayClose(date: string) {
+    const s = this.settings; const next = addDays(date, 1);
     const all = allTasks(this.app, s);
-    const finished = sortTasks(all.filter(t => t.status === "done" && t.planned === td));
-    const tomorrow = sortTasks(all.filter(t => t.planned === tm && t.status !== "done"));
-    if (journalWants(s, "journalFinished")) await writeSection(this.app, s, td, "Finished tasks", taskLines(await toJournalTasks(this.app, finished, true)));
-    if (journalWants(s, "journalTomorrow")) await writeSection(this.app, s, td, "Planned for tomorrow", taskLines(await toJournalTasks(this.app, tomorrow)));
+    const finished = sortTasks(all.filter(t => t.status === "done" && t.planned === date));
+    const tomorrow = sortTasks(all.filter(t => t.planned === next && t.status !== "done"));
+    if (journalWants(s, "journalFinished")) await writeSection(this.app, s, date, "Finished tasks", taskLines(await toJournalTasks(this.app, finished, true)));
+    if (journalWants(s, "journalTomorrow")) await writeSection(this.app, s, date, "Planned for tomorrow", taskLines(await toJournalTasks(this.app, tomorrow)));
+  }
+  async finishShutdown() {
+    const s = this.settings; const td = today();
+    await this.writeDayClose(td);
     await this.workday.endDay();
     this.closeGuide();
     const note = s.journalOn ? (await periodNotePath(this.app, s, "daily", td))?.file ?? null : null;

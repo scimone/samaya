@@ -63,6 +63,7 @@ export class WorkdayManager {
       l.end = l.seen && hmToMin(l.seen) > hmToMin(l.start) ? l.seen : l.start; l.endAuto = true;
       const lunch = this.s.autoLunch ? autoLunch(l, this.plugin.lunchFor(l.date)) : null; if (lunch) l.breaks.push(lunch);
       await this.writeProps(l);
+      try { await this.plugin.writeDayClose(l.date); } catch (e) { console.warn("Samaya: could not write the closed day to its note", e); } // the same sections as a manual shutdown
       new Notice(`Samaya: ${l.date} was not ended - closed at ${l.end}. Edit work_end in that daily note if needed.`, 8000);
     }
     this.log = null; await this.persist(); this.plugin.bus.emit();

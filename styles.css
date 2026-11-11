@@ -1097,4 +1097,3 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-focus-go { display: inline-flex; align-items: center; gap: 4px; }
 .samaya-focus-go-icon { display: inline-flex; } .samaya-focus-go-icon svg { width: 12px; height: 12px; }
 .samaya-focus-go { margin-left: auto; flex: none; }
-.samaya-block .samaya-focus-go { color: inherit; }

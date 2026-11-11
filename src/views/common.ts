@@ -3,12 +3,14 @@ import type SamayaPlugin from "../main";
 import { DndScope, DropInfo } from "../dnd";
 import { Task, addSubtask, assignTicket, parkTask, patchTask, readSubtasks, readTicket, setDone, ticketPathOf, toggleSubtask } from "../model";
 import { ConfirmDeleteModal, ProjectSuggestModal, TicketSuggestModal } from "../modals";
+import { focusButton, isOngoing } from "./place";
 import { assignProject, projectPathOf } from "../projects";
 import { HORIZONS, Horizon, bucketOf, fmtHm, minToHm, parseDuration, startOfWeek, today } from "../util";
 
 export interface CardOpts {
   scope: DndScope; showTime?: boolean; /** show the actions under the estimate on the right instead of below the title */ actionsSide?: boolean; /** hide subtasks (sidebar) */ compact?: boolean;
   /** a chip with the day the task is planned for */ dayLabel?: string;
+  /** mark the task that is ongoing right now (today's timeline) and give it a Focus button */ ongoing?: boolean;
   /** extra quick-action buttons (label, handler) */ actions?: Array<[string, () => void]>;
 }
 
@@ -84,6 +86,8 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   });
 
   if (o.actionsSide) o.actions?.forEach(([label, fn]) => { side.createEl("button", { cls: "samaya-mini", text: label }).addEventListener("click", fn); });
+
+  if (o.ongoing && isOngoing(t, plugin.settings.defaultEstimate)) { el.addClass("is-current"); focusButton(plugin, side, t); }
 
   if (!o.compact) void renderSubtasks(plugin, (o.actionsSide ? body : el).createDiv("samaya-subs"), t.file, t.status !== "done"); // beside the side column, so there is no gap and long subtasks wrap
   else el.addClass("is-compact");

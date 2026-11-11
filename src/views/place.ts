@@ -20,6 +20,20 @@ export function busyIntervals(plugin: SamayaPlugin, date: string, events: IcsEve
 export function taskBlocks(t: Task, dflt: number): Seg[] {
   return t.segments.length > 1 ? t.segments : [{ s: hmToMin(t.start), dur: t.estimate || dflt }];
 }
+/** Is this task being worked on right now: planned today, not done, and one of its blocks covers the current time? */
+export function isOngoing(t: Task, dflt: number): boolean {
+  if (t.status === "done" || t.planned !== today() || !t.start) return false;
+  const n = nowMin(); return taskBlocks(t, dflt).some(g => n >= g.s && n < g.s + g.dur);
+}
+/** Small Focus button: starts focus mode on the task (not shown while it is already being focused). */
+export function focusButton(plugin: SamayaPlugin, parent: HTMLElement, t: Task, cls = "samaya-mini samaya-focus-go"): HTMLElement | null {
+  if (plugin.focus.state?.path === t.file.path && plugin.focus.state.startedAt) return null;
+  const b = parent.createEl("button", { cls, attr: { title: "Start focus on this task", "aria-label": `Start focus: ${t.title}` } });
+  setIcon(b.createSpan({ cls: "samaya-focus-go-icon" }), "timer"); b.createSpan({ text: "Focus" });
+  b.addEventListener("pointerdown", e => e.stopPropagation()); // not a drag
+  b.addEventListener("click", e => { e.stopPropagation(); void plugin.focus.start(t.file); });
+  return b;
+}
 /** Length of what is being dragged: one segment, or the whole task. */
 export function dragDur(t: Task | undefined, seg: number | null, dflt: number): number {
   if (!t) return dflt; return seg !== null && t.segments[seg] ? t.segments[seg].dur : t.estimate || dflt;

@@ -1091,3 +1091,9 @@ input.is-invalid { border-color: var(--text-error); }
 :is(.samaya-week-head, .samaya-day-head)[data-fit="2"] .samaya-head-var, :is(.samaya-week-head, .samaya-day-head)[data-fit="3"] .samaya-head-var, :is(.samaya-week-head, .samaya-day-head)[data-fit="4"] .samaya-head-var { min-width: 150px; }
 
 @media (max-width: 900px) { .samaya-wg { padding-right: 0; } .samaya-wg-sidecol { position: static; width: auto; height: 400px; } }
+
+/* week view: the ongoing task's card is lit like its timeline block; its Focus button starts focus mode */
+.samaya-week .samaya-card.is-current { background: color-mix(in srgb, var(--samaya-task) calc(var(--samaya-tint) + 10%), var(--background-primary)); border-color: var(--samaya-task); box-shadow: 0 0 0 2px color-mix(in srgb, var(--samaya-task, var(--interactive-accent)) 55%, transparent); }
+.samaya-focus-go { display: inline-flex; align-items: center; gap: 4px; }
+.samaya-focus-go-icon { display: inline-flex; } .samaya-focus-go-icon svg { width: 12px; height: 12px; }
+.samaya-focus-go.is-block { margin-left: auto; flex: none; height: 18px; padding: 0 6px; font-size: var(--samaya-fs-label); color: inherit; background: color-mix(in srgb, currentColor 18%, transparent); box-shadow: none; }

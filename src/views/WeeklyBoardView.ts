@@ -36,6 +36,7 @@ export class WeeklyBoardView extends PlannerPane {
     this.root = parentEl.createDiv("samaya-week");
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
     this.register(plugin.bus.on(() => this.schedule()));
+    this.registerInterval(window.setInterval(() => { if (!this.host?.hidden() && this.root.isConnected && !this.plugin.guide) this.schedule(); }, 60000)); // the ongoing task moves on
     const ref = plugin.app.metadataCache.on("changed", f => { if (!this.plugin.guide) return; if (inEventFolder(plugin.settings, f.path) || f.path.startsWith(prefixOf(plugin.settings.tasksPath))) this.schedule(); });
     this.register(() => plugin.app.metadataCache.offref(ref));
   }
@@ -102,7 +103,7 @@ export class WeeklyBoardView extends PlannerPane {
     });
     const body = col.createDiv("samaya-col-body");
     tasks.forEach((t, idx) => {
-      const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true });
+      const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true, ongoing: true });
       bindCardDrop(this.scope, c, (path, after) => { void placeInDay(this.app, this.plugin.settings, path, key, idx + (after ? 1 : 0)); });
     });
     bindZone(this.scope, col, path => { void placeInDay(this.app, this.plugin.settings, path, key, tasks.length); });
@@ -247,7 +248,7 @@ export class WeeklyBoardView extends PlannerPane {
     addBox(col, "+ Add task", () => ({ planned: date, order: tasks.length }));
     const body = col.createDiv("samaya-col-body");
     tasks.forEach((t, idx) => {
-      const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true });
+      const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true, ongoing: true });
       bindCardDrop(this.scope, c, (path, after) => { void placeInDay(this.app, s, path, date, idx + (after ? 1 : 0)); });
     });
     bindZone(this.scope, col, path => { void placeInDay(this.app, s, path, date, tasks.length); });

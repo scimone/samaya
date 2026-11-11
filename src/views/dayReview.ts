@@ -48,8 +48,8 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   const hero = box.createDiv("samaya-rv-hero");
   const ring = hero.createDiv("samaya-rv-ring"); const R = 34, C = 2 * Math.PI * R; const frac = plannedItems.length ? done / plannedItems.length : 0;
   const svg = ring.createSvg("svg", { attr: { viewBox: "0 0 80 80", width: "84", height: "84", role: "img", "aria-label": `${done} of ${plannedItems.length} planned tasks done` } });
-  svg.createSvg("circle", { cls: "samaya-rv-ring-bg", attr: { cx: "40", cy: "40", r: String(R) } });
-  const arc = svg.createSvg("circle", { cls: "samaya-rv-ring-fg" + (frac >= 1 ? " is-complete" : ""), attr: { cx: "40", cy: "40", r: String(R), "stroke-dasharray": String(C), "stroke-dashoffset": String(C), transform: "rotate(-90 40 40)" } });
+  svg.createSvg("circle", { attr: { class: "samaya-rv-ring-bg", cx: "40", cy: "40", r: String(R) } });
+  const arc = svg.createSvg("circle", { attr: { class: "samaya-rv-ring-fg" + (frac >= 1 ? " is-complete" : ""), cx: "40", cy: "40", r: String(R), "stroke-dasharray": String(C), "stroke-dashoffset": String(C), transform: "rotate(-90 40 40)" } });
   const mid = ring.createDiv("samaya-rv-ring-mid"); mid.createSpan({ cls: "samaya-rv-ring-n", text: `${done}/${plannedItems.length}` }); mid.createSpan({ cls: "samaya-rv-ring-l", text: "done" });
   const vt = hero.createDiv("samaya-rv-verdict"); vt.createDiv({ cls: "samaya-rv-vtitle", text: v.title }); vt.createDiv({ cls: "samaya-rv-vtext", text: v.text + (addedDone ? ` Plus ${addedDone} ${addedDone === 1 ? "task" : "tasks"} you added along the way.` : "") });
   settle(() => arc.setAttribute("stroke-dashoffset", String(C * (1 - frac))));

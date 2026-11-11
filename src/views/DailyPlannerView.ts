@@ -111,7 +111,9 @@ export class DailyPlannerView extends PlannerPane {
     if (!reviewDay) this.renderPane(cols.createDiv("samaya-today samaya-tlpane"), day, tlEvents, notes, pg); // the timeline is the last column (Plan my day: read-only until Timebox, on the sidebar's background)
     let body = left; // where today's planned list goes
     if (reviewDay) { // the review replaces the task list and the timeline; the guide stays on the left
-      left.addClass("is-review-col"); renderDayReview(this.plugin, left, { date: this.date, all, meetings: cap.meetings });
+      left.addClass("is-review-col");
+      try { renderDayReview(this.plugin, left, { date: this.date, all, meetings: cap.meetings }); }
+      catch (e) { console.error("Samaya: could not draw the day review", e); left.empty(); left.createDiv({ cls: "samaya-empty", text: `The day review could not be drawn: ${e instanceof Error ? e.message : String(e)}. You can still end your day.` }); }
       if (info) { renderGuide(this.plugin, info, { overdue: 0 }); info.scrollTop = this.infoScroll; }
       return void this.finishRender(left);
     }

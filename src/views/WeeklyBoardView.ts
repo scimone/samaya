@@ -94,19 +94,20 @@ export class WeeklyBoardView extends BasesView {
 
   private column(parent: HTMLElement, title: string, kind: "day", key: string, tasks: Task[], isToday: boolean, cap: Capacity) {
     const col = parent.createDiv({ cls: "samaya-col" + (isToday ? " is-today" : "") });
+    const top = col.createDiv("samaya-col-top"); // day heading, load bar and add box: they stay in view while the cards scroll
     { // (expanded week, under the timeline: CSS hides the heading and bar, the day is already named above)
-      const h = col.createDiv("samaya-col-head");
+      const h = top.createDiv("samaya-col-head");
       const ttl = h.createSpan({ cls: "samaya-col-title", text: title });
       if (this.host?.openDay) { ttl.addClass("is-link"); ttl.title = "Open this day in the planner"; ttl.onclick = () => this.host?.openDay?.(key); }
       const planned = tasks.reduce((a, t) => a + (t.estimate || 0), 0);
       const share = bufferShare(this.plugin.settings.bufferPercent); const lvl = loadLevel(planned, cap.free, share); // orange past the buffer, red over capacity, like the week guide
-      const bar = col.createDiv({ cls: `samaya-col-bar is-${lvl}` });
+      const bar = top.createDiv({ cls: `samaya-col-bar is-${lvl}` });
       bar.createDiv("samaya-col-bar-fill").style.width = `${cap.free <= 0 ? (planned > 0 ? 100 : 0) : Math.min(100, (planned / cap.free) * 100)}%`;
       if (cap.free > 0) { const mark = bar.createDiv("samaya-col-bar-mark"); mark.style.left = `${share * 100}%`; mark.title = `${Math.round(share * 100)}% of the free time: keep the rest open for what comes up`; }
       const sum = h.createSpan({ cls: "samaya-col-cap" + (lvl === "ok" ? "" : ` is-${lvl}`), text: `${fmtDur(planned)}/${fmtDur(cap.free)}` });
       sum.title = `Free to plan = ${fmtDur(cap.total)} work time - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`;
     }
-    const add = col.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task" } });
+    const add = top.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task" } });
     add.addEventListener("keydown", e => {
       if (e.key !== "Enter" || !add.value.trim()) return;
       const p = parseTitleEstimate(add.value); add.value = "";

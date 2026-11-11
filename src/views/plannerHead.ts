@@ -61,8 +61,8 @@ export function renderWeekHead(head: HTMLElement, weekStart: string, go: (weekSt
   renderHeadTitle(head, `Week ${isoWeek(parseYmd(weekStart))}`, weekRangeLabel(weekStart) + (weekStart === cur ? " · This week" : ""));
   const mid = plugin ? head.createDiv("samaya-head-mid") : null; // workday status and weekly capacity (a pane hidden behind the planner's own heading skips them)
   const right = head.createDiv("samaya-planner-right"); // same spot as the day heading's controls: actions, navigation, then the Day | Week switch
-  if (plugin && mid) renderWeekHeadStatus(plugin, mid, right, weekStart);
-  if (weekStart !== cur) renderResetPill(right, "This week", "Back to the current week", weekStart < cur ? "right" : "left", () => go(cur)); // only when you are somewhere else
+  const slot = plugin && mid ? renderWeekHeadStatus(plugin, mid, right, weekStart) : right; // the pill shares the actions' fixed slot
+  if (weekStart !== cur) renderResetPill(slot, "This week", "Back to the current week", weekStart < cur ? "right" : "left", () => go(cur)); // only when you are somewhere else
   if (plugin) renderWeekNoteIcon(plugin, right, weekStart);
   renderDateNav(right, {
     label: weekRangeLabel(weekStart), prevLabel: "Previous week", nextLabel: "Next week",

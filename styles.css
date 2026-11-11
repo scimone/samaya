@@ -1072,3 +1072,11 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-wd.samaya-wd-chip { padding-left: 4px; } /* room for the dot's glow, which overflow:hidden would cut off */
 .samaya-hs-group.is-cap { width: 300px; } /* wide enough for "CAPACITY  12h 30m / 14h 20m"; the same for every day and week */
 .samaya-hs-cap-label, .samaya-hs-cap-fig { flex: none; }
+
+/* the Today / This week pill and the day's actions share one fixed-width slot: browsing days never moves the note icon, the navigation or the groups */
+.samaya-head-var { flex: none; min-width: 170px; display: flex; align-items: center; justify-content: flex-end; gap: var(--samaya-sp-2); }
+.samaya-daily .samaya-card-time { color: var(--samaya-task, var(--interactive-accent)); font-weight: 500; } /* the start time of a task card in the task colour */
+/* hovering a task card or its timeline block lights up the other one */
+.samaya-card.is-linked { background: var(--background-modifier-hover); box-shadow: 0 0 0 2px color-mix(in srgb, var(--samaya-task, var(--interactive-accent)) 55%, transparent); }
+.samaya-block.is-linked { background: color-mix(in srgb, var(--samaya-task) calc(var(--samaya-tint) + 10%), var(--background-primary)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--samaya-task, var(--interactive-accent)) 55%, transparent); z-index: 3; }
+:is(.samaya-week-head, .samaya-day-head)[data-fit="2"] .samaya-head-var, :is(.samaya-week-head, .samaya-day-head)[data-fit="3"] .samaya-head-var, :is(.samaya-week-head, .samaya-day-head)[data-fit="4"] .samaya-head-var { min-width: 150px; }

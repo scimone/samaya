@@ -45,7 +45,7 @@ function ticketChip(plugin: SamayaPlugin, host: HTMLElement, tf: TFile) {
 export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Task, o: CardOpts): HTMLElement {
   const app: App = plugin.app;
   const el = parent.createDiv({ cls: "samaya-card" + (t.status === "done" ? " is-done" : "") });
-  el.dataset.path = t.file.path;
+  el.dataset.path = t.file.path; el.dataset.link = t.file.path; // (link: hovering a card lights up its timeline block, and the other way round)
   const row = el.createDiv("samaya-card-row");
   const body = row.createDiv("samaya-card-body");
   if (o.showTime && t.start) body.createDiv({ cls: "samaya-card-time", text: t.segments.length > 1 ? t.segments.map(g => minToHm(g.s)).join(", ") : t.start }); // a split task lists all its start times

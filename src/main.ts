@@ -286,6 +286,7 @@ export default class SamayaPlugin extends Plugin {
     for (const ev of ["layout-change", "resize", "active-leaf-change"] as const) this.registerEvent(this.app.workspace.on(ev as "resize", leftState));
     this.app.workspace.onLayoutReady(async () => {
       leftState();
+      this.syncJournalSidebar(); // a journal calendar left over from when the journal was on
       this.scanLunch();
       void this.markJournalNotes();
       await this.scaffold(false);
@@ -518,7 +519,10 @@ export default class SamayaPlugin extends Plugin {
     await this.openJournalCalendar();
     if (prev && ws.getMostRecentLeaf() !== prev) ws.setActiveLeaf(prev, { focus: true });
   }
+  /** With the journal switched off its calendar has no place in the right sidebar: close it. */
+  syncJournalSidebar() { if (!this.settings.journalOn) this.app.workspace.getLeavesOfType(JOURNAL_CAL_TYPE).forEach(l => l.detach()); }
   async openJournalCalendar() {
+    if (!this.settings.journalOn) return;
     const ws = this.app.workspace; let leaf = ws.getLeavesOfType(JOURNAL_CAL_TYPE)[0];
     if (!leaf) { leaf = ws.getRightLeaf(false) ?? ws.getLeaf("split", "vertical"); await leaf.setViewState({ type: JOURNAL_CAL_TYPE, active: true }); }
     await ws.revealLeaf(leaf);

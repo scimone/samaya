@@ -42,6 +42,11 @@ export class DailyPlannerView extends BasesView {
   constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin, private host?: PlannerHost) {
     super(controller);
     this.root = parentEl.createDiv("samaya-daily");
+    const light = (e: MouseEvent, on: boolean) => { // hover a task card or a timeline block: the other one is highlighted too
+      const el = (e.target as HTMLElement).closest<HTMLElement>("[data-link]"); if (!el) return;
+      this.root.querySelectorAll<HTMLElement>("[data-link]").forEach(x => { if (x !== el && x.dataset.link === el.dataset.link) x.toggleClass("is-linked", on); });
+    };
+    this.root.addEventListener("mouseover", e => light(e, true)); this.root.addEventListener("mouseout", e => light(e, false));
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
     this.register(plugin.bus.on(() => this.schedule()));
     const evRef = plugin.app.metadataCache.on("changed", f => { if (inEventFolder(plugin.settings, f.path) || (this.plugin.guide && f.path.startsWith(prefixOf(plugin.settings.tasksPath)))) this.schedule(); });
@@ -166,8 +171,8 @@ export class DailyPlannerView extends BasesView {
     renderHeadTitle(h, isToday ? "Today" : parseYmd(this.date).toLocaleDateString(undefined, { weekday: "long" }), dayHeadSub(this.date));
     const mid = h.createDiv("samaya-head-mid");
     const right = h.createDiv("samaya-planner-right");
-    renderDayHeadStatus(this.plugin, mid, right, { date: this.date, planned, meetings: cap.meetings, free: cap.free, what: `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings` });
-    if (!isToday) renderResetPill(right, "Today", "Jump to today", this.date < today() ? "right" : "left", () => this.goTo(today()));
+    const slot = renderDayHeadStatus(this.plugin, mid, right, { date: this.date, planned, meetings: cap.meetings, free: cap.free, what: `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings` });
+    if (!isToday) renderResetPill(slot, "Today", "Jump to today", this.date < today() ? "right" : "left", () => this.goTo(today()));
     renderDayNoteIcon(this.plugin, right, this.date);
     renderDateNav(right, {
       label: parseYmd(this.date).toLocaleDateString(undefined, { weekday: isToday ? "short" : undefined, month: "short", day: "numeric" }),

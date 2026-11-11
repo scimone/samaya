@@ -79,6 +79,7 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
       const pl = slots.get(it)!; const top = px(Math.max(it.s, startH * 60));
       const height = Math.max(22, px(Math.min(it.s + it.dur, endH * 60)) - top - 2);
       const b = lane.createDiv({ cls: it.ev ? "samaya-event" : "samaya-block" + (it.task!.status === "done" ? " is-done" : "") });
+      if (it.task) b.dataset.link = it.task.file.path;
       b.style.top = `${top}px`; b.style.height = `${height}px`; b.style.left = `${(pl.col * 100) / pl.n}%`; b.style.width = `calc(${100 / pl.n}% - 3px)`;
       if (isToday && nowMin >= it.s && nowMin < it.s + it.dur && it.task?.status !== "done") b.addClass("is-current");
       if (it.ev && (date < today() || (isToday && nowMin >= it.s + it.dur))) b.addClass("is-past"); // a meeting that is over

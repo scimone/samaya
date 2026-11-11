@@ -951,3 +951,5 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-planner.is-expanded .samaya-wtl-hour-label { right: 4px; }
 .samaya-col-title.is-link { cursor: pointer; }
 .samaya-col-title.is-link:hover { color: var(--interactive-accent); text-decoration: underline; }
+.samaya-planner.is-timeline-only { overflow: hidden; } /* the timeline alone is sized to the window: nothing scrolls, nothing needs to stick */
+.samaya-planner.is-timeline-only > .samaya-splitbar { position: relative; top: auto; bottom: auto; }

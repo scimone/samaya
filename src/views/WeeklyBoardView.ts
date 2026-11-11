@@ -99,9 +99,11 @@ export class WeeklyBoardView extends BasesView {
       const ttl = h.createSpan({ cls: "samaya-col-title", text: title });
       if (this.host?.openDay) { ttl.addClass("is-link"); ttl.title = "Open this day in the planner"; ttl.onclick = () => this.host?.openDay?.(key); }
       const planned = tasks.reduce((a, t) => a + (t.estimate || 0), 0);
-      const bar = col.createDiv({ cls: "samaya-col-bar" + (planned > cap.free ? " is-over" : "") });
-      bar.createDiv("samaya-col-bar-fill").style.width = `${planned > cap.free || cap.free <= 0 ? (planned > 0 ? 100 : 0) : (planned / cap.free) * 100}%`;
-      const sum = h.createSpan({ cls: "samaya-col-cap" + (planned > cap.free ? " is-over" : ""), text: `${fmtDur(planned)}/${fmtDur(cap.free)}` });
+      const share = bufferShare(this.plugin.settings.bufferPercent); const lvl = loadLevel(planned, cap.free, share); // orange past the buffer, red over capacity, like the week guide
+      const bar = col.createDiv({ cls: `samaya-col-bar is-${lvl}` });
+      bar.createDiv("samaya-col-bar-fill").style.width = `${cap.free <= 0 ? (planned > 0 ? 100 : 0) : Math.min(100, (planned / cap.free) * 100)}%`;
+      if (cap.free > 0) { const mark = bar.createDiv("samaya-col-bar-mark"); mark.style.left = `${share * 100}%`; mark.title = `${Math.round(share * 100)}% of the free time: keep the rest open for what comes up`; }
+      const sum = h.createSpan({ cls: "samaya-col-cap" + (lvl === "ok" ? "" : ` is-${lvl}`), text: `${fmtDur(planned)}/${fmtDur(cap.free)}` });
       sum.title = `Free to plan = ${fmtDur(cap.total)} work time - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`;
     }
     const add = col.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task" } });

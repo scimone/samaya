@@ -193,18 +193,20 @@ export class WeeklyTimelineView extends BasesView {
       this.scrollTop = body.querySelector(".samaya-now") ? Math.max(0, ((nowM - startH * 60) / 60) * HOUR_H - 150) : Math.max(0, (8 - startH) * HOUR_H);
     }
     if (!flow) scroll.scrollTop = this.scrollTop;
+    else if (this.host?.layout?.() === "timeline") this.fit(); // measured now: the hours fill the window exactly
   }
 
   /** Expanded week: hour height for the current layout. Timeline only: the hours fill the window. Otherwise: about two thirds of it, the board takes the rest. */
   private fitFor(hours: number, fixed: number) {
     const h = this.host?.viewH?.() ?? 700;
-    return Math.max(MIN_HOUR_H, Math.floor((this.host?.layout?.() === "timeline" ? h - 34 - fixed : h * 0.66 - 90) / hours));
+    const alone = this.host?.layout?.() === "timeline"; // alone it must fit the window without scrolling, however small
+    return Math.max(alone ? 16 : MIN_HOUR_H, Math.floor((alone ? h - 34 - fixed : h * 0.66 - 90) / hours));
   }
   /** The layout changed: stretch or shrink the hours to fit, as a CSS transition (no redraw). */
   fit() {
     const body = this.root.querySelector<HTMLElement>(".samaya-wtl-body"); if (!body || !this.host?.flow?.()) return;
     const fixed = this.root.offsetHeight - body.offsetHeight; // heading, day headers, padding
-    this.fixed = fixed; this.hourH = this.fitFor(this.hours, fixed);
+    this.fixed = fixed; const hh = this.fitFor(this.hours, fixed); if (hh === this.hourH) return; this.hourH = hh;
     this.root.addClass("is-fitting"); this.root.style.setProperty("--wtl-hh", `${this.hourH}px`);
     window.setTimeout(() => this.root.removeClass("is-fitting"), 520);
   }

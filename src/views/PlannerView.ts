@@ -56,6 +56,8 @@ export class PlannerView extends BasesView {
     }
     const ro = new ResizeObserver(() => { if (this.shown === "expanded" && this.rootEl.clientHeight !== this.seenH) { this.seenH = this.rootEl.clientHeight; this.tl.refresh(); } }); // the hours follow the window
     ro.observe(this.rootEl); this.register(() => ro.disconnect());
+    const hro = new ResizeObserver(() => { this.rootEl.style.setProperty("--wk-head", `${this.headEl.getBoundingClientRect().height}px`); }); // the arrow bar sticks exactly under the heading, whenever the heading fills in or resizes
+    hro.observe(this.headEl); this.register(() => hro.disconnect());
     this.shown = this.mode(); this.shownLayout = plugin.weekLayout; this.applyMode(false);
     this.register(plugin.bus.on(() => {
       const m = this.mode(), l = plugin.weekLayout;
@@ -111,13 +113,13 @@ export class PlannerView extends BasesView {
     this.rootEl.toggleClass("is-expanded", ex);
     this.rootEl.toggleClass("is-board-only", ex && l === "board");
     this.rootEl.toggleClass("is-split", ex && l === "split");
+    this.rootEl.toggleClass("is-timeline-only", ex && l === "timeline");
     this.dayPane.toggleClass("is-hidden", this.shown !== "day");
     this.tlPane.toggleClass("is-hidden", !ex);
     this.weekPane.toggleClass("is-hidden", this.shown === "day");
     this.tlPane.toggleClass("is-collapsed", ex && l === "board"); // the other pane takes its room; CSS animates the height
     this.weekPane.toggleClass("is-collapsed", ex && l === "timeline");
     this.renderBars();
-    this.rootEl.style.setProperty("--wk-head", `${this.headEl.offsetHeight}px`); // the arrow bar sticks right under the heading
     if (animate) this.tl.fit(); // the hours stretch or shrink with the layout
     if (animate && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       for (const b of [this.bar]) b.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260, delay: 120, fill: "backwards" });

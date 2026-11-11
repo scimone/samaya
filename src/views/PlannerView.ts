@@ -77,6 +77,7 @@ export class PlannerView extends ItemView {
       const m = this.mode(), l = plugin.weekLayout;
       if (m === this.shown && l === this.shownLayout) return;
       const prev = this.shown; this.shown = m; this.shownLayout = l;
+      if ((m === "week") !== (prev === "week")) this.week.clear(); // the board redraws a moment later: no stale board / guide in between
       this.applyMode(prev === "expanded" && m === "expanded"); // layout change inside the expanded week: animated, nothing is redrawn
       if (m === "expanded" && prev !== "expanded") { const wk = plugin.weekToShow || plugin.plannerDate || today(); plugin.weekToShow = ""; this.tl.showWeekOf(wk); this.week.showWeekOf(wk); this.renderHead(); }
       else if (m === "worktime") this.wt.render();

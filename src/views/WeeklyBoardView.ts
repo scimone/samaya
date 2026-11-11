@@ -43,6 +43,8 @@ export class WeeklyBoardView extends PlannerPane {
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); if (this.plugin.boardWeek === this.weekStart) { this.plugin.boardWeek = ""; this.plugin.modeBus.emit(); } }
   onDataUpdated(): void { this.schedule(); }
   refresh() { this.schedule(); }
+  /** Drop what is drawn (the planner switches between the board and the guide; the next render fills it). */
+  clear() { window.clearTimeout(this.timer); this.token++; this.scope.clear(); this.root.empty(); }
   getWeek() { return this.weekStart; }
   /** Planner: show the week that contains `date`. */
   showWeekOf(date: string) { this.weekStart = startOfWeek(date); this.schedule(); }

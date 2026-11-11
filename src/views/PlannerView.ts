@@ -82,13 +82,14 @@ export class PlannerView extends BasesView {
     const l = this.shownLayout;
     for (const bar of [this.bar, this.barIn]) {
       bar.empty();
-      const arrow = (dir: "up" | "down", to: Layout, hint: string) => {
+      const arrow = (dir: "up" | "down", to: Layout, text: string, hint: string) => {
         const b = bar.createEl("button", { cls: "samaya-splitarrow", attr: { title: hint, "aria-label": hint } });
-        setIcon(b, dir === "up" ? "chevron-up" : "chevron-down"); b.onclick = () => { this.plugin.weekLayout = to; this.plugin.bus.emit(); };
+        setIcon(b.createSpan("samaya-splitarrow-icon"), dir === "up" ? "chevron-up" : "chevron-down"); b.createSpan({ cls: "samaya-splitarrow-text", text });
+        b.onclick = () => { this.plugin.weekLayout = to; this.plugin.bus.emit(); };
       };
-      if (l === "split") { arrow("up", "board", "Expand the task board (hide the timeline)"); arrow("down", "timeline", "Expand the timeline (hide the task board)"); }
-      else if (l === "timeline") arrow("up", "split", "Show the task board under the timeline");
-      else arrow("down", "split", "Show the timeline above the task board");
+      if (l === "split") { arrow("up", "board", "Expand tasks", "Expand the task board (hide the timeline)"); arrow("down", "timeline", "Expand timeline", "Expand the timeline (hide the task board)"); }
+      else if (l === "timeline") arrow("up", "split", "Show tasks", "Show the task board under the timeline");
+      else arrow("down", "split", "Show timeline", "Show the timeline above the task board");
     }
   }
   private applyMode(animate: boolean) {

@@ -97,6 +97,7 @@ export class DailyPlannerView extends BasesView {
     let body = left; // where today's planned list goes
     if (!pg) { // tasks heading: title, done count, progress
       const nd = day.filter(t => t.status === "done").length;
+      left.addClass("is-sticky-head"); // the heading and its bar stay in view while the tasks scroll
       const head = left.createDiv("samaya-tasks-head");
       const row = head.createDiv("samaya-tasks-row");
       row.createEl("h3", { text: "Tasks" });

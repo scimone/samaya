@@ -5,6 +5,7 @@ import { allTasks, sortTasks } from "../model";
 import { addDays, fmtDur, parseYmd, startOfWeek, today } from "../util";
 import { weekBuckets, weekFreeTime } from "./weekColumn";
 import { renderGuide } from "./guide";
+import { renderDateNav, renderResetPill } from "./dateNav";
 import { renderWorkdayCard } from "./workdayCard";
 import { capacityWindow } from "../worktime";
 import { bufferShare, loadLevel } from "../weekplan";
@@ -31,19 +32,13 @@ export async function renderDayStatus(plugin: SamayaPlugin, host: HTMLElement, o
     const titles = hero.createDiv("samaya-info-titles");
     const top = titles.createDiv("samaya-info-titlerow");
     top.createEl("h2", { text: isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" }) });
-    const side = top.createDiv("samaya-info-side"); // Today shortcut, then the date picker with its arrows
-    if (!isToday) { const t = side.createEl("button", { text: "Today", cls: "samaya-info-today", attr: { "aria-label": "Jump to today" } }); t.onclick = () => go(today()); }
-    // ‹ date ›: step day by day, or click the date to pick one
-    const dr = side.createDiv("samaya-info-daterow");
-    const arrow = (icon: string, label: string, to: string) => { const b = dr.createEl("button", { cls: "samaya-info-arrow clickable-icon", attr: { "aria-label": label } }); setIcon(b, icon); b.onclick = () => go(to); };
-    arrow("chevron-left", "Previous day", addDays(date, -1));
-    const dateBtn = dr.createEl("button", { cls: "samaya-info-date", attr: { "aria-label": "Pick a date" } });
-    setIcon(dateBtn.createSpan("samaya-info-date-icon"), "calendar");
-    dateBtn.createSpan({ text: d.toLocaleDateString(undefined, { weekday: isToday ? "short" : undefined, month: "short", day: "numeric" }) });
-    const picker = dateBtn.createEl("input", { type: "date", cls: "samaya-info-datepick" }); picker.value = date; // sits invisibly over the button so the native calendar opens right there
-    picker.addEventListener("change", () => { if (picker.value) go(picker.value); });
-    dateBtn.onclick = e => { if (e.target !== picker) { try { picker.showPicker(); } catch { picker.focus(); picker.click(); } } };
-    arrow("chevron-right", "Next day", addDays(date, 1));
+    const side = top.createDiv("samaya-info-side"); // Today shortcut, then ‹ date › (same design as the week heading)
+    if (!isToday) renderResetPill(side, "Today", "Jump to today", date < today() ? "right" : "left", () => go(today()));
+    renderDateNav(side, {
+      label: d.toLocaleDateString(undefined, { weekday: isToday ? "short" : undefined, month: "short", day: "numeric" }),
+      prevLabel: "Previous day", nextLabel: "Next day", onPrev: () => go(addDays(date, -1)), onNext: () => go(addDays(date, 1)),
+      pick: { value: date, run: go },
+    });
 
     renderWorkdayCard(plugin, host.createDiv("samaya-info-card"), { panel: true, date: date });
 

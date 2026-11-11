@@ -12,4 +12,6 @@ export interface PlannerHost {
   flow?(): boolean;
   /** flow mode: height of the page the timeline's hours are sized to */
   viewH?(): number;
+  /** expanded week: the board has drawn its header (or has none); the layout bar goes right under it when the board is alone */
+  placeBar?(root: HTMLElement, head: HTMLElement | null): void;
 }

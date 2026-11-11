@@ -10,12 +10,6 @@ export { DAILY_VIEW_TYPE as PLANNER_VIEW_TYPE }; // the id stays "samaya-daily" 
 
 type Mode = "day" | "week" | "expanded";
 type Layout = "split" | "timeline" | "board";
-const LAYOUTS: { id: Layout; label: string; icon: string; hint: string }[] = [
-  { id: "timeline", label: "Timeline", icon: "calendar-clock", hint: "Timeline only" },
-  { id: "split", label: "Both", icon: "rows-2", hint: "Timeline with the task board underneath" },
-  { id: "board", label: "Tasks", icon: "layout-list", hint: "Task board only" },
-];
-
 /** The Planner: the day planner; the expanded week (timeline with the task board under it); and the week guide ("Plan week"), which takes over while it runs. */
 export class PlannerView extends BasesView {
   readonly type = DAILY_VIEW_TYPE;
@@ -38,11 +32,10 @@ export class PlannerView extends BasesView {
     this.tlPane = root.createDiv("samaya-planner-pane");
     this.bar = root.createDiv("samaya-splitbar");
     this.weekPane = root.createDiv("samaya-planner-pane");
-    this.buildBar();
     const sync = (w: string) => { this.tl.showWeekOf(w); this.week.showWeekOf(w); };
     this.day = new DailyPlannerView(controller, this.dayPane, plugin, { hidden: () => this.mode() !== "day" });
     this.week = new WeeklyBoardView(controller, this.weekPane, plugin, {
-      hidden: () => !this.boardShown(), back: () => plugin.collapseTimeline(), weekChanged: sync,
+      hidden: () => !this.boardShown(), placeBar: (root, head) => this.placeBar(root, head), back: () => plugin.collapseTimeline(), weekChanged: sync,
       flow: () => this.flow(),
     });
     this.tl = new WeeklyTimelineView(controller, this.tlPane, plugin, {
@@ -81,15 +74,22 @@ export class PlannerView extends BasesView {
   private boardShown() { return this.mode() === "week" || (this.mode() === "expanded" && this.plugin.weekLayout !== "timeline"); }
   private active() { const m = this.mode(); return m === "week" ? this.week : m === "expanded" ? this.tl : this.day; }
 
-  /** The bar between timeline and board: three layouts to pick from. */
-  private buildBar() {
-    const sw = this.bar.createDiv("samaya-modeswitch");
-    for (const l of LAYOUTS) {
-      const b = sw.createEl("button", { attr: { title: l.hint, "aria-label": l.hint } });
-      setIcon(b.createSpan(), l.icon); b.createSpan({ text: l.label });
-      b.dataset.layout = l.id;
-      b.onclick = () => { this.plugin.weekLayout = l.id; this.plugin.bus.emit(); };
-    }
+  /** The bar between timeline and board: arrows that move the divider. Up gives the board more room, down the timeline.
+   *  Both: ▲ ▼ (either view can take over) · Timeline only: ▲ (bring the board back) · Board only: ▼ (bring the timeline back). */
+  private renderBar() {
+    const l = this.shownLayout; this.bar.empty();
+    const arrow = (dir: "up" | "down", to: Layout, hint: string) => {
+      const b = this.bar.createEl("button", { cls: "samaya-splitarrow", attr: { title: hint, "aria-label": hint } });
+      setIcon(b, dir === "up" ? "chevron-up" : "chevron-down"); b.onclick = () => { this.plugin.weekLayout = to; this.plugin.bus.emit(); };
+    };
+    if (l === "split") { arrow("up", "board", "Expand the task board (hide the timeline)"); arrow("down", "timeline", "Expand the timeline (hide the task board)"); }
+    else if (l === "timeline") arrow("up", "split", "Show the task board under the timeline");
+    else arrow("down", "split", "Show the timeline above the task board");
+  }
+  /** Board alone: the bar sits right under the week heading, inside the board. Otherwise it is the divider between the two panes. */
+  private placeBar(root: HTMLElement, head: HTMLElement | null) {
+    if (this.shown !== "expanded" || this.shownLayout !== "board") return;
+    if (head) head.after(this.bar); else root.prepend(this.bar);
   }
   private applyMode() {
     const ex = this.shown === "expanded", l = this.shownLayout;
@@ -98,7 +98,10 @@ export class PlannerView extends BasesView {
     this.tlPane.toggleClass("is-hidden", !(ex && l !== "board"));
     this.weekPane.toggleClass("is-hidden", !(this.shown === "week" || (ex && l !== "timeline")));
     this.rootEl.toggleClass("is-flow", ex && l === "split");
-    this.bar.querySelectorAll<HTMLElement>("button").forEach(b => b.toggleClass("is-active", b.dataset.layout === l));
+    this.bar.toggleClass("is-inline", ex && l === "board");
+    this.renderBar();
+    if (ex && l === "board") this.bar.detach(); // the board puts it under its heading when it renders
+    else this.tlPane.after(this.bar);
     this.plugin.modeBus.emit(); // the sidebar follows the pane in front
   }
   onDataUpdated(): void { this.day.onDataUpdated(); this.week.onDataUpdated(); this.tl.onDataUpdated(); }

@@ -916,10 +916,15 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-planner.is-expanded > .samaya-planner-pane { height: auto; min-height: 0; flex: 1 1 0; overflow: hidden; }
 .samaya-planner.is-expanded > .samaya-planner-pane.is-hidden { display: none; }
 .samaya-planner.is-expanded .samaya-wtl, .samaya-planner.is-expanded .samaya-week { height: 100%; box-sizing: border-box; }
-.samaya-splitbar { flex: none; height: 28px; display: none; align-items: center; justify-content: center; background: var(--background-secondary); border-top: 1px solid var(--background-modifier-border); border-bottom: 1px solid var(--background-modifier-border); }
-.samaya-planner.is-expanded > .samaya-splitbar { display: flex; }
-.samaya-splitbar .samaya-modeswitch button { display: inline-flex; align-items: center; gap: 4px; padding: 0 10px; }
-.samaya-splitbar .samaya-modeswitch svg { width: 13px; height: 13px; }
+.samaya-splitbar { flex: none; height: 26px; display: flex; align-items: center; justify-content: center; gap: 10px; position: relative; background: var(--background-secondary); border-top: 1px solid var(--background-modifier-border); border-bottom: 1px solid var(--background-modifier-border); }
+.samaya-planner:not(.is-expanded) > .samaya-splitbar { display: none; }
+.samaya-splitbar.is-inline { height: 22px; margin: 6px 0 0; background: transparent; border: 0; }
+.samaya-splitbar.is-inline::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px solid var(--background-modifier-border); }
+.samaya-splitarrow { all: unset; box-sizing: border-box; position: relative; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 20px; border-radius: 10px; cursor: pointer; color: var(--text-faint); background: var(--background-secondary); border: 1px solid var(--background-modifier-border); }
+.samaya-splitbar.is-inline .samaya-splitarrow { background: var(--background-primary); }
+.samaya-splitarrow:hover, .samaya-splitarrow:focus-visible { color: var(--text-normal); background: var(--background-modifier-hover); border-color: var(--background-modifier-border-hover); }
+.samaya-splitarrow svg { width: 16px; height: 16px; }
+.samaya-week.is-aligned .samaya-card-time { color: var(--samaya-task); font-weight: 500; }
 .samaya-planner.is-flow { display: block; overflow-y: auto; }
 .samaya-planner.is-flow > .samaya-planner-pane { flex: none; overflow: visible; height: auto; }
 .samaya-planner.is-flow .samaya-wtl, .samaya-planner.is-flow .samaya-week { height: auto; overflow: visible; }

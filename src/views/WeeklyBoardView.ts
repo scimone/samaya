@@ -66,8 +66,9 @@ export class WeeklyBoardView extends BasesView {
     this.root.empty(); this.scope.clear(); this.root.toggleClass("is-aligned", !!this.host?.flow?.()); // under the timeline: its day columns line up with the timeline's
 
     if (this.plugin.boardWeek !== this.weekStart) { this.plugin.boardWeek = this.weekStart; this.plugin.modeBus.emit(); }
+    let head: HTMLElement | null = null;
     if (!this.host?.flow?.()) {
-      const head = this.root.createDiv("samaya-week-head");
+      head = this.root.createDiv("samaya-week-head");
       const go = (w: string) => { if (this.host?.weekChanged) this.host.weekChanged(w); else { this.weekStart = w; void this.render(); } };
       head.createEl("button", { text: "‹" }).onclick = () => go(addDays(this.weekStart, -7));
       head.createEl("button", { text: "This week" }).onclick = () => go(startOfWeek(today()));
@@ -81,6 +82,7 @@ export class WeeklyBoardView extends BasesView {
       }
     }
 
+    this.host?.placeBar?.(this.root, head);
     const cols2 = this.root.createDiv("samaya-cols");
     for (let i = 0; i < (weekends ? 7 : 5); i++) {
       const date = addDays(this.weekStart, i); const dayMs = parseYmd(date).getTime();

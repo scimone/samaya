@@ -1,13 +1,14 @@
-import { TFile } from "obsidian";
+import { TFile, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import type { IcsEvent } from "../ics";
 import type { DndScope } from "../dnd";
-import { Task, readTask, setDone } from "../model";
+import { Task, setDone } from "../model";
 import { layoutItems } from "../timeline";
 import { minToHm, parseYmd, today } from "../util";
-import { keyActivate, showTaskMenu } from "./common";
+import { canSplit, keyActivate, showTaskMenu } from "./common";
+import { PartsModal } from "./partsModal";
 import { renderDayLines } from "./dayLines";
-import { decorateSegment, dragDur, dropOnTimeline, resizeBlock, segLabel, taskBlocks } from "./place";
+import { decorateSegment, dragLen, dropOnTimeline, resizeBlock, segLabel, taskBlocks } from "./place";
 import { addBands } from "./bands";
 
 const MIN_HOUR_H = 28;
@@ -20,7 +21,6 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
   const { date, day, events, notes, ro, state } = o;
   {
     const s = plugin.settings; const dayMs = parseYmd(date).getTime(); const isToday = date === today();
-    const byPath = new Map(day.map(t => [t.file.path, t]));
     const startH = s.dayStartHour, endH = s.dayEndHour, slot = s.slotMinutes; const dayStartMs = dayMs;
     const scroll = c.createDiv("samaya-scroll");
     // stretch the hours so the day fills the whole sidebar height
@@ -40,14 +40,13 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
       const m = snap(i.y - lane.getBoundingClientRect().top - i.grabY);
       return Math.max(startH * 60, Math.min(endH * 60 - Math.min(dur, slot), m));
     };
-    const durOf = (path: string, seg: number | null) => dragDur(byPath.get(path), seg, s.defaultEstimate);
 
     let preview: HTMLElement | null = null;
     if (!ro) { // drop target: give a task a time slot
     // target = the visible scroll box (the lane itself extends beyond it when scrolled)
     dnd.target(scroll, {
       over: i => {
-        const dur = durOf(i.path, i.seg); const m = startFor(i, dur);
+        const dur = dragLen(plugin, i.path, i.seg, i.day); const m = startFor(i, dur);
         if (!preview) preview = lane.createDiv("samaya-preview");
         preview.style.top = `${px(m)}px`; preview.style.height = `${Math.max(20, (dur / 60) * HOUR_H - 2)}px`;
         preview.setText(`${minToHm(m)} – ${minToHm(m + dur)}`);
@@ -56,8 +55,8 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
       drop: i => {
         preview?.remove(); preview = null;
         const f = plugin.app.vault.getAbstractFileByPath(i.path); if (!(f instanceof TFile)) return;
-        const dur = dragDur(readTask(plugin.app, f), i.seg, s.defaultEstimate);
-        void dropOnTimeline(plugin, f, date, startFor(i, dur), i.seg, events, endH * 60, slot);
+        const dur = dragLen(plugin, i.path, i.seg, i.day);
+        void dropOnTimeline(plugin, f, date, startFor(i, dur), i.seg, i.day, events, endH * 60, slot);
       },
     });
 
@@ -79,7 +78,7 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
       const pl = slots.get(it)!; const top = px(Math.max(it.s, startH * 60));
       const height = Math.max(22, px(Math.min(it.s + it.dur, endH * 60)) - top - 2);
       const b = lane.createDiv({ cls: it.ev ? "samaya-event" : "samaya-block" + (it.task!.status === "done" ? " is-done" : "") });
-      if (it.task) b.dataset.link = it.task.file.path;
+      if (it.task) { b.dataset.link = it.task.file.path; b.dataset.day = date; }
       b.style.top = `${top}px`; b.style.height = `${height}px`; b.style.left = `${(pl.col * 100) / pl.n}%`; b.style.width = `calc(${100 / pl.n}% - 3px)`;
       if (isToday && nowMin >= it.s && nowMin < it.s + it.dur && it.task?.status !== "done") b.addClass("is-current");
       if (it.ev && (date < today() || (isToday && nowMin >= it.s + it.dur))) b.addClass("is-past"); // a meeting that is over
@@ -99,8 +98,13 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
       keyActivate(b, `Task: ${t.title}, ${when}. Press Enter to open`, () => open(t.file));
       decorateSegment(b, t, it.seg!, it.n!, lane);
       b.addEventListener("dblclick", () => open(t.file));
-      b.addEventListener("contextmenu", e => showTaskMenu(plugin, t, e));
+      b.addEventListener("contextmenu", e => showTaskMenu(plugin, t, e, it.n! > 1 ? it.seg! : null));
       if (ro) return; // read-only while reviewing and picking
+      if (canSplit(t)) { // scissors on hover: cut this block into parts
+        const cut = b.createEl("button", { cls: "samaya-block-split", attr: { title: "Split into parts, and give a part to another day", "aria-label": `Split: ${t.title}` } });
+        setIcon(cut, "scissors"); cut.addEventListener("pointerdown", e => e.stopPropagation());
+        cut.addEventListener("click", e => { e.stopPropagation(); new PartsModal(plugin, t, "split", it.n! > 1 ? it.seg! : null).open(); });
+      }
       dnd.draggable(b, t.file.path);
       const handle = b.createDiv("samaya-resize");
       handle.addEventListener("pointerdown", e => {

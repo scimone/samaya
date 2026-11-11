@@ -1,7 +1,7 @@
 import { BasesView, QueryController } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
-import { allTasks, sortTasks, ticketPathOf } from "../model";
+import { allTasks, sortTasks, ticketPathOf, unplanned } from "../model";
 import { startOfWeek, today } from "../util";
 import { renderBacklogBuckets } from "./common";
 
@@ -34,7 +34,7 @@ export class BacklogBucketsView extends BasesView {
     const keep = this.root.scrollTop;
     this.root.empty(); this.scope.clear();
     const onlyTicket = this.config.get("onlyWithTicket") === true; const wk = startOfWeek(today());
-    const tasks = sortTasks(allTasks(this.app, this.plugin.settings).filter(t => !t.planned && t.status !== "done" && t.week !== wk && (!onlyTicket || !!ticketPathOf(this.app, t))));
+    const tasks = sortTasks(unplanned(allTasks(this.app, this.plugin.settings)).filter(t => t.status !== "done" && t.week !== wk && (!onlyTicket || !!ticketPathOf(this.app, t))));
     const head = this.root.createDiv("samaya-backlog-head");
     head.createEl("h2", { text: "Backlog by date" });
     renderBacklogBuckets(this.plugin, this.root.createDiv("samaya-buckets"), tasks, this.scope, {}, { label: "samaya-today-label", list: "samaya-bucket-list", empty: "samaya-empty" });

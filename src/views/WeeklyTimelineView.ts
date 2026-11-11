@@ -3,15 +3,16 @@ import { PlannerPane } from "./plannerPane";
 import type { PlannerHost } from "./plannerHost";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
-import { Task, allTasks, patchTask, readTask, setDone, sortTasks } from "../model";
+import { Task, allTasks, dropOnDay, onDay, setDone, sortTasks } from "../model";
 import { addDays, fmtDur, hmToMin, minToHm, parseYmd, startOfWeek, today } from "../util";
 import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { layoutItems } from "../timeline";
-import { bindZone, keyActivate, showTaskMenu } from "./common";
+import { bindZone, canSplit, keyActivate, showTaskMenu } from "./common";
+import { PartsModal } from "./partsModal";
 import { addBands } from "./bands";
 import { renderWeekHead } from "./plannerHead";
-import { decorateSegment, dragDur, dropOnTimeline, segLabel, taskBlocks } from "./place";
+import { decorateSegment, dragLen, dropOnTimeline, segLabel, splitTitle, taskBlocks } from "./place";
 
 const MIN_HOUR_H = 40;
 
@@ -97,7 +98,7 @@ export class WeeklyTimelineView extends PlannerPane {
     for (let i = 0; i < days; i++) {
       const date = addDays(this.weekStart, i); const dayMs = parseYmd(date).getTime(); const isToday = date === today();
       const dayEvents = events.filter(e => e.end.getTime() > dayMs && e.start.getTime() < dayMs + 86400000);
-      const dayTasks = sortTasks(all.filter(t => t.planned === date));
+      const dayTasks = sortTasks(onDay(all, date));
 
       // header: weekday, all-day events, tasks without a time slot
       const h = cols.createDiv("samaya-wtl-head" + (isToday ? " is-today" : ""));
@@ -105,16 +106,16 @@ export class WeeklyTimelineView extends PlannerPane {
       if (this.host?.openDay) { dayLbl.addClass("is-link"); dayLbl.title = "Open this day in the planner"; dayLbl.onclick = () => this.host?.openDay?.(date); keyActivate(dayLbl, `Open ${date} in the planner`, () => this.host?.openDay?.(date)); }
       dayEvents.filter(e => e.allDay).forEach(e => h.createDiv({ cls: "samaya-wtl-chip is-event", text: e.title }));
       dayTasks.filter(t => !t.start && t.status !== "done").forEach(t => {
-        const c = h.createDiv({ cls: "samaya-wtl-chip", attr: { title: "No time slot yet - drag onto the calendar" } });
+        const c = h.createDiv({ cls: "samaya-wtl-chip", attr: { title: t.part ? `${splitTitle(t)}. No time slot yet - drag onto the calendar` : "No time slot yet - drag onto the calendar" } }); c.dataset.day = date;
         c.createSpan({ cls: "samaya-wtl-chip-title", text: t.title });
         c.createSpan({ cls: "samaya-wtl-chip-est", text: fmtDur(t.estimate || s.defaultEstimate) });
         keyActivate(c, `Task without a time slot: ${t.title}. Press Enter to open`, () => open(t.file));
         c.addEventListener("dblclick", () => open(t.file)); c.addEventListener("contextmenu", e => showTaskMenu(this.plugin, t, e)); this.scope.draggable(c, t.file.path);
       });
 
-      bindZone(this.scope, h, path => { // drop here = keep the day, remove the time slot
+      bindZone(this.scope, h, (path, i) => { // drop here = keep the day, remove the time slot
         const f = this.app.vault.getAbstractFileByPath(path);
-        if (f instanceof TFile) void patchTask(this.app, f, { planned: date, week: null, start: null });
+        if (f instanceof TFile) void dropOnDay(this.app, s, f, { ...i, fromTimeline: i.fromTimeline }, date, 9999);
       });
       const col = body.createDiv("samaya-wtl-col" + (isToday ? " is-today" : "")); col.style.height = L(endH - startH);
       for (let hr = startH; hr < endH; hr++) col.createDiv("samaya-wtl-hour").style.top = L(hr - startH);
@@ -128,7 +129,7 @@ export class WeeklyTimelineView extends PlannerPane {
       let preview: HTMLElement | null = null;
       this.scope.target(lane, {
         over: i2 => {
-          const dur = dragDur(byPath.get(i2.path), i2.seg, s.defaultEstimate); const m = startFor(i2, dur);
+          const dur = dragLen(this.plugin, i2.path, i2.seg, i2.day); const m = startFor(i2, dur);
           if (!preview) preview = lane.createDiv("samaya-preview");
           preview.style.top = px(m); preview.style.height = `max(18px, calc(${L(dur / 60)} - 2px))`;
           preview.setText(`${minToHm(m)} – ${minToHm(m + dur)}`);
@@ -137,8 +138,8 @@ export class WeeklyTimelineView extends PlannerPane {
         drop: i2 => {
           preview?.remove(); preview = null;
           const f = this.app.vault.getAbstractFileByPath(i2.path); if (!(f instanceof TFile)) return;
-          const dur = dragDur(readTask(this.app, f), i2.seg, s.defaultEstimate);
-          void dropOnTimeline(this.plugin, f, date, startFor(i2, dur), i2.seg, dayEvents, endH * 60, slot);
+          const dur = dragLen(this.plugin, i2.path, i2.seg, i2.day);
+          void dropOnTimeline(this.plugin, f, date, startFor(i2, dur), i2.seg, i2.day, dayEvents, endH * 60, slot);
         },
       });
 
@@ -170,14 +171,19 @@ export class WeeklyTimelineView extends PlannerPane {
         st.addEventListener("click", e => { e.stopPropagation(); toggle(); });
         keyActivate(st, `Done: ${t.title}`, toggle, "checkbox"); st.setAttr("aria-checked", String(t.status === "done"));
         bt.createSpan({ text: t.title });
-        b.dataset.date = date; b.dataset.s = String(it.s); b.dataset.dur = String(it.dur); b.dataset.done = t.status === "done" ? "1" : "";
+        b.dataset.day = date; b.dataset.date = date; b.dataset.s = String(it.s); b.dataset.dur = String(it.dur); b.dataset.done = t.status === "done" ? "1" : "";
         const ongoing = isToday && t.status !== "done" && this.nowM() >= it.s && this.nowM() < it.s + it.dur;
         if (ongoing) b.addClass("is-current");
         b.createDiv({ cls: "samaya-block-time", text: `${minToHm(it.s)}–${minToHm(it.s + it.dur)} · ${fmtDur(it.dur)}${segLabel(it.seg!, it.n!)}` });
         decorateSegment(b, t, it.seg!, it.n!, lane);
         keyActivate(b, `Task: ${t.title}, ${minToHm(it.s)}–${minToHm(it.s + it.dur)}. Press Enter to open`, () => open(t.file));
         b.addEventListener("dblclick", () => open(t.file));
-        b.addEventListener("contextmenu", e => showTaskMenu(this.plugin, t, e));
+        b.addEventListener("contextmenu", e => showTaskMenu(this.plugin, t, e, it.n! > 1 ? it.seg! : null));
+        if (canSplit(t)) {
+          const cut = b.createEl("button", { cls: "samaya-block-split", attr: { title: "Split into parts, and give a part to another day", "aria-label": `Split: ${t.title}` } });
+          setIcon(cut, "scissors"); cut.addEventListener("pointerdown", e => e.stopPropagation());
+          cut.addEventListener("click", e => { e.stopPropagation(); new PartsModal(this.plugin, t, "split", it.n! > 1 ? it.seg! : null).open(); });
+        }
         this.scope.draggable(b, t.file.path);
       });
       if (isToday) { const nl = lane.createDiv("samaya-now"); nl.dataset.startH = String(startH); }

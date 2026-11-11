@@ -18,7 +18,7 @@ import { PERIOD_UI, identifyNote, findLatestPeriodNote, listPeriodNotes, neighbo
 import { PROJECTS_BASE_TEMPLATE, assignProject, createProject } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { HOME_VIEW_TYPE, HomeView } from "./views/HomeView";
-import { promoteParked, allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask, isOverdue } from "./model";
+import { promoteParked, allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask, isOverdue, onDay } from "./model";
 import { DayPlan, LEGACY_WEEK_HEADINGS, WEEK_MEETINGS, WEEK_ORDER, WEEK_OVERVIEW, WEEK_TASKS, removeSection, upsertSection, weekMeetings, weekOverview, bulletLines, journalPath, journalWants, meetingLines, readJournalSection, sortByStart, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
 import { ensureMeetingNote } from "./meetings";
 import { calendarEnabled, calendarEvents } from "./calendar";
@@ -626,7 +626,7 @@ export default class SamayaPlugin extends Plugin {
   }
   async finishGuide() {
     const g = this.guide; if (!g) return; const s = this.settings; const td = today();
-    const day = sortTasks(allTasks(this.app, s).filter(t => t.planned === td));
+    const day = sortTasks(onDay(allTasks(this.app, s), td));
     if (s.journalOn && calendarEnabled(s)) {
       const from = parseYmd(td); const evs = await calendarEvents(this, from, parseYmd(addDays(td, 1))).catch(() => null);
       if (evs) await writeSection(this.app, s, td, "Meetings", meetingLines(await Promise.all(evs.map(async e => ({ ...e, note: e.allDay ? undefined : await ensureMeetingNote(this.app, s, e, evs).then(f => f.basename, () => undefined) })))));
@@ -641,7 +641,7 @@ export default class SamayaPlugin extends Plugin {
   /** End of day: the planner with a one-step guide (tick off forgotten tasks), then finalize. */
   async startShutdown() {
     this.collapseTimeline();
-    const td = today(); const day = allTasks(this.app, this.settings).filter(t => t.planned === td);
+    const td = today(); const day = onDay(allTasks(this.app, this.settings), td);
     if (day.every(t => t.status === "done")) { await this.finishShutdown(); return; } // nothing left to check off: end the day right away
     this.guide = { step: 0, review: false, fresh: true, kind: "shutdown" };
     await this.openPlanner(); this.bus.emit();
@@ -650,8 +650,8 @@ export default class SamayaPlugin extends Plugin {
   async writeDayClose(date: string) {
     const s = this.settings; const next = addDays(date, 1);
     const all = allTasks(this.app, s);
-    const finished = sortTasks(all.filter(t => t.status === "done" && t.planned === date));
-    const tomorrow = sortTasks(all.filter(t => t.planned === next && t.status !== "done"));
+    const finished = sortTasks(onDay(all, date).filter(t => t.status === "done"));
+    const tomorrow = sortTasks(onDay(all, next).filter(t => t.status !== "done"));
     if (journalWants(s, "journalFinished")) await writeSection(this.app, s, date, "Finished tasks", taskLines(await toJournalTasks(this.app, finished, true)));
     if (journalWants(s, "journalTomorrow")) await writeSection(this.app, s, date, "Planned for tomorrow", taskLines(await toJournalTasks(this.app, tomorrow)));
   }

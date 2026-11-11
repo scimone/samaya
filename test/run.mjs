@@ -2,7 +2,7 @@ import esbuild from "esbuild";
 import assert from "node:assert/strict";
 const bundle = async (entry, out) => esbuild.build({ entryPoints: [entry], bundle: true, format: "esm", outfile: out, alias: { obsidian: "./test/obsidian-stub.mjs" }, logLevel: "error" });
 await bundle("src/home.ts", "test/.home.mjs"); await bundle("src/ics.ts", "test/.ics.mjs"); await bundle("src/util.ts", "test/.util.mjs");
-await bundle("src/colors.ts", "test/.colors.mjs"); await bundle("src/worktime.ts", "test/.worktime.mjs"); await bundle("src/segments.ts", "test/.segments.mjs"); await bundle("src/taskprops.ts", "test/.taskprops.mjs");
+await bundle("src/colors.ts", "test/.colors.mjs"); await bundle("src/worktime.ts", "test/.worktime.mjs"); await bundle("src/segments.ts", "test/.segments.mjs"); await bundle("src/sessions.ts", "test/.sessions.mjs"); await bundle("src/model.ts", "test/.model.mjs"); await bundle("src/taskprops.ts", "test/.taskprops.mjs");
 await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timeline.ts", "test/.timeline.mjs");
 await bundle("src/settings.ts", "test/.settings.mjs"); await bundle("src/weekplan.ts", "test/.weekplan.mjs");
 await bundle("src/monthgrid.ts", "test/.monthgrid.mjs"); await bundle("src/kanban.ts", "test/.kanban.mjs"); await bundle("src/gantt.ts", "test/.gantt.mjs"); await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
@@ -212,12 +212,13 @@ assert.ok(upsertSection("# My day\nfree text\n", "Planned tasks", "- x").startsW
 // ---- task properties
 {
   const T = await import("./.taskprops.mjs");
-  assert.deepEqual(T.parseSessions(["2026-11-11 13:00-14:00", "2026-11-11 15:00-16:00"]), { planned: "2026-11-11", start: "13:00", segments: [{ s: 780, dur: 60 }, { s: 900, dur: 60 }] });
-  assert.deepEqual(T.parseSessions(["2026-11-11 13:00-14:00"]), { planned: "2026-11-11", start: "13:00", segments: [] });
-  assert.deepEqual(T.parseSessions(["2026-11-11"]), { planned: "2026-11-11", start: "", segments: [] });
-  assert.deepEqual(T.parseSessions(undefined), { planned: "", start: "", segments: [] });
+  const A = { date: "2026-11-11", s: 780, dur: 60 }, B = { date: "2026-11-11", s: 900, dur: 60 };
+  assert.deepEqual(T.parseSessions(["2026-11-11 13:00-14:00", "2026-11-11 15:00-16:00"]), { planned: "2026-11-11", start: "13:00", segments: [{ s: 780, dur: 60 }, { s: 900, dur: 60 }], sessions: [A, B] });
+  assert.deepEqual(T.parseSessions(["2026-11-11 13:00-14:00"]), { planned: "2026-11-11", start: "13:00", segments: [], sessions: [A] });
+  assert.deepEqual(T.parseSessions(["2026-11-11"]), { planned: "2026-11-11", start: "", segments: [], sessions: [{ date: "2026-11-11", s: null, dur: 0 }] });
+  assert.deepEqual(T.parseSessions(undefined), { planned: "", start: "", segments: [], sessions: [] });
   // legacy notes are still read
-  assert.deepEqual(T.readPlanning({ planned: "2026-11-11", start: "9:00", segments: ["09:00-10:00", "11:00-12:00"] }), { planned: "2026-11-11", start: "9:00", segments: [{ s: 540, dur: 60 }, { s: 660, dur: 60 }] });
+  assert.deepEqual(T.readPlanning({ planned: "2026-11-11", start: "9:00", segments: ["09:00-10:00", "11:00-12:00"] }), { planned: "2026-11-11", start: "9:00", segments: [{ s: 540, dur: 60 }, { s: 660, dur: 60 }], sessions: [] });
   // writing: single timed session, length follows the estimate; legacy keys are migrated
   let fm = { planned: "2026-11-11", start: "13:00", estimate: 60, ticket: "[[T]]", completed: "2026-01-01", samaya_project: "[[P]]", order: 2 };
   T.applyTaskPatch(fm, { estimate: 90 });
@@ -235,6 +236,83 @@ assert.ok(upsertSection("# My day\nfree text\n", "Planned tasks", "- x").startsW
   T.applyTaskPatch(fm, { start: null }); assert.deepEqual(fm.planned_sessions, ["2026-11-13"]);
   T.applyTaskPatch(fm, { planned: null }); assert.equal(fm.planned_sessions, undefined);
   T.applyTaskPatch(fm, { estimate: null, ticket: null }); assert.ok(!("duration_estimate" in fm) && !("assigned_ticket" in fm));
+
+  // ---- a task in parts on several days
+  const multi = () => ({ duration_estimate: 180, order: 1, planned_sessions: ["2026-11-11 10:00-11:00", "2026-11-12 90m"], week: "2026-11-09" });
+  // the first day is the planned one; the other day's piece is kept
+  let mf = multi(); const mp = T.parseSessions(mf.planned_sessions);
+  assert.equal(mp.planned, "2026-11-11"); assert.deepEqual(mp.sessions[1], { date: "2026-11-12", s: null, dur: 90 });
+  // writes that say nothing about the plan do not reshape the pieces
+  T.applyTaskPatch(mf, { order: 3, actual: 20 }); assert.deepEqual(mf.planned_sessions, ["2026-11-11 10:00-11:00", "2026-11-12 90m"]);
+  T.applyTaskPatch(mf, { estimate: 240 }); assert.deepEqual(mf.planned_sessions, ["2026-11-11 10:00-11:00", "2026-11-12 90m"]); // a new estimate only changes the rest
+  // the whole list at once
+  T.applyTaskPatch(mf, { sessions: ["2026-11-13 30m", "2026-11-11 09:00-10:00"], estimate: 90 });
+  assert.deepEqual(mf.planned_sessions, ["2026-11-11 09:00-10:00", "2026-11-13 30m"]); assert.equal(mf.duration_estimate, 90);
+  T.applyTaskPatch(mf, { sessions: [] }); assert.equal(mf.planned_sessions, undefined);
+  // the whole task moved to another day (or off the calendar): the pieces go with it
+  mf = multi(); T.applyTaskPatch(mf, { planned: "2026-11-20" }); assert.deepEqual(mf.planned_sessions, ["2026-11-20"]);
+  mf = multi(); T.applyTaskPatch(mf, { planned: null }); assert.equal(mf.planned_sessions, undefined);
+  // time and length written for the first day keep the other days
+  mf = multi(); T.applyTaskPatch(mf, { planned: "2026-11-11", start: "14:00", estimate: 180 });
+  assert.deepEqual(mf.planned_sessions, ["2026-11-11 14:00-15:30", "2026-11-12 90m"]);
+  // sessions without a length are what is left of the estimate
+  assert.deepEqual(T.sessionsOf(T.parseSessions(["2026-11-11"]), 75), [{ date: "2026-11-11", s: null, dur: 75 }]);
+}
+
+// ---- tasks in parts: the view of one day, the unplanned rest, what was left behind
+{
+  const M = await import("./.model.mjs"); const P = await import("./.sessions.mjs");
+  const mk = (title, sessions, o = {}) => ({ file: { path: title }, title, status: "todo", planned: sessions[0]?.date ?? "", start: "", segments: [], estimate: 0, actual: 0, order: 0, channel: "", ticket: "", week: "", later: "", horizon: "", sessions, rest: 0, ...o });
+  const plain = mk("plain", [{ date: "2026-11-11", s: 600, dur: 60 }], { estimate: 60, start: "10:00" });
+  const spread = mk("spread", [{ date: "2026-11-11", s: 600, dur: 60 }, { date: "2026-11-12", s: null, dur: 90 }], { estimate: 210, rest: 60, week: "2026-11-09", start: "10:00" });
+  const all = [plain, spread];
+  // a task planned on one day is returned as it is; a spread one shows only that day's minutes
+  assert.equal(M.onDay(all, "2026-11-11")[0], plain);
+  const mon = M.onDay(all, "2026-11-11")[1], tue = M.onDay(all, "2026-11-12")[0];
+  assert.deepEqual([mon.estimate, mon.planned, mon.start, mon.part.kind, mon.part.total], [60, "2026-11-11", "10:00", "day", 210]);
+  assert.deepEqual([tue.estimate, tue.planned, tue.start, tue.part.nth, tue.part.count], [90, "2026-11-12", "", 1, 3]);
+  assert.deepEqual(tue.part.others, [{ date: "2026-11-11", dur: 60 }]);
+  assert.equal(M.onDay(all, "2026-11-13").length, 0);
+  // capacity: the minutes of a day over all tasks
+  const minutes = d => M.onDay(all, d).reduce((a, t) => a + t.estimate, 0);
+  assert.deepEqual([minutes("2026-11-11"), minutes("2026-11-12")], [120, 90]);
+  // the unplanned rest is its own entry in the week's list
+  const rest = M.unplanned(all); assert.equal(rest.length, 1); assert.deepEqual([rest[0].estimate, rest[0].planned, rest[0].part.kind, rest[0].week], [60, "", "rest", "2026-11-09"]);
+  // week buckets-style counting: 60 + 90 on their days + 60 waiting = the estimate of the spread task, no minute twice
+  assert.equal(minutes("2026-11-11") + minutes("2026-11-12") + rest[0].estimate, 60 + 60 + 90 + 60);
+  // left behind: pieces of earlier days, one card per day
+  assert.deepEqual(M.overdueParts(all, "2026-11-12").map(t => t.title + "@" + t.planned), ["plain@2026-11-11", "spread@2026-11-11"]);
+  assert.deepEqual(M.overdueParts([{ ...spread, status: "done" }], "2026-11-13"), []);
+}
+
+// ---- sessions: pieces on several days
+{
+  const P = await import("./.sessions.mjs");
+  assert.deepEqual(P.parseSession("2026-11-12 90m"), { date: "2026-11-12", s: null, dur: 90 });
+  assert.deepEqual(P.parseSession("2026-11-12 09:30-10:15"), { date: "2026-11-12", s: 570, dur: 45 });
+  assert.equal(P.parseSession("nonsense"), null);
+  assert.equal(P.formatSession({ date: "2026-11-12", s: null, dur: 90 }), "2026-11-12 90m");
+  assert.equal(P.formatSession({ date: "2026-11-12", s: 570, dur: 45 }), "2026-11-12 09:30-10:15");
+  const ss = [{ date: "2026-11-11", s: 600, dur: 60 }, { date: "2026-11-11", s: 780, dur: 60 }, { date: "2026-11-12", s: null, dur: 30 }];
+  assert.equal(P.dayMinutes(ss, "2026-11-11"), 120); assert.deepEqual(P.sessionDays(ss), ["2026-11-11", "2026-11-12"]);
+  // a piece taken off a day, or the whole day
+  assert.deepEqual(P.takePiece(ss, "2026-11-11", 1), { left: [ss[0], ss[2]], mins: 60 });
+  assert.deepEqual(P.takePiece(ss, "2026-11-11", null), { left: [ss[2]], mins: 120 });
+  // minutes arriving on a day that has pieces: one piece without a time
+  assert.deepEqual(P.addMinutes(ss, "2026-11-11", 45).filter(g => g.date === "2026-11-11"), [{ date: "2026-11-11", s: null, dur: 165 }]);
+  assert.deepEqual(P.addMinutes(ss, "2026-11-13", 45).pop(), { date: "2026-11-13", s: null, dur: 45 });
+  // cutting a piece in two
+  const cut = P.splitPiece([{ date: "2026-11-11", s: 600, dur: 120 }], "2026-11-11", null, 45);
+  assert.deepEqual(cut, { sessions: [{ date: "2026-11-11", s: 600, dur: 45 }], left: 75, at: 645 });
+  assert.equal(P.splitPiece([{ date: "2026-11-11", s: 600, dur: 120 }], "2026-11-11", null, 120), null);
+  assert.equal(P.splitPiece([{ date: "2026-11-11", s: null, dur: 60 }], "2026-11-11", null, 15).at, null);
+  // what is being dragged
+  assert.equal(P.pieceLength(ss, 0, 150, "2026-11-11", 1, 30), 60); // one block
+  assert.equal(P.pieceLength(ss, 0, 150, "2026-11-11", null, 30), 120); // a whole day
+  assert.equal(P.pieceLength(ss, 45, 150, "", null, 30), 45); // the rest
+  assert.equal(P.pieceLength([], 0, 0, null, null, 30), 30); // nothing planned: the default
+  // a day without a length takes what the other pieces leave over
+  assert.deepEqual(P.resolveSessions([{ date: "2026-11-11", s: null, dur: 0 }, { date: "2026-11-12", s: null, dur: 30 }], 90), [{ date: "2026-11-11", s: null, dur: 60 }, { date: "2026-11-12", s: null, dur: 30 }]);
 }
 
 // ---- split tasks

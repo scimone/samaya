@@ -1097,3 +1097,44 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-focus-go { display: inline-flex; align-items: center; gap: 4px; }
 .samaya-focus-go-icon { display: inline-flex; } .samaya-focus-go-icon svg { width: 12px; height: 12px; }
 .samaya-focus-go { margin-left: auto; flex: none; }
+
+/* ---- split by hand: scissors on cards and timeline blocks, the part chip, the split dialog ---- */
+.samaya-split-btn { opacity: 0; transition: opacity 0.12s; padding: 0 5px; }
+.samaya-split-btn svg { width: 13px; height: 13px; }
+.samaya-card:hover .samaya-split-btn, .samaya-split-btn:focus-visible { opacity: 1; }
+@media (hover: none) { .samaya-split-btn { opacity: 0.7; } }
+.samaya-block-split { position: absolute; top: 2px; right: 2px; z-index: 2; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border-radius: var(--samaya-r-s, 4px); background: color-mix(in srgb, var(--background-primary) 80%, transparent); box-shadow: none; color: var(--text-muted); opacity: 0; transition: opacity 0.12s; cursor: pointer; }
+.samaya-block-split svg { width: 12px; height: 12px; }
+.samaya-block:hover .samaya-block-split, .samaya-block-split:focus-visible { opacity: 1; }
+.samaya-block-split:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
+@media (hover: none) { .samaya-block-split { opacity: 0.7; } }
+.samaya-chip-split { display: inline-flex; align-items: center; gap: 3px; color: var(--samaya-task); }
+.samaya-chip-split.is-link { cursor: pointer; }
+.samaya-chip-split.is-link:hover { background: var(--background-modifier-border); }
+.samaya-chip-icon { display: inline-flex; } .samaya-chip-icon svg { width: 10px; height: 10px; }
+
+.samaya-parts-modal { max-width: 520px; }
+.samaya-parts-task { font-weight: 600; margin-bottom: 12px; overflow-wrap: anywhere; }
+.samaya-parts-note { color: var(--text-muted); margin: 6px 0 10px; }
+.samaya-parts-split { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.samaya-parts-bar { display: flex; gap: 3px; height: 14px; }
+.samaya-parts-bar > div { min-width: 6px; border-radius: 4px; flex-basis: 0; transition: flex-grow 0.08s; }
+.samaya-parts-a { background: var(--samaya-task); }
+.samaya-parts-b { background: color-mix(in srgb, var(--samaya-task) 35%, var(--background-modifier-border)); }
+.samaya-parts-labels { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; font-size: var(--font-ui-small); }
+.samaya-parts-labels span:first-child { font-weight: 600; }
+.samaya-parts-labels span:last-child { color: var(--text-muted); text-align: right; }
+.samaya-parts-range { width: 100%; }
+.samaya-parts-nudge { display: flex; justify-content: center; gap: 8px; }
+.samaya-parts-h { font-weight: 600; margin: 4px 0 8px; }
+.samaya-parts-choices { display: flex; flex-direction: column; gap: 8px; }
+.samaya-parts-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.samaya-parts-rowlabel { flex: 0 0 64px; font-size: var(--font-ui-smaller); color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em; }
+.samaya-parts-chip { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; min-width: 58px; padding: 4px 10px; height: auto; line-height: 1.25; border-radius: var(--samaya-r-m, 8px); background: var(--background-secondary); box-shadow: none; border: 1px solid var(--background-modifier-border); cursor: pointer; }
+.samaya-parts-chip:hover { background: var(--background-modifier-hover); }
+.samaya-parts-chip.is-active { background: var(--interactive-accent); border-color: var(--interactive-accent); color: var(--text-on-accent); }
+.samaya-parts-chip-label { font-weight: 600; font-size: var(--font-ui-small); white-space: nowrap; }
+.samaya-parts-chip-sub { font-size: var(--font-ui-smaller); opacity: 0.75; }
+.samaya-parts-chip-icon svg { width: 14px; height: 14px; }
+.samaya-parts-date { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+@media (prefers-reduced-motion: reduce) { .samaya-parts-bar > div, .samaya-split-btn, .samaya-block-split { transition: none; } }

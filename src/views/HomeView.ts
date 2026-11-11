@@ -2,7 +2,7 @@ import { BasesView, QueryController, TFile, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { calendarEnabled, calendarEvents } from "../calendar";
 import type { IcsEvent } from "../ics";
-import { Task, allTasks, createTask, rootOf, setDone, sortTasks } from "../model";
+import { Task, allTasks, createTask, onDay, overdueParts, rootOf, setDone, sortTasks, unplanned } from "../model";
 import { greeting, inMinutes, pickMoment, weekIntent } from "../home";
 import { addDays, fmtDur, fmtHm, hmToMin, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { nowMin } from "../workday";
@@ -54,9 +54,9 @@ export class HomeView extends BasesView {
 
     const p = this.plugin; const s = p.settings; const td = today();
     const all = allTasks(this.app, s);
-    const day = sortTasks(all.filter(t => t.planned === td));
+    const day = sortTasks(onDay(all, td));
     const open = day.filter(t => t.status !== "done");
-    const overdue = all.filter(t => t.planned && t.planned < td && t.status !== "done");
+    const overdue = overdueParts(all).filter(t => !!t.planned);
     const l = p.workday.log;
     const moment = pickMoment({
       started: p.workday.started || !!l?.end, ended: !!l?.end, onBreak: p.workday.onBreak,
@@ -188,7 +188,7 @@ export class HomeView extends BasesView {
     const days = Math.max(5, Math.min(7, s.workDays));
     let weekTotal = 0, weekDone = 0;
     for (let i = 0; i < days; i++) {
-      const d = addDays(wk, i); const ts = all.filter(t => t.planned === d); const done = ts.filter(t => t.status === "done").length;
+      const d = addDays(wk, i); const ts = onDay(all, d); const done = ts.filter(t => t.status === "done").length;
       weekTotal += ts.length; weekDone += done;
       const cell = strip.createDiv("samaya-home-day" + (d === td ? " is-today" : d < td ? " is-past" : ""));
       cell.createDiv({ cls: "samaya-home-day-dow", text: parseYmd(d).toLocaleDateString(undefined, { weekday: "short" }) });
@@ -197,7 +197,7 @@ export class HomeView extends BasesView {
       fill.style.width = ts.length ? `${(done / ts.length) * 100}%` : "0%";
       cell.createDiv({ cls: "samaya-home-day-count", text: ts.length ? `${done}/${ts.length}` : "–" });
     }
-    const unscheduled = all.filter(t => !t.planned && t.week === wk && t.status !== "done").length;
+    const unscheduled = unplanned(all).filter(t => t.week === wk && t.status !== "done").length;
     const worked = weekSummary(p.workday.allLogs(), wk, s.weeklyHours, s.workDays, td, nowMin()).worked;
     sec.createDiv({
       cls: "samaya-home-week-meta",
@@ -218,7 +218,7 @@ export class HomeView extends BasesView {
     const p = this.plugin; const s = p.settings;
     const row = c.createDiv("samaya-home-links");
     const link = (text: string, fn: () => void) => { row.createEl("button", { cls: "samaya-link-btn", text }).onclick = fn; };
-    const backlog = all.filter(t => !t.planned && !t.week && t.status !== "done").length;
+    const backlog = unplanned(all).filter(t => !t.week && t.status !== "done").length;
     link(backlog ? `Backlog · ${backlog}` : "Backlog", () => {
       const r = rootOf(s.tasksPath); const f = this.app.vault.getAbstractFileByPath(r === "/" ? "Tasks.base" : `${r}/Tasks.base`);
       if (f instanceof TFile) void this.app.workspace.getLeaf("tab").openFile(f); else void p.openPlanner();

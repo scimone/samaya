@@ -3,7 +3,7 @@ import { Notice, TFile } from "obsidian";
 import type SamayaPlugin from "../main";
 import type { DndScope } from "../dnd";
 import type { IcsEvent } from "../ics";
-import { Task, createTask, patchTask, sortTasks } from "../model";
+import { Task, createTask, onDay, sendPiece, sortTasks, unplanned } from "../model";
 import { calendarEnabled, calendarEvents } from "../calendar";
 import { addDays, fmtDur, parseTitleEstimate, parseYmd } from "../util";
 import { Capacity, capacityWindow } from "../worktime";
@@ -13,8 +13,9 @@ import { renderTaskCard, bindZone } from "./common";
 
 /** Everything that belongs to the week (done tasks included: they used up time), and the part without a day. */
 export function weekBuckets(all: Task[], wk: string): { weekTasks: Task[]; noDay: Task[] } {
-  const weekTasks = all.filter(t => (t.planned ? t.planned >= wk && t.planned < addDays(wk, 7) : t.week === wk));
-  return { weekTasks, noDay: sortTasks(weekTasks.filter(t => !t.planned)) };
+  // a task planned over several days counts once per day (with that day's minutes); the unplanned rest of a task counts with the week it waits in
+  const noDay = sortTasks(unplanned(all).filter(t => t.week === wk));
+  return { weekTasks: [...Array.from({ length: 7 }, (_, i) => onDay(all, addDays(wk, i))).flat(), ...noDay], noDay };
 }
 
 export function capacityOf(plugin: SamayaPlugin, date: string, events: IcsEvent[]): Capacity {
@@ -74,5 +75,5 @@ export function renderWeekColumn(plugin: SamayaPlugin, scope: DndScope, host: HT
   if (!shown.length) list.createDiv({ cls: "samaya-empty", text: schedule ? "Every task has a day." : "Nothing planned for this week yet." });
   shown.forEach(t => renderTaskCard(plugin, list, t, { scope, dayLabel: t.planned ? parseYmd(t.planned).toLocaleDateString(undefined, { weekday: "long" }) : undefined }));
   list.scrollTop = o.keepScroll ?? 0; list.addEventListener("scroll", () => o.onScroll?.(list.scrollTop));
-  bindZone(scope, col, path => { const f = plugin.app.vault.getAbstractFileByPath(path); if (f instanceof TFile) void patchTask(plugin.app, f, { planned: null, start: null, week: wk }); });
+  bindZone(scope, col, (path, i) => { const f = plugin.app.vault.getAbstractFileByPath(path); if (f instanceof TFile) void sendPiece(plugin.app, s, f, i, { week: wk }); });
 }

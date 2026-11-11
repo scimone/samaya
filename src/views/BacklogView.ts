@@ -1,7 +1,7 @@
 import { BasesView, Menu, QueryController, TFile } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
-import { Task, Ticket, allTickets, assignTicket, createTask, patchTask, readTask, sortTasks, ticketPathOf } from "../model";
+import { Task, Ticket, allTickets, assignTicket, createTask, readTask, sendPiece, sortTasks, ticketPathOf, unplanned } from "../model";
 import { fmtDur, parseTitleEstimate, startOfWeek, today } from "../util";
 import { bindZone, renderTaskCard } from "./common";
 
@@ -45,7 +45,7 @@ export class BacklogView extends BasesView {
     if (s.jiraOn || s.gitlabOn) head.createEl("button", { text: "Sync tickets" }).onclick = () => { void this.plugin.syncTickets(); };
 
     const tickets = allTickets(app, s); const byPath = new Map(tickets.map(t => [t.file.path, t]));
-    const tasks = sortTasks(this.data.data.map(e => readTask(app, e.file)).filter(t => !t.planned && t.status !== "done"));
+    const tasks = sortTasks(unplanned(this.data.data.map(e => readTask(app, e.file))).filter(t => t.status !== "done"));
     const groups = new Map<string, Group>();
     for (const tk of tickets) if (tk.state !== "closed") groups.set(tk.file.path, { key: tk.file.path, ticket: tk, tasks: [] });
     const none: Group = { key: "", ticket: null, tasks: [] };
@@ -100,7 +100,7 @@ export class BacklogView extends BasesView {
     const body = box.createDiv("samaya-group-body");
     shown.forEach(t => renderTaskCard(this.plugin, body, t, {
       scope: this.scope,
-      actions: [["Today", () => { void patchTask(app, t.file, { planned: today(), week: null }); }], ["Week", () => { void patchTask(app, t.file, { week: startOfWeek(today()) }); }]],
+      actions: [["Today", () => { void sendPiece(app, this.plugin.settings, t.file, { day: t.planned, seg: null }, { day: today() }); }], ["Week", () => { void sendPiece(app, this.plugin.settings, t.file, { day: t.planned, seg: null }, { week: startOfWeek(today()) }); }]],
     }));
     if (!shown.length) body.createDiv({ cls: "samaya-empty", text: "No tasks - drop one here or add below." });
     // drop = assign to this ticket

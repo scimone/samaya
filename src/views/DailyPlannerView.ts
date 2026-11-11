@@ -1,8 +1,8 @@
 import { Notice, TFile, WorkspaceLeaf, setIcon } from "obsidian";
 import { PlannerPane } from "./plannerPane";
 import type SamayaPlugin from "../main";
-import { DndScope } from "../dnd";
-import { Task, allTasks, prefixOf, createTask, patchTask, parkTask, placeInDay, readTask, sortTasks, isOverdue } from "../model";
+import { DndScope, DropInfo } from "../dnd";
+import { Task, allTasks, createTask, dropOnDay, onDay, overdueParts, prefixOf, sendPiece, sortTasks, unplanned } from "../model";
 import { addDays, fmtDur, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import type { PlannerHost } from "./plannerHost";
 import { bindCardDrop, bindZone, renderBacklogBuckets, renderTaskCard, richText } from "./common";
@@ -86,8 +86,8 @@ export class DailyPlannerView extends PlannerPane {
     this.root.empty(); this.scope.clear();
 
     const all = this.entryTasks(); const isToday = this.date === today();
-    const day = sortTasks(all.filter(t => t.planned === this.date));
-    const overdue = isToday ? sortTasks(all.filter(isOverdue)) : [];
+    const day = sortTasks(onDay(all, this.date));
+    const overdue = isToday ? sortTasks(overdueParts(all)) : [];
 
     // free capacity = capacity - lunch - calendar meetings
     const s = this.plugin.settings; const dayMs = parseYmd(this.date).getTime();
@@ -151,9 +151,9 @@ export class DailyPlannerView extends PlannerPane {
       const idx = day.indexOf(t);
       const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true, focus: "today" });
       c.toggleClass("is-timed", !!t.start);
-      bindCardDrop(this.scope, c, (path, after, i) => { void this.place(path, idx + (after ? 1 : 0), i.fromTimeline); });
+      bindCardDrop(this.scope, c, (path, after, i) => { void this.place(path, idx + (after ? 1 : 0), i); });
     });
-    bindZone(this.scope, list, (path, i) => { void this.place(path, day.length, i.fromTimeline); });
+    bindZone(this.scope, list, (path, i) => { void this.place(path, day.length, i); });
 
     if (pg && !sd && !review && step !== 2 && this.date >= today()) { // (no quick add in Review and Timebox: go back to Pick to add tasks)
       const add = body.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
@@ -211,12 +211,13 @@ export class DailyPlannerView extends PlannerPane {
   }
 
   /** Review step: the left over tasks as a panel next to the guide. Decide with a button, or drag onto today's list or the sidebar timeline. */
-  /** Put a task into today's list at `index`; a task dragged off the timeline loses its time slot. */
-  private async place(path: string, index: number, unschedule: boolean) {
+  /** Put a task (or the piece that was dragged) into today's list at `index`; a task dragged off the timeline loses its time slot. */
+  private async place(path: string, index: number, i: DropInfo) {
     const f = this.app.vault.getAbstractFileByPath(path);
-    if (unschedule && f instanceof TFile) await patchTask(this.app, f, { start: null });
-    await placeInDay(this.app, this.plugin.settings, path, this.date, index);
+    if (f instanceof TFile) await dropOnDay(this.app, this.plugin.settings, f, i, this.date, index);
   }
+  /** "Today" button of a card: its piece (or the whole task) goes into the list of the day on show. */
+  private toThisDay(t: Task) { void sendPiece(this.app, this.plugin.settings, t.file, { day: t.planned, seg: null }, { day: this.date, index: 9999 }); }
 
   private colHead(host: HTMLElement, title: string, count: number, hint: string) {
     const h = host.createDiv("samaya-colhead");
@@ -229,7 +230,7 @@ export class DailyPlannerView extends PlannerPane {
   /** Pick step: This week / Backlog with full task cards. Press Today or drag a card into today's list; new tasks can be added here too. */
   private renderPick(host: HTMLElement) {
     const s = this.plugin.settings; const wk = startOfWeek(today());
-    const open = allTasks(this.app, s).filter(t => !t.planned && t.status !== "done");
+    const open = unplanned(allTasks(this.app, s)).filter(t => t.status !== "done");
     const week = sortTasks(open.filter(t => t.week === wk)), backlog = sortTasks(open.filter(t => t.week !== wk));
     const col = host.createDiv("samaya-plancol samaya-pick");
     const tasks = this.pickTab === "week" ? week : backlog;
@@ -245,13 +246,13 @@ export class DailyPlannerView extends PlannerPane {
     const list = col.createDiv("samaya-leftover-list samaya-pick-list");
     if (this.pickTab === "week") {
       if (!tasks.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned for this week yet." });
-      tasks.forEach(t => renderTaskCard(this.plugin, list, t, { scope: this.scope, actionsSide: true, actions: [["Today", () => { void placeInDay(this.app, s, t.file.path, this.date, 9999); }]] }));
-      bindZone(this.scope, col, path => {
+      tasks.forEach(t => renderTaskCard(this.plugin, list, t, { scope: this.scope, actionsSide: true, actions: [["Today", () => { this.toThisDay(t); }]] }));
+      bindZone(this.scope, col, (path, i) => {
         const f = this.app.vault.getAbstractFileByPath(path);
-        if (f instanceof TFile) void patchTask(this.app, f, { planned: null, start: null, week: wk });
+        if (f instanceof TFile) void sendPiece(this.app, s, f, i, { week: wk });
       });
     } else {
-      renderBacklogBuckets(this.plugin, list, tasks, this.scope, { actionsSide: true, actions: t => [["Today", () => { void placeInDay(this.app, s, t.file.path, this.date, 9999); }]] }, { label: "samaya-colhead-count", list: "samaya-bucket-list", empty: "samaya-empty" });
+      renderBacklogBuckets(this.plugin, list, tasks, this.scope, { actionsSide: true, actions: t => [["Today", () => { this.toThisDay(t); }]] }, { label: "samaya-colhead-count", list: "samaya-bucket-list", empty: "samaya-empty" });
     }
   }
 
@@ -332,14 +333,14 @@ export class DailyPlannerView extends PlannerPane {
     this.lastOverdue = overdue.length;
     const list = col.createDiv("samaya-leftover-list");
     if (!overdue.length) list.createDiv({ cls: "samaya-empty samaya-allset", text: "Nothing overdue." });
-    const tomorrow = addDays(today(), 1);
+    const tomorrow = addDays(today(), 1); const s = this.plugin.settings;
     overdue.forEach(t => renderTaskCard(this.plugin, list, t, {
       scope: this.scope,
       actions: [
-        ["Today", () => { void patchTask(this.app, t.file, { planned: today(), start: null }); }],
-        ["Tomorrow", () => { void patchTask(this.app, t.file, { planned: tomorrow, start: null }); }],
-        ["This week", () => { void patchTask(this.app, t.file, { planned: null, start: null, week: startOfWeek(today()) }); }],
-        ["Backlog", () => { void parkTask(this.app, t.file, "someday"); }],
+        ["Today", () => { void sendPiece(this.app, s, t.file, { day: t.planned, seg: null }, { day: today() }); }],
+        ["Tomorrow", () => { void sendPiece(this.app, s, t.file, { day: t.planned, seg: null }, { day: tomorrow }); }],
+        ["This week", () => { void sendPiece(this.app, s, t.file, { day: t.planned, seg: null }, { week: startOfWeek(today()) }); }],
+        ["Backlog", () => { void sendPiece(this.app, s, t.file, { day: t.planned, seg: null }, { backlog: "someday" }); }],
       ],
     }));
   }

@@ -1025,3 +1025,8 @@ button.samaya-datereset:hover, button.samaya-datereset:focus-visible { backgroun
 .samaya-head-actions { display: flex; align-items: center; gap: 6px; }
 .samaya-head-actions:has(button) { padding-right: var(--samaya-sp-3); margin-right: var(--samaya-sp-1); border-right: 1px solid var(--background-modifier-border); }
 .samaya-hd-btn { height: 26px; padding: 0 var(--samaya-sp-3); font-size: var(--font-ui-smaller); white-space: nowrap; }
+.samaya-hs-group.is-cap { box-sizing: border-box; width: 290px; } /* daily and weekly capacity: the same width, with or without the Plan button */
+.samaya-hs-group.is-cap .samaya-hs-cap { flex: 1 1 auto; min-width: 0; }
+.samaya-hs-group.is-cap .samaya-hd-btn { flex: none; width: 82px; }
+.samaya-hs-group.is-status { box-sizing: border-box; min-width: 230px; }
+.samaya-hs-group.is-status .samaya-hd-btn { margin-left: auto; }

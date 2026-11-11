@@ -38,11 +38,16 @@ function openNote(plugin: SamayaPlugin, p: "daily" | "weekly", date: string) {
 
 const btn = (host: HTMLElement, text: string, run: () => void, title?: string) => { const b = host.createEl("button", { cls: "samaya-hd-btn", text, attr: title ? { title } : {} }); b.onclick = run; return b; };
 
+/** "Work time": opens the work time dashboard, grouped with the status. */
+const workTimeBtn = (plugin: SamayaPlugin, host: HTMLElement) => btn(host, "Work time", () => { void plugin.openDashboard(); }, "Open the work time dashboard");
+
 /** Day heading: workday status, then the daily capacity grouped with Plan day; Break / End day (the workday's own buttons) and Daily note in the actions. */
 export function renderDayHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, actions: HTMLElement, o: { date: string; planned: number; free: number; what: string }): void {
   const s = plugin.settings; const isToday = o.date === today();
-  renderWorkdayCard(plugin, mid.createDiv("samaya-hs-wd"), { part: "status", date: o.date });
-  const group = mid.createDiv("samaya-hs-group");
+  const sg = mid.createDiv("samaya-hs-group is-status");
+  renderWorkdayCard(plugin, sg.createDiv("samaya-hs-wd"), { part: "status", date: o.date });
+  workTimeBtn(plugin, sg);
+  const group = mid.createDiv("samaya-hs-group is-cap");
   renderCapMeter(plugin, group, { label: "Daily capacity", planned: o.planned, free: o.free, what: o.what });
   if (isToday && !plugin.guide) btn(group, "Plan day", () => { void plugin.startGuide(); });
   if (isToday) renderWorkdayCard(plugin, actions.createDiv("samaya-hs-wd-actions"), { part: "actions" });
@@ -52,14 +57,16 @@ export function renderDayHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, acti
 /** Week heading: the status chip (this week: today's status; a past week: the average work time per working day; a coming week: none), then the weekly capacity (live: it follows the tasks) grouped with Plan week; Review week and Weekly note in the actions. */
 export function renderWeekHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, actions: HTMLElement, weekStart: string): void {
   const s = plugin.settings; const thisWeek = startOfWeek(today()); const cur = weekStart === thisWeek;
-  const chip = mid.createDiv("samaya-hs-wd");
+  const sg = mid.createDiv("samaya-hs-group is-status");
+  const chip = sg.createDiv("samaya-hs-wd");
+  workTimeBtn(plugin, sg);
   if (cur) renderWorkdayCard(plugin, chip, { part: "status" });
   else if (weekStart < thisWeek) void (async () => {
     const events = calendarEnabled(s) ? await calendarEvents(plugin, parseYmd(weekStart), parseYmd(addDays(weekStart, 7))).catch(() => []) : [];
     if (!chip.isConnected) return;
     renderWorkdayCard(plugin, chip, { part: "status", average: weekAverageWorked(plugin.workday.allLogs(), weekStart, s.workDays, vacationDates(events, s.vacationKeyword)) });
   })();
-  const group = mid.createDiv("samaya-hs-group");
+  const group = mid.createDiv("samaya-hs-group is-cap");
   const slot = group.createDiv("samaya-hs-slot"); let token = 0; let timer = 0;
   const paint = async () => {
     if (!slot.isConnected) { off(); metaOff(); window.clearTimeout(timer); return; }

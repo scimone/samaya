@@ -154,6 +154,10 @@ export default class SamayaPlugin extends Plugin {
   guide: GuideState | null = null;
   /** the week timeline is expanded inside the Planner (both sidebars folded away) */
   timelineWide = false;
+  /** the work time dashboard is showing inside the Planner (in place of the day / week) */
+  workTimeOpen = false;
+  showWorkTime() { this.workTimeOpen = true; this.bus.emit(); this.modeBus.emit(); }
+  hideWorkTime() { if (!this.workTimeOpen) return; this.workTimeOpen = false; this.bus.emit(); this.modeBus.emit(); }
   /** expanded week: timeline above the task board ("split"), or just one of them */
   weekLayout: "split" | "timeline" | "board" = "split";
   private wideSaved: { left: boolean; right: boolean } | null = null;
@@ -588,10 +592,11 @@ export default class SamayaPlugin extends Plugin {
     if (!leaf) { leaf = ws.getRightLeaf(false) ?? ws.getLeaf("split", "vertical"); await leaf.setViewState({ type: TODAY_VIEW_TYPE, active: true }); }
     await ws.revealLeaf(leaf);
   }
+  /** The work time dashboard lives in the Planner: it takes the place of the day / week there, with a button back. */
   async openDashboard() {
-    const ws = this.app.workspace; let leaf = ws.getLeavesOfType(DASHBOARD_VIEW_TYPE)[0];
-    if (!leaf) { leaf = ws.getLeaf("tab"); await leaf.setViewState({ type: DASHBOARD_VIEW_TYPE, active: true }); }
-    await ws.revealLeaf(leaf);
+    await this.openPlanner();
+    if (this.guide) return; // a guide is running: it keeps the planner
+    this.showWorkTime();
   }
   /** Interactive planning: opens the daily planner and walks through it (see views/guide.ts). */
   private leftCollapsedByGuide = false;

@@ -44,13 +44,24 @@ export function renderModeSwitch(parent: HTMLElement, active: "day" | "week", go
   return sw;
 }
 
+/** Fit the heading into one line: while it overflows, step `data-fit` up (CSS drops the less important parts one by one: wider labels, then texts, then groups). Re-checked whenever the heading resizes. */
+const fitters = new WeakMap<HTMLElement, ResizeObserver>();
+export function fitHead(head: HTMLElement): void {
+  const run = () => {
+    if (!head.isConnected || !head.clientWidth) return;
+    let lvl = 0; head.dataset.fit = "0";
+    while (head.scrollWidth > head.clientWidth + 1 && lvl < 5) head.dataset.fit = String(++lvl);
+  };
+  fitters.get(head)?.disconnect(); const ro = new ResizeObserver(run); fitters.set(head, ro); ro.observe(head); window.requestAnimationFrame(run);
+}
+
 /** The week heading: "Week 46" over its date range, the workday status and weekly capacity, then the actions (Plan week, Review week, Weekly note), [This week pill] ‹ 📅 › (the calendar button opens a date picker: pick any day to jump to its week) and Day | Week. */
 export function renderWeekHead(head: HTMLElement, weekStart: string, go: (weekStart: string) => void, back?: () => void, plugin?: SamayaPlugin): void {
   const cur = startOfWeek(today());
   renderHeadTitle(head, `Week ${isoWeek(parseYmd(weekStart))}`, weekRangeLabel(weekStart) + (weekStart === cur ? " · This week" : ""));
   const mid = plugin ? head.createDiv("samaya-head-mid") : null; // workday status and weekly capacity (a pane hidden behind the planner's own heading skips them)
   const right = head.createDiv("samaya-planner-right"); // same spot as the day heading's controls: actions, navigation, then the Day | Week switch
-  if (plugin && mid) renderWeekHeadStatus(plugin, mid, right.createDiv("samaya-head-actions"), weekStart);
+  if (plugin && mid) renderWeekHeadStatus(plugin, mid, right, weekStart);
   if (weekStart !== cur) renderResetPill(right, "This week", "Back to the current week", weekStart < cur ? "right" : "left", () => go(cur)); // only when you are somewhere else
   renderDateNav(right, {
     label: weekRangeLabel(weekStart), prevLabel: "Previous week", nextLabel: "Next week",
@@ -58,4 +69,5 @@ export function renderWeekHead(head: HTMLElement, weekStart: string, go: (weekSt
     pick: { value: weekStart, label: "Pick a week", run: d => go(startOfWeek(d)) }, icon: "calendar",
   });
   if (back) renderModeSwitch(right, "week", { day: back });
+  if (plugin) fitHead(head);
 }

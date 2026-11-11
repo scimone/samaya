@@ -5,10 +5,11 @@ import { DailyPlannerView, DAILY_VIEW_TYPE } from "./DailyPlannerView";
 import { WeeklyBoardView } from "./WeeklyBoardView";
 import { WeeklyTimelineView } from "./WeeklyTimelineView";
 import { renderWeekHead } from "./plannerHead";
+import { DashboardPanel } from "./DashboardView";
 
 export { DAILY_VIEW_TYPE as PLANNER_VIEW_TYPE }; // the id stays "samaya-daily" so existing planner bases keep working
 
-type Mode = "day" | "week" | "expanded";
+type Mode = "day" | "week" | "expanded" | "worktime";
 type Layout = "split" | "timeline" | "board";
 
 /**
@@ -23,6 +24,8 @@ export class PlannerView extends BasesView {
   private weekPane: HTMLElement; // the task board (and the week guide)
   private tlPane: HTMLElement;
   private headEl: HTMLElement; // the week heading: one for the whole expanded week, so it never moves when the layout changes
+  private wtPane: HTMLElement; // the work time dashboard
+  private wt: DashboardPanel;
   private bar: HTMLElement; // between the panes
   private day: DailyPlannerView;
   private week: WeeklyBoardView;
@@ -39,10 +42,12 @@ export class PlannerView extends BasesView {
     this.tlPane = root.createDiv("samaya-planner-pane");
     this.bar = root.createDiv("samaya-splitbar");
     this.weekPane = root.createDiv("samaya-planner-pane");
+    this.wtPane = root.createDiv("samaya-planner-pane samaya-wt-pane is-hidden");
+    this.wt = new DashboardPanel(plugin, this.wtPane.createDiv(), () => plugin.hideWorkTime());
     const sync = (w: string) => { this.tl.showWeekOf(w); this.week.showWeekOf(w); this.renderHead(); };
     this.day = new DailyPlannerView(controller, this.dayPane, plugin, { hidden: () => this.mode() !== "day" });
     this.week = new WeeklyBoardView(controller, this.weekPane, plugin, {
-      hidden: () => this.mode() === "day", openDay: d => { this.day.goTo(d); plugin.collapseTimeline(); }, back: () => plugin.collapseTimeline(), weekChanged: sync,
+      hidden: () => this.mode() === "day" || this.mode() === "worktime", openDay: d => { this.day.goTo(d); plugin.collapseTimeline(); }, back: () => plugin.collapseTimeline(), weekChanged: sync,
       aligned: () => this.mode() === "expanded",
     });
     this.tl = new WeeklyTimelineView(controller, this.tlPane, plugin, {
@@ -60,23 +65,31 @@ export class PlannerView extends BasesView {
     const hro = new ResizeObserver(() => { this.rootEl.style.setProperty("--wk-head", `${this.headEl.getBoundingClientRect().height}px`); }); // the arrow bar sticks exactly under the heading, whenever the heading fills in or resizes
     hro.observe(this.headEl); this.register(() => hro.disconnect());
     this.shown = this.mode(); this.shownLayout = plugin.weekLayout; this.applyMode(false);
+    this.register(() => this.wt.dispose());
+    this.register(plugin.bus.on(() => { if (this.shown === "worktime") this.wt.schedule(); }));
+    this.registerEvent(plugin.app.metadataCache.on("changed", () => { if (this.shown === "worktime") this.wt.schedule(); }));
+    this.registerInterval(window.setInterval(() => { if (this.shown === "worktime") this.wt.render(); }, 30000));
     this.register(plugin.bus.on(() => {
       const m = this.mode(), l = plugin.weekLayout;
       if (m === this.shown && l === this.shownLayout) return;
       const prev = this.shown; this.shown = m; this.shownLayout = l;
       this.applyMode(prev === "expanded" && m === "expanded"); // layout change inside the expanded week: animated, nothing is redrawn
       if (m === "expanded" && prev !== "expanded") { const wk = plugin.plannerDate || today(); this.tl.showWeekOf(wk); this.week.showWeekOf(wk); this.renderHead(); }
+      else if (m === "worktime") this.wt.render();
       else if (m !== "expanded") this.active().refresh();
     }));
     this.registerDomEvent(document, "keydown", e => { // Esc folds the expanded week back
-      if (e.key !== "Escape" || this.mode() !== "expanded" || e.defaultPrevented) return;
+      if (e.key !== "Escape" || (this.mode() !== "expanded" && this.mode() !== "worktime") || e.defaultPrevented) return;
       const t = e.target as HTMLElement | null; if (t && (t.closest("input, textarea, [contenteditable=true]") || document.querySelector(".modal-container"))) return;
-      plugin.collapseTimeline();
+      if (this.mode() === "worktime") plugin.hideWorkTime(); else plugin.collapseTimeline();
     });
   }
-  onunload() { if (this.plugin.timelineWide) this.plugin.collapseTimeline(); } // closing the tab must not leave the sidebars folded
+  onunload() { this.plugin.workTimeOpen = false; if (this.plugin.timelineWide) this.plugin.collapseTimeline(); } // closing the tab must not leave the sidebars folded
 
-  private mode(): Mode { return this.plugin.guide?.kind === "week" ? "week" : this.plugin.timelineWide ? "expanded" : "day"; }
+  private mode(): Mode {
+    if (this.plugin.guide) this.plugin.workTimeOpen = false; // a guide takes the planner over
+    return this.plugin.guide?.kind === "week" ? "week" : this.plugin.workTimeOpen ? "worktime" : this.plugin.timelineWide ? "expanded" : "day";
+  }
   private active() { const m = this.mode(); return m === "week" ? this.week : m === "expanded" ? this.tl : this.day; }
 
   /** The bars between timeline and board: arrows that move the divider. Up gives the board more room, down the timeline.
@@ -109,7 +122,8 @@ export class PlannerView extends BasesView {
     this.rootEl.toggleClass("is-timeline-only", ex && l === "timeline");
     this.dayPane.toggleClass("is-hidden", this.shown !== "day");
     this.tlPane.toggleClass("is-hidden", !ex);
-    this.weekPane.toggleClass("is-hidden", this.shown === "day");
+    this.weekPane.toggleClass("is-hidden", this.shown === "day" || this.shown === "worktime");
+    this.wtPane.toggleClass("is-hidden", this.shown !== "worktime"); if (this.shown === "worktime") this.wt.render();
     this.tlPane.toggleClass("is-collapsed", ex && l === "board"); // the other pane takes its room; CSS animates the height
     this.weekPane.toggleClass("is-collapsed", ex && l === "timeline");
     this.renderBars(); this.setDays();

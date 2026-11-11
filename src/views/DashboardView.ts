@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { addDays, fmtDur, parseYmd, startOfWeek, today } from "../util";
 import { nowMin, readLogs } from "../workday";
@@ -6,31 +6,23 @@ import { DayLog, breakMinutes, fmtSigned, totalBalance, weekSummary } from "../w
 
 export const DASHBOARD_VIEW_TYPE = "samaya-dashboard";
 
-export class DashboardView extends ItemView {
+/** The work time dashboard as a panel: the standalone tab and the Planner (with a "Planner" button back) both host it. */
+export class DashboardPanel {
   private weekStart = startOfWeek(today());
   private timer = 0;
-  constructor(leaf: WorkspaceLeaf, private plugin: SamayaPlugin) { super(leaf); }
-  getViewType() { return DASHBOARD_VIEW_TYPE; }
-  getDisplayText() { return "Work time"; }
-  getIcon() { return "bar-chart-3"; }
-  async onOpen() {
-    this.contentEl.addClass("samaya-dash");
-    this.registerEvent(this.app.metadataCache.on("changed", () => this.schedule()));
-    this.register(this.plugin.bus.on(() => this.schedule()));
-    this.registerInterval(window.setInterval(() => this.render(), 30000));
-    this.render();
-  }
-  onClose() { window.clearTimeout(this.timer); return Promise.resolve(); }
-  private schedule() { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.render(), 150); }
+  constructor(private plugin: SamayaPlugin, private c: HTMLElement, private back?: () => void) { c.addClass("samaya-dash"); }
+  dispose() { window.clearTimeout(this.timer); }
+  schedule() { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.render(), 150); }
 
   private logs(): DayLog[] { return this.plugin.workday.allLogs(); }
 
   render() {
-    const c = this.contentEl; c.empty(); const s = this.plugin.settings;
+    const c = this.c; c.empty(); const s = this.plugin.settings;
     const logs = this.logs(); const wk = weekSummary(logs, this.weekStart, s.weeklyHours, s.workDays, today(), nowMin());
     const total = totalBalance(logs, s.weeklyHours, s.workDays);
 
     const head = c.createDiv("samaya-dash-head");
+    if (this.back) { const bk = head.createEl("button", { cls: "samaya-dash-back mod-cta", attr: { title: "Back to the planner (Esc)", "aria-label": "Back to the planner" } }); setIcon(bk.createSpan("samaya-dash-back-icon"), "arrow-left"); bk.createSpan({ text: "Planner" }); bk.onclick = this.back; }
     head.createEl("h2", { text: "Work time" });
     const nav = head.createDiv("samaya-nav");
     nav.createEl("button", { text: "‹" }).onclick = () => { this.weekStart = addDays(this.weekStart, -7); this.render(); };
@@ -69,4 +61,19 @@ export class DashboardView extends ItemView {
     });
     c.createDiv({ cls: "samaya-dash-note", text: "Times come from the work_start, work_end and breaks properties of your daily notes - edit them there to correct a day." });
   }
+}
+
+export class DashboardView extends ItemView {
+  private panel: DashboardPanel;
+  constructor(leaf: WorkspaceLeaf, private plugin: SamayaPlugin) { super(leaf); this.panel = new DashboardPanel(plugin, this.contentEl); }
+  getViewType() { return DASHBOARD_VIEW_TYPE; }
+  getDisplayText() { return "Work time"; }
+  getIcon() { return "bar-chart-3"; }
+  async onOpen() {
+    this.registerEvent(this.app.metadataCache.on("changed", () => this.panel.schedule()));
+    this.register(this.plugin.bus.on(() => this.panel.schedule()));
+    this.registerInterval(window.setInterval(() => this.panel.render(), 30000));
+    this.panel.render();
+  }
+  onClose() { this.panel.dispose(); return Promise.resolve(); }
 }

@@ -67,8 +67,8 @@ export function renderWeekColumn(plugin: SamayaPlugin, scope: DndScope, host: HT
   const box = col.createDiv({ cls: `samaya-loadbar is-${lvl}` });
   const meetings = o.meetings ?? 0;
   renderCapBar(box, { tasks: planned, meetings, free: o.free, share });
-  const label = col.createDiv({ cls: "samaya-wg-info" }).createDiv({ cls: "samaya-total", text: `${fmtDur(planned)} planned · ${meetings ? fmtDur(meetings) + " meetings · " : ""}${fmtDur(budget)} recommended` });
-  label.title = `Free time of the week = work time - lunch - meetings = ${fmtDur(o.free)}. Plan at most ${Math.round(share * 100)}% of it (${fmtDur(budget)}).`;
+  const label = col.createDiv({ cls: "samaya-wg-info" }).createDiv({ cls: "samaya-total", text: `${fmtDur(planned + meetings)} allocated · ${fmtDur(meetings + budget)} recommended` });
+  label.title = `Allocated = ${fmtDur(planned)} tasks + ${fmtDur(meetings)} meetings. Free time of the week = work time - lunch - meetings = ${fmtDur(o.free)}. Plan at most ${Math.round(share * 100)}% of it (${fmtDur(budget)}).`;
   if (!schedule) addTaskInput(plugin, col, "+ Add weekly task", () => ({ week: wk }), o.refresh); // before the first task (the days have their own in Schedule)
   const list = col.createDiv("samaya-wg-scroll samaya-leftover-list");
   if (!shown.length) list.createDiv({ cls: "samaya-empty", text: schedule ? "Every task has a day." : "Nothing planned for this week yet." });

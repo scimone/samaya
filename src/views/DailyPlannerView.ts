@@ -16,7 +16,7 @@ import { capacityWindow, Capacity } from "../worktime";
 import { bufferShare, loadLevel, trimToBuffer } from "../weekplan";
 import { renderDayHeadStatus } from "./headStatus";
 import { renderDateNav, renderResetPill } from "./dateNav";
-import { dayHeadSub, renderHeadTitle, renderModeSwitch } from "./plannerHead";
+import { dayHeadSub, fitHead, renderHeadTitle, renderModeSwitch } from "./plannerHead";
 
 export const DAILY_VIEW_TYPE = "samaya-daily";
 
@@ -166,7 +166,7 @@ export class DailyPlannerView extends BasesView {
     renderHeadTitle(h, isToday ? "Today" : parseYmd(this.date).toLocaleDateString(undefined, { weekday: "long" }), dayHeadSub(this.date));
     const mid = h.createDiv("samaya-head-mid");
     const right = h.createDiv("samaya-planner-right");
-    renderDayHeadStatus(this.plugin, mid, right.createDiv("samaya-head-actions"), { date: this.date, planned, meetings: cap.meetings, free: cap.free, what: `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings` });
+    renderDayHeadStatus(this.plugin, mid, right, { date: this.date, planned, meetings: cap.meetings, free: cap.free, what: `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings` });
     if (!isToday) renderResetPill(right, "Today", "Jump to today", this.date < today() ? "right" : "left", () => this.goTo(today()));
     renderDateNav(right, {
       label: parseYmd(this.date).toLocaleDateString(undefined, { weekday: isToday ? "short" : undefined, month: "short", day: "numeric" }),
@@ -174,6 +174,7 @@ export class DailyPlannerView extends BasesView {
       pick: { value: this.date, label: "Pick a day", run: d => this.goTo(d) }, icon: "calendar",
     });
     renderModeSwitch(right, "day", { week: () => this.plugin.expandTimeline() });
+    fitHead(h);
   }
 
   /** The timeline next to the task list: Day/Week switch, all-day events, then the hours. */

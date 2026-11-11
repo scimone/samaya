@@ -103,7 +103,7 @@ export class WeeklyBoardView extends PlannerPane {
     });
     const body = col.createDiv("samaya-col-body");
     tasks.forEach((t, idx) => {
-      const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true, ongoing: true });
+      const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true, focus: "today" });
       bindCardDrop(this.scope, c, (path, after) => { void placeInDay(this.app, this.plugin.settings, path, key, idx + (after ? 1 : 0)); });
     });
     bindZone(this.scope, col, path => { void placeInDay(this.app, this.plugin.settings, path, key, tasks.length); });
@@ -248,7 +248,7 @@ export class WeeklyBoardView extends PlannerPane {
     addBox(col, "+ Add task", () => ({ planned: date, order: tasks.length }));
     const body = col.createDiv("samaya-col-body");
     tasks.forEach((t, idx) => {
-      const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true, ongoing: true });
+      const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true, focus: "today" });
       bindCardDrop(this.scope, c, (path, after) => { void placeInDay(this.app, s, path, date, idx + (after ? 1 : 0)); });
     });
     bindZone(this.scope, col, path => { void placeInDay(this.app, s, path, date, tasks.length); });

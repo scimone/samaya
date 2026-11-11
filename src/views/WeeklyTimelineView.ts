@@ -172,7 +172,8 @@ export class WeeklyTimelineView extends PlannerPane {
         bt.createSpan({ text: t.title });
         b.dataset.date = date; b.dataset.s = String(it.s); b.dataset.dur = String(it.dur); b.dataset.done = t.status === "done" ? "1" : "";
         const ongoing = isToday && t.status !== "done" && this.nowM() >= it.s && this.nowM() < it.s + it.dur;
-        if (ongoing) { b.addClass("is-current"); focusButton(this.plugin, bt, t, "samaya-focus-go is-block"); }
+        if (ongoing) b.addClass("is-current");
+        if (isToday && t.status !== "done") focusButton(this.plugin, bt, t); // any task of today can be started
         b.createDiv({ cls: "samaya-block-time", text: `${minToHm(it.s)}–${minToHm(it.s + it.dur)} · ${fmtDur(it.dur)}${segLabel(it.seg!, it.n!)}` });
         decorateSegment(b, t, it.seg!, it.n!, lane);
         keyActivate(b, `Task: ${t.title}, ${minToHm(it.s)}–${minToHm(it.s + it.dur)}. Press Enter to open`, () => open(t.file));

@@ -910,15 +910,24 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-modeswitch button.is-active { background: var(--background-primary); color: var(--text-normal); font-weight: 600; box-shadow: var(--input-shadow); }
 .samaya-modeswitch.is-right { margin-left: auto; }
 
-/* Expanded week: timeline on top, task board below, one bar between them to resize or to go timeline-only / board-only */
+/* Expanded week: timeline on top, task board below, one bar between them to go timeline-only / board-only.
+   "Both" is one scrolling page; the board's day columns line up under the timeline's. */
 .samaya-planner.is-expanded { display: flex; flex-direction: column; }
 .samaya-planner.is-expanded > .samaya-planner-pane { height: auto; min-height: 0; flex: 1 1 0; overflow: hidden; }
 .samaya-planner.is-expanded > .samaya-planner-pane.is-hidden { display: none; }
 .samaya-planner.is-expanded .samaya-wtl, .samaya-planner.is-expanded .samaya-week { height: 100%; box-sizing: border-box; }
-.samaya-splitbar { flex: none; height: 26px; display: none; align-items: center; justify-content: center; background: var(--background-secondary); border-top: 1px solid var(--background-modifier-border); border-bottom: 1px solid var(--background-modifier-border); position: relative; touch-action: none; }
+.samaya-splitbar { flex: none; height: 28px; display: none; align-items: center; justify-content: center; background: var(--background-secondary); border-top: 1px solid var(--background-modifier-border); border-bottom: 1px solid var(--background-modifier-border); }
 .samaya-planner.is-expanded > .samaya-splitbar { display: flex; }
-.samaya-splitbar.is-split { cursor: row-resize; }
-.samaya-splitbar.is-split::before { content: ""; position: absolute; left: 12px; right: 12px; top: 50%; border-top: 3px dotted var(--background-modifier-border-hover); transform: translateY(-50%); pointer-events: none; }
-.samaya-splitbar .samaya-modeswitch { position: relative; background: var(--background-secondary); box-shadow: 0 0 0 4px var(--background-secondary); cursor: default; }
 .samaya-splitbar .samaya-modeswitch button { display: inline-flex; align-items: center; gap: 4px; padding: 0 10px; }
 .samaya-splitbar .samaya-modeswitch svg { width: 13px; height: 13px; }
+.samaya-planner.is-flow { display: block; overflow-y: auto; }
+.samaya-planner.is-flow > .samaya-planner-pane { flex: none; overflow: visible; height: auto; }
+.samaya-planner.is-flow .samaya-wtl, .samaya-planner.is-flow .samaya-week { height: auto; overflow: visible; }
+.samaya-wtl.is-flow .samaya-wtl-scroll { overflow: visible; flex: none; }
+.samaya-wtl.is-flow .samaya-wtl-heads { position: static; }
+.samaya-wtl.is-flow { padding-bottom: 0; }
+.samaya-week.is-aligned .samaya-cols { gap: 0; margin: 0 0 0 48px; min-width: 0; }
+.samaya-week.is-aligned .samaya-col { flex: 1 1 0; min-width: 0; padding: 8px 0; min-height: 120px; border-left: 1px solid var(--background-modifier-border); }
+.samaya-week.is-aligned .samaya-col > * { margin-left: 4px; margin-right: 4px; }
+.samaya-week.is-aligned .samaya-col > .samaya-add { width: calc(100% - 8px); }
+.samaya-week.is-aligned .samaya-col.is-today { background: color-mix(in srgb, var(--interactive-accent) 5%, transparent); }

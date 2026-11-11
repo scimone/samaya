@@ -29,6 +29,7 @@ export class PlannerView extends BasesView {
   private tl: WeeklyTimelineView;
   private shown: Mode;
   private shownLayout: Layout;
+  private seenH = 0;
 
   constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
     super(controller);
@@ -42,10 +43,10 @@ export class PlannerView extends BasesView {
     this.day = new DailyPlannerView(controller, this.dayPane, plugin, { hidden: () => this.mode() !== "day" });
     this.week = new WeeklyBoardView(controller, this.weekPane, plugin, {
       hidden: () => !this.boardShown(), back: () => plugin.collapseTimeline(), weekChanged: sync,
-      noHead: () => this.mode() === "expanded" && plugin.weekLayout === "split",
+      flow: () => this.flow(),
     });
     this.tl = new WeeklyTimelineView(controller, this.tlPane, plugin, {
-      hidden: () => !this.timelineShown(), back: () => plugin.collapseTimeline(), weekChanged: sync,
+      hidden: () => !this.timelineShown(), flow: () => this.flow(), viewH: () => this.rootEl.clientHeight, back: () => plugin.collapseTimeline(), weekChanged: sync,
       openDay: d => { this.day.goTo(d); plugin.collapseTimeline(); },
     });
     for (const c of [this.day, this.week, this.tl]) { // the panes read the data and settings of this view
@@ -54,6 +55,8 @@ export class PlannerView extends BasesView {
       Object.defineProperty(c, "allProperties", { get: () => this.allProperties, configurable: true });
       this.addChild(c);
     }
+    const ro = new ResizeObserver(() => { if (this.flow() && this.rootEl.clientHeight !== this.seenH) { this.seenH = this.rootEl.clientHeight; this.tl.refresh(); } }); // the hours follow the window
+    ro.observe(this.rootEl); this.register(() => ro.disconnect());
     this.shown = this.mode(); this.shownLayout = plugin.weekLayout; this.applyMode();
     this.register(plugin.bus.on(() => {
       const m = this.mode(), l = plugin.weekLayout;
@@ -73,11 +76,12 @@ export class PlannerView extends BasesView {
   onunload() { if (this.plugin.timelineWide) this.plugin.collapseTimeline(); } // closing the tab must not leave the sidebars folded
 
   private mode(): Mode { return this.plugin.guide?.kind === "week" ? "week" : this.plugin.timelineWide ? "expanded" : "day"; }
+  private flow() { return this.mode() === "expanded" && this.plugin.weekLayout === "split"; }
   private timelineShown() { return this.mode() === "expanded" && this.plugin.weekLayout !== "board"; }
   private boardShown() { return this.mode() === "week" || (this.mode() === "expanded" && this.plugin.weekLayout !== "timeline"); }
   private active() { const m = this.mode(); return m === "week" ? this.week : m === "expanded" ? this.tl : this.day; }
 
-  /** The bar between timeline and board: three layouts to pick from, and in "Both" a drag handle for the split. */
+  /** The bar between timeline and board: three layouts to pick from. */
   private buildBar() {
     const sw = this.bar.createDiv("samaya-modeswitch");
     for (const l of LAYOUTS) {
@@ -86,19 +90,6 @@ export class PlannerView extends BasesView {
       b.dataset.layout = l.id;
       b.onclick = () => { this.plugin.weekLayout = l.id; this.plugin.bus.emit(); };
     }
-    this.bar.addEventListener("dblclick", e => { if (this.plugin.weekLayout === "split" && e.target === this.bar) { this.plugin.weekSplit = 0.6; this.applySplit(); } });
-    this.bar.addEventListener("pointerdown", e => {
-      if (this.plugin.weekLayout !== "split" || e.target !== this.bar) return;
-      e.preventDefault(); this.bar.setPointerCapture(e.pointerId);
-      const rect = this.rootEl.getBoundingClientRect();
-      const move = (ev: PointerEvent) => { this.plugin.weekSplit = Math.max(0.25, Math.min(0.8, (ev.clientY - rect.top) / rect.height)); this.applySplit(); };
-      const up = () => { this.bar.removeEventListener("pointermove", move); this.bar.removeEventListener("pointerup", up); this.bar.removeEventListener("pointercancel", up); };
-      this.bar.addEventListener("pointermove", move); this.bar.addEventListener("pointerup", up); this.bar.addEventListener("pointercancel", up);
-    });
-  }
-  private applySplit() {
-    const split = this.shown === "expanded" && this.shownLayout === "split"; const r = this.plugin.weekSplit;
-    this.tlPane.style.flex = split ? `${r} 1 0` : ""; this.weekPane.style.flex = split ? `${1 - r} 1 0` : "";
   }
   private applyMode() {
     const ex = this.shown === "expanded", l = this.shownLayout;
@@ -106,9 +97,8 @@ export class PlannerView extends BasesView {
     this.dayPane.toggleClass("is-hidden", this.shown !== "day");
     this.tlPane.toggleClass("is-hidden", !(ex && l !== "board"));
     this.weekPane.toggleClass("is-hidden", !(this.shown === "week" || (ex && l !== "timeline")));
-    this.bar.toggleClass("is-split", ex && l === "split");
+    this.rootEl.toggleClass("is-flow", ex && l === "split");
     this.bar.querySelectorAll<HTMLElement>("button").forEach(b => b.toggleClass("is-active", b.dataset.layout === l));
-    this.applySplit();
     this.plugin.modeBus.emit(); // the sidebar follows the pane in front
   }
   onDataUpdated(): void { this.day.onDataUpdated(); this.week.onDataUpdated(); this.tl.onDataUpdated(); }

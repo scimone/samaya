@@ -8,6 +8,8 @@ export interface PlannerHost {
   openDay?(date: string): void;
   /** expanded week: the week was changed here; the other pane follows */
   weekChanged?(week: string): void;
-  /** expanded week: the board sits under the timeline, which already has the week header */
-  noHead?(): boolean;
+  /** expanded week, timeline and board stacked on one scrolling page: the board drops its headings, the timeline its task chips */
+  flow?(): boolean;
+  /** flow mode: height of the page the timeline's hours are sized to */
+  viewH?(): number;
 }

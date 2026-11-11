@@ -32,7 +32,7 @@ export class WeeklyTimelineView extends BasesView {
     super(controller);
     this.root = parentEl.createDiv("samaya-wtl");
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
-    const ro = new ResizeObserver(() => { if (this.root.clientHeight !== this.seenH) this.schedule(); });
+    const ro = new ResizeObserver(() => { if (!this.host?.flow?.() && this.root.clientHeight !== this.seenH) this.schedule(); });
     ro.observe(this.root); this.register(() => ro.disconnect());
     this.registerInterval(window.setInterval(() => this.updateNowLines(), 60000));
     this.register(plugin.bus.on(() => this.schedule()));
@@ -68,7 +68,8 @@ export class WeeklyTimelineView extends BasesView {
       this.root.createDiv({ cls: "samaya-empty", text: "Planning your week happens in the Weekly Board view. Pick it from the view menu at the top of this tab." });
       return;
     }
-    const old = this.root.querySelector<HTMLElement>(".samaya-wtl-scroll"); if (old) this.scrollTop = old.scrollTop;
+    const flow = !!this.host?.flow?.(); this.root.toggleClass("is-flow", flow); // stacked above the board on one scrolling page
+    const old = this.root.querySelector<HTMLElement>(".samaya-wtl-scroll"); if (old && !flow) this.scrollTop = old.scrollTop;
     this.root.empty(); this.scope.clear();
     const all = this.data.data.map(e => readTask(this.app, e.file));
     const byPath = new Map(all.map(t => [t.file.path, t]));
@@ -92,7 +93,8 @@ export class WeeklyTimelineView extends BasesView {
     cols.createDiv("samaya-wtl-axis-spacer");
     // stretch the hours so the day fills the available height
     this.seenH = this.root.clientHeight;
-    const HOUR_H = this.hourH = Math.max(MIN_HOUR_H, Math.floor((scroll.clientHeight - 70) / (endH - startH)));
+    const HOUR_H = this.hourH = flow ? Math.max(MIN_HOUR_H, Math.floor(((this.host?.viewH?.() ?? 700) * 0.62 - 90) / (endH - startH)))
+      : Math.max(MIN_HOUR_H, Math.floor((scroll.clientHeight - 70) / (endH - startH)));
     const body = scroll.createDiv("samaya-wtl-body");
     const axis = body.createDiv("samaya-wtl-axis"); axis.style.height = `${(endH - startH) * HOUR_H}px`;
     for (let h = startH; h < endH; h++) axis.createSpan({ cls: "samaya-wtl-hour-label", text: minToHm(h * 60) }).style.top = `${(h - startH) * HOUR_H}px`;
@@ -109,7 +111,7 @@ export class WeeklyTimelineView extends BasesView {
       const dayLbl = h.createDiv({ cls: "samaya-wtl-day", text: parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }) });
       if (this.host?.openDay) { dayLbl.addClass("is-link"); dayLbl.title = "Open this day in the planner"; dayLbl.onclick = () => this.host?.openDay?.(date); }
       dayEvents.filter(e => e.allDay).forEach(e => h.createDiv({ cls: "samaya-wtl-chip is-event", text: e.title }));
-      dayTasks.filter(t => !t.start && t.status !== "done").forEach(t => {
+      if (!flow) dayTasks.filter(t => !t.start && t.status !== "done").forEach(t => {
         const c = h.createDiv({ cls: "samaya-wtl-chip", attr: { title: "No time slot yet - drag onto the calendar" } });
         c.createSpan({ cls: "samaya-wtl-chip-title", text: t.title });
         c.createSpan({ cls: "samaya-wtl-chip-est", text: fmtDur(t.estimate || s.defaultEstimate) });
@@ -186,7 +188,7 @@ export class WeeklyTimelineView extends BasesView {
       const nl = body.querySelector<HTMLElement>(".samaya-now");
       this.scrollTop = nl ? Math.max(0, parseFloat(nl.style.top) - 150) : Math.max(0, (8 - startH) * HOUR_H);
     }
-    scroll.scrollTop = this.scrollTop;
+    if (!flow) scroll.scrollTop = this.scrollTop;
   }
 
   private updateNowLines() {

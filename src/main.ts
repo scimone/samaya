@@ -175,8 +175,6 @@ export default class SamayaPlugin extends Plugin {
   timelineWide = false;
   /** expanded week: timeline above the task board ("split"), or just one of them */
   weekLayout: "split" | "timeline" | "board" = "split";
-  /** share of the height the timeline gets while split */
-  weekSplit = 0.6;
   private wideSaved: { left: boolean; right: boolean } | null = null;
   /** Planner: expand the timeline into the week timeline; both sidebars make room. */
   expandTimeline() {

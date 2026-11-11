@@ -46,7 +46,7 @@ export function addBands(plugin: SamayaPlugin, lane: HTMLElement, date: string, 
 
   const log = plugin.workday.log;
   if (log && log.date === date && date === todayStr) {
-    log.breaks.forEach(b => { if (b.kind !== "lunch") band(hmToMin(b.start), hmToMin(b.end), "Break", "is-logged"); else band(hmToMin(b.start), hmToMin(b.end), "Lunch (logged)", "is-logged"); });
+    log.breaks.forEach(b => { if (b.kind !== "lunch") band(hmToMin(b.start), hmToMin(b.end), "Break", "is-logged"); else if (hmToMin(b.start) !== ls || hmToMin(b.end) !== le) band(hmToMin(b.start), hmToMin(b.end), "Lunch (logged)", "is-logged"); }); // a logged lunch on the lunch window itself (the one subtracted when the day ends) is the same band: not drawn twice
     if (log.open) band(hmToMin(log.open.start), Math.max(nowMin(), hmToMin(log.open.start) + 1), "On break", "is-logged");
   }
 }

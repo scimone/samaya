@@ -43,7 +43,7 @@ export class PlannerView extends BasesView {
     const sync = (w: string) => { this.tl.showWeekOf(w); this.week.showWeekOf(w); this.renderHead(); };
     this.day = new DailyPlannerView(controller, this.dayPane, plugin, { hidden: () => this.mode() !== "day" });
     this.week = new WeeklyBoardView(controller, this.weekPane, plugin, {
-      hidden: () => this.mode() === "day", back: () => plugin.collapseTimeline(), weekChanged: sync,
+      hidden: () => this.mode() === "day", openDay: d => { this.day.goTo(d); plugin.collapseTimeline(); }, back: () => plugin.collapseTimeline(), weekChanged: sync,
       aligned: () => this.mode() === "expanded", placeBar: (r, head) => { if (head) head.after(this.barIn); else r.prepend(this.barIn); },
     });
     this.tl = new WeeklyTimelineView(controller, this.tlPane, plugin, {

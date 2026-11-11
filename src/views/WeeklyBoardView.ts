@@ -97,7 +97,8 @@ export class WeeklyBoardView extends BasesView {
     const col = parent.createDiv({ cls: "samaya-col" + (isToday ? " is-today" : "") });
     { // (expanded week, under the timeline: CSS hides the heading and bar, the day is already named above)
       const h = col.createDiv("samaya-col-head");
-      h.createSpan({ cls: "samaya-col-title", text: title });
+      const ttl = h.createSpan({ cls: "samaya-col-title", text: title });
+      if (this.host?.openDay) { ttl.addClass("is-link"); ttl.title = "Open this day in the planner"; ttl.onclick = () => this.host?.openDay?.(key); }
       const planned = tasks.reduce((a, t) => a + (t.estimate || 0), 0);
       const bar = col.createDiv({ cls: "samaya-col-bar" + (planned > cap.free ? " is-over" : "") });
       bar.createDiv("samaya-col-bar-fill").style.width = `${planned > cap.free || cap.free <= 0 ? (planned > 0 ? 100 : 0) : (planned / cap.free) * 100}%`;

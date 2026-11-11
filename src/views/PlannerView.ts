@@ -23,7 +23,6 @@ export class PlannerView extends BasesView {
   private tlPane: HTMLElement;
   private headEl: HTMLElement; // the week heading: one for the whole expanded week, so it never moves when the layout changes
   private bar: HTMLElement; // between the panes
-  private barIn: HTMLElement; // board alone: right under the board's heading
   private day: DailyPlannerView;
   private week: WeeklyBoardView;
   private tl: WeeklyTimelineView;
@@ -39,12 +38,11 @@ export class PlannerView extends BasesView {
     this.tlPane = root.createDiv("samaya-planner-pane");
     this.bar = root.createDiv("samaya-splitbar");
     this.weekPane = root.createDiv("samaya-planner-pane");
-    this.barIn = createDiv("samaya-splitbar is-inline");
     const sync = (w: string) => { this.tl.showWeekOf(w); this.week.showWeekOf(w); this.renderHead(); };
     this.day = new DailyPlannerView(controller, this.dayPane, plugin, { hidden: () => this.mode() !== "day" });
     this.week = new WeeklyBoardView(controller, this.weekPane, plugin, {
       hidden: () => this.mode() === "day", openDay: d => { this.day.goTo(d); plugin.collapseTimeline(); }, back: () => plugin.collapseTimeline(), weekChanged: sync,
-      aligned: () => this.mode() === "expanded", placeBar: (r, head) => { if (head) head.after(this.barIn); else r.prepend(this.barIn); },
+      aligned: () => this.mode() === "expanded",
     });
     this.tl = new WeeklyTimelineView(controller, this.tlPane, plugin, {
       hidden: () => this.mode() !== "expanded", layout: () => this.plugin.weekLayout, flow: () => this.mode() === "expanded", viewH: () => this.rootEl.clientHeight - this.headEl.offsetHeight,
@@ -96,7 +94,7 @@ export class PlannerView extends BasesView {
 
   private renderBars() {
     const l = this.shownLayout;
-    for (const bar of [this.bar, this.barIn]) {
+    for (const bar of [this.bar]) {
       bar.empty();
       const arrow = (dir: "up" | "down", to: Layout, text: string, hint: string) => {
         const b = bar.createEl("button", { cls: "samaya-splitarrow", attr: { title: hint, "aria-label": hint } });
@@ -119,9 +117,10 @@ export class PlannerView extends BasesView {
     this.tlPane.toggleClass("is-collapsed", ex && l === "board"); // the other pane takes its room; CSS animates the height
     this.weekPane.toggleClass("is-collapsed", ex && l === "timeline");
     this.renderBars();
+    this.rootEl.style.setProperty("--wk-head", `${this.headEl.offsetHeight}px`); // the arrow bar sticks right under the heading
     if (animate) this.tl.fit(); // the hours stretch or shrink with the layout
     if (animate && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      for (const b of [this.bar, this.barIn]) b.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260, delay: 120, fill: "backwards" });
+      for (const b of [this.bar]) b.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260, delay: 120, fill: "backwards" });
     }
     this.plugin.modeBus.emit(); // the sidebar follows the pane in front
   }

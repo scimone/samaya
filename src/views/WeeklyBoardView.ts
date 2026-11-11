@@ -82,7 +82,6 @@ export class WeeklyBoardView extends BasesView {
       }
     }
 
-    this.host?.placeBar?.(this.root, head);
     const cols2 = this.root.createDiv("samaya-cols");
     for (let i = 0; i < (weekends ? 7 : 5); i++) {
       const date = addDays(this.weekStart, i); const dayMs = parseYmd(date).getTime();

@@ -132,17 +132,18 @@ export default class SamayaPlugin extends Plugin {
   weekLayout: "split" | "timeline" | "board" = "split";
   private wideSaved: { left: boolean; right: boolean } | null = null;
   /** Planner: expand the timeline into the week timeline; both sidebars make room. */
-  expandTimeline() {
+  expandTimeline(leftWas = false) {
     if (this.timelineWide) return; const ws = this.app.workspace;
-    this.wideSaved = { left: !!ws.leftSplit && !ws.leftSplit.collapsed, right: !!ws.rightSplit && !ws.rightSplit.collapsed };
+    this.wideSaved = { left: leftWas || (!!ws.leftSplit && !ws.leftSplit.collapsed), right: !!ws.rightSplit && !ws.rightSplit.collapsed };
     ws.leftSplit?.collapse(); ws.rightSplit?.collapse();
     this.timelineWide = true; this.bus.emit();
   }
   /** Back to the day planner, and the sidebars as they were. */
-  collapseTimeline() {
-    if (!this.timelineWide) return; const ws = this.app.workspace; const sv = this.wideSaved; this.timelineWide = false; this.wideSaved = null;
+  collapseTimeline(keepSidebars = false): boolean {
+    if (!this.timelineWide) return false; const ws = this.app.workspace; const sv = this.wideSaved; this.timelineWide = false; this.wideSaved = null;
+    if (keepSidebars) { this.bus.emit(); this.modeBus.emit(); return !!sv?.left; } // a guide follows: the sidebars stay folded (no flicker)
     if (sv?.left) ws.leftSplit?.expand(); if (sv?.right) ws.rightSplit?.expand();
-    this.bus.emit(); this.modeBus.emit();
+    this.bus.emit(); this.modeBus.emit(); return false;
   }
 
   async onload() {
@@ -568,18 +569,20 @@ export default class SamayaPlugin extends Plugin {
   /** The X of a guide: Plan my week goes back to the week view (of the week being planned), the day guides just close. */
   cancelGuide() {
     const g = this.guide; const wk = g?.kind === "week" ? g.week ?? "" : null;
-    this.closeGuide();
-    if (wk !== null) { this.weekToShow = wk; this.expandTimeline(); }
+    const left = this.closeGuide(wk !== null);
+    if (wk !== null) { this.weekToShow = wk; this.expandTimeline(left); }
   }
-  closeGuide() {
-    this.guide = null;
-    if (this.leftCollapsedByGuide) { this.leftCollapsedByGuide = false; this.app.workspace.leftSplit?.expand(); }
+  /** `keepLeft`: the left sidebar stays folded (the week view follows); returns whether the guide had hidden it. */
+  closeGuide(keepLeft = false): boolean {
+    this.guide = null; const hid = this.leftCollapsedByGuide;
+    if (hid) { this.leftCollapsedByGuide = false; if (!keepLeft) this.app.workspace.leftSplit?.expand(); }
     this.modeBus.emit();
     this.bus.emit();
+    return hid;
   }
   /** Interactive week plan: Review, Tickets, Backlog, Schedule, Check (see views/guide.ts and WeeklyBoardView). The left sidebar makes room; This week is the last column. */
   async startWeekGuide() {
-    this.collapseTimeline();
+    if (this.collapseTimeline(true)) this.leftCollapsedByGuide = true;
     const ws = this.app.workspace; const now = new Date(); const wk = weekToPlan(today(), now.getDay());
     const leftover = allTasks(this.app, this.settings).some(t => isLeftover(t, today(), wk));
     const tickets = (this.settings.jiraOn || this.settings.gitlabOn) && allTickets(this.app, this.settings).some(t => !/(done|closed|resolved|complete|finished|released|cancel)/i.test(t.state));
@@ -590,20 +593,22 @@ export default class SamayaPlugin extends Plugin {
   }
   async finishWeekGuide() {
     const g = this.guide; const wk = g?.week; const days = g?.days ?? 5;
-    this.closeGuide();
-    this.weekToShow = wk ?? ""; this.expandTimeline(); // back to the week view (not the day), on the week that was planned
+    const left = this.closeGuide(true);
+    this.weekToShow = wk ?? ""; this.expandTimeline(left); // back to the week view (not the day), on the week that was planned
     if (!wk) return;
-    let saved: TFile | null = null;
+    let saved: TFile | null = null; this.weekWritten = false;
     try { saved = await this.writeWeekPlan(wk, days); } catch (e) { console.error("Samaya: could not write the weekly note", e); new Notice("Samaya: could not write the weekly note (see the console)."); }
-    this.noticeWithNote(`Week of ${parseYmd(wk).toLocaleDateString(undefined, { month: "short", day: "numeric" })} planned${saved ? " and saved to your weekly note" : ""}.`, saved, "Open weekly note", true);
+    this.noticeWithNote(`Week of ${parseYmd(wk).toLocaleDateString(undefined, { month: "short", day: "numeric" })} planned${saved && this.weekWritten ? " and saved to your weekly note" : ""}.`, saved, "Open weekly note", true);
   }
   /** The weekly note (created if missing) gets an "Overview", the week's "Meetings" by weekday and its "Planned tasks". False when nothing is written. */
+  private weekWritten = false;
   private async writeWeekPlan(wk: string, nDays: number): Promise<TFile | null> {
     const s = this.settings; const wantPlan = journalWants(s, "journalWeekPlan"), wantMeet = journalWants(s, "journalWeekMeetings"), wantTasks = journalWants(s, "journalWeekTasks");
     if (!s.journalNotes.weekly.on || !(wantPlan || wantMeet || wantTasks)) return null;
     const file = await openPeriodNote(this.app, s, "weekly", wk); if (!file) return null;
     const before = await this.app.vault.read(file);
-    if ([WEEK_OVERVIEW, WEEK_MEETINGS, WEEK_TASKS].some(h => readSection(before, h as Parameters<typeof readSection>[1]).length) && !(await this.askOverwrite("weekly note"))) return file; // planned before: ask first
+    if ([WEEK_OVERVIEW, WEEK_MEETINGS, WEEK_TASKS].some(h => readSection(before, h as Parameters<typeof readSection>[1]).length) && !(await this.askOverwrite("weekly note"))) return file; // planned before: ask first (declined: nothing written)
+    this.weekWritten = true;
     const { weekTasks, noDay } = weekBuckets(allTasks(this.app, s), wk);
     const events = calendarEnabled(s) ? await calendarEvents(this, parseYmd(wk), parseYmd(addDays(wk, 7))).catch(() => []) : [];
     const dates = Array.from({ length: nDays }, (_, i) => addDays(wk, i));

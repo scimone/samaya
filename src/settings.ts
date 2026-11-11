@@ -18,7 +18,7 @@ export interface SamayaSettings {
   jiraFlavor: "cloud" | "server"; jiraUrl: string; jiraEmail: string; jiraToken: string; jiraJql: string;
   gitlabUrl: string; gitlabToken: string; gitlabScope: "assigned_to_me" | "created_by_me" | "all";
   syncOnStartup: boolean;
-  lunchStart: string; lunchEnd: string; weeklyHours: number; workDays: number; /** % of every day's free time to keep unplanned */ bufferPercent: number; /** hex colour of tasks everywhere ("" = theme accent) */ taskColor: string; /** hex colour of meetings everywhere ("" = cyan) */ meetingColor: string; autoLunch: boolean;
+  lunchStart: string; lunchEnd: string; weeklyHours: number; workDays: number; /** all-day events with this word in the title mark vacation days ("" = off) */ vacationKeyword: string; /** % of every day's free time to keep unplanned */ bufferPercent: number; /** hex colour of tasks everywhere ("" = theme accent) */ taskColor: string; /** hex colour of meetings everywhere ("" = cyan) */ meetingColor: string; autoLunch: boolean;
   /** optional modules; off by default for new installs */
   calendarOn: boolean; jiraOn: boolean; gitlabOn: boolean;
   /** journal module: write into the daily note, and which parts */
@@ -46,7 +46,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   jiraFlavor: "cloud", jiraUrl: "", jiraEmail: "", jiraToken: "",
   jiraJql: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
   gitlabUrl: "https://gitlab.com", gitlabToken: "", gitlabScope: "assigned_to_me", syncOnStartup: false,
-  lunchStart: "12:00", lunchEnd: "13:00", weeklyHours: 40, workDays: 5, bufferPercent: 20, taskColor: "", meetingColor: "", autoLunch: true,
+  lunchStart: "12:00", lunchEnd: "13:00", weeklyHours: 40, workDays: 5, vacationKeyword: "Urlaub", bufferPercent: 20, taskColor: "", meetingColor: "", autoLunch: true,
   calendarOn: false, jiraOn: false, gitlabOn: false,
   journalOn: false, journalPlanned: true, journalFinished: true, journalTomorrow: true,
   journalWorkTimes: true, journalBreaks: true, journalTracked: true, journalWeekPlan: true, journalWeekMeetings: true, journalWeekTasks: true,
@@ -342,6 +342,7 @@ export class SamayaSettingTab extends PluginSettingTab {
       label(b, "Week");
       num(b, "Required hours per week", "Used by the work time dashboard for overtime.", () => s.weeklyHours, v => (s.weeklyHours = v), { min: 1, max: 168, step: 0.5 });
       num(b, "Working days per week", "Counted from Monday (5 = Mon–Fri). Work on other days is all overtime.", () => s.workDays, v => (s.workDays = v), { min: 1, max: 7, int: true });
+      text(b, "Vacation keyword", "All-day calendar events with this word in the title (e.g. Urlaub, Vacation) count as vacation days: the past-week average work time in the planner heading leaves them out. Empty = off.", () => s.vacationKeyword, v => (s.vacationKeyword = v.trim()), { placeholder: "Urlaub" });
       label(b, "Planning");
       num(b, "Free buffer (%)", "Share of every day's free time to keep unplanned, for unforeseen meetings and tasks. Plan my day and Plan my week turn orange past it and red when the day is over capacity.", () => s.bufferPercent, v => (s.bufferPercent = v), { min: 0, max: 90, int: true });
       label(b, "Colours");

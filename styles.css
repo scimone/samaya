@@ -928,10 +928,10 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: var(--sa
 .samaya-week.is-aligned .samaya-col-top > .samaya-add { width: 100%; }
 
 /* The Today / This week pill is shared by the week heading and the day's timeline header; the arrows keep their own designs */
-button.samaya-datereset { all: unset; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px 0 6px; border-radius: 13px; cursor: pointer; font-size: var(--font-ui-smaller); font-weight: 500; color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); white-space: nowrap; }
-button.samaya-datereset:hover, button.samaya-datereset:focus-visible { background: color-mix(in srgb, var(--interactive-accent) 22%, transparent); }
+button.samaya-datereset { all: unset; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 12px 0 8px; border-radius: 14px; cursor: pointer; font-size: var(--font-ui-small); font-weight: 600; color: var(--text-on-accent); background: var(--interactive-accent); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18); white-space: nowrap; }
+button.samaya-datereset:hover, button.samaya-datereset:focus-visible { background: var(--interactive-accent-hover); }
 .samaya-datereset-icon { display: inline-flex; }
-.samaya-datereset-icon svg { width: 14px; height: 14px; }
+.samaya-datereset-icon svg { width: 15px; height: 15px; }
 .samaya-weekno { color: var(--text-muted); font-size: var(--font-ui-smaller); }
 
 /* Day view: the Tasks heading and its bar stay in view while the tasks scroll. Nothing sits above the heading (no padding or margin), so it starts exactly where it sticks. */
@@ -1002,6 +1002,7 @@ button.samaya-datereset:hover, button.samaya-datereset:focus-visible { backgroun
 .samaya-week-head, .samaya-day-head { flex-wrap: wrap; row-gap: var(--samaya-sp-2); }
 .samaya-head-mid { display: flex; align-items: center; gap: var(--samaya-sp-5); margin-left: var(--samaya-sp-5); min-width: 0; flex-wrap: wrap; row-gap: var(--samaya-sp-2); }
 .samaya-hs-wd, .samaya-hs-wd-actions, .samaya-hs-slot { display: contents; }
+.samaya-hs-group { display: flex; align-items: center; gap: var(--samaya-sp-3); padding: 5px 6px 5px var(--samaya-sp-3); border-radius: var(--samaya-r-m); background: var(--background-secondary); } /* the capacity meter and its Plan button belong together */
 .samaya-wd.samaya-wd-chip { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; font-size: var(--font-ui-small); cursor: default; }
 .samaya-wd-chip::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); }
 .samaya-wd-chip.is-work::before { background: var(--interactive-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--interactive-accent) 25%, transparent); }
@@ -1010,7 +1011,7 @@ button.samaya-datereset:hover, button.samaya-datereset:focus-visible { backgroun
 .samaya-wd-chip.is-break .samaya-wd-state { color: var(--color-orange); }
 .samaya-wd-chip-fig { color: var(--text-muted); font-weight: 600; font-variant-numeric: tabular-nums; }
 .samaya-wd.is-part-actions { display: contents; }
-.samaya-hs-cap { display: flex; flex-direction: column; gap: 4px; min-width: 120px; }
+.samaya-hs-cap { display: flex; flex-direction: column; gap: 4px; min-width: 150px; }
 .samaya-hs-cap-top { display: flex; align-items: baseline; gap: 7px; white-space: nowrap; }
 .samaya-hs-cap-label { font-size: var(--samaya-fs-label); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
 .samaya-hs-cap-fig { font-size: var(--font-ui-small); font-weight: 600; font-variant-numeric: tabular-nums; }

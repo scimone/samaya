@@ -1,11 +1,13 @@
 import { Notice } from "obsidian";
 import type SamayaPlugin from "../main";
 import { allTasks } from "../model";
-import { fmtDur, startOfWeek, today } from "../util";
+import { addDays, fmtDur, parseYmd, startOfWeek, today } from "../util";
+import { calendarEnabled, calendarEvents } from "../calendar";
 import { weekBuckets, weekFreeTime } from "./weekColumn";
 import { renderWorkdayCard } from "./workdayCard";
 import { bufferShare, loadLevel } from "../weekplan";
 import { openPeriodNote } from "../journal";
+import { vacationDates, weekAverageWorked } from "../worktime";
 
 /** The planner heading's status and actions (day and week alike): `mid` gets the workday chip and a capacity meter, `actions` the buttons. */
 
@@ -36,34 +38,42 @@ function openNote(plugin: SamayaPlugin, p: "daily" | "weekly", date: string) {
 
 const btn = (host: HTMLElement, text: string, run: () => void, title?: string) => { const b = host.createEl("button", { cls: "samaya-hd-btn", text, attr: title ? { title } : {} }); b.onclick = run; return b; };
 
-/** Day heading: workday status + daily capacity; Plan day, Break / End day (the workday's own buttons) and Daily note. */
+/** Day heading: workday status, then the daily capacity grouped with Plan day; Break / End day (the workday's own buttons) and Daily note in the actions. */
 export function renderDayHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, actions: HTMLElement, o: { date: string; planned: number; free: number; what: string }): void {
   const s = plugin.settings; const isToday = o.date === today();
   renderWorkdayCard(plugin, mid.createDiv("samaya-hs-wd"), { part: "status", date: o.date });
-  renderCapMeter(plugin, mid, { label: "Daily", planned: o.planned, free: o.free, what: o.what });
-  if (isToday && !plugin.guide) btn(actions, "Plan day", () => { void plugin.startGuide(); });
+  const group = mid.createDiv("samaya-hs-group");
+  renderCapMeter(plugin, group, { label: "Daily capacity", planned: o.planned, free: o.free, what: o.what });
+  if (isToday && !plugin.guide) btn(group, "Plan day", () => { void plugin.startGuide(); });
   if (isToday) renderWorkdayCard(plugin, actions.createDiv("samaya-hs-wd-actions"), { part: "actions" });
   if (s.journalOn) btn(actions, "Daily note", () => openNote(plugin, "daily", o.date), "Open this day's note");
 }
 
-/** Week heading: workday status + weekly capacity (live: it follows the tasks); Plan week, Review week and Weekly note. */
+/** Week heading: the status chip (this week: today's status; a past week: the average work time per working day; a coming week: none), then the weekly capacity (live: it follows the tasks) grouped with Plan week; Review week and Weekly note in the actions. */
 export function renderWeekHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, actions: HTMLElement, weekStart: string): void {
-  const s = plugin.settings; const cur = weekStart === startOfWeek(today());
-  renderWorkdayCard(plugin, mid.createDiv("samaya-hs-wd"), { part: "status" });
-  const slot = mid.createDiv("samaya-hs-slot"); let token = 0; let timer = 0;
+  const s = plugin.settings; const thisWeek = startOfWeek(today()); const cur = weekStart === thisWeek;
+  const chip = mid.createDiv("samaya-hs-wd");
+  if (cur) renderWorkdayCard(plugin, chip, { part: "status" });
+  else if (weekStart < thisWeek) void (async () => {
+    const events = calendarEnabled(s) ? await calendarEvents(plugin, parseYmd(weekStart), parseYmd(addDays(weekStart, 7))).catch(() => []) : [];
+    if (!chip.isConnected) return;
+    renderWorkdayCard(plugin, chip, { part: "status", average: weekAverageWorked(plugin.workday.allLogs(), weekStart, s.workDays, vacationDates(events, s.vacationKeyword)) });
+  })();
+  const group = mid.createDiv("samaya-hs-group");
+  const slot = group.createDiv("samaya-hs-slot"); let token = 0; let timer = 0;
   const paint = async () => {
     if (!slot.isConnected) { off(); metaOff(); window.clearTimeout(timer); return; }
     const my = ++token;
     const planned = weekBuckets(allTasks(plugin.app, s), weekStart).weekTasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0);
     const free = await weekFreeTime(plugin, weekStart, s.workDays);
     if (my !== token || !slot.isConnected) return;
-    slot.empty(); renderCapMeter(plugin, slot, { label: "Weekly", planned, free, what: "Free time of the week = work time - lunch - meetings" });
+    slot.empty(); renderCapMeter(plugin, slot, { label: "Weekly capacity", planned, free, what: "Free time of the week = work time - lunch - meetings" });
   };
   const later = () => { window.clearTimeout(timer); timer = window.setTimeout(() => { void paint(); }, 200); };
   const off = plugin.bus.on(later);
   const ref = plugin.app.metadataCache.on("changed", later); const metaOff = () => plugin.app.metadataCache.offref(ref);
   void paint();
-  if (cur && !plugin.guide) btn(actions, "Plan week", () => { void plugin.startWeekGuide(); });
+  if (cur && !plugin.guide) btn(group, "Plan week", () => { void plugin.startWeekGuide(); });
   if (cur) btn(actions, "Review week", () => { void plugin.reviewWeek(); }, "Open this week's review: the weekly note, or the work time dashboard");
   if (s.journalOn && s.journalNotes.weekly.on) btn(actions, "Weekly note", () => openNote(plugin, "weekly", weekStart), "Open this week's note");
 }

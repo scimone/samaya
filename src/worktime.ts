@@ -1,5 +1,5 @@
 // Pure work-time logic: workday log, breaks, capacity, weekly balance. No Obsidian imports (unit-tested).
-import { addDays, hmToMin, minToHm, parseYmd, startOfWeek } from "./util";
+import { addDays, hmToMin, minToHm, parseYmd, startOfWeek, ymd } from "./util";
 
 export type BreakKind = "lunch" | "break";
 export interface Break { start: string; end: string; kind: BreakKind; }
@@ -102,4 +102,24 @@ export function periodStats(logs: DayLog[], from: string, to: string, weeklyHour
   const worked = done.reduce((a, l) => a + workedMinutes(l, 1440), 0);
   const target = done.reduce((a, l) => a + dailyTarget(weeklyHours, workdays, l.date), 0);
   return { days: n, avgStart: minToHm(mean(done.map(l => hmToMin(l.start!)))), avgEnd: minToHm(mean(done.map(l => hmToMin(l.end!)))), worked, avgWorked: worked / n, target, balance: worked - target };
+}
+
+/** Dates (YYYY-MM-DD) covered by all-day events whose title contains `keyword` (case-insensitive; empty keyword = none). The event's end is exclusive. */
+export function vacationDates(events: Array<{ title: string; start: Date; end: Date; allDay: boolean }>, keyword: string): Set<string> {
+  const out = new Set<string>(); const k = keyword.trim().toLowerCase(); if (!k) return out;
+  for (const e of events) {
+    if (!e.allDay || !e.title.toLowerCase().includes(k)) continue;
+    const last = ymd(e.end) > ymd(e.start) ? addDays(ymd(e.end), -1) : ymd(e.start);
+    for (let d = ymd(e.start); d <= last; d = addDays(d, 1)) out.add(d);
+  }
+  return out;
+}
+/** Average worked minutes per finished day of the week's working days (the first `workdays` days from Monday), leaving out vacation days and days without a finished log. */
+export function weekAverageWorked(logs: DayLog[], weekStart: string, workdays: number, vacation: Set<string>): { avg: number; days: number } | null {
+  const mins: number[] = [];
+  for (let i = 0; i < Math.max(1, Math.min(7, Math.round(workdays))); i++) {
+    const date = addDays(weekStart, i); if (vacation.has(date)) continue;
+    const l = logs.find(x => x.date === date); if (l && l.start && l.end) mins.push(workedMinutes(l, 1440));
+  }
+  return mins.length ? { avg: mins.reduce((a, b) => a + b, 0) / mins.length, days: mins.length } : null;
 }

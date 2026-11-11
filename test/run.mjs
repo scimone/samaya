@@ -89,6 +89,14 @@ assert.deepEqual([...L.values()], [{ col: 0, n: 2 }, { col: 1, n: 2 }, { col: 0,
 
 // ---- worktime
 const W = await import("./.worktime.mjs");
+{ // vacation days and the average work time of a week
+  const vac = W.vacationDates([{ title: "Urlaub", start: new Date(2026, 10, 4), end: new Date(2026, 10, 6), allDay: true }, { title: "Urlaub", start: new Date(2026, 10, 9, 9), end: new Date(2026, 10, 9, 10), allDay: false }, { title: "Lunch", start: new Date(2026, 10, 3), end: new Date(2026, 10, 4), allDay: true }], "urlaub");
+  assert.deepEqual([...vac], ["2026-11-04", "2026-11-05"]); assert.equal(W.vacationDates([{ title: "Urlaub", start: new Date(2026, 10, 4), end: new Date(2026, 10, 5), allDay: true }], "").size, 0);
+  const log = (date, start, end) => ({ date, start, end, breaks: [], open: null });
+  const logs = [log("2026-11-02", "08:00", "16:00"), log("2026-11-03", "08:00", "14:00"), log("2026-11-04", "08:00", "20:00"), log("2026-11-07", "08:00", "12:00")];
+  const avg = W.weekAverageWorked(logs, "2026-11-02", 5, vac); // Wed is vacation (left out), Sat is a weekend, Thu/Fri have no log
+  assert.deepEqual(avg, { avg: 420, days: 2 }); assert.equal(W.weekAverageWorked([], "2026-11-02", 5, new Set()), null);
+}
 const log = { date: "2026-11-03", start: "08:30", end: "17:00", breaks: [{ start: "12:00", end: "12:45", kind: "lunch" }, { start: "15:00", end: "15:10", kind: "break" }], open: null };
 assert.equal(W.workedMinutes(log, 0), 8 * 60 + 30 - 55);
 assert.equal(W.workedMinutes({ date: "d", start: "09:00", end: null, breaks: [], open: { start: "10:00", kind: "break" } }, 10 * 60 + 20), 60); // open break not counted

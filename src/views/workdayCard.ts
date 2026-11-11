@@ -4,7 +4,7 @@ import { nowMin } from "../workday";
 import { breakMinutes, fmtSigned, workedMinutes } from "../worktime";
 
 /** Workday status with actions: a minimal one-liner, or (`panel`) a card with the time worked in large type. Repaints itself until removed from the DOM. */
-export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { compact?: boolean; panel?: boolean; /** heading pieces: just the status chip, or just the buttons */ part?: "status" | "actions"; /** another day than today: a read-only summary from its log */ date?: string } = {}) {
+export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { compact?: boolean; panel?: boolean; /** heading pieces: just the status chip, or just the buttons */ part?: "status" | "actions"; /** status chip of a past week: the average work time per working day instead of a live status */ average?: { avg: number; days: number } | null; /** another day than today: a read-only summary from its log */ date?: string } = {}) {
   const wd = plugin.workday; const s = plugin.settings;
   let timer = 0; let off = () => {};
   const paint = () => {
@@ -16,11 +16,13 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
     const [ls, le] = plugin.lunchFor(o.date ?? today()); const lunch = Math.max(0, Math.min(le, winEnd) - Math.max(ls, winStart));
     const others = l ? l.breaks.filter(b => b.kind !== "lunch").reduce((a, b) => a + Math.max(0, hmToMin(b.end) - hmToMin(b.start)), 0) + (l.open && l.open.kind !== "lunch" && !other ? Math.max(0, nowMin() - hmToMin(l.open.start)) : 0) : 0;
     const target = Math.max(0, winEnd - winStart - lunch - others);
-    const strip = host.createDiv({ cls: "samaya-wd" + (o.panel ? " samaya-wd-panel" : "") + (l?.open ? " is-break" : l?.start && !l.end ? " is-work" : "") });
+    const strip = host.createDiv({ cls: "samaya-wd" + (o.panel ? " samaya-wd-panel" : "") + (o.average !== undefined ? "" : l?.open ? " is-break" : l?.start && !l.end ? " is-work" : "") });
     // what to show: a state label, the main figure, a detail line and the actions
     let state = "", big = "", sub = "", sub2 = ""; let progress = -1;
     const buttons: Array<[string, () => void, boolean?]> = [];
-    if (other) { // a past or future day: just what was logged
+    if (o.average !== undefined) { // a past week: the average, never the live status
+      state = "Ø per day"; if (o.average) { big = fmtDur(Math.round(o.average.avg)); sub = `Average work time over ${o.average.days} working day${o.average.days === 1 ? "" : "s"} (weekends and vacation left out)`; } else sub = "No work time logged this week.";
+    } else if (other) { // a past or future day: just what was logged
       if (!l || !l.start) { state = "Workday"; sub = o.date! > today() ? "Not started yet." : "No work time logged."; }
       else {
         const end = l.end ?? l.seen ?? null; const worked = workedMinutes({ ...l, end, open: null }, 1440);

@@ -1144,3 +1144,5 @@ input.is-invalid { border-color: var(--text-error); }
 
 /* the heading row always spans the whole pane, so its right-aligned items stay at the pane's right edge (collapsing the left sidebar must not move them) */
 .samaya-planner-head, .samaya-daily:not(.is-review) > .samaya-day-head { max-width: none; margin-left: 0; margin-right: 0; }
+/* the expanded week reserves room for a scrollbar; the day view reserves the same, so the heading's right-hand items sit at the same x in both */
+.samaya-daily { scrollbar-gutter: stable; }

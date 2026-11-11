@@ -962,3 +962,25 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-col-top > .samaya-add { margin: 0 0 8px; width: 100%; box-sizing: border-box; }
 .samaya-week.is-aligned .samaya-col > .samaya-col-top { margin: 0; padding: 2px 4px 0; }
 .samaya-week.is-aligned .samaya-col-top > .samaya-add { width: 100%; }
+
+/* Week heading */
+.samaya-planner-head { gap: 10px; }
+.samaya-weeknav { display: inline-flex; align-items: center; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); background: var(--background-primary); overflow: hidden; }
+.samaya-weeknav button.samaya-weeknav-step { all: unset; box-sizing: border-box; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); }
+.samaya-weeknav button.samaya-weeknav-step:hover, .samaya-weeknav button.samaya-weeknav-step:focus-visible { background: var(--background-modifier-hover); color: var(--text-normal); }
+.samaya-weeknav-step svg { width: 16px; height: 16px; }
+.samaya-weeknav-label { min-width: 118px; padding: 0 6px; text-align: center; font-weight: 600; font-size: var(--font-ui-medium); font-variant-numeric: tabular-nums; border-left: 1px solid var(--background-modifier-border); border-right: 1px solid var(--background-modifier-border); line-height: 30px; }
+.samaya-weekno { color: var(--text-faint); font-size: var(--font-ui-smaller); }
+button.samaya-weekreset { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px 0 6px; border-radius: 13px; cursor: pointer; font-size: var(--font-ui-smaller); font-weight: 500; color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); }
+button.samaya-weekreset:hover, button.samaya-weekreset:focus-visible { background: color-mix(in srgb, var(--interactive-accent) 22%, transparent); }
+.samaya-weekreset-icon { display: inline-flex; }
+.samaya-weekreset-icon svg { width: 14px; height: 14px; }
+
+/* Board starts exactly where its sticky block sticks (nothing above it to scroll away), and the column lines run on through the arrow bar */
+.samaya-planner.is-expanded .samaya-week { padding-top: 0; }
+.samaya-week.is-aligned .samaya-cols { margin-top: 0; }
+.samaya-week.is-aligned .samaya-col { padding-top: 0; }
+.samaya-week.is-aligned .samaya-col > .samaya-col-top { padding-top: 6px; }
+.samaya-planner.is-split > .samaya-splitbar::after { content: ""; position: absolute; top: 0; bottom: 0; left: calc(var(--wk-pad) + var(--wk-axis)); right: 12px; pointer-events: none;
+  background: repeating-linear-gradient(90deg, var(--background-modifier-border) 0 1px, transparent 1px calc(100% / var(--wk-days, 5))); }
+.samaya-splitbar > .samaya-splitarrow { z-index: 1; }

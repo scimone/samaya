@@ -5,6 +5,12 @@ import { DailyPlannerView, DAILY_VIEW_TYPE } from "./DailyPlannerView";
 import { WeeklyBoardView } from "./WeeklyBoardView";
 import { WeeklyTimelineView } from "./WeeklyTimelineView";
 
+/** ISO week number of a date (weeks start on Monday). */
+function isoWeek(d: Date): number {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
+  return Math.ceil(((t.getTime() - Date.UTC(t.getUTCFullYear(), 0, 1)) / 864e5 + 1) / 7);
+}
+
 export { DAILY_VIEW_TYPE as PLANNER_VIEW_TYPE }; // the id stays "samaya-daily" so existing planner bases keep working
 
 type Mode = "day" | "week" | "expanded";
@@ -80,15 +86,22 @@ export class PlannerView extends BasesView {
 
   /** The bars between timeline and board: arrows that move the divider. Up gives the board more room, down the timeline.
    *  Both: ▲ ▼ (either view can take over) · Timeline only: ▲ (bring the board back) · Board only: ▼ (bring the timeline back). */
-  /** ‹ This week › and the Day | Week switch, once, above both panes. */
+  /** The week heading, once, above both panes: [‹ Nov 9 – 15 ›] Week 46 · [↺ This week] (only when another week is showing) · Day | Week. */
   private renderHead() {
-    const h = this.headEl; h.empty(); const wk = this.tl.getWeek();
+    const h = this.headEl; h.empty(); const wk = this.tl.getWeek(); const cur = startOfWeek(today());
     const go = (w: string) => { this.tl.showWeekOf(w); this.week.showWeekOf(w); this.renderHead(); };
-    h.createEl("button", { text: "‹" }).onclick = () => go(addDays(wk, -7));
-    h.createEl("button", { text: "This week" }).onclick = () => go(startOfWeek(today()));
-    h.createEl("button", { text: "›" }).onclick = () => go(addDays(wk, 7));
-    const fmt = (x: string) => parseYmd(x).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    h.createEl("h2", { text: `${fmt(wk)} – ${fmt(addDays(wk, 6))}` });
+    const a = parseYmd(wk), z = parseYmd(addDays(wk, 6)); const mon = (d: Date) => d.toLocaleDateString(undefined, { month: "short" });
+    const range = a.getMonth() === z.getMonth() ? `${mon(a)} ${a.getDate()} – ${z.getDate()}` : `${mon(a)} ${a.getDate()} – ${mon(z)} ${z.getDate()}`;
+    const nav = h.createDiv("samaya-weeknav");
+    const step = (icon: string, label: string, to: string) => { const b = nav.createEl("button", { cls: "samaya-weeknav-step", attr: { "aria-label": label, title: label } }); setIcon(b, icon); b.onclick = () => go(to); };
+    step("chevron-left", "Previous week", addDays(wk, -7));
+    nav.createSpan({ cls: "samaya-weeknav-label", text: range + (a.getFullYear() !== new Date().getFullYear() ? `, ${a.getFullYear()}` : "") });
+    step("chevron-right", "Next week", addDays(wk, 7));
+    h.createSpan({ cls: "samaya-weekno", text: `Week ${isoWeek(a)}` });
+    if (wk !== cur) { // only when you are somewhere else
+      const r = h.createEl("button", { cls: "samaya-weekreset", attr: { title: "Back to the current week" } });
+      setIcon(r.createSpan("samaya-weekreset-icon"), wk < cur ? "arrow-right" : "arrow-left"); r.createSpan({ text: "This week" }); r.onclick = () => go(cur);
+    }
     const sw = h.createDiv("samaya-modeswitch is-right");
     sw.createEl("button", { text: "Day", attr: { title: "Back to the day planner (Esc)" } }).onclick = () => this.plugin.collapseTimeline();
     sw.createEl("button", { text: "Week", cls: "is-active" });
@@ -119,12 +132,13 @@ export class PlannerView extends BasesView {
     this.weekPane.toggleClass("is-hidden", this.shown === "day");
     this.tlPane.toggleClass("is-collapsed", ex && l === "board"); // the other pane takes its room; CSS animates the height
     this.weekPane.toggleClass("is-collapsed", ex && l === "timeline");
-    this.renderBars();
+    this.renderBars(); this.setDays();
     if (animate) this.tl.fit(); // the hours stretch or shrink with the layout
     if (animate && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       for (const b of [this.bar]) b.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260, delay: 120, fill: "backwards" });
     }
     this.plugin.modeBus.emit(); // the sidebar follows the pane in front
   }
-  onDataUpdated(): void { this.day.onDataUpdated(); this.week.onDataUpdated(); this.tl.onDataUpdated(); }
+  private setDays() { this.rootEl.style.setProperty("--wk-days", this.config.get("showWeekends") === true ? "7" : "5"); } // the column lines run through the arrow bar
+  onDataUpdated(): void { this.setDays(); this.day.onDataUpdated(); this.week.onDataUpdated(); this.tl.onDataUpdated(); }
 }

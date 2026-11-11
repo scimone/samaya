@@ -66,17 +66,19 @@ export class WeeklyBoardView extends BasesView {
     this.root.empty(); this.scope.clear();
 
     if (this.plugin.boardWeek !== this.weekStart) { this.plugin.boardWeek = this.weekStart; this.plugin.modeBus.emit(); }
-    const head = this.root.createDiv("samaya-week-head");
-    const go = (w: string) => { this.weekStart = w; void this.render(); };
-    head.createEl("button", { text: "‹" }).onclick = () => go(addDays(this.weekStart, -7));
-    head.createEl("button", { text: "This week" }).onclick = () => go(startOfWeek(today()));
-    head.createEl("button", { text: "›" }).onclick = () => go(addDays(this.weekStart, 7));
-    const fmt = (s: string) => parseYmd(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    head.createEl("h2", { text: `${fmt(this.weekStart)} – ${fmt(addDays(this.weekStart, 6))}` });
-    if (this.host?.back) { // same Day | Week switch as on the timeline
-      const sw = head.createDiv("samaya-modeswitch is-right");
-      sw.createEl("button", { text: "Day", attr: { title: "Back to the day planner (Esc)" } }).onclick = () => this.host?.back?.();
-      sw.createEl("button", { text: "Week", cls: "is-active" });
+    if (!this.host?.noHead?.()) {
+      const head = this.root.createDiv("samaya-week-head");
+      const go = (w: string) => { if (this.host?.weekChanged) this.host.weekChanged(w); else { this.weekStart = w; void this.render(); } };
+      head.createEl("button", { text: "‹" }).onclick = () => go(addDays(this.weekStart, -7));
+      head.createEl("button", { text: "This week" }).onclick = () => go(startOfWeek(today()));
+      head.createEl("button", { text: "›" }).onclick = () => go(addDays(this.weekStart, 7));
+      const fmt = (s: string) => parseYmd(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      head.createEl("h2", { text: `${fmt(this.weekStart)} – ${fmt(addDays(this.weekStart, 6))}` });
+      if (this.host?.back) { // same Day | Week switch as on the timeline
+        const sw = head.createDiv("samaya-modeswitch is-right");
+        sw.createEl("button", { text: "Day", attr: { title: "Back to the day planner (Esc)" } }).onclick = () => this.host?.back?.();
+        sw.createEl("button", { text: "Week", cls: "is-active" });
+      }
     }
 
     const cols2 = this.root.createDiv("samaya-cols");

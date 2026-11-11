@@ -910,22 +910,15 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-modeswitch button.is-active { background: var(--background-primary); color: var(--text-normal); font-weight: 600; box-shadow: var(--input-shadow); }
 .samaya-modeswitch.is-right { margin-left: auto; }
 
-/* Expanded week: the timeline and the task board share one pane; a slim handle on their shared edge slides between them */
-.samaya-planner-pane.is-stack { display: flex; flex-direction: column; }
-.samaya-planner-pane.is-stack.is-hidden { display: none; }
-.samaya-planner-pane.is-stack > .samaya-wtl, .samaya-planner-pane.is-stack > .samaya-week { flex: 1 1 0; min-height: 0; height: auto; }
-.samaya-handle { flex: none; height: 22px; display: flex; justify-content: center; align-items: center; background: var(--background-secondary); }
-.samaya-handle.is-bottom { border-top: 1px solid var(--background-modifier-border); }
-.samaya-handle.is-top { border-bottom: 1px solid var(--background-modifier-border); }
-.samaya-handle.is-hidden { display: none; }
-.samaya-handle button { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 6px; width: 100%; height: 100%; justify-content: center; cursor: pointer; color: var(--text-faint); font-size: var(--font-ui-smaller); }
-.samaya-handle button:hover, .samaya-handle button:focus-visible { background: var(--background-modifier-hover); color: var(--text-normal); }
-.samaya-handle-icon { display: inline-flex; }
-.samaya-handle-icon svg { width: 14px; height: 14px; }
-.samaya-handle-label { opacity: 0; transition: opacity .15s; }
-.samaya-handle button:hover .samaya-handle-label, .samaya-handle button:focus-visible .samaya-handle-label { opacity: 1; }
-@keyframes samaya-enter-up { from { transform: translateY(32px); opacity: 0; } to { transform: none; opacity: 1; } }
-@keyframes samaya-enter-down { from { transform: translateY(-32px); opacity: 0; } to { transform: none; opacity: 1; } }
-.samaya-planner-pane.is-enter-up { animation: samaya-enter-up .22s ease-out; }
-.samaya-planner-pane.is-enter-down { animation: samaya-enter-down .22s ease-out; }
-@media (prefers-reduced-motion: reduce) { .samaya-planner-pane.is-enter-up, .samaya-planner-pane.is-enter-down { animation: none; } }
+/* Expanded week: timeline on top, task board below, one bar between them to resize or to go timeline-only / board-only */
+.samaya-planner.is-expanded { display: flex; flex-direction: column; }
+.samaya-planner.is-expanded > .samaya-planner-pane { height: auto; min-height: 0; flex: 1 1 0; overflow: hidden; }
+.samaya-planner.is-expanded > .samaya-planner-pane.is-hidden { display: none; }
+.samaya-planner.is-expanded .samaya-wtl, .samaya-planner.is-expanded .samaya-week { height: 100%; box-sizing: border-box; }
+.samaya-splitbar { flex: none; height: 26px; display: none; align-items: center; justify-content: center; background: var(--background-secondary); border-top: 1px solid var(--background-modifier-border); border-bottom: 1px solid var(--background-modifier-border); position: relative; touch-action: none; }
+.samaya-planner.is-expanded > .samaya-splitbar { display: flex; }
+.samaya-splitbar.is-split { cursor: row-resize; }
+.samaya-splitbar.is-split::before { content: ""; position: absolute; left: 12px; right: 12px; top: 50%; border-top: 3px dotted var(--background-modifier-border-hover); transform: translateY(-50%); pointer-events: none; }
+.samaya-splitbar .samaya-modeswitch { position: relative; background: var(--background-secondary); box-shadow: 0 0 0 4px var(--background-secondary); cursor: default; }
+.samaya-splitbar .samaya-modeswitch button { display: inline-flex; align-items: center; gap: 4px; padding: 0 10px; }
+.samaya-splitbar .samaya-modeswitch svg { width: 13px; height: 13px; }

@@ -6,4 +6,8 @@ export interface PlannerHost {
   back?(): void;
   /** the expanded week timeline: jump to a day in the day planner */
   openDay?(date: string): void;
+  /** expanded week: the week was changed here; the other pane follows */
+  weekChanged?(week: string): void;
+  /** expanded week: the board sits under the timeline, which already has the week header */
+  noHead?(): boolean;
 }

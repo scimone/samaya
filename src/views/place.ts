@@ -30,7 +30,7 @@ export function isOngoing(t: Task, dflt: number): boolean {
 /** Small Focus button: starts focus mode on the task (not shown while it is already being focused). */
 export function focusButton(plugin: SamayaPlugin, parent: HTMLElement, t: Task, cls = "samaya-mini samaya-focus-go"): HTMLElement | null {
   if (plugin.focus.state?.path === t.file.path && plugin.focus.state.startedAt) return null;
-  const b = parent.createEl("button", { cls, attr: { title: "Start focus on this task", "aria-label": `Start focus: ${t.title}` } });
+  const b = parent.createEl("button", { cls, attr: { "aria-label": "Start focus on this task" } });
   setIcon(b.createSpan({ cls: "samaya-focus-go-icon" }), "timer"); b.createSpan({ text: "Focus" });
   b.addEventListener("pointerdown", e => e.stopPropagation()); // not a drag
   b.addEventListener("click", e => { e.stopPropagation(); void plugin.focus.start(t.file); });

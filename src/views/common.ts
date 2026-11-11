@@ -105,7 +105,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
 
   if (o.actionsSide) o.actions?.forEach(([label, fn]) => { side.createEl("button", { cls: "samaya-mini", text: label }).addEventListener("click", fn); });
   if (o.split && canSplit(t)) { // scissors: cut the task into parts, here or on other days
-    const cut = side.createEl("button", { cls: "samaya-mini samaya-split-btn", attr: { title: "Split into parts", "aria-label": `Split: ${t.title}` } });
+    const cut = side.createEl("button", { cls: "samaya-mini samaya-split-btn", attr: { "aria-label": "Split into parts" } });
     setIcon(cut, "scissors");
     cut.addEventListener("pointerdown", e => e.stopPropagation()); // not a drag
     cut.addEventListener("click", e => { e.stopPropagation(); new PartsModal(plugin, t, "split").open(); });
@@ -119,7 +119,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   if (!o.compact) void renderSubtasks(plugin, (o.actionsSide ? body : el).createDiv("samaya-subs"), t.file, t.status !== "done"); // beside the side column, so there is no gap and long subtasks wrap
   else el.addClass("is-compact");
 
-  el.addEventListener("contextmenu", e => showTaskMenu(plugin, t, e));
+  el.addEventListener("contextmenu", e => showTaskMenu(plugin, t, e, null, !!o.split));
 
   o.scope.draggable(el, t.file.path);
   return el;
@@ -140,7 +140,7 @@ export function renderBacklogBuckets(plugin: SamayaPlugin, host: HTMLElement, ta
 }
 
 /** The right-click menu shared by task cards and timeline blocks. `seg`: the piece of a split day that was clicked (timeline blocks). */
-export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent, seg: number | null = null) {
+export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent, seg: number | null = null, canCut = false) {
   const app: App = plugin.app; const tp = ticketPathOf(app, t); const st = plugin.settings;
   e.preventDefault(); const m = new Menu();
   const from: Source = { day: t.planned, seg };
@@ -156,7 +156,7 @@ export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent, seg: 
   }
   m.addSeparator();
   if (canSplit(t)) {
-    m.addItem(i => i.setTitle("Split task…").setIcon("scissors").onClick(() => new PartsModal(plugin, t, "split", seg).open()));
+    if (canCut) m.addItem(i => i.setTitle("Split task…").setIcon("scissors").onClick(() => new PartsModal(plugin, t, "split", seg).open()));
     m.addItem(i => i.setTitle(part ? "Move this part to another day…" : "Move to another day…").setIcon("calendar-days").onClick(() => new PartsModal(plugin, t, "move", seg).open()));
     if (part) m.addItem(i => i.setTitle("Join all parts here").setIcon("combine").onClick(() => { void joinParts(plugin, t.file, t.planned); }));
   }

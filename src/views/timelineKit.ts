@@ -98,10 +98,10 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
       keyActivate(b, `Task: ${t.title}, ${when}. Press Enter to open`, () => open(t.file));
       decorateSegment(b, t, it.seg!, it.n!, lane);
       b.addEventListener("dblclick", () => open(t.file));
-      b.addEventListener("contextmenu", e => showTaskMenu(plugin, t, e, it.n! > 1 ? it.seg! : null));
+      b.addEventListener("contextmenu", e => showTaskMenu(plugin, t, e, it.n! > 1 ? it.seg! : null, !!o.split));
       if (ro) return; // read-only while reviewing and picking
       if (o.split && canSplit(t)) { // scissors on hover: cut this block into parts
-        const cut = b.createEl("button", { cls: "samaya-block-split", attr: { title: "Split into parts", "aria-label": `Split: ${t.title}` } });
+        const cut = b.createEl("button", { cls: "samaya-block-split", attr: { "aria-label": "Split into parts" } });
         setIcon(cut, "scissors"); cut.addEventListener("pointerdown", e => e.stopPropagation());
         cut.addEventListener("click", e => { e.stopPropagation(); new PartsModal(plugin, t, "split", it.n! > 1 ? it.seg! : null).open(); });
       }

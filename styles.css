@@ -1141,3 +1141,6 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-parts-chip-icon svg { width: 14px; height: 14px; }
 .samaya-parts-date { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 @media (prefers-reduced-motion: reduce) { .samaya-parts-bar > div, .samaya-split-btn, .samaya-block-split { transition: none; } }
+
+/* the heading row always spans the whole pane, so its right-aligned items stay at the pane's right edge (collapsing the left sidebar must not move them) */
+.samaya-planner-head, .samaya-daily:not(.is-review) > .samaya-day-head { max-width: none; margin-left: 0; margin-right: 0; }

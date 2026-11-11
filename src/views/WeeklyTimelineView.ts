@@ -93,7 +93,7 @@ export class WeeklyTimelineView extends BasesView {
     cols.createDiv("samaya-wtl-axis-spacer");
     // stretch the hours so the day fills the available height
     this.seenH = this.root.clientHeight;
-    const HOUR_H = this.hourH = flow ? Math.max(MIN_HOUR_H, Math.floor(((this.host?.viewH?.() ?? 700) * 0.62 - 90) / (endH - startH)))
+    const HOUR_H = this.hourH = flow ? Math.max(MIN_HOUR_H, Math.floor(((this.host?.viewH?.() ?? 700) * 0.66 - 90) / (endH - startH)))
       : Math.max(MIN_HOUR_H, Math.floor((scroll.clientHeight - 70) / (endH - startH)));
     const body = scroll.createDiv("samaya-wtl-body");
     const axis = body.createDiv("samaya-wtl-axis"); axis.style.height = `${(endH - startH) * HOUR_H}px`;
@@ -111,7 +111,7 @@ export class WeeklyTimelineView extends BasesView {
       const dayLbl = h.createDiv({ cls: "samaya-wtl-day", text: parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }) });
       if (this.host?.openDay) { dayLbl.addClass("is-link"); dayLbl.title = "Open this day in the planner"; dayLbl.onclick = () => this.host?.openDay?.(date); }
       dayEvents.filter(e => e.allDay).forEach(e => h.createDiv({ cls: "samaya-wtl-chip is-event", text: e.title }));
-      if (!flow) dayTasks.filter(t => !t.start && t.status !== "done").forEach(t => {
+      dayTasks.filter(t => !t.start && t.status !== "done").forEach(t => {
         const c = h.createDiv({ cls: "samaya-wtl-chip", attr: { title: "No time slot yet - drag onto the calendar" } });
         c.createSpan({ cls: "samaya-wtl-chip-title", text: t.title });
         c.createSpan({ cls: "samaya-wtl-chip-est", text: fmtDur(t.estimate || s.defaultEstimate) });

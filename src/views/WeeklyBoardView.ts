@@ -67,7 +67,7 @@ export class WeeklyBoardView extends BasesView {
 
     if (this.plugin.boardWeek !== this.weekStart) { this.plugin.boardWeek = this.weekStart; this.plugin.modeBus.emit(); }
     let head: HTMLElement | null = null;
-    if (!this.host?.flow?.()) {
+    {
       head = this.root.createDiv("samaya-week-head");
       const go = (w: string) => { if (this.host?.weekChanged) this.host.weekChanged(w); else { this.weekStart = w; void this.render(); } };
       head.createEl("button", { text: "‹" }).onclick = () => go(addDays(this.weekStart, -7));
@@ -95,7 +95,7 @@ export class WeeklyBoardView extends BasesView {
 
   private column(parent: HTMLElement, title: string, kind: "day", key: string, tasks: Task[], isToday: boolean, cap: Capacity) {
     const col = parent.createDiv({ cls: "samaya-col" + (isToday ? " is-today" : "") });
-    if (!this.host?.flow?.()) { // under the timeline the day is already named above, and the bar would only repeat it
+    { // (expanded week, under the timeline: CSS hides the heading and bar, the day is already named above)
       const h = col.createDiv("samaya-col-head");
       h.createSpan({ cls: "samaya-col-title", text: title });
       const planned = tasks.reduce((a, t) => a + (t.estimate || 0), 0);

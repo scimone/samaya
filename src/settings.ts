@@ -46,7 +46,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   jiraFlavor: "cloud", jiraUrl: "", jiraEmail: "", jiraToken: "",
   jiraJql: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
   gitlabUrl: "https://gitlab.com", gitlabToken: "", gitlabScope: "assigned_to_me", syncOnStartup: false,
-  lunchStart: "12:00", lunchEnd: "13:00", weeklyHours: 40, workDays: 5, vacationKeyword: "Urlaub", bufferPercent: 20, taskColor: "#2fa862", meetingColor: "#3b82f6", autoLunch: true,
+  lunchStart: "12:00", lunchEnd: "13:00", weeklyHours: 40, workDays: 5, vacationKeyword: "Urlaub", bufferPercent: 20, taskColor: "#8fcfa6", meetingColor: "#8db8f0", autoLunch: true,
   calendarOn: false, jiraOn: false, gitlabOn: false,
   journalOn: false, journalPlanned: true, journalFinished: true, journalTomorrow: true,
   journalWorkTimes: true, journalBreaks: true, journalTracked: true, journalWeekPlan: true, journalWeekMeetings: true, journalWeekTasks: true,
@@ -356,8 +356,8 @@ export class SamayaSettingTab extends PluginSettingTab {
           })
           .addExtraButton(x => x.setIcon("rotate-ccw").setTooltip("Back to the theme colour").onClick(async () => { s[key] = ""; await changed(); this.display(); }));
       };
-      colour("Task colour", "Tasks on the timelines, in the check step and in the week plan.", "taskColor", "#2fa862");
-      colour("Meeting colour", "Calendar meetings on the timelines, in the check step and in the week plan.", "meetingColor", "#3b82f6");
+      colour("Task colour", "Tasks on the timelines, in the check step and in the week plan.", "taskColor", "#8fcfa6");
+      colour("Meeting colour", "Calendar meetings on the timelines, in the check step and in the week plan.", "meetingColor", "#8db8f0");
       label(b, "Timeboxing grid");
       range(b, "Visible hours", "The part of the day shown on the grid.", "hour",
         [() => s.dayStartHour, v => (s.dayStartHour = v)], [() => s.dayEndHour, v => (s.dayEndHour = v)]);

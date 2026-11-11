@@ -187,7 +187,7 @@ body.samaya-dragging, body.samaya-dragging * { cursor: grabbing !important; user
 
 /* ---------- green = done ---------- */
 body {
-  --samaya-green: #2fa862; --samaya-task: var(--samaya-green); --samaya-task-on: #ffffff; --samaya-meeting: #3b82f6;
+  --samaya-green: #2fa862; --samaya-task: #8fcfa6; --samaya-task-on: #000000; --samaya-meeting: #8db8f0;
   /* type scale: 11px labels (hours, times, caps headings), then Obsidian's own --font-ui-smaller / small / medium / large */
   --samaya-fs-label: 11px;
   /* spacing scale, steps of 4px */

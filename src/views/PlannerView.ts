@@ -87,6 +87,7 @@ export class PlannerView extends ItemView {
       const t = e.target as HTMLElement | null; if (t && (t.closest("input, textarea, [contenteditable=true]") || document.querySelector(".modal-container"))) return;
       if (this.mode() === "worktime") plugin.hideWorkTime(); else plugin.collapseTimeline();
     });
+    this.onDataUpdated(); // the first draw (Bases used to trigger it)
   }
   async onClose() { this.plugin.workTimeOpen = false; if (this.plugin.timelineWide) this.plugin.collapseTimeline(); } // closing the tab must not leave the sidebars folded
 

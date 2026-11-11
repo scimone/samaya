@@ -120,6 +120,8 @@ export default class SamayaPlugin extends Plugin {
   /** week (monday, ymd) shown by the Weekly Board while it is open ("" = none) */
   boardWeek = "";
   guide: GuideState | null = null;
+  /** week (monday, ymd) the expanded week should open on, once ("" = the day's week) */
+  weekToShow = "";
   /** the week timeline is expanded inside the Planner (both sidebars folded away) */
   timelineWide = false;
   /** the work time dashboard is showing inside the Planner (in place of the day / week) */
@@ -570,6 +572,7 @@ export default class SamayaPlugin extends Plugin {
   async finishWeekGuide() {
     const g = this.guide; const wk = g?.week; const days = g?.days ?? 5;
     this.closeGuide();
+    this.weekToShow = wk ?? ""; this.expandTimeline(); // back to the week view (not the day), on the week that was planned
     if (!wk) return;
     let saved: TFile | null = null;
     try { saved = await this.writeWeekPlan(wk, days); } catch (e) { console.error("Samaya: could not write the weekly note", e); new Notice("Samaya: could not write the weekly note (see the console)."); }

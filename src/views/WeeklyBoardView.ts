@@ -55,7 +55,7 @@ export class WeeklyBoardView extends PlannerPane {
     const token = ++this.token; const s = this.plugin.settings;
     const weekends = this.config.get("showWeekends") === true;
     const from = parseYmd(this.weekStart);
-    const events = calendarEnabled(s) ? (await calendarEvents(this.plugin, from, parseYmd(addDays(this.weekStart, 7))).catch(() => [])).filter(e => !e.allDay) : [];
+    const events = calendarEnabled(s) ? await calendarEvents(this.plugin, from, parseYmd(addDays(this.weekStart, 7))).catch(() => [] as IcsEvent[]) : [];
     if (token !== this.token) return;
     if (this.scope.active) { this.pending = true; return; }
     const wg = this.host && this.plugin.guide?.kind === "week" ? this.plugin.guide : null; // the guide runs in the Planner; the standalone board stays a board
@@ -74,13 +74,13 @@ export class WeeklyBoardView extends PlannerPane {
     for (let i = 0; i < (weekends ? 7 : 5); i++) {
       const date = addDays(this.weekStart, i); const dayMs = parseYmd(date).getTime();
       const cap = capacityWindow(...this.plugin.workWindowFor(date), this.plugin.lunchFor(date),
-        events.map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
-      this.column(cols2, parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }), "day", date, sortTasks(all.filter(t => t.planned === date)), date === today(), cap);
+        events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
+      this.column(cols2, parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }), "day", date, sortTasks(all.filter(t => t.planned === date)), date === today(), cap, events);
     }
     this.root.scrollLeft = scrollX; this.root.scrollTop = scrollY;
   }
 
-  private column(parent: HTMLElement, title: string, kind: "day", key: string, tasks: Task[], isToday: boolean, cap: Capacity) {
+  private column(parent: HTMLElement, title: string, kind: "day", key: string, tasks: Task[], isToday: boolean, cap: Capacity, events: IcsEvent[]) {
     const col = parent.createDiv({ cls: "samaya-col" + (isToday ? " is-today" : "") });
     const top = col.createDiv("samaya-col-top"); // day heading, load bar and add box: they stay in view while the cards scroll
     { // (expanded week, under the timeline: CSS hides the heading and bar, the day is already named above)
@@ -93,6 +93,7 @@ export class WeeklyBoardView extends PlannerPane {
       const sum = h.createSpan({ cls: "samaya-col-cap" + (lvl === "ok" ? "" : ` is-${lvl}`), text: `${fmtDur(planned)}/${fmtDur(cap.free)}` });
       sum.title = `Free to plan = ${fmtDur(cap.total)} work time - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`;
     }
+    renderAgenda(top, events, key); // the day's meetings above the add field (only shown in the board-only layout, see CSS)
     const add = top.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task" } });
     add.addEventListener("keydown", e => {
       if (e.key !== "Enter" || !add.value.trim()) return;
@@ -232,7 +233,7 @@ export class WeeklyBoardView extends PlannerPane {
 
   /** One day of the Schedule step: its meetings as a compact agenda on top, then the load bar and the day's tasks. */
   private guidedDay(parent: HTMLElement, date: string, cap: Capacity, events: IcsEvent[], tasks: Task[], isToday: boolean, addBox: (col: HTMLElement, placeholder: string, props: () => Record<string, string | number>) => void) {
-    const s = this.plugin.settings; const dayMs = parseYmd(date).getTime();
+    const s = this.plugin.settings;
     const col = parent.createDiv({ cls: "samaya-col samaya-wg-day" + (isToday ? " is-today" : "") });
     const share = bufferShare(s.bufferPercent); const planned = tasks.reduce((a, t) => a + (t.estimate || 0), 0); const lvl = loadLevel(planned, cap.free, share);
     const h = col.createDiv("samaya-col-head");
@@ -242,14 +243,7 @@ export class WeeklyBoardView extends PlannerPane {
     const sum = h.createSpan({ cls: `samaya-col-cap is-${lvl}`, text: `${fmtDur(planned)}/${fmtDur(cap.free)}` });
     sum.title = `Free to plan = ${fmtDur(cap.total)} work time - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings. Keep about ${Math.round((1 - share) * 100)}% of it free.`;
     renderCapBar(col, { tasks: planned, meetings: cap.meetings, free: cap.free, share });
-    const evs = events.filter(e => e.end.getTime() > dayMs && e.start.getTime() < dayMs + 86400000).sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.getTime() - b.start.getTime());
-    const ag = col.createDiv("samaya-agenda");
-    if (!evs.length) ag.createDiv({ cls: "samaya-agenda-empty", text: "No meetings" });
-    evs.forEach(e => {
-      const r = ag.createDiv({ cls: "samaya-agenda-row" + (e.allDay ? " is-allday" : ""), attr: { title: e.title } });
-      r.createSpan({ cls: "samaya-agenda-time", text: e.allDay ? "all day" : minToHm(Math.max(0, (e.start.getTime() - dayMs) / 60000)) });
-      r.createSpan({ cls: "samaya-agenda-title", text: e.title });
-    });
+    renderAgenda(col, events, date);
     addBox(col, "+ Add task", () => ({ planned: date, order: tasks.length }));
     const body = col.createDiv("samaya-col-body");
     tasks.forEach((t, idx) => {
@@ -334,4 +328,17 @@ export class WeeklyBoardView extends PlannerPane {
       fix.createEl("button", { cls: "samaya-chk-fix-btn", text: "Back to Schedule" }).onclick = back;
     }
   }
+}
+
+/** A day's meetings as a compact agenda (all-day first, then by start; the times in the meeting colour). */
+function renderAgenda(parent: HTMLElement, events: IcsEvent[], date: string) {
+  const dayMs = parseYmd(date).getTime();
+  const evs = events.filter(e => e.end.getTime() > dayMs && e.start.getTime() < dayMs + 86400000).sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.getTime() - b.start.getTime());
+  const ag = parent.createDiv("samaya-agenda");
+  if (!evs.length) ag.createDiv({ cls: "samaya-agenda-empty", text: "No meetings" });
+  evs.forEach(e => {
+    const r = ag.createDiv({ cls: "samaya-agenda-row" + (e.allDay ? " is-allday" : ""), attr: { title: e.title } });
+    r.createSpan({ cls: "samaya-agenda-time", text: e.allDay ? "all day" : minToHm(Math.max(0, (e.start.getTime() - dayMs) / 60000)) });
+    r.createSpan({ cls: "samaya-agenda-title", text: e.title });
+  });
 }

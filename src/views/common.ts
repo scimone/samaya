@@ -125,6 +125,9 @@ export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent) {
   HORIZONS.filter(([h]) => h !== "someday" && h !== "never").forEach(([h, label]) => m.addItem(i => i.setTitle(`Backlog: ${label.toLowerCase()}`).setIcon("calendar-clock").onClick(() => { void parkTask(app, t.file, h); })));
   m.addSeparator();
   m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { void app.workspace.getLeaf("tab").openFile(t.file); }));
+  m.addItem(i => i.setTitle("Delete task").setIcon("trash").setWarning(true).onClick(() => { // follows the vault's "deleted files" setting (system trash, .trash or permanent)
+    void app.fileManager.trashFile(t.file).then(() => { window.setTimeout(() => plugin.bus.emit(), 150); });
+  }));
   m.showAtMouseEvent(e);
 }
 

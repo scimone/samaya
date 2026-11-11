@@ -17,7 +17,7 @@ export function renderCapMeter(plugin: SamayaPlugin, host: HTMLElement, o: { lab
   const share = bufferShare(plugin.settings.bufferPercent); const pct = Math.round(share * 100);
   const rec = Math.round(o.free * share); const over = o.planned > o.free;
   const m = host.createDiv({ cls: "samaya-hs-cap" + (over ? " is-over" : "") });
-  m.title = `${o.what}.\nAllocated: ${fmtDur(o.planned)} tasks + ${fmtDur(o.meetings)} meetings. Recommended: at most ${pct}% of the free time for tasks (${fmtDur(rec)}) + the meetings, the rest stays open for what comes up.`;
+  m.title = `${o.what}.\nAllocated: ${fmtDur(o.planned)} tasks + ${fmtDur(o.meetings)} meetings.\nRecommended: at most ${pct}% of the free time for tasks (${fmtDur(rec)}) + the meetings, the rest stays open for what comes up.`;
   const top = m.createDiv("samaya-hs-cap-top"); // the label, then everything allocated (tasks + meetings) / everything recommended
   top.createSpan({ cls: "samaya-hs-cap-label", text: o.label });
   top.createSpan({ cls: "samaya-hs-cap-fig", text: fmtDur(o.planned + o.meetings) }).createSpan({ cls: "samaya-hs-cap-rec", text: ` / ${fmtDur(o.meetings + rec)}` });
@@ -36,7 +36,7 @@ function openNote(plugin: SamayaPlugin, p: "daily" | "weekly", date: string) {
 
 /** A view (a place to look at, not something to do): a quiet icon, never a button. */
 const viewIcon = (host: HTMLElement, icon: string, label: string, run: () => void) => {
-  const b = host.createEl("button", { cls: "samaya-hd-icon", attr: { title: label, "aria-label": label } }); setIcon(b, icon); b.onclick = run; return b;
+  const b = host.createEl("button", { cls: "samaya-hd-icon", attr: { "aria-label": label } }); setIcon(b, icon); // aria-label shows Obsidian's tooltip; a title would show a second one b.onclick = run; return b;
 };
 
 const btn = (host: HTMLElement, text: string, run: () => void, title?: string) => { const b = host.createEl("button", { cls: "samaya-hd-btn", text, attr: title ? { title } : {} }); b.onclick = run; return b; };
@@ -51,12 +51,11 @@ export function renderDayHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, righ
   renderWorkdayCard(plugin, sg.createDiv("samaya-hs-wd"), { part: "status", date: o.date });
   workTimeIcon(plugin, sg);
   const group = mid.createDiv("samaya-hs-group is-cap");
-  renderCapMeter(plugin, group, { label: "Daily capacity", planned: o.planned, meetings: o.meetings, free: o.free, what: o.what });
+  renderCapMeter(plugin, group, { label: "Capacity", planned: o.planned, meetings: o.meetings, free: o.free, what: o.what });
   if (isToday && !plugin.guide) btn(group, "Plan day", () => { void plugin.startGuide(); });
   const actions = right.createDiv("samaya-head-actions"); // things to do: buttons
   if (isToday) renderWorkdayCard(plugin, actions.createDiv("samaya-hs-wd-actions"), { part: "actions" });
-  const views = right.createDiv("samaya-head-views"); // places to look at: icons
-  if (s.journalOn) viewIcon(views, "file-text", "Daily note", () => openNote(plugin, "daily", o.date));
+
 }
 
 /** Week heading: the status chip (this week: today's status; a past week: the average work time per working day; a coming week: none), then the weekly capacity (live: it follows the tasks) grouped with Plan week; Review week and Weekly note in the actions. */
@@ -65,7 +64,8 @@ export function renderWeekHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, rig
   const sg = mid.createDiv("samaya-hs-group is-status");
   const chip = sg.createDiv("samaya-hs-wd");
   workTimeIcon(plugin, sg);
-  if (cur) renderWorkdayCard(plugin, chip, { part: "status" });
+  if (weekStart > thisWeek) { const c = chip.createDiv({ cls: "samaya-wd samaya-wd-chip", attr: { title: "Nothing to track yet: this week has not started." } }); c.createSpan({ cls: "samaya-wd-state", text: "Not started yet" }); }
+  else if (cur) renderWorkdayCard(plugin, chip, { part: "status" });
   else if (weekStart < thisWeek) void (async () => {
     const events = calendarEnabled(s) ? await calendarEvents(plugin, parseYmd(weekStart), parseYmd(addDays(weekStart, 7))).catch(() => []) : [];
     if (!chip.isConnected) return;
@@ -79,7 +79,7 @@ export function renderWeekHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, rig
     const planned = weekBuckets(allTasks(plugin.app, s), weekStart).weekTasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0);
     const { free, meetings } = await weekCapacity(plugin, weekStart, s.workDays);
     if (my !== token || !slot.isConnected) return;
-    slot.empty(); renderCapMeter(plugin, slot, { label: "Weekly capacity", planned, meetings, free, what: "Free time of the week = work time - lunch - meetings" });
+    slot.empty(); renderCapMeter(plugin, slot, { label: "Capacity", planned, meetings, free, what: "Free time of the week = work time - lunch - meetings" });
   };
   const later = () => { window.clearTimeout(timer); timer = window.setTimeout(() => { void paint(); }, 200); };
   const off = plugin.bus.on(later);
@@ -88,6 +88,13 @@ export function renderWeekHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, rig
   if (cur && !plugin.guide) btn(group, "Plan week", () => { void plugin.startWeekGuide(); });
   const actions = right.createDiv("samaya-head-actions");
   if (cur) btn(actions, "Review week", () => { void plugin.reviewWeek(); }, "Open this week's review: the weekly note, or the work time dashboard");
-  const views = right.createDiv("samaya-head-views");
-  if (s.journalOn && s.journalNotes.weekly.on) viewIcon(views, "file-text", "Weekly note", () => openNote(plugin, "weekly", weekStart));
+
+}
+
+/** The note icons (a view, so an icon): right of the Today / This week pill, left of the date navigation, always in the same place. */
+export function renderDayNoteIcon(plugin: SamayaPlugin, right: HTMLElement, date: string): void {
+  if (plugin.settings.journalOn) viewIcon(right, "file-text", "Daily note", () => openNote(plugin, "daily", date));
+}
+export function renderWeekNoteIcon(plugin: SamayaPlugin, right: HTMLElement, weekStart: string): void {
+  if (plugin.settings.journalOn && plugin.settings.journalNotes.weekly.on) viewIcon(right, "file-text", "Weekly note", () => openNote(plugin, "weekly", weekStart));
 }

@@ -14,7 +14,7 @@ import { renderTimeline, TimelineState } from "./timelineKit";
 import { ensureMeetingNote } from "../meetings";
 import { capacityWindow, Capacity } from "../worktime";
 import { bufferShare, loadLevel, trimToBuffer } from "../weekplan";
-import { renderDayHeadStatus } from "./headStatus";
+import { renderDayHeadStatus, renderDayNoteIcon } from "./headStatus";
 import { renderDateNav, renderResetPill } from "./dateNav";
 import { dayHeadSub, fitHead, renderHeadTitle, renderModeSwitch } from "./plannerHead";
 
@@ -168,6 +168,7 @@ export class DailyPlannerView extends BasesView {
     const right = h.createDiv("samaya-planner-right");
     renderDayHeadStatus(this.plugin, mid, right, { date: this.date, planned, meetings: cap.meetings, free: cap.free, what: `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings` });
     if (!isToday) renderResetPill(right, "Today", "Jump to today", this.date < today() ? "right" : "left", () => this.goTo(today()));
+    renderDayNoteIcon(this.plugin, right, this.date);
     renderDateNav(right, {
       label: parseYmd(this.date).toLocaleDateString(undefined, { weekday: isToday ? "short" : undefined, month: "short", day: "numeric" }),
       prevLabel: "Previous day", nextLabel: "Next day", onPrev: () => this.goTo(addDays(this.date, -1)), onNext: () => this.goTo(addDays(this.date, 1)),

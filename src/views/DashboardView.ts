@@ -22,7 +22,7 @@ export class DashboardPanel {
     const total = totalBalance(logs, s.weeklyHours, s.workDays);
 
     const head = c.createDiv("samaya-dash-head");
-    if (this.back) { const bk = head.createEl("button", { cls: "samaya-dash-back mod-cta", attr: { title: "Back to the planner (Esc)", "aria-label": "Back to the planner" } }); setIcon(bk.createSpan("samaya-dash-back-icon"), "arrow-left"); bk.createSpan({ text: "Planner" }); bk.onclick = this.back; }
+    if (this.back) { const bk = head.createEl("button", { cls: "samaya-dash-back mod-cta", attr: { "aria-label": "Back to the planner (Esc)" } }); setIcon(bk.createSpan("samaya-dash-back-icon"), "arrow-left"); bk.createSpan({ text: "Planner" }); bk.onclick = this.back; }
     head.createEl("h2", { text: "Work time" });
     const nav = head.createDiv("samaya-nav");
     nav.createEl("button", { text: "‹" }).onclick = () => { this.weekStart = addDays(this.weekStart, -7); this.render(); };

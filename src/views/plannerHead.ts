@@ -1,7 +1,7 @@
 import { addDays, parseYmd, startOfWeek, today } from "../util";
 import type SamayaPlugin from "../main";
 import { renderDateNav, renderResetPill } from "./dateNav";
-import { renderWeekHeadStatus } from "./headStatus";
+import { renderWeekHeadStatus, renderWeekNoteIcon } from "./headStatus";
 
 /** ISO week number of a date (weeks start on Monday). */
 export function isoWeek(d: Date): number {
@@ -63,6 +63,7 @@ export function renderWeekHead(head: HTMLElement, weekStart: string, go: (weekSt
   const right = head.createDiv("samaya-planner-right"); // same spot as the day heading's controls: actions, navigation, then the Day | Week switch
   if (plugin && mid) renderWeekHeadStatus(plugin, mid, right, weekStart);
   if (weekStart !== cur) renderResetPill(right, "This week", "Back to the current week", weekStart < cur ? "right" : "left", () => go(cur)); // only when you are somewhere else
+  if (plugin) renderWeekNoteIcon(plugin, right, weekStart);
   renderDateNav(right, {
     label: weekRangeLabel(weekStart), prevLabel: "Previous week", nextLabel: "Next week",
     onPrev: () => go(addDays(weekStart, -7)), onNext: () => go(addDays(weekStart, 7)),

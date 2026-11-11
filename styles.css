@@ -1048,14 +1048,14 @@ input.is-invalid { border-color: var(--text-error); }
 
 /* too narrow for all of it: JS steps data-fit up until the heading fits one line */
 :is(.samaya-week-head, .samaya-day-head)[data-fit="1"] .samaya-hs-group.is-status { width: 230px; }
-:is(.samaya-week-head, .samaya-day-head)[data-fit="1"] .samaya-hs-group.is-cap { width: 280px; }
+:is(.samaya-week-head, .samaya-day-head)[data-fit="1"] .samaya-hs-group.is-cap { width: 290px; }
 :is(.samaya-week-head, .samaya-day-head)[data-fit="1"] .samaya-head-mid { gap: var(--samaya-sp-2); margin-left: var(--samaya-sp-3); }
 :is(.samaya-week-head, .samaya-day-head):is([data-fit="2"], [data-fit="3"], [data-fit="4"]) > .samaya-planner-titles { width: 140px; }
 :is(.samaya-week-head, .samaya-day-head):is([data-fit="2"], [data-fit="3"], [data-fit="4"]) .samaya-datereset > span:not(.samaya-datereset-icon) { display: none; }
 :is(.samaya-week-head, .samaya-day-head):is([data-fit="2"], [data-fit="3"], [data-fit="4"]) .samaya-hs-group.is-status { width: 200px; }
-:is(.samaya-week-head, .samaya-day-head):is([data-fit="2"], [data-fit="3"], [data-fit="4"]) .samaya-hs-group.is-cap { width: 250px; }
-:is(.samaya-week-head, .samaya-day-head):is([data-fit="3"], [data-fit="4"]) .samaya-hs-cap-label { display: none; }
-:is(.samaya-week-head, .samaya-day-head):is([data-fit="3"], [data-fit="4"]) .samaya-hs-group.is-cap { width: 200px; }
+:is(.samaya-week-head, .samaya-day-head):is([data-fit="2"], [data-fit="3"], [data-fit="4"]) .samaya-hs-group.is-cap { width: 210px; }
+:is(.samaya-week-head, .samaya-day-head):is([data-fit="2"], [data-fit="3"], [data-fit="4"]) .samaya-hs-cap-label { display: none; }
+:is(.samaya-week-head, .samaya-day-head):is(.samaya-week-head, .samaya-day-head):is([data-fit="3"], [data-fit="4"]) .samaya-hs-group.is-cap { width: 190px; }
 :is(.samaya-week-head, .samaya-day-head):is([data-fit="3"], [data-fit="4"]) .samaya-hs-group.is-status { width: 160px; }
 :is(.samaya-week-head, .samaya-day-head)[data-fit="4"] .samaya-wd-chip > span { display: none; }
 :is(.samaya-week-head, .samaya-day-head)[data-fit="4"] .samaya-hs-group.is-status { width: 80px; }
@@ -1068,3 +1068,7 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-dash-back { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 30px; }
 .samaya-dash-back-icon { display: inline-flex; }
 .samaya-dash-back svg { width: 16px; height: 16px; }
+.samaya-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.samaya-wd.samaya-wd-chip { padding-left: 4px; } /* room for the dot's glow, which overflow:hidden would cut off */
+.samaya-hs-group.is-cap { width: 300px; } /* wide enough for "CAPACITY  12h 30m / 14h 20m"; the same for every day and week */
+.samaya-hs-cap-label, .samaya-hs-cap-fig { flex: none; }

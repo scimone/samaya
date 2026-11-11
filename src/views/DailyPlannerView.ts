@@ -166,7 +166,7 @@ export class DailyPlannerView extends BasesView {
       const right = bar.createDiv("samaya-tl-bar-right"); // same spot as the week heading: navigation, then the Day | Week switch
       if (this.date !== today()) renderResetPill(right, "Today", "Jump to today", this.date < today() ? "right" : "left", () => this.goTo(today()));
       renderDateNav(right, {
-        variant: "plain", label: parseYmd(this.date).toLocaleDateString(undefined, { weekday: this.date === today() ? "short" : undefined, month: "short", day: "numeric" }),
+        variant: "box", label: parseYmd(this.date).toLocaleDateString(undefined, { weekday: this.date === today() ? "short" : undefined, month: "short", day: "numeric" }),
         prevLabel: "Previous day", nextLabel: "Next day", onPrev: () => this.goTo(addDays(this.date, -1)), onNext: () => this.goTo(addDays(this.date, 1)),
         pick: { value: this.date, run: d => this.goTo(d) },
       });

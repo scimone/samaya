@@ -1008,3 +1008,10 @@ button.samaya-datereset:hover, button.samaya-datereset:focus-visible { backgroun
 .samaya-tlpane { flex: 0 1 420px; min-width: 300px; }
 .samaya-daily .samaya-tl-bar { flex-wrap: wrap; row-gap: 6px; }
 .samaya-daily .samaya-tl-bar-title { display: none; } /* the date and the switch say what this column is; the room goes to the navigation */
+.samaya-weeknav-label.is-pickable { position: relative; cursor: pointer; }
+.samaya-weeknav-label.is-pickable:hover { background: var(--background-modifier-hover); }
+.samaya-weeknav .samaya-weeknav-datepick { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; min-width: 0 !important; margin: 0 !important; padding: 0 !important; opacity: 0 !important; pointer-events: none; border: none !important; }
+/* tasks and timeline columns share one width */
+.samaya-left, .samaya-tlpane { flex: 0 1 460px; min-width: 300px; }
+.samaya-daily.is-review .samaya-left { flex: 1 1 auto; }
+@media (max-width: 700px) { .samaya-left, .samaya-tlpane { flex: none; } }

@@ -1,7 +1,7 @@
 import { setIcon } from "obsidian";
 
 export interface DateNavOpts {
-  /** "box": arrows and label in one bordered control (week heading). "plain": plain arrows around a date button with a calendar picker (day header). */
+  /** "box": arrows and label in one bordered control (week and day headings; the label opens a date picker when `pick` is set). "plain": plain arrows around a date button with a calendar picker (day header). */
   variant: "box" | "plain";
   label: string;
   prevLabel: string; nextLabel: string;
@@ -16,7 +16,13 @@ export function renderDateNav(parent: HTMLElement, o: DateNavOpts): HTMLElement 
     const nav = parent.createDiv("samaya-weeknav");
     const step = (icon: string, label: string, run: () => void) => { const b = nav.createEl("button", { cls: "samaya-weeknav-step", attr: { "aria-label": label, title: label } }); setIcon(b, icon); b.onclick = run; };
     step("chevron-left", o.prevLabel, o.onPrev);
-    nav.createSpan({ cls: "samaya-weeknav-label", text: o.label });
+    const lab = nav.createSpan({ cls: "samaya-weeknav-label", text: o.label });
+    if (o.pick) { // the label opens a date picker (day view); the native input sits invisibly over it
+      const pick = o.pick; lab.addClass("is-pickable"); lab.setAttr("aria-label", "Pick a date");
+      const picker = lab.createEl("input", { type: "date", cls: "samaya-weeknav-datepick" }); picker.value = pick.value;
+      picker.addEventListener("change", () => { if (picker.value) pick.run(picker.value); });
+      lab.onclick = e => { if (e.target !== picker) { try { picker.showPicker(); } catch { picker.focus(); picker.click(); } } };
+    }
     step("chevron-right", o.nextLabel, o.onNext);
     return nav;
   }

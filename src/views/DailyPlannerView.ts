@@ -96,7 +96,7 @@ export class DailyPlannerView extends BasesView {
     const g = isToday ? guide : null; const step = g?.step ?? -1;
     const sd = g?.kind === "shutdown"; const pg = sd ? null : g; const review = !sd && step === 0, pick = !sd && step === 1, check = !sd && step === 3;
     this.root.toggleClass("is-review", !!pg); // plan my day: guide + columns; otherwise one column of task cards
-    this.renderHead(isToday, !!this.plugin.guide);
+    if (!this.plugin.guide) this.renderHead(isToday); // no title bar in Plan my day / End day
     const cols = this.root.createDiv("samaya-daily-cols"); // everything else sits below the title bar
     const info = pg ? null : cols.createDiv("samaya-info"); // columns from the left: status, tasks, timeline (Plan my day: guide and tasks, the timeline is in the sidebar)
     const left = cols.createDiv("samaya-left");
@@ -160,11 +160,10 @@ export class DailyPlannerView extends BasesView {
     this.finishRender(left);
   }
 
-  /** The title bar, same design as the week heading: title, then (without a guide) reset pill, ‹ date ›, Day | Week. Everything else starts below it. */
-  private renderHead(isToday: boolean, guide: boolean) {
+  /** The title bar, same design as the week heading: title, then reset pill, ‹ date ›, Day | Week. Everything else starts below it. */
+  private renderHead(isToday: boolean) {
     const h = this.root.createDiv("samaya-week-head samaya-day-head");
     h.createEl("h2", { cls: "samaya-planner-title", text: isToday ? "Today" : parseYmd(this.date).toLocaleDateString(undefined, { weekday: "long" }) });
-    if (guide) return;
     const right = h.createDiv("samaya-planner-right");
     if (!isToday) renderResetPill(right, "Today", "Jump to today", this.date < today() ? "right" : "left", () => this.goTo(today()));
     renderDateNav(right, {

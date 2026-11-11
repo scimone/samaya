@@ -10,6 +10,7 @@ import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { celebrate, renderDoneBar } from "./doneBar";
 import { renderGuide } from "./guide";
+import { renderDayReview } from "./dayReview";
 import { renderLoadBar } from "./loadBar";
 import { renderTimeline, TimelineState } from "./timelineKit";
 import { ensureMeetingNote } from "../meetings";
@@ -108,6 +109,10 @@ export class DailyPlannerView extends PlannerPane {
     const left = cols.createDiv("samaya-left");
     this.renderPane(cols.createDiv("samaya-today samaya-tlpane"), day, tlEvents, notes, pg); // the timeline is the last column (Plan my day: read-only until Timebox, on the sidebar's background)
     let body = left; // where today's planned list goes
+    if (sd && step === 1) { // End day, step 2: the review replaces the task list
+      left.addClass("is-review-col"); renderDayReview(this.plugin, left, { date: this.date, all, meetings: cap.meetings });
+      return void this.finishRender(left);
+    }
     if (!pg) { // tasks heading: title, done count, progress
       const nd = day.filter(t => t.status === "done").length;
       left.addClass("is-sticky-head"); // the heading and its bar stay in view while the tasks scroll

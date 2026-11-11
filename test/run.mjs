@@ -467,3 +467,19 @@ console.log("home ok");
   assert.ok(ov.includes("| Monday | 2 hr (1) | 1 hr | 3 hr | ████░░░░░░ 40% |") && ov.includes("| Tuesday | – | – | 5 hr | ░░░░░░░░░░ 0% |") && ov.includes("3 tasks, 1 scheduled, 2 still without a day.") && !ov.includes("Recommended"));
   assert.ok(weekOverview([{ ...mon, note: "2026-11-09" }], 0).includes("| [[2026-11-09\\|Monday]] |"));
 }
+
+// ---- day review
+await bundle("src/dayreview.ts", "test/.dayreview.mjs");
+{
+  const { runMinutesOn, taskRows, groupRows, daySplit, verdict } = await import("./.dayreview.mjs");
+  assert.equal(runMinutesOn(["2026-11-11 09:05–09:40", "2026-11-11 10:00-10:30", "2026-11-10 09:00–10:00", "2026-11-11 23:30–2026-11-12 00:20", "junk"], "2026-11-11"), 35 + 30 + 30);
+  const items = [
+    { title: "A", planned: 60, actual: 90, done: true, ticket: "T-1", project: "" },
+    { title: "B", planned: 30, actual: 0, done: false, ticket: "", project: "" },
+    { title: "C", planned: 0, actual: 20, done: false, ticket: "T-1", project: "" },
+  ];
+  assert.deepEqual(taskRows(items).map(r => [r.label, r.unplanned]), [["A", false], ["B", false], ["C", true]]);
+  assert.deepEqual(groupRows(items, "ticket").map(g => [g.label, g.planned, g.actual]), [["T-1", 60, 110], ["No ticket", 30, 0]]);
+  const sp = daySplit(120, 100, 40, 15); assert.equal(sp.focus, 80); assert.equal(sp.other, 0); assert.equal(sp.total, 135);
+  assert.equal(verdict(60, 62, 1, 1).title, "Right on plan"); assert.equal(verdict(60, 90, 1, 1).title, "More than planned");
+}

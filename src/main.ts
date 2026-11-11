@@ -672,12 +672,12 @@ export default class SamayaPlugin extends Plugin {
     const note = s.journalOn ? (await periodNotePath(this.app, s, "daily", td))?.file ?? null : null;
     this.noticeWithNote(`Day planned${wasStarted ? "" : " and started"}.${s.journalOn && write ? " Saved to your journal." : ""}`, note, "Open daily note", true);
   }
-  /** End of day: the planner with a one-step guide (tick off forgotten tasks), then finalize. */
+  /** End of day: the planner with a two-step guide (tick off forgotten tasks, review the day), then finalize. */
   async startShutdown() {
     this.collapseTimeline();
     const td = today(); const day = onDay(allTasks(this.app, this.settings), td);
-    if (day.every(t => t.status === "done")) { await this.finishShutdown(); return; } // nothing left to check off: end the day right away
-    this.guide = { step: 0, review: false, fresh: true, kind: "shutdown" };
+    this.guide = { step: day.every(t => t.status === "done") ? 1 : 0, // nothing left to check off: straight to the review
+       review: false, fresh: true, kind: "shutdown" };
     await this.openPlanner(); this.bus.emit();
   }
   /** Closing a day (by hand or automatically, because it was forgotten) writes its finished tasks and what is planned for the next day into that day's note. */

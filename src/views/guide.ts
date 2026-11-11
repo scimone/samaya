@@ -69,20 +69,31 @@ export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideC
   addReminder(plugin, box);
 }
 
-/** End of day: a single step. Tick off forgotten tasks in the Tasks column, then finalize. */
+export const SHUTDOWN_STEPS = [
+  { title: "Check off finished tasks", text: "Did you finish something and forget to tick it off? Check off any finished tasks in the list. Then press `Next`." },
+  { title: "Review your day", text: "See how you spent your time and how it compares with your plan. Then press `End my day`." },
+];
+
+/** End of day, two steps: tick off forgotten tasks, then look back at how the day went (see views/dayReview.ts) and finalize. */
 function renderShutdownGuide(plugin: SamayaPlugin, host: HTMLElement) {
+  const g = plugin.guide!; const go = (to: number) => { g.step = to; plugin.bus.emit(); };
   const box = host.createDiv("samaya-plan");
   const top = box.createDiv("samaya-plan-top");
   top.createSpan({ cls: "samaya-plan-kicker", text: "End my day" });
   const x = top.createEl("button", { cls: "samaya-plan-cancel clickable-icon", attr: { "aria-label": "Cancel" } });
   setIcon(x, "x"); x.onclick = () => plugin.cancelGuide();
-  const li = box.createEl("ol", { cls: "samaya-plan-steps" }).createEl("li", { cls: "samaya-plan-step is-active" });
-  li.createDiv("samaya-plan-marker").setText("1");
-  const main = li.createDiv("samaya-plan-main");
-  main.createDiv("samaya-plan-title").createSpan({ text: "Check off finished tasks" });
-  richText(main.createDiv("samaya-plan-text"), "Did you finish something and forget to tick it off? Check off any finished tasks in the list. Then press `End my day`.");
+  const list = box.createEl("ol", { cls: "samaya-plan-steps" });
+  SHUTDOWN_STEPS.forEach((st, i) => {
+    const li = list.createEl("li", { cls: `samaya-plan-step ${i === g.step ? "is-active" : i < g.step ? "is-done" : "is-todo"}` });
+    const marker = li.createDiv("samaya-plan-marker"); if (i < g.step) setIcon(marker, "check"); else marker.setText(String(i + 1));
+    const main = li.createDiv("samaya-plan-main"); main.createDiv("samaya-plan-title").createSpan({ text: st.title });
+    if (i < g.step) { li.addClass("is-link"); li.onclick = () => go(i); li.setAttr("title", `Back to ${st.title}`); }
+    if (i === g.step) richText(main.createDiv("samaya-plan-text"), st.text);
+  });
   const nav = box.createDiv("samaya-plan-nav");
-  nav.createEl("button", { text: "End my day", cls: "mod-cta samaya-plan-next" }).onclick = () => { void plugin.finishShutdown(); };
+  if (g.step > 0) nav.createEl("button", { text: "Back", cls: "samaya-plan-back" }).onclick = () => go(g.step - 1);
+  const last = g.step === SHUTDOWN_STEPS.length - 1;
+  nav.createEl("button", { text: last ? "End my day" : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) void plugin.finishShutdown(); else go(g.step + 1); };
 }
 
 /** "Plan my week": same stepper as the day guide, with the reminder to leave room for the unexpected under every step. */

@@ -581,7 +581,7 @@ export default class SamayaPlugin extends Plugin {
     if (!wk) return;
     let saved: TFile | null = null;
     try { saved = await this.writeWeekPlan(wk, days); } catch (e) { console.error("Samaya: could not write the weekly note", e); new Notice("Samaya: could not write the weekly note (see the console)."); }
-    this.noticeWithNote(`Week of ${parseYmd(wk).toLocaleDateString(undefined, { month: "short", day: "numeric" })} planned${saved ? " and saved to your weekly note" : ""}. Leave room for the unexpected.`, saved, "Open weekly note", true);
+    this.noticeWithNote(`Week of ${parseYmd(wk).toLocaleDateString(undefined, { month: "short", day: "numeric" })} planned${saved ? " and saved to your weekly note" : ""}.`, saved, "Open weekly note", true);
   }
   /** The weekly note (created if missing) gets an "Overview", the week's "Meetings" by weekday and its "Planned tasks". False when nothing is written. */
   private async writeWeekPlan(wk: string, nDays: number): Promise<TFile | null> {

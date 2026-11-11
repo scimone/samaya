@@ -255,7 +255,7 @@ export class WeeklyBoardView extends PlannerPane {
     addBox(col, "+ Add task", () => ({ planned: date, order: tasks.length }));
     const body = col.createDiv("samaya-col-body");
     tasks.forEach((t, idx) => {
-      const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true });
+      const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true, split: true });
       bindCardDrop(this.scope, c, (path, after, i) => { this.dropOn(path, i, date, idx + (after ? 1 : 0)); });
     });
     bindZone(this.scope, col, (path, i) => { this.dropOn(path, i, date, tasks.length); });

@@ -149,7 +149,7 @@ export class DailyPlannerView extends PlannerPane {
     else if (!shown.length) list.createDiv({ cls: "samaya-empty samaya-allset", text: "Nothing left to schedule." });
     shown.forEach(t => {
       const idx = day.indexOf(t);
-      const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true, focus: pg ? undefined : "today" });
+      const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true, focus: pg ? undefined : "today", split: step === 2 });
       c.toggleClass("is-timed", !!t.start);
       bindCardDrop(this.scope, c, (path, after, i) => { void this.place(path, idx + (after ? 1 : 0), i); });
     });
@@ -193,7 +193,7 @@ export class DailyPlannerView extends PlannerPane {
       if (this.plugin.guide) pane.createDiv({ cls: "samaya-today-label", text: "Timeline" });
       if (allDay.length) { const chips = pane.createDiv("samaya-tl-allday"); allDay.forEach(e => chips.createDiv({ cls: "samaya-wtl-chip is-event", text: e.title })); } // the same chips as the all-day events in the week timeline's day heads
     }
-    this.tlHeight = renderTimeline(this.plugin, this.scope, pane, { date: this.date, day, events, notes, ro: !!plan && plan.step <= 1, state: this.tlState });
+    this.tlHeight = renderTimeline(this.plugin, this.scope, pane, { date: this.date, day, events, notes, ro: !!plan && plan.step <= 1, split: plan?.step === 2, state: this.tlState });
     if (!this.tlWatch) { // the hours stretch to the pane height
       this.tlWatch = new ResizeObserver(() => { const el = this.root.querySelector<HTMLElement>(".samaya-tlpane"); if (el && el.clientHeight !== this.tlHeight) this.schedule(); });
       this.tlWatch.observe(this.root); this.register(() => this.tlWatch?.disconnect());

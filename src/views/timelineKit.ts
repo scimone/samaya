@@ -17,7 +17,7 @@ const MIN_HOUR_H = 28;
 export interface TimelineState { scrolled: string; scrollTop: number; }
 
 /** The draggable day timeline (hours, meetings, task blocks). Fills `c`; returns the height it was laid out for. */
-export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLElement, o: { date: string; day: Task[]; events: IcsEvent[]; notes: Map<IcsEvent, TFile>; ro: boolean; state: TimelineState }): number {
+export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLElement, o: { date: string; day: Task[]; events: IcsEvent[]; notes: Map<IcsEvent, TFile>; ro: boolean; /** scissors on the blocks */ split?: boolean; state: TimelineState }): number {
   const { date, day, events, notes, ro, state } = o;
   {
     const s = plugin.settings; const dayMs = parseYmd(date).getTime(); const isToday = date === today();
@@ -100,7 +100,7 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
       b.addEventListener("dblclick", () => open(t.file));
       b.addEventListener("contextmenu", e => showTaskMenu(plugin, t, e, it.n! > 1 ? it.seg! : null));
       if (ro) return; // read-only while reviewing and picking
-      if (canSplit(t)) { // scissors on hover: cut this block into parts
+      if (o.split && canSplit(t)) { // scissors on hover: cut this block into parts
         const cut = b.createEl("button", { cls: "samaya-block-split", attr: { title: "Split into parts", "aria-label": `Split: ${t.title}` } });
         setIcon(cut, "scissors"); cut.addEventListener("pointerdown", e => e.stopPropagation());
         cut.addEventListener("click", e => { e.stopPropagation(); new PartsModal(plugin, t, "split", it.n! > 1 ? it.seg! : null).open(); });

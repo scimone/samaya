@@ -12,6 +12,7 @@ export interface CardOpts {
   scope: DndScope; showTime?: boolean; /** show the actions under the estimate on the right instead of below the title */ actionsSide?: boolean; /** hide subtasks (sidebar) */ compact?: boolean;
   /** a chip with the day the task is planned for */ dayLabel?: string;
   /** Focus button: on the ongoing task only, or on every task planned for today; the ongoing task is always lit */ focus?: "ongoing" | "today";
+  /** show the scissors (split into parts): only in the Timebox and Schedule steps */ split?: boolean;
   /** extra quick-action buttons (label, handler) */ actions?: Array<[string, () => void]>;
 }
 
@@ -103,7 +104,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   });
 
   if (o.actionsSide) o.actions?.forEach(([label, fn]) => { side.createEl("button", { cls: "samaya-mini", text: label }).addEventListener("click", fn); });
-  if (canSplit(t)) { // scissors: cut the task into parts, here or on other days
+  if (o.split && canSplit(t)) { // scissors: cut the task into parts, here or on other days
     const cut = side.createEl("button", { cls: "samaya-mini samaya-split-btn", attr: { title: "Split into parts", "aria-label": `Split: ${t.title}` } });
     setIcon(cut, "scissors");
     cut.addEventListener("pointerdown", e => e.stopPropagation()); // not a drag

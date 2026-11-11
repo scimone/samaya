@@ -5,9 +5,10 @@ import type { DndScope } from "../dnd";
 import { Task, setDone } from "../model";
 import { layoutItems } from "../timeline";
 import { minToHm, parseYmd, today } from "../util";
+import { PartsModal } from "./partsModal";
 import { canSplit, keyActivate, showTaskMenu } from "./common";
 import { renderDayLines } from "./dayLines";
-import { beginCut, decorateSegment, dragLen, dropOnTimeline, resizeBlock, segLabel, taskBlocks } from "./place";
+import { decorateSegment, dragLen, dropOnTimeline, resizeBlock, segLabel, taskBlocks } from "./place";
 import { addBands } from "./bands";
 
 const MIN_HOUR_H = 28;
@@ -100,9 +101,9 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
       b.addEventListener("contextmenu", e => showTaskMenu(plugin, t, e, it.n! > 1 ? it.seg! : null));
       if (ro) return; // read-only while reviewing and picking
       if (canSplit(t)) { // scissors on hover: cut this block into parts
-        const cut = b.createEl("button", { cls: "samaya-block-split", attr: { title: "Split: click where to cut", "aria-label": `Split: ${t.title}` } });
+        const cut = b.createEl("button", { cls: "samaya-block-split", attr: { title: "Split into parts", "aria-label": `Split: ${t.title}` } });
         setIcon(cut, "scissors"); cut.addEventListener("pointerdown", e => e.stopPropagation());
-        cut.addEventListener("click", e => { e.stopPropagation(); beginCut(plugin, b, t, it.n! > 1 ? it.seg! : null); });
+        cut.addEventListener("click", e => { e.stopPropagation(); new PartsModal(plugin, t, "split", it.n! > 1 ? it.seg! : null).open(); });
       }
       dnd.draggable(b, t.file.path);
       const handle = b.createDiv("samaya-resize");

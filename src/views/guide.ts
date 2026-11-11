@@ -42,7 +42,7 @@ export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideC
   const top = box.createDiv("samaya-plan-top");
   top.createSpan({ cls: "samaya-plan-kicker", text: "Plan my day" });
   const x = top.createEl("button", { cls: "samaya-plan-cancel clickable-icon", attr: { "aria-label": "Cancel planning" } });
-  setIcon(x, "x"); x.onclick = () => plugin.closeGuide();
+  setIcon(x, "x"); x.onclick = () => plugin.cancelGuide();
 
   const list = box.createEl("ol", { cls: "samaya-plan-steps" });
   GUIDE_STEPS.forEach((st, i) => {
@@ -75,7 +75,7 @@ function renderShutdownGuide(plugin: SamayaPlugin, host: HTMLElement) {
   const top = box.createDiv("samaya-plan-top");
   top.createSpan({ cls: "samaya-plan-kicker", text: "End my day" });
   const x = top.createEl("button", { cls: "samaya-plan-cancel clickable-icon", attr: { "aria-label": "Cancel" } });
-  setIcon(x, "x"); x.onclick = () => plugin.closeGuide();
+  setIcon(x, "x"); x.onclick = () => plugin.cancelGuide();
   const li = box.createEl("ol", { cls: "samaya-plan-steps" }).createEl("li", { cls: "samaya-plan-step is-active" });
   li.createDiv("samaya-plan-marker").setText("1");
   const main = li.createDiv("samaya-plan-main");
@@ -94,7 +94,7 @@ function renderWeekGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideCtx)
   const top = box.createDiv("samaya-plan-top");
   top.createSpan({ cls: "samaya-plan-kicker", text: "Plan my week" });
   const x = top.createEl("button", { cls: "samaya-plan-cancel clickable-icon", attr: { "aria-label": "Cancel planning" } });
-  setIcon(x, "x"); x.onclick = () => plugin.closeGuide();
+  setIcon(x, "x"); x.onclick = () => plugin.cancelGuide();
 
   const list = box.createEl("ol", { cls: "samaya-plan-steps" });
   WEEK_GUIDE_STEPS.forEach((st, i) => {

@@ -7,7 +7,7 @@ import { NO_REST, Piece, Session, addMinutes, sessionsTotal, dayMinutes, dayPiec
 import { calendarEnabled, calendarEvents } from "../calendar";
 import { Horizon, addDays, fmtDur, hmToMin, horizonTarget, parseYmd, startOfWeek, today } from "../util";
 import { nowMin } from "../workday";
-import { Menu, Notice, TFile, setIcon } from "obsidian";
+import { Notice, TFile, setIcon } from "obsidian";
 
 /** Meetings and lunch of a day as [start, end] minutes (with `borders`: also the time outside the day start/finish lines). */
 export function busyIntervals(plugin: SamayaPlugin, date: string, events: IcsEvent[], borders = false): Array<[number, number]> {
@@ -164,52 +164,4 @@ export async function joinParts(plugin: SamayaPlugin, file: TFile, day: string) 
   const plan = planInWindow(timed[0].s!, total, busyIntervals(plugin, day, events), wFrom, wTo, day === today() ? nowMin() : 0, s.dayEndHour * 60, s.slotMinutes) ?? [{ s: timed[0].s!, dur: total }];
   await writeSessions(plugin.app, file, plan.map((g): Session => ({ date: day, s: g.s, dur: g.dur })), 0, NO_REST);
   await makeRoom(plugin, file, day, plan, events, s.dayEndHour * 60, s.slotMinutes);
-}
-
-// ---------- the cut: drag the split point, then say where the rest goes ----------
-/** The menu after a cut: where the rest goes. */
-function askSplitDest(plugin: SamayaPlugin, t: Task, k: number | null, first: number, at: { x: number; y: number }) {
-  const day = t.planned; const m = new Menu();
-  const go = (to: SplitTo, where: string) => { void splitTask(plugin, t.file, day, k, first, to).then(ok => { if (ok) new Notice(`Split “${t.title}”: ${fmtDur(first)} stays, the rest goes ${where}.`); }); };
-  const next = addDays(day, 1); const wk = startOfWeek(day < today() ? today() : day);
-  if (k !== null || t.start) m.addItem(i => i.setTitle("Right after, same day").setIcon("arrow-down-to-line").onClick(() => go({ kind: "same" }, "right after")));
-  m.addItem(i => i.setTitle(next === addDays(today(), 1) ? "Tomorrow" : parseYmd(next).toLocaleDateString(undefined, { weekday: "long" })).setIcon("sunrise").onClick(() => go({ kind: "day", date: next }, "to " + (next === addDays(today(), 1) ? "tomorrow" : next))));
-  m.addItem(i => i.setTitle("This week").setIcon("calendar-range").onClick(() => go({ kind: "week", week: wk }, "to this week")));
-  m.addItem(i => i.setTitle("Backlog: next week").setIcon("calendar-clock").onClick(() => go({ kind: "backlog", horizon: "week" }, "to next week's backlog")));
-  m.addItem(i => i.setTitle("Backlog (someday)").setIcon("inbox").onClick(() => go({ kind: "backlog", horizon: "someday" }, "to the backlog")));
-  m.showAtPosition(at);
-}
-const lengthOf = (t: Task, k: number | null) => (k !== null && t.segments[k] ? t.segments[k].dur : t.estimate);
-const tooShort = (plugin: SamayaPlugin, dur: number) => {
-  const step = Math.max(5, plugin.settings.slotMinutes);
-  if (dur >= step * 2) return step;
-  new Notice(dur ? `Samaya: ${fmtDur(dur)} is too short to split.` : "Samaya: give the task an estimate before splitting it."); return 0;
-};
-
-/** Cut mode on a timeline block: a line follows the pointer (snapped to the time grid); a click cuts there. Escape or a click elsewhere cancels. */
-export function beginCut(plugin: SamayaPlugin, b: HTMLElement, t: Task, k: number | null) {
-  const dur = lengthOf(t, k); const step = tooShort(plugin, dur); if (!step) return;
-  b.addClass("is-cutting");
-  const line = b.createDiv("samaya-cut-line"); const tip = line.createSpan({ cls: "samaya-cut-tip" });
-  let first = 0;
-  const place = (y: number) => {
-    const r = b.getBoundingClientRect();
-    first = Math.min(dur - step, Math.max(step, Math.round(((y - r.top) / Math.max(1, r.height)) * dur / step) * step));
-    line.style.top = `${(first / dur) * 100}%`; tip.setText(`${fmtDur(first)} | ${fmtDur(dur - first)}`);
-  };
-  const end = () => { b.removeClass("is-cutting"); line.remove(); b.removeEventListener("pointermove", move); b.removeEventListener("pointerdown", stop, true); b.removeEventListener("click", click, true); document.removeEventListener("pointerdown", away, true); document.removeEventListener("keydown", key, true); };
-  const move = (e: PointerEvent) => place(e.clientY);
-  const stop = (e: Event) => { e.stopImmediatePropagation(); }; // no drag while cutting
-  const click = (e: MouseEvent) => { e.stopPropagation(); e.preventDefault(); end(); askSplitDest(plugin, t, k, first, { x: e.clientX, y: e.clientY }); };
-  const away = (e: Event) => { if (!b.contains(e.target as Node)) end(); };
-  const key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); end(); } };
-  b.addEventListener("pointermove", move); b.addEventListener("pointerdown", stop, true); b.addEventListener("click", click, true);
-  document.addEventListener("pointerdown", away, true); document.addEventListener("keydown", key, true);
-  const r = b.getBoundingClientRect(); place(r.top + r.height / 2);
-}
-/** Split in half (from a card, where there is no time line to drag), then say where the rest goes. */
-export function splitInHalf(plugin: SamayaPlugin, t: Task, k: number | null, at: { x: number; y: number }) {
-  const g = t.segments; const kk = k ?? (g.length > 1 ? g.reduce((best, x, i) => (x.dur > g[best].dur ? i : best), 0) : null);
-  const dur = lengthOf(t, kk); const step = tooShort(plugin, dur); if (!step) return;
-  askSplitDest(plugin, t, kk, Math.min(dur - step, Math.max(step, Math.round(dur / 2 / step) * step)), at);
 }

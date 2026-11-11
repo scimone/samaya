@@ -3,7 +3,7 @@ import type SamayaPlugin from "../main";
 import { DndScope, DropInfo } from "../dnd";
 import { Source, Task, addSubtask, assignTicket, patchTask, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
 import { ConfirmDeleteModal, ProjectSuggestModal, TicketSuggestModal } from "../modals";
-import { beginCut, focusButton, isOngoing, joinParts, splitInHalf, splitTitle } from "./place";
+import { focusButton, isOngoing, joinParts, splitTitle } from "./place";
 import { PartsModal } from "./partsModal";
 import { assignProject, projectPathOf } from "../projects";
 import { HORIZONS, Horizon, bucketOf, fmtDur, fmtHm, minToHm, parseDuration, parseYmd, startOfWeek, today } from "../util";
@@ -104,10 +104,10 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
 
   if (o.actionsSide) o.actions?.forEach(([label, fn]) => { side.createEl("button", { cls: "samaya-mini", text: label }).addEventListener("click", fn); });
   if (canSplit(t)) { // scissors: cut the task into parts, here or on other days
-    const cut = side.createEl("button", { cls: "samaya-mini samaya-split-btn", attr: { title: "Split in two parts", "aria-label": `Split: ${t.title}` } });
+    const cut = side.createEl("button", { cls: "samaya-mini samaya-split-btn", attr: { title: "Split into parts", "aria-label": `Split: ${t.title}` } });
     setIcon(cut, "scissors");
     cut.addEventListener("pointerdown", e => e.stopPropagation()); // not a drag
-    cut.addEventListener("click", e => { e.stopPropagation(); splitInHalf(plugin, t, null, { x: e.clientX, y: e.clientY }); });
+    cut.addEventListener("click", e => { e.stopPropagation(); new PartsModal(plugin, t, "split").open(); });
   }
 
   if (o.focus) {
@@ -155,7 +155,7 @@ export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent, seg: 
   }
   m.addSeparator();
   if (canSplit(t)) {
-    m.addItem(i => i.setTitle("Split task…").setIcon("scissors").onClick(() => { const blk = (e.target as HTMLElement | null)?.closest<HTMLElement>(".samaya-block"); if (blk) beginCut(plugin, blk, t, seg); else splitInHalf(plugin, t, seg, { x: e.clientX, y: e.clientY }); }));
+    m.addItem(i => i.setTitle("Split task…").setIcon("scissors").onClick(() => new PartsModal(plugin, t, "split", seg).open()));
     m.addItem(i => i.setTitle(part ? "Move this part to another day…" : "Move to another day…").setIcon("calendar-days").onClick(() => new PartsModal(plugin, t, "move", seg).open()));
     if (part) m.addItem(i => i.setTitle("Join all parts here").setIcon("combine").onClick(() => { void joinParts(plugin, t.file, t.planned); }));
   }

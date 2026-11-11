@@ -8,10 +8,11 @@ import { addDays, fmtDur, hmToMin, minToHm, parseYmd, startOfWeek, today } from 
 import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { layoutItems } from "../timeline";
+import { PartsModal } from "./partsModal";
 import { bindZone, canSplit, keyActivate, showTaskMenu } from "./common";
 import { addBands } from "./bands";
 import { renderWeekHead } from "./plannerHead";
-import { beginCut, decorateSegment, dragLen, dropOnTimeline, segLabel, splitTitle, taskBlocks } from "./place";
+import { decorateSegment, dragLen, dropOnTimeline, segLabel, splitTitle, taskBlocks } from "./place";
 
 const MIN_HOUR_H = 40;
 
@@ -177,9 +178,9 @@ export class WeeklyTimelineView extends PlannerPane {
         b.addEventListener("dblclick", () => open(t.file));
         b.addEventListener("contextmenu", e => showTaskMenu(this.plugin, t, e, it.n! > 1 ? it.seg! : null));
         if (canSplit(t)) {
-          const cut = b.createEl("button", { cls: "samaya-block-split", attr: { title: "Split: click where to cut", "aria-label": `Split: ${t.title}` } });
+          const cut = b.createEl("button", { cls: "samaya-block-split", attr: { title: "Split into parts", "aria-label": `Split: ${t.title}` } });
           setIcon(cut, "scissors"); cut.addEventListener("pointerdown", e => e.stopPropagation());
-          cut.addEventListener("click", e => { e.stopPropagation(); beginCut(this.plugin, b, t, it.n! > 1 ? it.seg! : null); });
+          cut.addEventListener("click", e => { e.stopPropagation(); new PartsModal(this.plugin, t, "split", it.n! > 1 ? it.seg! : null).open(); });
         }
         this.scope.draggable(b, t.file.path);
       });

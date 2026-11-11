@@ -2,20 +2,20 @@ import { Modal, Notice, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { Dest, Task, allTasks, onDay, sendPiece } from "../model";
 import { SplitTo, splitTask } from "./place";
-import { addDays, fmtDur, minToHm, parseYmd, startOfWeek, today } from "../util";
+import { addDays, fmtDur, parseYmd, startOfWeek, today } from "../util";
 
-type Choice = { key: string; label: string; sub?: string; icon?: string; split: SplitTo; dest: Dest };
+type Choice = { key: string; label: string; sub?: string; icon?: string; split: SplitTo; dest: Dest; said: string };
 
 /**
- * Split a task by hand, or move one of its parts: how long the first part is, and where the rest goes (right after on the same day,
- * another day, this week's list or the backlog). `task` is the day's view of the task (a card or a timeline block); `seg` the piece of a split day.
+ * Split a task (drag the cut on the bar, pick where the rest goes), or move one of its parts to another day.
+ * `task` is the day's view of the task (a card or a timeline block); `seg` the block of a split day that was used.
  */
 export class PartsModal extends Modal {
   private choice: Choice | null = null;
   private first = 0;
   constructor(private plugin: SamayaPlugin, private task: Task, private mode: "split" | "move", private seg: number | null = null) { super(plugin.app); }
 
-  /** The piece in hand: a block of a split day, the longest block when a card of a split day is used, or the day's only piece. */
+  /** The piece in hand: the block that was used, else the longest block of a split day, else the day's only piece. */
   private pieceIndex(): number | null {
     const g = this.task.segments;
     if (g.length < 2) return null;
@@ -26,116 +26,81 @@ export class PartsModal extends Modal {
   onOpen() {
     const s = this.plugin.settings; const t = this.task; const day = t.planned; const k = this.pieceIndex();
     const dur = k !== null ? t.segments[k].dur : t.estimate;
-    const step = Math.max(5, s.slotMinutes); const timed = k !== null || !!t.start;
-    const split = this.mode === "split";
+    const step = Math.max(5, s.slotMinutes); const timed = k !== null || !!t.start; const split = this.mode === "split";
     this.modalEl.addClass("samaya-parts-modal");
     this.titleEl.setText(split ? "Split task" : "Move to another day");
     this.contentEl.createDiv({ cls: "samaya-parts-task", text: t.title });
 
     if (split && dur < step * 2) {
-      this.contentEl.createEl("p", { cls: "samaya-parts-note", text: `This piece is only ${fmtDur(dur)} long: it cannot be split into parts of at least ${fmtDur(step)}. Give the task a longer estimate first.` });
+      this.contentEl.createEl("p", { cls: "samaya-parts-note", text: dur ? `${fmtDur(dur)} is too short to split.` : "Give the task an estimate first." });
       this.contentEl.createDiv("samaya-ritual-nav").createEl("button", { text: "Close" }).onclick = () => this.close();
       return;
     }
 
-    // ---- how long is the first part
+    // ---- the cut: drag the line on the bar
     let paint = () => { /* set below */ };
     if (split) {
       const lo = step, hi = Math.floor((dur - step) / step) * step;
       this.first = Math.min(hi, Math.max(lo, Math.round(dur / 2 / step) * step));
-      const box = this.contentEl.createDiv("samaya-parts-split");
-      const bar = box.createDiv("samaya-parts-bar"); const a = bar.createDiv("samaya-parts-a"); const b = bar.createDiv("samaya-parts-b");
-      const lab = box.createDiv("samaya-parts-labels"); const la = lab.createSpan(); const lb = lab.createSpan();
-      const range = box.createEl("input", { type: "range", cls: "samaya-parts-range", attr: { min: String(lo), max: String(hi), step: String(step), "aria-label": "Length of the first part" } });
-      range.value = String(this.first);
-      const nudge = box.createDiv("samaya-parts-nudge");
-      for (const [txt, d] of [["−", -step], ["+", step]] as const) {
-        const btn = nudge.createEl("button", { cls: "samaya-mini", text: `${txt} ${fmtDur(step)}`, attr: { type: "button" } });
-        btn.onclick = () => { range.value = String(Math.min(hi, Math.max(lo, Number(range.value) + d))); range.dispatchEvent(new Event("input")); };
-      }
+      const bar = this.contentEl.createDiv({ cls: "samaya-parts-bar", attr: { role: "slider", tabindex: "0", "aria-label": "Length of the first part", "aria-valuemin": String(lo), "aria-valuemax": String(hi) } });
+      const a = bar.createDiv("samaya-parts-a"); const b = bar.createDiv("samaya-parts-b");
       paint = () => {
-        this.first = Number(range.value); const left = dur - this.first;
-        a.style.flexGrow = String(this.first); b.style.flexGrow = String(left);
-        la.setText(`First part  ${fmtDur(this.first)}${timed && t.start ? `  ·  stays at ${minToHm(k !== null ? t.segments[k].s : parseHm(t.start))}` : ""}`);
-        lb.setText(`Rest  ${fmtDur(left)}`);
+        a.setText(fmtDur(this.first)); b.setText(fmtDur(dur - this.first));
+        a.style.flexGrow = String(this.first); b.style.flexGrow = String(dur - this.first); bar.setAttr("aria-valuenow", String(this.first));
       };
-      range.addEventListener("input", paint);
-    } else {
-      this.contentEl.createDiv({ cls: "samaya-parts-note", text: `${fmtDur(dur)} will move${k !== null ? " (this part)" : ""}. It lands in the day's list without a time.` });
+      const at = (x: number) => { const r = bar.getBoundingClientRect(); this.first = Math.min(hi, Math.max(lo, Math.round(((x - r.left) / Math.max(1, r.width)) * dur / step) * step)); paint(); };
+      bar.addEventListener("pointerdown", e => { bar.setPointerCapture(e.pointerId); at(e.clientX); const mv = (ev: PointerEvent) => at(ev.clientX); bar.addEventListener("pointermove", mv); bar.addEventListener("pointerup", () => bar.removeEventListener("pointermove", mv), { once: true }); });
+      bar.addEventListener("keydown", e => { const d = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0; if (!d) return; e.preventDefault(); this.first = Math.min(hi, Math.max(lo, this.first + d)); paint(); });
+      this.contentEl.createDiv({ cls: "samaya-parts-hint", text: "Drag the line to set where to cut" });
     }
 
-    // ---- where does it go
-    this.contentEl.createDiv({ cls: "samaya-parts-h", text: split ? "Where does the rest go?" : "Move to" });
+    // ---- where does the rest (or the part) go
+    this.contentEl.createDiv({ cls: "samaya-parts-h", text: split ? "The rest goes…" : "Move to…" });
     const wrap = this.contentEl.createDiv("samaya-parts-choices");
-    const choices: Choice[] = [];
     const chips = new Map<string, HTMLElement>();
     const add = (row: HTMLElement, c: Choice) => {
-      choices.push(c);
       const el = row.createEl("button", { cls: "samaya-parts-chip", attr: { type: "button", "aria-pressed": "false" } });
       if (c.icon) setIcon(el.createSpan({ cls: "samaya-parts-chip-icon" }), c.icon);
       el.createSpan({ cls: "samaya-parts-chip-label", text: c.label });
       if (c.sub) el.createSpan({ cls: "samaya-parts-chip-sub", text: c.sub });
-      el.onclick = () => pick(c); chips.set(c.key, el);
+      el.onclick = () => pick(c); chips.set(c.key, el); return c;
     };
-    const pick = (c: Choice) => { this.choice = c; chips.forEach((el, key) => { const on = key === c.key; el.toggleClass("is-active", on); el.setAttr("aria-pressed", String(on)); }); okBtn.disabled = false; };
-
-    if (split && timed) add(wrap.createDiv("samaya-parts-row"), { key: "same", label: "Right after", sub: "same day", icon: "arrow-down-to-line", split: { kind: "same" }, dest: { day } });
-
-    // days: the working days of this and the next week, from today on
-    const all = allTasks(this.app, s); const lastDow = Math.max(5, Math.min(7, s.workDays));
+    const pick = (c: Choice) => { this.choice = c; chips.forEach((el, key) => { const on = key === c.key; el.toggleClass("is-active", on); el.setAttr("aria-pressed", String(on)); }); };
+    const all = allTasks(this.app, s);
     const load = (d: string) => onDay(all, d).reduce((a, x) => a + (x.estimate || s.defaultEstimate), 0);
-    const base = startOfWeek(today());
-    for (const wk of [base, addDays(base, 7)]) {
-      const row = wrap.createDiv("samaya-parts-row"); row.createSpan({ cls: "samaya-parts-rowlabel", text: wk === base ? "This week" : "Next week" });
-      let n = 0;
-      for (let i = 0; i < lastDow; i++) {
-        const d = addDays(wk, i); if (d < today() || d === day) continue;
-        const min = load(d);
-        add(row, { key: d, label: parseYmd(d).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }), sub: min ? fmtDur(min) : "free", split: { kind: "day", date: d }, dest: { day: d } });
-        n++;
-      }
-      if (!n) row.remove();
-    }
-    const other = wrap.createDiv("samaya-parts-row"); other.createSpan({ cls: "samaya-parts-rowlabel", text: "Other" });
-    const wkThis = startOfWeek(day < today() ? today() : day);
-    add(other, { key: "week", label: wkThis === base ? "This week" : `Week of ${parseYmd(wkThis).toLocaleDateString(undefined, { day: "numeric", month: "short" })}`, sub: "no day yet", icon: "calendar-range", split: { kind: "week", week: wkThis }, dest: { week: wkThis } });
-    add(other, { key: "backlog", label: "Backlog", sub: "someday", icon: "inbox", split: { kind: "backlog", horizon: "someday" }, dest: { backlog: "someday" } });
-    const dateBox = other.createEl("label", { cls: "samaya-parts-date", text: "Date " });
-    const dateIn = dateBox.createEl("input", { type: "date", attr: { min: today() } });
-    dateIn.onchange = () => {
-      if (!dateIn.value) return; const d = dateIn.value; chips.delete("date");
-      const c: Choice = { key: "date", label: d, split: { kind: "day", date: d }, dest: { day: d } }; choices.push(c); this.choice = c;
-      chips.forEach(el => { el.removeClass("is-active"); el.setAttr("aria-pressed", "false"); }); okBtn.disabled = false;
-    };
+    const dayChip = (row: HTMLElement, d: string) => add(row, { key: d, label: parseYmd(d).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }), sub: load(d) ? fmtDur(load(d)) : "free", split: { kind: "day", date: d }, dest: { day: d }, said: parseYmd(d).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" }) });
+
+    let firstChoice: Choice | null = null;
+    if (split && timed) firstChoice = add(wrap.createDiv("samaya-parts-row"), { key: "same", label: "Right after", sub: "same day", icon: "arrow-down-to-line", split: { kind: "same" }, dest: { day }, said: "right after" });
+    // the days of the week of the piece (from today on), and the next week when this one has run out
+    const lastDow = Math.max(5, Math.min(7, s.workDays)); const wk0 = startOfWeek(day < today() ? today() : day);
+    const week = (wk: string) => Array.from({ length: lastDow }, (_, i) => addDays(wk, i)).filter(d => d >= today() && d !== day);
+    let days = week(wk0); const days2 = days.length < 2 ? week(addDays(wk0, 7)) : [];
+    for (const list of [days, days2]) if (list.length) { const row = wrap.createDiv("samaya-parts-row"); list.forEach(d => { const c = dayChip(row, d); firstChoice ??= c; }); }
+    const other = wrap.createDiv("samaya-parts-row");
+    const wkLabel = wk0 === startOfWeek(today()) ? "This week" : `Week of ${parseYmd(wk0).toLocaleDateString(undefined, { day: "numeric", month: "short" })}`;
+    add(other, { key: "week", label: wkLabel, sub: "no day yet", split: { kind: "week", week: wk0 }, dest: { week: wk0 }, said: "this week's list" });
+    add(other, { key: "next", label: "Backlog", sub: "next week", split: { kind: "backlog", horizon: "week" }, dest: { backlog: "week" }, said: "next week's backlog" });
+    add(other, { key: "someday", label: "Backlog", sub: "someday", split: { kind: "backlog", horizon: "someday" }, dest: { backlog: "someday" }, said: "the backlog" });
 
     const nav = this.contentEl.createDiv("samaya-ritual-nav");
     nav.createEl("button", { text: "Cancel" }).onclick = () => this.close();
-    const okBtn = nav.createEl("button", { text: split ? "Split" : "Move", cls: "mod-cta" }); okBtn.disabled = true;
-    okBtn.onclick = () => { void this.run(day, k); };
-    const first = choices.find(c => c.key === "same") ?? choices.find(c => c.key !== "week" && c.key !== "backlog") ?? choices[0];
-    if (first) pick(first);
+    const ok = () => { void this.run(day, k); };
+    nav.createEl("button", { text: split ? "Split" : "Move", cls: "mod-cta" }).onclick = ok;
+    pick(firstChoice ?? { key: "week", label: "", split: { kind: "week", week: wk0 }, dest: { week: wk0 }, said: "this week's list" });
     paint();
-    this.scope.register([], "Enter", () => { if (!okBtn.disabled) { void this.run(day, k); return false; } });
+    this.scope.register([], "Enter", () => { ok(); return false; });
   }
 
   private async run(day: string, k: number | null) {
     const c = this.choice; if (!c) return;
     this.close();
-    const t = this.task; const file = t.file;
+    const t = this.task;
     if (this.mode === "split") {
-      const ok = await splitTask(this.plugin, file, day, k, this.first, c.split);
-      if (ok) new Notice(`Split “${t.title}”: ${fmtDur(this.first)} stays, ${where(c)} gets the rest.`);
+      if (await splitTask(this.plugin, t.file, day, k, this.first, c.split)) new Notice(`Split “${t.title}”: ${fmtDur(this.first)} stays, the rest goes to ${c.said}.`);
     } else {
-      await sendPiece(this.app, this.plugin.settings, file, { day, seg: k }, c.dest);
-      new Notice(`Moved to ${where(c)}.`);
+      await sendPiece(this.app, this.plugin.settings, t.file, { day, seg: k }, c.dest);
+      new Notice(`Moved to ${c.said}.`);
     }
   }
-}
-
-const parseHm = (hm: string): number => { const [h, m] = hm.split(":").map(Number); return h * 60 + (m || 0); };
-function where(c: Choice): string {
-  if (c.key === "same") return "the same day";
-  if (c.key === "week") return "this week's list";
-  if (c.key === "backlog") return "the backlog";
-  return parseYmd(c.key === "date" ? c.label : c.key).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" });
 }

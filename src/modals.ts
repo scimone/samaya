@@ -37,12 +37,12 @@ export class ConfirmOverwriteModal extends Modal {
   private answered = false;
   constructor(plugin: SamayaPlugin, private noteLabel: string, private answer: (overwrite: boolean) => void) { super(plugin.app); }
   onOpen() {
-    this.titleEl.setText("Overwrite the existing plan?");
-    this.contentEl.createEl("p", { text: `${this.noteLabel} already contains a plan. Saving this one replaces what is written under its plan headings.` });
+    this.titleEl.setText(`Update your ${this.noteLabel}?`);
+    this.contentEl.createEl("p", { text: `Your plan in Samaya is saved either way. Your ${this.noteLabel} already has a plan from an earlier planning. Replace the plan written in the note with the one you just made?` });
     const nav = this.contentEl.createDiv("samaya-ritual-nav");
     const done = (v: boolean) => { this.answered = true; this.close(); this.answer(v); };
-    const keep = nav.createEl("button", { text: "Keep existing plan" }); keep.onclick = () => done(false);
-    nav.createEl("button", { text: "Overwrite", cls: "mod-warning" }).onclick = () => done(true);
+    const keep = nav.createEl("button", { text: "Keep note as it is" }); keep.onclick = () => done(false);
+    nav.createEl("button", { text: "Update note", cls: "mod-cta" }).onclick = () => done(true);
     keep.focus();
   }
   onClose() { if (!this.answered) { this.answered = true; this.answer(false); } }

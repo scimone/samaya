@@ -149,7 +149,7 @@ export class DailyPlannerView extends PlannerPane {
     else if (!shown.length) list.createDiv({ cls: "samaya-empty samaya-allset", text: "Nothing left to schedule." });
     shown.forEach(t => {
       const idx = day.indexOf(t);
-      const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true, focus: "today" });
+      const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true, focus: pg ? undefined : "today" });
       c.toggleClass("is-timed", !!t.start);
       bindCardDrop(this.scope, c, (path, after, i) => { void this.place(path, idx + (after ? 1 : 0), i); });
     });
@@ -202,9 +202,9 @@ export class DailyPlannerView extends PlannerPane {
 
   private finishRender(left: HTMLElement) {
     left.scrollTop = this.leftScroll;
-    const cur = new Set<string>(); // the task being worked on right now (its timeline block is current): its card stays lit
+    if (!this.plugin.guide) { const cur = new Set<string>(); // the task being worked on right now (its timeline block is current): its card stays lit
     this.root.querySelectorAll<HTMLElement>(".samaya-block.is-current[data-link]").forEach(b => cur.add(b.dataset.link!));
-    this.root.querySelectorAll<HTMLElement>(".samaya-card[data-link]").forEach(c => c.toggleClass("is-current", cur.has(c.dataset.link!)));
+    this.root.querySelectorAll<HTMLElement>(".samaya-card[data-link]").forEach(c => c.toggleClass("is-current", cur.has(c.dataset.link!))); }
 
     this.plugin.plannerGoTo = d => this.goTo(d); // "Open day" on other pages jumps here
     if (!this.announced || this.plugin.plannerDate !== this.date) { this.announced = true; this.plugin.plannerDate = this.date; this.plugin.modeBus.emit(); }

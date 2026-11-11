@@ -551,6 +551,12 @@ export default class SamayaPlugin extends Plugin {
   /** Interactive planning: opens the daily planner and walks through it (see views/guide.ts). */
   private leftCollapsedByGuide = false;
   /** Leaves the guide and brings the left sidebar back if the guide hid it. */
+  /** The X of a guide: Plan my week goes back to the week view (of the week being planned), the day guides just close. */
+  cancelGuide() {
+    const g = this.guide; const wk = g?.kind === "week" ? g.week ?? "" : null;
+    this.closeGuide();
+    if (wk !== null) { this.weekToShow = wk; this.expandTimeline(); }
+  }
   closeGuide() {
     this.guide = null;
     if (this.leftCollapsedByGuide) { this.leftCollapsedByGuide = false; this.app.workspace.leftSplit?.expand(); }
@@ -583,7 +589,7 @@ export default class SamayaPlugin extends Plugin {
     if (!s.journalNotes.weekly.on || !(wantPlan || wantMeet || wantTasks)) return null;
     const file = await openPeriodNote(this.app, s, "weekly", wk); if (!file) return null;
     const before = await this.app.vault.read(file);
-    if ([WEEK_OVERVIEW, WEEK_MEETINGS, WEEK_TASKS].some(h => readSection(before, h as Parameters<typeof readSection>[1]).length) && !(await this.askOverwrite("The weekly note"))) return file; // planned before: ask first
+    if ([WEEK_OVERVIEW, WEEK_MEETINGS, WEEK_TASKS].some(h => readSection(before, h as Parameters<typeof readSection>[1]).length) && !(await this.askOverwrite("weekly note"))) return file; // planned before: ask first
     const { weekTasks, noDay } = weekBuckets(allTasks(this.app, s), wk);
     const events = calendarEnabled(s) ? await calendarEvents(this, parseYmd(wk), parseYmd(addDays(wk, 7))).catch(() => []) : [];
     const dates = Array.from({ length: nDays }, (_, i) => addDays(wk, i));
@@ -635,7 +641,7 @@ export default class SamayaPlugin extends Plugin {
     const g = this.guide; if (!g) return; const s = this.settings; const td = today();
     const day = sortTasks(onDay(allTasks(this.app, s), td));
     const planned = journalWants(s, "journalPlanned") && (await readJournalSection(this.app, s, td, "Planned tasks")).length > 0;
-    const write = !planned || (await this.askOverwrite("Today's note")); // planned before: ask first
+    const write = !planned || (await this.askOverwrite("daily note")); // planned before: ask first
     if (write && s.journalOn && calendarEnabled(s)) {
       const from = parseYmd(td); const evs = await calendarEvents(this, from, parseYmd(addDays(td, 1))).catch(() => null);
       if (evs) await writeSection(this.app, s, td, "Meetings", meetingLines(await Promise.all(evs.map(async e => ({ ...e, note: e.allDay ? undefined : await ensureMeetingNote(this.app, s, e, evs).then(f => f.basename, () => undefined) })))));

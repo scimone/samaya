@@ -75,12 +75,10 @@ const TASKS_BASE_TEMPLATE = (folder: string) => `filters:
   and:
     - file.inFolder("${folder}")
 properties:
-  note.planned:
-    displayName: Planned
-  note.estimate:
+  note.planned_sessions:
+    displayName: Planned sessions
+  note.duration_estimate:
     displayName: Estimate (min)
-  note.start:
-    displayName: Start
 views:
   - type: ${BACKLOG_VIEW_TYPE}
     name: Backlog

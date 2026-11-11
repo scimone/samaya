@@ -3,7 +3,7 @@ import type SamayaPlugin from "../main";
 import { groupTickets } from "../kanban";
 import { DndScope } from "../dnd";
 import { bindZone } from "./common";
-import { patchTask, readTicket, relocateTicket, varsOfTicket } from "../model";
+import { patchNote, readTicket, relocateTicket, varsOfTicket } from "../model";
 import { TFile } from "obsidian";
 
 export const KANBAN_VIEW_TYPE = "samaya-kanban";
@@ -21,7 +21,7 @@ export class KanbanView extends BasesView {
   private async setStatus(path: string, status: string) {
     const f = this.app.vault.getAbstractFileByPath(path); if (!(f instanceof TFile)) return;
     const t = readTicket(this.app, f); if (t.state === status || status === "No status") return;
-    await patchTask(this.app, f, { status });
+    await patchNote(this.app, f, { status });
     if (this.plugin.settings.ticketsPath.includes("TICKET_STATUS")) await relocateTicket(this.app, this.plugin.settings, t, { ...varsOfTicket(t), status });
   }
   onDataUpdated(): void {

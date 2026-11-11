@@ -4,7 +4,8 @@ import type { SamayaSettings } from "./settings";
 import { Horizon, horizonTarget, isHorizon, safeFileName, startOfWeek, today } from "./util";
 import { DEFAULT_TASK_TEMPLATE, ensureSubtasksHeading, insertSubtask, renderPath, pathRoot, renderTemplate, TicketVars, DEFAULT_TICKET_TEMPLATE, renderTicketNote, renderTicketFileName, renderTicketPath } from "./taskbody";
 import type { RawTicket } from "./tickets";
-import { Seg, parseSegments } from "./segments";
+import { Seg } from "./segments";
+import { applyTaskPatch, readPlanning, readProp } from "./taskprops";
 
 export interface Task {
   file: TFile; title: string; status: "todo" | "done";
@@ -21,19 +22,18 @@ const num = (v: unknown): number => { const n = Number(v); return isNaN(n) ? 0 :
 
 export function readTask(app: App, file: TFile): Task {
   const fm = (app.metadataCache.getFileCache(file)?.frontmatter ?? {}) as Record<string, unknown>;
-  const planned = fm.planned instanceof Date ? "" : str(fm.planned).slice(0, 10);
+  const { planned, start, segments } = readPlanning(fm);
   const ymdOf = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(str(v).slice(0, 10)) ? str(v).slice(0, 10) : "");
   const later = ymdOf(fm.later); const due = !!later && later <= today() && !planned;
   return {
     file, title: file.basename, later, horizon: isHorizon(str(fm.horizon)) ? (str(fm.horizon) as Horizon) : "",
     status: fm.status === "done" ? "done" : "todo",
-    planned: /^\d{4}-\d{2}-\d{2}$/.test(planned) ? planned : "",
-    start: /^\d{1,2}:\d{2}$/.test(str(fm.start)) ? str(fm.start) : "",
-    estimate: num(fm.estimate), actual: num(fm.actual), order: fm.order == null ? 1e6 : num(fm.order),
+    planned, start,
+    estimate: num(readProp(fm, "estimate")), actual: num(readProp(fm, "actual")), order: fm.order == null ? 1e6 : num(fm.order),
     channel: str(fm.channel),
-    ticket: str(fm.ticket).replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0].trim(),
+    ticket: str(readProp(fm, "ticket")).replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0].trim(),
     week: due ? startOfWeek(today()) : ymdOf(fm.week),
-    segments: (() => { const g = parseSegments(fm.segments); return g.length > 1 ? g : []; })(),
+    segments,
   };
 }
 
@@ -51,19 +51,24 @@ export function sortTasks(ts: Task[]): Task[] {
   return ts.sort((a, b) => (a.start && b.start ? a.start.localeCompare(b.start) : 0) || a.order - b.order || a.title.localeCompare(b.title));
 }
 
-/** Patch frontmatter; undefined/null/"" removes the key. */
-export async function patchTask(app: App, file: TFile, patch: Record<string, string | number | string[] | null | undefined>): Promise<void> {
+/** Patch frontmatter as is; undefined/null/"" removes the key. For notes that are not tasks (projects, meetings, tickets). */
+export async function patchNote(app: App, file: TFile, patch: Record<string, string | number | string[] | null | undefined>): Promise<void> {
   await app.fileManager.processFrontMatter(file, fm => {
-    // moved to another day: its time slot belonged to the old day, so it goes (unless a new slot is written with the move)
-    const moved = typeof patch.planned === "string" && patch.planned !== "" && String(fm.planned ?? "").slice(0, 10) !== patch.planned;
-    if (moved && !("start" in patch)) { delete fm.start; if (!("segments" in patch)) delete fm.segments; }
-    // a split task keeps its segments only when they are written together with the new time or length
-    if (!("segments" in patch) && ("start" in patch || ("estimate" in patch && fm.estimate !== patch.estimate))) delete fm.segments;
-    // giving a task a day or a week ends its parking
-    if (!("later" in patch) && (patch.planned || patch.week)) { delete fm.later; delete fm.horizon; }
     for (const [k, v] of Object.entries(patch)) {
       if (v === undefined || v === null || v === "") delete fm[k]; else fm[k] = v;
     }
+  });
+}
+/**
+ * Patch a task note. Keys are the Task fields: planned (day), start, segments, estimate, actual, ticket, completed, samaya_project
+ * are written as planned_sessions, duration_estimate, duration_actual, assigned_ticket, day_completed, assigned_project.
+ * undefined/null/"" removes the property.
+ */
+export async function patchTask(app: App, file: TFile, patch: Record<string, string | number | string[] | null | undefined>): Promise<void> {
+  await app.fileManager.processFrontMatter(file, fm => {
+    // giving a task a day or a week ends its parking
+    if (!("later" in patch) && (patch.planned || patch.week)) { delete fm.later; delete fm.horizon; }
+    applyTaskPatch(fm, patch);
   });
 }
 /** Park a task in the backlog under Next week / month / quarter / year / Someday / Never. It moves to this week by itself when the date arrives. */
@@ -118,7 +123,9 @@ export async function createTask(app: App, s: SamayaSettings, title: string, fm:
   // Write the properties together with the note. Creating it bare and patching afterwards lets the "file by planned date"
   // handler move it to Unscheduled in between, and the properties (day, estimate) could get lost.
   if (!body2.trimStart().startsWith("---")) {
-    const yaml = Object.entries(props).map(([k, v]) => `${k}: ${typeof v === "number" || /^[\w.:-]+$/.test(v) ? v : JSON.stringify(v)}`).join("\n");
+    const out: Record<string, unknown> = {}; applyTaskPatch(out, props);
+    const scalar = (v: unknown) => (typeof v === "number" || /^[\w.:-]+$/.test(String(v)) ? String(v) : JSON.stringify(v));
+    const yaml = Object.entries(out).map(([k, v]) => Array.isArray(v) ? `${k}:\n${v.map(x => `  - ${/^[\w.: -]+$/.test(String(x)) ? x : JSON.stringify(x)}`).join("\n")}` : `${k}: ${scalar(v)}`).join("\n");
     return app.vault.create(path, `---\n${yaml}\n---\n${body2}`);
   }
   const file = await app.vault.create(path, body2);

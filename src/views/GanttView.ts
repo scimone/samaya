@@ -2,7 +2,7 @@ import { BasesView, QueryController } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DragMode, daysBetween, dragSpan, ganttRange, monthMarks } from "../gantt";
 import { Project, projectStats, readProject, createProject } from "../projects";
-import { patchTask, prefixOf } from "../model";
+import { patchNote, prefixOf } from "../model";
 import { TextPromptModal } from "../modals";
 import { addDays, parseYmd, today } from "../util";
 
@@ -93,7 +93,7 @@ export class GanttView extends BasesView {
         bar.removeEventListener("pointermove", onMove); bar.removeEventListener("pointerup", onUp); bar.removeEventListener("pointercancel", onUp);
         bar.removeClass("is-dragging"); this.dragging = false;
         const next = dragSpan(base, mode, delta);
-        if (moved && (next.start !== base.start || next.end !== base.end)) void patchTask(this.app, p.file, { start: next.start, end: next.end });
+        if (moved && (next.start !== base.start || next.end !== base.end)) void patchNote(this.app, p.file, { start: next.start, end: next.end });
         else if (moved) place(base);
         if (this.pending) { this.pending = false; this.onDataUpdated(); }
       };

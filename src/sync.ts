@@ -1,7 +1,7 @@
 import { Notice, normalizePath, requestUrl } from "obsidian";
 import type SamayaPlugin from "./main";
 import { Http, RawTicket, fetchGitlab, fetchJira } from "./tickets";
-import { LEGACY_TICKET_PROPS, allTickets, createTicketNote, ticketProps, patchTask, relocateTicket, varsOfRaw, varsOfTicket } from "./model";
+import { LEGACY_TICKET_PROPS, allTickets, createTicketNote, ticketProps, patchNote, relocateTicket, varsOfRaw, varsOfTicket } from "./model";
 
 const http: Http = async o => {
   const r = await requestUrl({ url: o.url, headers: o.headers });
@@ -26,16 +26,16 @@ export async function syncTickets(plugin: SamayaPlugin, only?: "jira" | "gitlab"
         const fm = { ...ticketProps(source, varsOfRaw(t)), ...LEGACY_TICKET_PROPS };
         const hit = existing.get(t.url);
         if (hit) {
-          await patchTask(app, hit.file, fm); existing.delete(t.url);
+          await patchNote(app, hit.file, fm); existing.delete(t.url);
           if (byStatus && hit.state !== t.state) await relocateTicket(app, s, hit, varsOfRaw(t)); // keep status folders in step
           continue;
         }
         const f = await createTicketNote(app, s, varsOfRaw(t));
-        await patchTask(app, f, fm); created++;
+        await patchNote(app, f, fm); created++;
       }
       // tickets we imported earlier that no longer appear are resolved / reassigned
       for (const gone of existing.values()) if (gone.state !== "closed") {
-        await patchTask(app, gone.file, { status: "closed" }); closed++;
+        await patchNote(app, gone.file, { status: "closed" }); closed++;
         if (byStatus) await relocateTicket(app, s, gone, { ...varsOfTicket(gone), status: "closed" });
       }
       new Notice(`${source === "jira" ? "Jira" : "GitLab"}: ${tickets.length} open tickets (${created} new, ${closed} closed)`);

@@ -1,11 +1,13 @@
-// Projects: one note per project in the projects folder; tasks and tickets point at one with `samaya_project`.
+// Projects: one note per project in the projects folder; tasks and tickets point at one with `assigned_project`.
 import { App, TFile, normalizePath } from "obsidian";
 import type { SamayaSettings } from "./settings";
-import { ensureFolder, patchTask } from "./model";
+import { ensureFolder, patchNote } from "./model";
 import { Span, parseSpan } from "./gantt";
 import { addDays, safeFileName, today } from "./util";
 
-export const PROJECT_PROP = "samaya_project";
+export const PROJECT_PROP = "assigned_project";
+/** Name used by earlier versions: still read, removed when the assignment is written. */
+const LEGACY_PROJECT_PROP = "samaya_project";
 export const DEFAULT_PROJECT_DAYS = 14;
 
 export interface Project { file: TFile; name: string; span: Span | null; done: boolean; }
@@ -24,12 +26,13 @@ export function allProjects(app: App, s: SamayaSettings): Project[] {
 
 /** Path of the project note a task / ticket note points at ("" = none). */
 export function projectPathOf(app: App, file: TFile): string {
-  const raw = (app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined)?.[PROJECT_PROP];
+  const fm = app.metadataCache.getFileCache(file)?.frontmatter as Record<string, unknown> | undefined;
+  const raw = fm?.[PROJECT_PROP] ?? fm?.[LEGACY_PROJECT_PROP];
   const link = String(raw ?? "").replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0].trim();
   return link ? app.metadataCache.getFirstLinkpathDest(link, file.path)?.path ?? "" : "";
 }
 export async function assignProject(app: App, file: TFile, project: Project | null): Promise<void> {
-  await patchTask(app, file, { [PROJECT_PROP]: project ? `[[${project.file.basename}]]` : null });
+  await patchNote(app, file, { [PROJECT_PROP]: project ? `[[${project.file.basename}]]` : null, [LEGACY_PROJECT_PROP]: null });
 }
 
 /** Per project (by note path): linked tasks, how many are done, and linked tickets. */
@@ -53,7 +56,7 @@ export async function createProject(app: App, s: SamayaSettings, name: string): 
   while (app.vault.getAbstractFileByPath(path)) path = `${folder}/${base} ${i++}.md`;
   const f = await app.vault.create(path, "");
   const start = today();
-  await patchTask(app, f, { status: "active", start, end: addDays(start, DEFAULT_PROJECT_DAYS - 1) });
+  await patchNote(app, f, { status: "active", start, end: addDays(start, DEFAULT_PROJECT_DAYS - 1) });
   return f;
 }
 

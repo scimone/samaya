@@ -468,7 +468,7 @@ export class SamayaSettingTab extends PluginSettingTab {
       text(b, "Projects base file", "The base with the Gantt chart and the Add project button.", () => s.projectsBase, v => (s.projectsBase = v || "Projects/Projects.base"), { placeholder: "Projects/Projects.base" });
       new Setting(b).setName("Create and open").setDesc("Create the folder and base if they are missing, then open the base.")
         .addButton(bt => bt.setButtonText("Open projects").onClick(async () => { await this.plugin.openProjects(); }));
-      note(b, "Assign a task from its right-click menu in the planner, or any task or ticket note with the “Assign to a project” command. The link is stored in the samaya_project property.");
+      note(b, "Assign a task from its right-click menu in the planner, or any task or ticket note with the “Assign to a project” command. The link is stored in the assigned_project property.");
     }
 
     const secrets = "Tokens are stored unencrypted in this plugin's data.json inside the vault. Don't sync that file to places you don't trust.";

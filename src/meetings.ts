@@ -1,7 +1,7 @@
 import { App, TFile, normalizePath } from "obsidian";
 import type { IcsEvent } from "./ics";
 import type { SamayaSettings } from "./settings";
-import { ensureFolder, folderFor, rootOf, loadTemplate, momentFmt, patchTask } from "./model";
+import { ensureFolder, folderFor, rootOf, loadTemplate, momentFmt, patchNote } from "./model";
 import { DEFAULT_MEETING_TEMPLATE, renderTemplate } from "./taskbody";
 import { addDays, minToHm, parseYmd, slugify, ymd } from "./util";
 import type SamayaPlugin from "./main";
@@ -32,16 +32,16 @@ async function ensureNote(app: App, s: SamayaSettings, ev: IcsEvent, dayEvents?:
       const fm = app.metadataCache.getFileCache(hit)?.frontmatter;
       if (!fm) return hit; // not indexed yet: assume ours
       if (String(fm.start) === start) {
-        if (unique && fm.end != null && String(fm.end) !== end) await patchTask(app, hit, { end });
+        if (unique && fm.end != null && String(fm.end) !== end) await patchNote(app, hit, { end });
         return hit;
       }
-      if (unique && name === base) { await patchTask(app, hit, { start, end }); return hit; } // meeting moved within the day
+      if (unique && name === base) { await patchNote(app, hit, { start, end }); return hit; } // meeting moved within the day
     }
     if (!app.vault.getAbstractFileByPath(`${folder}/${name}.md`)) {
       await ensureFolder(app, folder);
       const tpl = renderTemplate(await loadTemplate(app, s.meetingTemplate, DEFAULT_MEETING_TEMPLATE), { title: ev.title, date: ev.start, start, end }, momentFmt);
       const file = await app.vault.create(`${folder}/${name}.md`, tpl);
-      await patchTask(app, file, { type: "meeting", title: ev.title, date, start, end });
+      await patchNote(app, file, { type: "meeting", title: ev.title, date, start, end });
       return file;
     }
   }

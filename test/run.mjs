@@ -2,7 +2,7 @@ import esbuild from "esbuild";
 import assert from "node:assert/strict";
 const bundle = async (entry, out) => esbuild.build({ entryPoints: [entry], bundle: true, format: "esm", outfile: out, alias: { obsidian: "./test/obsidian-stub.mjs" }, logLevel: "error" });
 await bundle("src/home.ts", "test/.home.mjs"); await bundle("src/ics.ts", "test/.ics.mjs"); await bundle("src/util.ts", "test/.util.mjs");
-await bundle("src/colors.ts", "test/.colors.mjs"); await bundle("src/worktime.ts", "test/.worktime.mjs"); await bundle("src/segments.ts", "test/.segments.mjs");
+await bundle("src/colors.ts", "test/.colors.mjs"); await bundle("src/worktime.ts", "test/.worktime.mjs"); await bundle("src/segments.ts", "test/.segments.mjs"); await bundle("src/taskprops.ts", "test/.taskprops.mjs");
 await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timeline.ts", "test/.timeline.mjs");
 await bundle("src/settings.ts", "test/.settings.mjs"); await bundle("src/weekplan.ts", "test/.weekplan.mjs");
 await bundle("src/monthgrid.ts", "test/.monthgrid.mjs"); await bundle("src/kanban.ts", "test/.kanban.mjs"); await bundle("src/gantt.ts", "test/.gantt.mjs"); await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
@@ -208,6 +208,34 @@ note = upsertSection(note, "Planned tasks", "- [[A]]\n- [[B]]"); // replaces, do
 assert.equal(note.split("## Planned tasks").length, 2);
 assert.deepEqual(readSection(note, "Planned tasks"), ["[[A]]", "[[B]]"]);
 assert.ok(upsertSection("# My day\nfree text\n", "Planned tasks", "- x").startsWith("# My day\nfree text"));
+
+// ---- task properties
+{
+  const T = await import("./.taskprops.mjs");
+  assert.deepEqual(T.parseSessions(["2026-11-11 13:00-14:00", "2026-11-11 15:00-16:00"]), { planned: "2026-11-11", start: "13:00", segments: [{ s: 780, dur: 60 }, { s: 900, dur: 60 }] });
+  assert.deepEqual(T.parseSessions(["2026-11-11 13:00-14:00"]), { planned: "2026-11-11", start: "13:00", segments: [] });
+  assert.deepEqual(T.parseSessions(["2026-11-11"]), { planned: "2026-11-11", start: "", segments: [] });
+  assert.deepEqual(T.parseSessions(undefined), { planned: "", start: "", segments: [] });
+  // legacy notes are still read
+  assert.deepEqual(T.readPlanning({ planned: "2026-11-11", start: "9:00", segments: ["09:00-10:00", "11:00-12:00"] }), { planned: "2026-11-11", start: "9:00", segments: [{ s: 540, dur: 60 }, { s: 660, dur: 60 }] });
+  // writing: single timed session, length follows the estimate; legacy keys are migrated
+  let fm = { planned: "2026-11-11", start: "13:00", estimate: 60, ticket: "[[T]]", completed: "2026-01-01", samaya_project: "[[P]]", order: 2 };
+  T.applyTaskPatch(fm, { estimate: 90 });
+  assert.deepEqual(fm, { duration_estimate: 90, assigned_ticket: "[[T]]", day_completed: "2026-01-01", assigned_project: "[[P]]", order: 2, planned_sessions: ["2026-11-11 13:00-14:30"] });
+  // split
+  T.applyTaskPatch(fm, { start: "10:00", estimate: 120, segments: ["10:00-11:00", "13:00-14:00"] });
+  assert.deepEqual(fm.planned_sessions, ["2026-11-11 10:00-11:00", "2026-11-11 13:00-14:00"]);
+  // moved to another day: the time slot goes
+  T.applyTaskPatch(fm, { planned: "2026-11-12" });
+  assert.deepEqual(fm.planned_sessions, ["2026-11-12"]);
+  // new slot with the move
+  T.applyTaskPatch(fm, { planned: "2026-11-13", start: "08:30" });
+  assert.deepEqual(fm.planned_sessions, ["2026-11-13 08:30-10:30"]);
+  // unscheduled from the timeline, then unplanned
+  T.applyTaskPatch(fm, { start: null }); assert.deepEqual(fm.planned_sessions, ["2026-11-13"]);
+  T.applyTaskPatch(fm, { planned: null }); assert.equal(fm.planned_sessions, undefined);
+  T.applyTaskPatch(fm, { estimate: null, ticket: null }); assert.ok(!("duration_estimate" in fm) && !("assigned_ticket" in fm));
+}
 
 // ---- split tasks
 {

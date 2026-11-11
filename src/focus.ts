@@ -72,7 +72,7 @@ export class FocusManager {
   }
   async pause() { const s = this.state; if (!s || !s.startedAt) return; const now = Date.now(); s.accumulatedMs += now - s.startedAt; (s.runs ??= []).push([s.startedAt, now]); s.startedAt = null; await this.persist(); this.refreshViews(); }
   async resume() { const s = this.state; if (!s || s.startedAt) return; s.startedAt = Date.now(); await this.persist(); this.refreshViews(); }
-  /** Stop, add the session's minutes to the task's `actual`, optionally complete it. */
+  /** Stop, add the session's minutes to the task's `duration_actual`, optionally complete it. */
   async stop(markDone: boolean) {
     const s = this.state; if (!s) return;
     await this.pause();

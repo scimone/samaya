@@ -1,6 +1,6 @@
 import { TFile, setIcon } from "obsidian";
+import type { CalendarEvent } from "../eventnotes";
 import type SamayaPlugin from "../main";
-import type { IcsEvent } from "../ics";
 import type { DndScope } from "../dnd";
 import { Task, setDone } from "../model";
 import { layoutItems } from "../timeline";
@@ -17,7 +17,7 @@ const MIN_HOUR_H = 28;
 export interface TimelineState { scrolled: string; scrollTop: number; }
 
 /** The draggable day timeline (hours, meetings, task blocks). Fills `c`; returns the height it was laid out for. */
-export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLElement, o: { date: string; day: Task[]; events: IcsEvent[]; notes: Map<IcsEvent, TFile>; ro: boolean; /** scissors on the blocks */ split?: boolean; /** do not light up the task being worked on right now (End my day) */ noCurrent?: boolean; state: TimelineState }): number {
+export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLElement, o: { date: string; day: Task[]; events: CalendarEvent[]; notes: Map<CalendarEvent, TFile>; ro: boolean; /** scissors on the blocks */ split?: boolean; /** do not light up the task being worked on right now (End my day) */ noCurrent?: boolean; state: TimelineState }): number {
   const { date, day, events, notes, ro, state } = o;
   {
     const s = plugin.settings; const dayMs = parseYmd(date).getTime(); const isToday = date === today();
@@ -62,7 +62,7 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
 
     }
 
-    interface Item { s: number; dur: number; task?: Task; ev?: IcsEvent; seg?: number; n?: number; }
+    interface Item { s: number; dur: number; task?: Task; ev?: CalendarEvent; seg?: number; n?: number; }
     const items: Item[] = [];
     events.filter(e => !e.allDay).forEach(e => {
       const sm = Math.max(0, (e.start.getTime() - dayStartMs) / 60000), em = Math.min(1440, (e.end.getTime() - dayStartMs) / 60000);

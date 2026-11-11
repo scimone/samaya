@@ -1,5 +1,5 @@
-// Calendar events from existing Obsidian notes (alternative to an ICS feed). Pure: no Obsidian imports, unit-tested.
-import type { IcsEvent } from "./ics";
+// Calendar events from existing Obsidian notes Pure: no Obsidian imports, unit-tested.
+export interface CalendarEvent { title: string; start: Date; end: Date; allDay: boolean; /** the note this event is */ notePath?: string; }
 
 export const DEFAULT_EVENT_PATTERN = "{{date}}_{{title}}";
 export const PATTERN_HELP = "Placeholders: {{date}} = yyyy-mm-dd, {{title}} = free text, {{start}} = start time as hhmm / hh-mm / hh:mm. Example: {{date}}_{{title}}";
@@ -44,7 +44,7 @@ const at = (date: string, min: number) => { const [y, mo, d] = date.split("-").m
  * Needs `start` and `end` (hh:mm, or yyyy-mm-dd hh:mm). The day comes from `date` or the file name (or the start stamp).
  * `allday: true` needs only the date. `title` is optional (falls back to the name's {{title}}, then the file name).
  */
-export function eventFromNote(fm: Record<string, unknown> | undefined, name: { date?: string; title?: string; start?: string }, basename: string): IcsEvent | null {
+export function eventFromNote(fm: Record<string, unknown> | undefined, name: { date?: string; title?: string; start?: string }, basename: string): CalendarEvent | null {
   if (!fm) return null;
   const title = String(fm.title ?? name.title ?? basename).trim() || basename;
   const dateProp = fm.date == null ? undefined : String(fm.date).slice(0, 10);

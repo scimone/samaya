@@ -2,17 +2,15 @@ import { AbstractInputSuggest, App, ColorComponent, PluginSettingTab, Setting, T
 import type SamayaPlugin from "./main";
 import { ticketFolderFor, folderFor } from "./model";
 import { normalizeHex, resolveColor } from "./colors";
-import { MEETING_SYNC_AHEAD_DAYS, syncMeetingNotes } from "./meetings";
 import { TICKET_VARIABLES, renderTicketFileName, TicketVars } from "./taskbody";
 import { JournalLoc, JournalPart, PERIODIC_KINDS, PeriodicKind, JournalSource, PERIOD_DEFAULT_FORMAT, Period, journalLocation, journalPathFor, journalSources, pickJournalSource } from "./journal";
 import { DEFAULT_EVENT_PATTERN, PATTERN_HELP, compilePattern } from "./eventnotes";
 
 export interface PeriodCfg { on: boolean; source: "auto" | JournalSource; folder: string; format: string; }
 export interface SamayaSettings {
-  tasksPath: string; ticketsPath: string; meetingsPath: string; journalSource: "auto" | JournalSource; journalFolder: string; journalFormat: string;
-  taskTemplate: string; meetingTemplate: string; ticketTemplate: string; ticketFileName: string;
-  calendarSource: "ics" | "notes"; eventNotesFolder: string; eventNotePattern: string;
-  icsUrls: string[]; icsRefreshMinutes: number;
+  tasksPath: string; ticketsPath: string; journalSource: "auto" | JournalSource; journalFolder: string; journalFormat: string;
+  taskTemplate: string; ticketTemplate: string; ticketFileName: string;
+  eventNotesFolder: string; eventNotePattern: string;
   /** Planner: plan Saturday and Sunday too; count calendar events as busy time */
   plannerWeekends: boolean; plannerShowIcs: boolean;
   dayStartHour: number; dayEndHour: number; slotMinutes: number;
@@ -41,15 +39,14 @@ export interface SamayaSettings {
   homeOn: boolean; homePath: string; homeOnStartup: boolean;
 }
 export const DEFAULT_SETTINGS: SamayaSettings = {
-  tasksPath: "[Tasks]/YYYY/YYYY-MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", meetingsPath: "[Meetings]/YYYY/MM", journalSource: "auto", journalFolder: "[Journal]/YYYY/YYYY-MM", journalFormat: "YYYY-MM-DD", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
-  calendarSource: "ics", eventNotesFolder: "Meetings", eventNotePattern: "{{date}}_{{title}}",
-  icsUrls: [], icsRefreshMinutes: 15,
+  tasksPath: "[Tasks]/YYYY/YYYY-MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", journalSource: "auto", journalFolder: "[Journal]/YYYY/YYYY-MM", journalFormat: "YYYY-MM-DD", taskTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
+  eventNotesFolder: "Meetings", eventNotePattern: "{{date}}_{{title}}",
   plannerWeekends: false, plannerShowIcs: true,
   dayStartHour: 7, dayEndHour: 20, slotMinutes: 5, defaultEstimate: 30, shutdownTime: "17:00", dayStartTime: "08:00", openOnStartup: false,
   jiraFlavor: "cloud", jiraUrl: "", jiraEmail: "", jiraToken: "",
   jiraJql: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
   gitlabUrl: "https://gitlab.com", gitlabToken: "", gitlabScope: "assigned_to_me", syncOnStartup: false,
-  lunchStart: "12:00", lunchEnd: "13:00", weeklyHours: 40, workDays: 5, vacationKeyword: "Urlaub", bufferPercent: 20, taskColor: "", meetingColor: "", autoLunch: true,
+  lunchStart: "12:00", lunchEnd: "13:00", weeklyHours: 40, workDays: 5, vacationKeyword: "Urlaub", bufferPercent: 20, taskColor: "#2fa862", meetingColor: "#3b82f6", autoLunch: true,
   calendarOn: false, jiraOn: false, gitlabOn: false,
   journalOn: false, journalPlanned: true, journalFinished: true, journalTomorrow: true,
   journalWorkTimes: true, journalBreaks: true, journalTracked: true, journalWeekPlan: true, journalWeekMeetings: true, journalWeekTasks: true,
@@ -70,9 +67,8 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<SamayaS
   const lit = (v: unknown) => `[${String(v).replace(/[[\]]/g, "")}]`;
   if (o.tasksFolder != null && o.tasksPath == null) o.tasksPath = lit(o.tasksFolder) + "/YYYY/MM";
   if (o.ticketsFolder != null && o.ticketsPath == null) o.ticketsPath = lit(o.ticketsFolder);
-  if (o.meetingsFolder != null && o.meetingsPath == null) o.meetingsPath = lit(o.meetingsFolder) + "/YYYY/MM";
   // optional modules were implicit before: keep the ones that were already set up
-  if (o.calendarOn == null) o.calendarOn = (o.calendarSource === "notes" && !!o.eventNotesFolder) || (Array.isArray(o.icsUrls) && o.icsUrls.length > 0);
+  if (o.calendarOn == null) o.calendarOn = !!o.eventNotesFolder;
   if (o.jiraOn == null) o.jiraOn = !!(o.jiraUrl && o.jiraToken);
   if (o.gitlabOn == null) o.gitlabOn = !!o.gitlabToken;
   if (o.journalOn == null) o.journalOn = Object.keys(saved).length > 0; // the journal was always on for existing installs
@@ -292,7 +288,7 @@ export class SamayaSettingTab extends PluginSettingTab {
       new Setting(el).setName(name).setDesc(desc).addDropdown(d => { for (const k in opts) d.addOption(k, opts[k]); d.setValue(get()).onChange(async v => { await set(v as T); await changed(); }); });
 
     /** A path pattern with a live "Today: ..." preview. */
-    const pathText = (el: HTMLElement, name: string, desc: string, key: "tasksPath" | "ticketsPath" | "meetingsPath", extra = "") => {
+    const pathText = (el: HTMLElement, name: string, desc: string, key: "tasksPath" | "ticketsPath", extra = "") => {
       const st = new Setting(el).setName(name);
       st.descEl.appendText(desc + " Date parts use moment.js format; put literal text in [brackets], e.g. [Meetings]/YYYY/YYYY-MM. ");
       st.descEl.createEl("a", { text: "Syntax reference", href: "https://momentjs.com/docs/#/displaying/format" });
@@ -304,7 +300,7 @@ export class SamayaSettingTab extends PluginSettingTab {
     };
     const mdFiles = () => this.app.vault.getMarkdownFiles().map(f => f.path.replace(/\.md$/, "")).sort();
     const folders = () => this.app.vault.getAllFolders(false).map(f => f.path).sort();
-    const template = (el: HTMLElement, name: string, desc: string, key: "taskTemplate" | "meetingTemplate" | "ticketTemplate") =>
+    const template = (el: HTMLElement, name: string, desc: string, key: "taskTemplate" | "ticketTemplate") =>
       text(el, name, desc + " Leave empty for the built-in template.", () => s[key], v => (s[key] = v), { placeholder: "Templates/…", suggest: mdFiles });
 
     // ======================================================================== core modules
@@ -360,8 +356,8 @@ export class SamayaSettingTab extends PluginSettingTab {
           })
           .addExtraButton(x => x.setIcon("rotate-ccw").setTooltip("Back to the theme colour").onClick(async () => { s[key] = ""; await changed(); this.display(); }));
       };
-      colour("Task colour", "Tasks on the timelines, in the check step and in the week plan.", "taskColor", "var(--interactive-accent)");
-      colour("Meeting colour", "Calendar meetings on the timelines, in the check step and in the week plan.", "meetingColor", "var(--color-cyan)");
+      colour("Task colour", "Tasks on the timelines, in the check step and in the week plan.", "taskColor", "#2fa862");
+      colour("Meeting colour", "Calendar meetings on the timelines, in the check step and in the week plan.", "meetingColor", "#3b82f6");
       label(b, "Timeboxing grid");
       range(b, "Visible hours", "The part of the day shown on the grid.", "hour",
         [() => s.dayStartHour, v => (s.dayStartHour = v)], [() => s.dayEndHour, v => (s.dayEndHour = v)]);
@@ -390,42 +386,14 @@ export class SamayaSettingTab extends PluginSettingTab {
     tab("calendar", "Calendar", "calendar");
 
     {
-      const ics = () => s.icsUrls.length;
-      const b = card("Calendar", "Show meetings in the planner and create a note for each one.", {
+      const b = card("Calendar", "Show meetings in the planner, from notes that already exist in your vault.", {
         enabled: { get: () => s.calendarOn, set: v => { s.calendarOn = v; this.plugin.bus.emit(); } },
-        status: () => s.calendarSource === "notes"
-          ? (s.eventNotesFolder ? ["Notes", "ok"] : ["Needs a folder", "warn"])
-          : (ics() ? [`${ics()} feed${ics() > 1 ? "s" : ""}`, "ok"] : ["Needs a feed URL", "warn"]),
+        status: () => s.eventNotesFolder ? ["Notes", "ok"] : ["Needs a folder", "warn"],
       });
       label(b, "Events");
-      dropdown(b, "Event source", "Read-only ICS feed, or notes that already exist in your vault.", { ics: "ICS feed", notes: "Notes in my vault" }, () => s.calendarSource, async v => { s.calendarSource = v; this.plugin.bus.emit(); });
-      const srcBox = b.createDiv();
-      const renderSrc = () => {
-        srcBox.empty();
-        if (s.calendarSource === "notes") {
-          text(srcBox, "Event notes folder", "Searched recursively. Only notes whose file name matches the pattern below are used.", () => s.eventNotesFolder, v => (s.eventNotesFolder = v || "Meetings"), { placeholder: "Meetings", suggest: folders, after: () => this.plugin.bus.emit() });
-          text(srcBox, "File name pattern", `${PATTERN_HELP}. Leave out “.md”.`, () => s.eventNotePattern, v => { if (compilePattern(v || DEFAULT_EVENT_PATTERN)) s.eventNotePattern = v || DEFAULT_EVENT_PATTERN; }, { placeholder: DEFAULT_EVENT_PATTERN });
-          note(srcBox, "Each event note needs start and end properties (hh:mm, or yyyy-mm-dd hh:mm for events over midnight). The day comes from a date property (yyyy-mm-dd) or from {{date}} in the file name. Optional: title (otherwise {{title}} from the file name) and allday: true (then only the date is needed). Example: “2026-11-09_Sprint planning.md” with start: 10:00 and end: 11:00.");
-        } else {
-          new Setting(srcBox).setName("ICS URLs").setDesc("One per line: Google Calendar “secret address in iCal format”, Outlook, …")
-            .addTextArea(t => { t.setValue(s.icsUrls.join("\n")).setPlaceholder("https://calendar.google.com/…/basic.ics").onChange(async v => { s.icsUrls = v.split("\n").map(x => x.trim().replace(/^webcal:/, "https:")).filter(Boolean); this.plugin.ics.clear(); await changed(); }); t.inputEl.rows = 3; t.inputEl.addClass("samaya-wide"); });
-          num(srcBox, "Refresh interval (minutes)", "How long fetched calendars are cached.", () => s.icsRefreshMinutes, v => (s.icsRefreshMinutes = v), { min: 1, max: 1440, int: true });
-          new Setting(srcBox).setName("Refresh now").setDesc(`Fetch the feeds again and create or update meeting notes for today and the next ${MEETING_SYNC_AHEAD_DAYS} days. This also happens automatically at the refresh interval.`).addButton(bt => bt.setButtonText("Refresh").onClick(async () => { bt.setDisabled(true); const n = await syncMeetingNotes(this.plugin); bt.setDisabled(false); this.plugin.bus.emit(); bt.setButtonText(`Refreshed ✓ (${n} new)`); window.setTimeout(() => bt.setButtonText("Refresh"), 1500); }));
-          note(srcBox, "The feed URL is private. It is stored unencrypted in this plugin's data.json; don't sync that file to places you don't trust.");
-        }
-      };
-      renderSrc();
-      // the source dropdown changes which fields apply: rebuild only this block, not the page
-      let shown = s.calendarSource; refreshers.push(() => { if (shown !== s.calendarSource) { shown = s.calendarSource; renderSrc(); renderMeet(); } });
-      // with notes as the source every event already is a note, so nothing is created and these don't apply
-      const meetBox = b.createDiv();
-      const renderMeet = () => {
-        meetBox.empty(); if (s.calendarSource === "notes") return;
-        label(meetBox, "Meeting notes");
-        pathText(meetBox, "Meetings path", "Where notes for calendar events are created (named yyyy-mm-dd_title).", "meetingsPath");
-        template(meetBox, "Meeting note template", "Path of a template note. Variables: {{title}} {{date}} {{start}} {{end}}.", "meetingTemplate");
-      };
-      renderMeet();
+      text(b, "Event notes folder", "Searched recursively. Only notes whose file name matches the pattern below are used.", () => s.eventNotesFolder, v => (s.eventNotesFolder = v || "Meetings"), { placeholder: "Meetings", suggest: folders, after: () => this.plugin.bus.emit() });
+      text(b, "File name pattern", `${PATTERN_HELP}. Leave out “.md”.`, () => s.eventNotePattern, v => { if (compilePattern(v || DEFAULT_EVENT_PATTERN)) s.eventNotePattern = v || DEFAULT_EVENT_PATTERN; }, { placeholder: DEFAULT_EVENT_PATTERN });
+      note(b, "Each event note needs start and end properties (hh:mm, or yyyy-mm-dd hh:mm for events over midnight). The day comes from a date property (yyyy-mm-dd) or from {{date}} in the file name. Optional: title (otherwise {{title}} from the file name) and allday: true (then only the date is needed). Example: “2026-11-09_Sprint planning.md” with start: 10:00 and end: 11:00.");
     }
 
     tab("journal", "Journal", "book-open");

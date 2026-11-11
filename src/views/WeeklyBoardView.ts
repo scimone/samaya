@@ -1,10 +1,10 @@
 import type { PlannerHost } from "./plannerHost";
+import type { CalendarEvent } from "../eventnotes";
 import { Notice, TFile, setIcon } from "obsidian";
 import { PlannerPane } from "./plannerPane";
 import type SamayaPlugin from "../main";
 import { DndScope, DropInfo } from "../dnd";
 import { Task, Ticket, allTasks, allTickets, ticketPathOf, createTask, dropOnDay, onDay, overdueParts, prefixOf, sendPiece, sortTasks, unplanned } from "../model";
-import type { IcsEvent } from "../ics";
 import { bufferShare, loadLevel, trimToBuffer, weekVerdict } from "../weekplan";
 import { renderGuide } from "./guide";
 import { celebrate } from "./doneBar";
@@ -58,7 +58,7 @@ export class WeeklyBoardView extends PlannerPane {
     const token = ++this.token; const s = this.plugin.settings;
     const weekends = this.config.get("showWeekends") === true;
     const from = parseYmd(this.weekStart);
-    const events = calendarEnabled(s) ? await calendarEvents(this.plugin, from, parseYmd(addDays(this.weekStart, 7))).catch(() => [] as IcsEvent[]) : [];
+    const events = calendarEnabled(s) ? await calendarEvents(this.plugin, from, parseYmd(addDays(this.weekStart, 7))).catch(() => [] as CalendarEvent[]) : [];
     if (token !== this.token) return;
     if (this.scope.active) { this.pending = true; return; }
     const wg = this.host && this.plugin.guide?.kind === "week" ? this.plugin.guide : null; // the guide runs in the Planner; the standalone board stays a board
@@ -83,7 +83,7 @@ export class WeeklyBoardView extends PlannerPane {
     this.root.scrollLeft = scrollX; this.root.scrollTop = scrollY;
   }
 
-  private column(parent: HTMLElement, title: string, kind: "day", key: string, tasks: Task[], isToday: boolean, cap: Capacity, events: IcsEvent[]) {
+  private column(parent: HTMLElement, title: string, kind: "day", key: string, tasks: Task[], isToday: boolean, cap: Capacity, events: CalendarEvent[]) {
     const col = parent.createDiv({ cls: "samaya-col" + (isToday ? " is-today" : "") });
     const top = col.createDiv("samaya-col-top"); // day heading, load bar and add box: they stay in view while the cards scroll
     { // (expanded week, under the timeline: CSS hides the heading and bar, the day is already named above)
@@ -125,7 +125,7 @@ export class WeeklyBoardView extends PlannerPane {
     const s = this.plugin.settings; const wk = this.weekStart; const td = today();
     const weekends = this.config.get("showWeekends") === true;
     const days = Array.from({ length: weekends ? 7 : 5 }, (_, i) => addDays(wk, i));
-    const events = calendarEnabled(s) ? await calendarEvents(this.plugin, from, parseYmd(addDays(wk, 7))).catch(() => [] as IcsEvent[]) : [];
+    const events = calendarEnabled(s) ? await calendarEvents(this.plugin, from, parseYmd(addDays(wk, 7))).catch(() => [] as CalendarEvent[]) : [];
     if (this.scope.active) { this.pending = true; return; }
     const g = this.plugin.guide; if (g && g.days !== days.length) { g.days = days.length; window.setTimeout(() => this.plugin.bus.emit(), 0); } // the sidebar needs to know how many days count
     const keep = new Map<string, number>(); this.root.querySelectorAll<HTMLElement>("[data-scroll]").forEach(e => { keep.set(e.dataset.scroll!, e.scrollTop); if (e.dataset.scroll === "kb") this.kbX = e.scrollLeft; });
@@ -242,7 +242,7 @@ export class WeeklyBoardView extends PlannerPane {
   }
 
   /** One day of the Schedule step: its meetings as a compact agenda on top, then the load bar and the day's tasks. */
-  private guidedDay(parent: HTMLElement, date: string, cap: Capacity, events: IcsEvent[], tasks: Task[], isToday: boolean, addBox: (col: HTMLElement, placeholder: string, props: () => Record<string, string | number>) => void) {
+  private guidedDay(parent: HTMLElement, date: string, cap: Capacity, events: CalendarEvent[], tasks: Task[], isToday: boolean, addBox: (col: HTMLElement, placeholder: string, props: () => Record<string, string | number>) => void) {
     const s = this.plugin.settings;
     const col = parent.createDiv({ cls: "samaya-col samaya-wg-day" + (isToday ? " is-today" : "") });
     const share = bufferShare(s.bufferPercent); const planned = tasks.reduce((a, t) => a + (t.estimate || 0), 0); const lvl = loadLevel(planned, cap.free, share);
@@ -341,7 +341,7 @@ export class WeeklyBoardView extends PlannerPane {
 }
 
 /** A day's meetings as a compact agenda (all-day first, then by start; the times in the meeting colour). */
-function renderAgenda(parent: HTMLElement, events: IcsEvent[], date: string) {
+function renderAgenda(parent: HTMLElement, events: CalendarEvent[], date: string) {
   const dayMs = parseYmd(date).getTime();
   const evs = events.filter(e => e.end.getTime() > dayMs && e.start.getTime() < dayMs + 86400000).sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.getTime() - b.start.getTime());
   const ag = parent.createDiv("samaya-agenda");

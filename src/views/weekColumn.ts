@@ -1,8 +1,8 @@
 // The "This week" column of the week guide. It is the last column of the Weekly Board's guide.
 import { Notice, TFile } from "obsidian";
+import type { CalendarEvent } from "../eventnotes";
 import type SamayaPlugin from "../main";
 import type { DndScope } from "../dnd";
-import type { IcsEvent } from "../ics";
 import { Task, createTask, onDay, sendPiece, sortTasks, unplanned } from "../model";
 import { calendarEnabled, calendarEvents } from "../calendar";
 import { addDays, fmtDur, parseTitleEstimate, parseYmd } from "../util";
@@ -18,7 +18,7 @@ export function weekBuckets(all: Task[], wk: string): { weekTasks: Task[]; noDay
   return { weekTasks: [...Array.from({ length: 7 }, (_, i) => onDay(all, addDays(wk, i))).flat(), ...noDay], noDay };
 }
 
-export function capacityOf(plugin: SamayaPlugin, date: string, events: IcsEvent[]): Capacity {
+export function capacityOf(plugin: SamayaPlugin, date: string, events: CalendarEvent[]): Capacity {
   const dayMs = parseYmd(date).getTime(); const end = parseYmd(addDays(date, 1)).getTime();
   return capacityWindow(...plugin.workWindowFor(date), plugin.lunchFor(date),
     events.filter(e => !e.allDay && e.end.getTime() > dayMs && e.start.getTime() < end).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
@@ -29,7 +29,7 @@ export async function weekFreeTime(plugin: SamayaPlugin, wk: string, days: numbe
 /** Free and meeting minutes of the first `days` days of the week. */
 export async function weekCapacity(plugin: SamayaPlugin, wk: string, days: number): Promise<{ free: number; meetings: number }> {
   const s = plugin.settings;
-  const events = calendarEnabled(s) ? await calendarEvents(plugin, parseYmd(wk), parseYmd(addDays(wk, 7))).catch(() => [] as IcsEvent[]) : [];
+  const events = calendarEnabled(s) ? await calendarEvents(plugin, parseYmd(wk), parseYmd(addDays(wk, 7))).catch(() => [] as CalendarEvent[]) : [];
   const caps = Array.from({ length: days }, (_, i) => capacityOf(plugin, addDays(wk, i), events));
   return { free: caps.reduce((a, c) => a + c.free, 0), meetings: caps.reduce((a, c) => a + c.meetings, 0) };
 }

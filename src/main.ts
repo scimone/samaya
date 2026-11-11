@@ -1,12 +1,11 @@
 import { Editor, MarkdownView, Notice, Plugin, TFile, normalizePath, setIcon } from "obsidian";
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FOCUS_VIEW_TYPE, FocusManager, FocusState, FocusView } from "./focus";
-import { IcsClient, allTickets, assignTicket, createTask, momentFmt } from "./model";
+import { allTickets, assignTicket, createTask, momentFmt } from "./model";
 import { PLANNER_VIEW_TYPE, PlannerView } from "./views/PlannerView";
 import { BACKLOG_VIEW_TYPE, BacklogView } from "./views/BacklogView";
 import { BACKLOG_BUCKETS_VIEW_TYPE, BacklogBucketsView } from "./views/BacklogBucketsView";
 import { syncTickets } from "./sync";
-import { syncMeetingNotes } from "./meetings";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
 import { ConfirmCreateModal, ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "./modals";
 import { GANTT_VIEW_TYPE, GanttView } from "./views/GanttView";
@@ -107,7 +106,6 @@ views:
 export default class SamayaPlugin extends Plugin {
   settings!: SamayaSettings;
   data: PluginData = {};
-  ics = new IcsClient(() => this.settings);
   focus = new FocusManager(this);
   workday = new WorkdayManager(this);
   /** fires when workday / guide state changes so views can refresh */
@@ -264,15 +262,7 @@ export default class SamayaPlugin extends Plugin {
       this.registerInterval(window.setInterval(() => this.shutdownNudge(), 60000));
       const promote = () => { void promoteParked(this.app, this.settings); };
       promote(); this.registerInterval(window.setInterval(promote, 10 * 60000)); // parked backlog tasks reaching their date move to this week
-      void this.meetingSyncLoop();
     });
-  }
-
-  /** Fetch the calendar and create/update meeting notes now, then again after every refresh interval (the setting may change meanwhile). */
-  private async meetingSyncLoop() {
-    try { if ((await syncMeetingNotes(this)) > 0) this.bus.emit(); } catch (e) { console.warn("Samaya: meeting sync failed", e); }
-    const t = window.setTimeout(() => { void this.meetingSyncLoop(); }, Math.max(1, this.settings.icsRefreshMinutes) * 60000);
-    this.register(() => window.clearTimeout(t));
   }
 
   /** Keep task notes in the tasks-path subfolder of their scheduled (planned) date; unscheduled ones go to "Unscheduled". */
@@ -621,7 +611,7 @@ export default class SamayaPlugin extends Plugin {
       plans.push({ weekday, label: parseYmd(d).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" }), note: (await journalPath(this.app, s, d)).split("/").pop()!.replace(/\.md$/, ""),
         planned: tasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0), meetings: cap.meetings, free: cap.free,
         tasks: (await toJournalTasks(this.app, tasks, false, true)).map(t => ({ ...t, day: weekday })),
-        events: wantMeet ? await Promise.all(dayEvents.map(async e => ({ ...e, note: e.allDay ? undefined : await ensureMeetingNote(this.app, s, e, dayEvents).then(f => f.basename, () => undefined) }))) : dayEvents });
+        events: wantMeet ? await Promise.all(dayEvents.map(async e => ({ ...e, note: e.allDay ? undefined : await ensureMeetingNote(this.app, e).then(f => f.basename, () => undefined) }))) : dayEvents });
     }
     const unscheduled = (await toJournalTasks(this.app, noDay)).map(t => ({ ...t, day: "no day" }));
     await this.app.vault.process(file, t => {
@@ -663,7 +653,7 @@ export default class SamayaPlugin extends Plugin {
     const write = !planned || (await this.askOverwrite("daily note")); // planned before: ask first
     if (write && s.journalOn && calendarEnabled(s)) {
       const from = parseYmd(td); const evs = await calendarEvents(this, from, parseYmd(addDays(td, 1))).catch(() => null);
-      if (evs) await writeSection(this.app, s, td, "Meetings", meetingLines(await Promise.all(evs.map(async e => ({ ...e, note: e.allDay ? undefined : await ensureMeetingNote(this.app, s, e, evs).then(f => f.basename, () => undefined) })))));
+      if (evs) await writeSection(this.app, s, td, "Meetings", meetingLines(await Promise.all(evs.map(async e => ({ ...e, note: e.allDay ? undefined : await ensureMeetingNote(this.app, e).then(f => f.basename, () => undefined) })))));
     }
     if (write && journalWants(s, "journalPlanned")) await writeSection(this.app, s, td, "Planned tasks", taskLines(await toJournalTasks(this.app, sortByStart(day), false, true)));
     const plans = (this.data.dayPlans ??= {}); // the first plan of the day stays as the baseline; planning again does not replace it

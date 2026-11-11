@@ -1,5 +1,4 @@
 import { App, Notice, TFile, normalizePath, requestUrl } from "obsidian";
-import { IcsEvent, parseIcs } from "./ics";
 import type { SamayaSettings } from "./settings";
 import { Horizon, horizonTarget, isHorizon, minToHm, safeFileName, startOfWeek, today } from "./util";
 import { DEFAULT_TASK_TEMPLATE, ensureSubtasksHeading, insertSubtask, renderPath, pathRoot, renderTemplate, TicketVars, DEFAULT_TICKET_TEMPLATE, renderTicketNote, renderTicketFileName, renderTicketPath } from "./taskbody";
@@ -200,27 +199,6 @@ export async function subtaskProgress(app: App, file: TFile): Promise<{ done: nu
   const items = cache?.listItems?.filter(l => l.task !== undefined) ?? [];
   return { done: items.filter(l => l.task !== " ").length, total: items.length };
 }
-
-export class IcsClient {
-  private cache = new Map<string, { at: number; text: string }>();
-  constructor(private getSettings: () => SamayaSettings) {}
-  clear() { this.cache.clear(); }
-  async eventsBetween(from: Date, to: Date): Promise<IcsEvent[]> {
-    const s = this.getSettings(); const out: IcsEvent[] = [];
-    for (const url of s.icsUrls) {
-      try {
-        let hit = this.cache.get(url);
-        if (!hit || Date.now() - hit.at > s.icsRefreshMinutes * 60000) {
-          const res = await requestUrl({ url });
-          hit = { at: Date.now(), text: res.text }; this.cache.set(url, hit);
-        }
-        out.push(...parseIcs(hit.text, from, to));
-      } catch (e) { console.warn("Samaya: failed to load ICS", url, e); }
-    }
-    return out.sort((a, b) => a.start.getTime() - b.start.getTime());
-  }
-}
-
 
 // ---------- subtasks (checkbox lines inside the task note) ----------
 export interface Subtask { text: string; done: boolean; line: number; indent: number; }

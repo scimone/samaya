@@ -1,44 +1,16 @@
 import esbuild from "esbuild";
 import assert from "node:assert/strict";
 const bundle = async (entry, out) => esbuild.build({ entryPoints: [entry], bundle: true, format: "esm", outfile: out, alias: { obsidian: "./test/obsidian-stub.mjs" }, logLevel: "error" });
-await bundle("src/home.ts", "test/.home.mjs"); await bundle("src/ics.ts", "test/.ics.mjs"); await bundle("src/util.ts", "test/.util.mjs");
+await bundle("src/home.ts", "test/.home.mjs"); await bundle("src/util.ts", "test/.util.mjs");
 await bundle("src/colors.ts", "test/.colors.mjs"); await bundle("src/worktime.ts", "test/.worktime.mjs"); await bundle("src/segments.ts", "test/.segments.mjs"); await bundle("src/sessions.ts", "test/.sessions.mjs"); await bundle("src/model.ts", "test/.model.mjs"); await bundle("src/taskprops.ts", "test/.taskprops.mjs");
 await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timeline.ts", "test/.timeline.mjs");
 await bundle("src/settings.ts", "test/.settings.mjs"); await bundle("src/weekplan.ts", "test/.weekplan.mjs");
 await bundle("src/monthgrid.ts", "test/.monthgrid.mjs"); await bundle("src/kanban.ts", "test/.kanban.mjs"); await bundle("src/gantt.ts", "test/.gantt.mjs"); await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
-const { parseIcs } = await import("./.ics.mjs");
 const { horizonTarget, horizonOf, bucketOf, parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify } = await import("./.util.mjs");
 const { latestOnOrBefore, neighbours } = await import("./.journal.mjs");
 const { fmtEstimate, meetingLines, sortByStart, taskLines, bulletLines, upsertSection, readSection, pickJournalSource: pick } = await import("./.journal.mjs");
 const { fetchJira, fetchGitlab, adfToText } = await import("./.tickets.mjs");
 const { renderTicketPath, renderTicketFileName, renderTicketNote, pathRoot: pathRoot2 } = await import("./.taskbody.mjs");
-
-// ---- ics
-const ics = `BEGIN:VCALENDAR
-BEGIN:VEVENT
-SUMMARY:Standup\\, daily
-DTSTART:20261102T090000
-DTEND:20261102T091500
-RRULE:FREQ=DAILY;COUNT=3
-END:VEVENT
-BEGIN:VEVENT
-SUMMARY:Holiday
-DTSTART;VALUE=DATE:20261103
-DTEND;VALUE=DATE:20261104
-END:VEVENT
-BEGIN:VEVENT
-SUMMARY:Weekly
-DTSTART:20261102T140000
-DTEND:20261102T150000
-RRULE:FREQ=WEEKLY;BYDAY=MO,WE
-EXDATE:20261104T140000
-END:VEVENT
-END:VCALENDAR`;
-const ev = parseIcs(ics, new Date(2026, 10, 1), new Date(2026, 10, 8));
-const names = ev.map(e => e.title + "@" + e.start.getDate());
-assert.deepEqual(names.filter(n => n.startsWith("Standup")), ["Standup, daily@2", "Standup, daily@3", "Standup, daily@4"]);
-assert.ok(ev.find(e => e.title === "Holiday" && e.allDay));
-assert.deepEqual(names.filter(n => n.startsWith("Weekly")), ["Weekly@2"]);
 
 // ---- util
 assert.deepEqual(parseTitleEstimate("Write report 1h"), { title: "Write report", estimate: 60 });
@@ -386,7 +358,7 @@ console.log("all tests passed");
 {
   const { migrateSettings, DEFAULT_SETTINGS } = await import("./.settings.mjs");
   assert.equal(DEFAULT_SETTINGS.jiraOn, false);
-  const m = migrateSettings({ jiraUrl: "https://x.atlassian.net", jiraToken: "t", gitlabToken: "", icsUrls: ["https://c/ics"] });
+  const m = migrateSettings({ jiraUrl: "https://x.atlassian.net", jiraToken: "t", gitlabToken: "", eventNotesFolder: "Meetings" });
   assert.deepEqual([m.jiraOn, m.gitlabOn, m.calendarOn], [true, false, true]);
   assert.equal(migrateSettings({ calendarSource: "notes", eventNotesFolder: "Meetings" }).calendarOn, true);
   assert.equal(migrateSettings({}).calendarOn, false);

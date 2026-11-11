@@ -1,4 +1,5 @@
 import { Notice, TFile, WorkspaceLeaf, setIcon } from "obsidian";
+import type { CalendarEvent } from "../eventnotes";
 import { PlannerPane } from "./plannerPane";
 import type SamayaPlugin from "../main";
 import { DndScope, DropInfo } from "../dnd";
@@ -6,7 +7,6 @@ import { Task, allTasks, createTask, dropOnDay, onDay, overdueParts, prefixOf, s
 import { addDays, fmtDur, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import type { PlannerHost } from "./plannerHost";
 import { bindCardDrop, bindZone, renderBacklogBuckets, renderTaskCard, richText } from "./common";
-import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { celebrate, renderDoneBar } from "./doneBar";
 import { renderGuide } from "./guide";
@@ -95,9 +95,9 @@ export class DailyPlannerView extends PlannerPane {
     const cap = capacityWindow(...this.plugin.workWindowFor(this.date), this.plugin.lunchFor(this.date),
       events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
     const plannedAll = day.reduce((a, t) => a + (t.estimate || 0), 0);
-    const notes = new Map<IcsEvent, TFile>(); // meeting notes for the timeline
+    const notes = new Map<CalendarEvent, TFile>(); // meeting notes for the timeline
     const tlEvents = !calendarEnabled(s) ? [] : this.showIcs ? events : await calendarEvents(this.plugin, parseYmd(this.date), parseYmd(addDays(this.date, 1)));
-    for (const ev of tlEvents.filter(e => !e.allDay)) { try { notes.set(ev, await ensureMeetingNote(this.app, s, ev, tlEvents)); } catch { /* ignore */ } }
+    for (const ev of tlEvents.filter(e => !e.allDay)) { try { notes.set(ev, await ensureMeetingNote(this.app, ev)); } catch { /* ignore */ } }
     if (token !== this.token || this.scope.active) { if (this.scope.active) this.pending = true; return; }
 
     const g = isToday ? guide : null; const step = g?.step ?? -1;
@@ -193,7 +193,7 @@ export class DailyPlannerView extends PlannerPane {
   }
 
   /** The timeline next to the task list: Day/Week switch, all-day events, then the hours. */
-  private renderPane(pane: HTMLElement, day: Task[], events: IcsEvent[], notes: Map<IcsEvent, TFile>, plan: { step: number } | null) {
+  private renderPane(pane: HTMLElement, day: Task[], events: CalendarEvent[], notes: Map<CalendarEvent, TFile>, plan: { step: number } | null) {
     const allDay = events.filter(e => e.allDay);
     if (plan) { // Plan my day: all-day events as text, then the label
       allDay.forEach(e => pane.createDiv({ cls: "samaya-allday", text: e.title }));

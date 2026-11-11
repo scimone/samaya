@@ -1,7 +1,6 @@
 // Pure helpers for task / meeting note bodies and templates (no Obsidian imports, unit-tested).
 import { safeFileName, slugify } from "./util";
 export const DEFAULT_TASK_TEMPLATE = "## Subtasks\n\n## Notes\n";
-export const DEFAULT_MEETING_TEMPLATE = "# {{title}}\n\n## Meeting Summary\n\n";
 
 const heading = (name: string) => new RegExp(`^##\\s+${name}\\s*$`, "i");
 const ANY_HEADING = /^#{1,6}\s/;

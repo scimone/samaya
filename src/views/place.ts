@@ -1,5 +1,5 @@
 import type SamayaPlugin from "../main";
-import type { IcsEvent } from "../ics";
+import type { CalendarEvent } from "../eventnotes";
 import { Task, allTasks, onDay, readTask, restPlaceOf, writeDayPlan, writeSessions } from "../model";
 import { MergeSegmentsModal } from "../modals";
 import { Seg, mergeOffer, planInWindow, segsTotal } from "../segments";
@@ -10,7 +10,7 @@ import { nowMin } from "../workday";
 import { Notice, TFile, setIcon } from "obsidian";
 
 /** Meetings and lunch of a day as [start, end] minutes (with `borders`: also the time outside the day start/finish lines). */
-export function busyIntervals(plugin: SamayaPlugin, date: string, events: IcsEvent[], borders = false): Array<[number, number]> {
+export function busyIntervals(plugin: SamayaPlugin, date: string, events: CalendarEvent[], borders = false): Array<[number, number]> {
   const dayMs = parseYmd(date).getTime();
   const iv = events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]);
   iv.push(plugin.lunchFor(date));
@@ -68,7 +68,7 @@ export const segLabel = (_k: number, _n: number): string => ""; // the piece num
  * split task only moves itself, and offers to merge when the pieces fit together again. `fromDay` is the day the dragged card or block
  * belongs to ("" = the unplanned rest of a task): a task planned in several pieces only brings the piece that was grabbed.
  */
-export async function dropOnTimeline(plugin: SamayaPlugin, file: TFile, date: string, startMin: number, seg: number | null, fromDay: string | null, events: IcsEvent[], limit: number, slot: number) {
+export async function dropOnTimeline(plugin: SamayaPlugin, file: TFile, date: string, startMin: number, seg: number | null, fromDay: string | null, events: CalendarEvent[], limit: number, slot: number) {
   const app = plugin.app; const t = readTask(app, file); const dflt = plugin.settings.defaultEstimate;
   const place = restPlaceOf(t);
   const write = async (ss: Session[], rest: number, placed: Seg[]) => { await writeSessions(app, file, ss, rest, place); await makeRoom(plugin, file, date, placed, events, limit, slot); };
@@ -98,7 +98,7 @@ export async function dropOnTimeline(plugin: SamayaPlugin, file: TFile, date: st
  * A task was dropped onto `placed`: every other open task of the day that overlaps it (or a task pushed by it) makes space
  * and moves to the next free time, splitting around meetings and other tasks when needed.
  */
-async function makeRoom(plugin: SamayaPlugin, dropped: TFile, date: string, placed: Seg[], events: IcsEvent[], limit: number, slot: number) {
+async function makeRoom(plugin: SamayaPlugin, dropped: TFile, date: string, placed: Seg[], events: CalendarEvent[], limit: number, slot: number) {
   const app = plugin.app; const dflt = plugin.settings.defaultEstimate;
   const [from, to] = plugin.workWindowFor(date); const earliest = date === today() ? nowMin() : 0;
   const meet = busyIntervals(plugin, date, events);
@@ -128,15 +128,15 @@ export async function resizeBlock(plugin: SamayaPlugin, t: Task, seg: number, du
 /** Where the rest of a split goes: right after the first part (same day), another day, this week's list or the backlog. */
 export type SplitTo = { kind: "same" } | { kind: "day"; date: string } | { kind: "week"; week: string } | { kind: "backlog"; horizon: Horizon };
 
-async function dayEvents(plugin: SamayaPlugin, date: string): Promise<IcsEvent[]> {
-  return calendarEnabled(plugin.settings) ? calendarEvents(plugin, parseYmd(date), parseYmd(addDays(date, 1))).catch(() => [] as IcsEvent[]) : [];
+async function dayEvents(plugin: SamayaPlugin, date: string): Promise<CalendarEvent[]> {
+  return calendarEnabled(plugin.settings) ? calendarEvents(plugin, parseYmd(date), parseYmd(addDays(date, 1))).catch(() => [] as CalendarEvent[]) : [];
 }
 /** Cut one piece of a task (piece `seg` of `day`; null = the day's only piece) in two: `first` minutes stay, the rest goes to `to`. False when nothing was split. */
 export async function splitTask(plugin: SamayaPlugin, file: TFile, day: string, seg: number | null, first: number, to: SplitTo): Promise<boolean> {
   const app = plugin.app; const s = plugin.settings; const t = readTask(app, file);
   const cut = splitPiece(t.sessions, day, seg, first); if (!cut) return false;
   let ss = cut.sessions; let rest = t.rest; let place = restPlaceOf(t);
-  let placed: Seg[] = []; let events: IcsEvent[] = [];
+  let placed: Seg[] = []; let events: CalendarEvent[] = [];
   if (to.kind === "same") {
     if (cut.at === null) return false;
     events = await dayEvents(plugin, day); const [wFrom, wTo] = plugin.workWindowFor(day);

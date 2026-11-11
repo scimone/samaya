@@ -1,11 +1,11 @@
 import { TFile, setIcon } from "obsidian";
+import type { CalendarEvent } from "../eventnotes";
 import { PlannerPane } from "./plannerPane";
 import type { PlannerHost } from "./plannerHost";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, allTasks, dropOnDay, onDay, setDone, sortTasks } from "../model";
 import { addDays, fmtDur, hmToMin, minToHm, parseYmd, startOfWeek, today } from "../util";
-import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { layoutItems } from "../timeline";
 import { bindZone, keyActivate, showTaskMenu } from "./common";
@@ -60,7 +60,7 @@ export class WeeklyTimelineView extends PlannerPane {
     const startH = this.opt("dayStart", s.dayStartHour), endH = Math.max(startH + 1, this.opt("dayEnd", s.dayEndHour)), slot = s.slotMinutes;
     const days = this.config.get("showWeekends") === true ? 7 : 5;
     const events = this.config.get("showIcs") !== false && calendarEnabled(s)
-      ? (await calendarEvents(this.plugin, parseYmd(this.weekStart), parseYmd(addDays(this.weekStart, 7))).catch(() => [] as IcsEvent[])) : [];
+      ? (await calendarEvents(this.plugin, parseYmd(this.weekStart), parseYmd(addDays(this.weekStart, 7))).catch(() => [] as CalendarEvent[])) : [];
     if (token !== this.token) return;
     if (this.scope.active) { this.pending = true; return; }
 
@@ -142,7 +142,7 @@ export class WeeklyTimelineView extends PlannerPane {
         },
       });
 
-      interface Item { s: number; dur: number; task?: Task; ev?: IcsEvent; seg?: number; n?: number; }
+      interface Item { s: number; dur: number; task?: Task; ev?: CalendarEvent; seg?: number; n?: number; }
       const items: Item[] = [];
       dayEvents.filter(e => !e.allDay).forEach(e => {
         const sm = Math.max(0, (e.start.getTime() - dayMs) / 60000), em = Math.min(1440, (e.end.getTime() - dayMs) / 60000);

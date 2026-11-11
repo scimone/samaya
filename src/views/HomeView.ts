@@ -1,7 +1,7 @@
 import { BasesView, QueryController, TFile, setIcon } from "obsidian";
+import type { CalendarEvent } from "../eventnotes";
 import type SamayaPlugin from "../main";
 import { calendarEnabled, calendarEvents } from "../calendar";
-import type { IcsEvent } from "../ics";
 import { Task, allTasks, createTask, onDay, overdueParts, rootOf, setDone, sortTasks, unplanned } from "../model";
 import { greeting, inMinutes, pickMoment, weekIntent } from "../home";
 import { addDays, fmtDur, fmtHm, hmToMin, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
@@ -38,7 +38,7 @@ export class HomeView extends BasesView {
     window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { void this.render(); }, 150);
   }
 
-  private async nextEvent(): Promise<IcsEvent | null> {
+  private async nextEvent(): Promise<CalendarEvent | null> {
     const s = this.plugin.settings; if (!calendarEnabled(s)) return null;
     const d0 = parseYmd(today());
     try {
@@ -81,7 +81,7 @@ export class HomeView extends BasesView {
   }
 
   // ---------------------------------------------------------------- hero: the next sensible step
-  private hero(c: HTMLElement, moment: ReturnType<typeof pickMoment>, open: Task[], day: Task[], ev: IcsEvent | null) {
+  private hero(c: HTMLElement, moment: ReturnType<typeof pickMoment>, open: Task[], day: Task[], ev: CalendarEvent | null) {
     const p = this.plugin; const wd = p.workday; const l = wd.log;
     const card = c.createDiv(`samaya-home-hero is-${moment}`);
     const kicker = card.createDiv("samaya-home-kicker");

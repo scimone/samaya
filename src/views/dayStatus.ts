@@ -28,11 +28,11 @@ export async function renderDayStatus(plugin: SamayaPlugin, host: HTMLElement, o
   if (!host.isConnected) return;
     const d = parseYmd(date);
     // day column: title + navigation, workday status, capacity, plan button
-    const hero = host.createDiv("samaya-info-hero");
-    const titles = hero.createDiv("samaya-info-titles");
-    const top = titles.createDiv("samaya-info-titlerow");
-    top.createEl("h2", { text: isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" }) });
-    if (o.nav !== false) { // the sidebar on other pages: Today shortcut, then ‹ date ›. In the planner the navigation sits in the timeline header instead.
+    if (o.nav !== false) {
+      const hero = host.createDiv("samaya-info-hero");
+      const titles = hero.createDiv("samaya-info-titles");
+      const top = titles.createDiv("samaya-info-titlerow");
+      top.createEl("h2", { text: isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" }) }); // the sidebar on other pages: Today shortcut, then ‹ date ›. In the planner the navigation sits in the timeline header instead.
       const side = top.createDiv("samaya-info-side");
       if (!isToday) renderResetPill(side, "Today", "Jump to today", date < today() ? "right" : "left", () => go(today()));
       renderDateNav(side, {
@@ -40,7 +40,7 @@ export async function renderDayStatus(plugin: SamayaPlugin, host: HTMLElement, o
         prevLabel: "Previous day", nextLabel: "Next day", onPrev: () => go(addDays(date, -1)), onNext: () => go(addDays(date, 1)),
         pick: { value: date, run: go },
       });
-    } else titles.createDiv({ cls: "samaya-info-sub", text: d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) });
+    } // in the planner the title bar above the columns says which day it is
 
     renderWorkdayCard(plugin, host.createDiv("samaya-info-card"), { panel: true, date: date });
 

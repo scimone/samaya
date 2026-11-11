@@ -96,9 +96,11 @@ export class DailyPlannerView extends BasesView {
     const g = isToday ? guide : null; const step = g?.step ?? -1;
     const sd = g?.kind === "shutdown"; const pg = sd ? null : g; const review = !sd && step === 0, pick = !sd && step === 1, check = !sd && step === 3;
     this.root.toggleClass("is-review", !!pg); // plan my day: guide + columns; otherwise one column of task cards
-    const info = pg ? null : this.root.createDiv("samaya-info"); // columns from the left: status, tasks, timeline (Plan my day: guide and tasks, the timeline is in the sidebar)
-    const left = this.root.createDiv("samaya-left");
-    if (!pg) this.renderPane(this.root.createDiv("samaya-today samaya-tlpane"), day, tlEvents, notes); // (plan my day: the timeline stays in the right sidebar)
+    this.renderHead(isToday, !!this.plugin.guide);
+    const cols = this.root.createDiv("samaya-daily-cols"); // everything else sits below the title bar
+    const info = pg ? null : cols.createDiv("samaya-info"); // columns from the left: status, tasks, timeline (Plan my day: guide and tasks, the timeline is in the sidebar)
+    const left = cols.createDiv("samaya-left");
+    if (!pg) this.renderPane(cols.createDiv("samaya-today samaya-tlpane"), day, tlEvents, notes); // (plan my day: the timeline stays in the right sidebar)
     let body = left; // where today's planned list goes
     if (!pg) { // tasks heading: title, done count, progress
       const nd = day.filter(t => t.status === "done").length;
@@ -158,22 +160,26 @@ export class DailyPlannerView extends BasesView {
     this.finishRender(left);
   }
 
+  /** The title bar, same design as the week heading: title, then (without a guide) reset pill, ‹ date ›, Day | Week. Everything else starts below it. */
+  private renderHead(isToday: boolean, guide: boolean) {
+    const h = this.root.createDiv("samaya-week-head samaya-day-head");
+    h.createEl("h2", { cls: "samaya-planner-title", text: isToday ? "Today" : parseYmd(this.date).toLocaleDateString(undefined, { weekday: "long" }) });
+    if (guide) return;
+    const right = h.createDiv("samaya-planner-right");
+    if (!isToday) renderResetPill(right, "Today", "Jump to today", this.date < today() ? "right" : "left", () => this.goTo(today()));
+    renderDateNav(right, {
+      variant: "box", label: parseYmd(this.date).toLocaleDateString(undefined, { weekday: isToday ? "short" : undefined, month: "short", day: "numeric" }),
+      prevLabel: "Previous day", nextLabel: "Next day", onPrev: () => this.goTo(addDays(this.date, -1)), onNext: () => this.goTo(addDays(this.date, 1)),
+      pick: { value: this.date, run: d => this.goTo(d) },
+    });
+    const sw = right.createDiv("samaya-modeswitch");
+    sw.createEl("button", { text: "Day", cls: "is-active" });
+    sw.createEl("button", { text: "Week", attr: { title: "Expand to the week timeline" } }).onclick = () => this.plugin.expandTimeline();
+  }
+
   /** The timeline next to the task list: Day/Week switch, all-day events, then the hours. */
   private renderPane(pane: HTMLElement, day: Task[], events: IcsEvent[], notes: Map<IcsEvent, TFile>) {
-    if (!this.plugin.guide) { // one clear way into the week: the timeline expands to the whole week
-      const bar = pane.createDiv("samaya-tl-bar");
-      bar.createSpan({ cls: "samaya-tl-bar-title", text: "Timeline" });
-      const right = bar.createDiv("samaya-tl-bar-right"); // same spot as the week heading: navigation, then the Day | Week switch
-      if (this.date !== today()) renderResetPill(right, "Today", "Jump to today", this.date < today() ? "right" : "left", () => this.goTo(today()));
-      renderDateNav(right, {
-        variant: "box", label: parseYmd(this.date).toLocaleDateString(undefined, { weekday: this.date === today() ? "short" : undefined, month: "short", day: "numeric" }),
-        prevLabel: "Previous day", nextLabel: "Next day", onPrev: () => this.goTo(addDays(this.date, -1)), onNext: () => this.goTo(addDays(this.date, 1)),
-        pick: { value: this.date, run: d => this.goTo(d) },
-      });
-      const sw = right.createDiv("samaya-modeswitch");
-      sw.createEl("button", { text: "Day", cls: "is-active" });
-      sw.createEl("button", { text: "Week", attr: { title: "Expand to the week timeline" } }).onclick = () => this.plugin.expandTimeline();
-    } else pane.createDiv({ cls: "samaya-today-label", text: "Timeline" });
+    if (this.plugin.guide) pane.createDiv({ cls: "samaya-today-label", text: "Timeline" });
     events.filter(e => e.allDay).forEach(e => pane.createDiv({ cls: "samaya-allday", text: e.title }));
     this.tlHeight = renderTimeline(this.plugin, this.scope, pane, { date: this.date, day, events, notes, ro: false, state: this.tlState });
     if (!this.tlWatch) { // the hours stretch to the pane height

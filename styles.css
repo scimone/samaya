@@ -1,4 +1,5 @@
-.samaya-daily { display: flex; justify-content: flex-end; height: 100%; width: 100%; gap: 0; overflow: hidden; } /* tasks and timeline sit at the right edge; spare room stays empty on the left */
+.samaya-daily { display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; }
+.samaya-daily-cols { display: flex; justify-content: flex-end; flex: 1 1 0; min-height: 0; width: 100%; gap: 0; overflow: hidden; } /* tasks and timeline sit at the right edge; spare room stays empty on the left */
 .samaya-info { flex: 0 0 420px; width: 420px; box-sizing: border-box; margin-right: auto; display: flex; flex-direction: column; padding: 16px 20px 16px 24px; }
 .samaya-left { flex: 0 1 520px; min-width: 300px; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
 .samaya-head h2 { margin: 8px 0 2px; }
@@ -81,10 +82,10 @@
 .samaya-focus-subs { text-align: left; }
 .samaya-status { cursor: pointer; }
 
-body.samaya-left-collapsed .samaya-daily { justify-content: center; }
+body.samaya-left-collapsed .samaya-daily-cols { justify-content: center; }
 .samaya-tlpane { flex: 0 1 380px; min-width: 260px; box-sizing: border-box; height: 100%; }
 .samaya-info.is-side { flex: 1 1 auto; width: auto; min-width: 0; margin: 0; padding: 4px 4px 8px; overflow-y: auto; }
-@media (max-width: 700px) { .samaya-daily { flex-direction: column; overflow-y: auto; } .samaya-left, .samaya-info { flex: none; } .samaya-tlpane { flex: none; height: 520px; } }
+@media (max-width: 700px) { .samaya-daily-cols { flex-direction: column; overflow-y: auto; } .samaya-left, .samaya-info { flex: none; } .samaya-tlpane { flex: none; height: 520px; } }
 
 /* drag & drop */
 .samaya-ghost { position: fixed !important; left: 0 !important; top: 0 !important; margin: 0 !important; z-index: 10000; pointer-events: none; opacity: 0.92; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); transform-origin: 0 0; cursor: grabbing; }
@@ -1002,7 +1003,7 @@ button.samaya-datereset:hover, button.samaya-datereset:focus-visible { backgroun
 .samaya-planner-title { margin: 0; font-size: 1.5em; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; white-space: nowrap; }
 .samaya-info-sub { margin-top: 2px; color: var(--text-muted); font-size: var(--font-ui-small); }
 /* the day's status column: the leftmost column of the Today view */
-.samaya-daily > .samaya-info { flex: 0 1 340px; width: auto; min-width: 260px; margin-right: auto; overflow-y: auto; padding: 14px 20px 16px 24px; }
+.samaya-daily-cols > .samaya-info { flex: 0 1 340px; width: auto; min-width: 260px; margin-right: auto; overflow-y: auto; padding: 14px 20px 16px 24px; }
 .samaya-planner { --wk-bar: 26px; }
 .samaya-planner.is-timeline-only { --wk-bar: 20px; } /* the line hugs the end of the day */
 .samaya-tlpane { flex: 0 1 420px; min-width: 300px; }
@@ -1015,3 +1016,4 @@ button.samaya-datereset:hover, button.samaya-datereset:focus-visible { backgroun
 .samaya-left, .samaya-tlpane { flex: 0 1 460px; min-width: 300px; }
 .samaya-daily.is-review .samaya-left { flex: 1 1 auto; }
 @media (max-width: 700px) { .samaya-left, .samaya-tlpane { flex: none; } }
+.samaya-day-head { flex: none; display: flex; align-items: center; gap: 10px; min-height: 30px; box-sizing: content-box; padding: 14px 16px 8px 24px; background: var(--background-primary); }

@@ -215,8 +215,6 @@ export default class SamayaPlugin extends Plugin {
     this.focus.init(this.addStatusBarItem(), this.data.focus ?? null);
     this.workday.init(this.addStatusBarItem(), this.data.workday ?? null);
 
-    this.addRibbonIcon("calendar-days", "Samaya: today's timeline", () => { void this.openToday(); });
-    this.addCommand({ id: "open-today", name: "Open today's timeline in the right sidebar", callback: () => this.openToday() });
     this.addCommand({ id: "open-home", name: "Open home", checkCallback: c => { if (!this.settings.homeOn) return false; if (!c) void this.openHome(); return true; } });
     this.addCommand({ id: "plan-week", name: "Plan my week (guided)", callback: () => this.startWeekGuide() });
     this.addCommand({ id: "review-week", name: "Review my week", callback: () => this.reviewWeek() });
@@ -565,15 +563,7 @@ export default class SamayaPlugin extends Plugin {
     if (k === "plan" || k === "week") await this.openToday(); else ws.rightSplit?.collapse();
     ws.setActiveLeaf(leaf, { focus: true });
   }
-  /** Pages without a sidebar view of their own get the status column in the right sidebar; focus stays on the page. */
-  showStatusSidebar(root: HTMLElement) {
-    const ws = this.app.workspace;
-    ws.onLayoutReady(() => window.setTimeout(() => {
-      const mine: import("obsidian").WorkspaceLeaf[] = []; ws.iterateRootLeaves(l => { if (l.view.containerEl.contains(root)) mine.push(l); });
-      const was = mine.length > 0 && ws.getMostRecentLeaf() === mine[0];
-      void this.openToday().then(() => { if (was) ws.setActiveLeaf(mine[0], { focus: true }); });
-    }, 0));
-  }
+  /** The right sidebar only serves the guides: the timeline of Plan my day, the This week column of Plan my week. */
   async openToday() {
     const ws = this.app.workspace;
     let leaf = ws.getLeavesOfType(TODAY_VIEW_TYPE)[0];

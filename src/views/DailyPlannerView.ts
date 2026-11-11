@@ -152,7 +152,7 @@ export class DailyPlannerView extends BasesView {
       this.bindAdd(add, () => ({ planned: this.date, order: day.length }));
     }
 
-    if (info) await renderDayStatus(this.plugin, info, { date: this.date, events: tlEvents, go: d => this.goTo(d), nav: false });
+    if (info) await renderDayStatus(this.plugin, info, { date: this.date, events: tlEvents });
     if (info) info.scrollTop = this.infoScroll;
     if (token !== this.token) return;
     this.finishRender(left);

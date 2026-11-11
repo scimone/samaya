@@ -78,6 +78,7 @@ export class TodayView extends ItemView {
   }
 
   async render() {
+    const gk = this.plugin.guide?.kind; if (gk !== "plan" && gk !== "week") { this.leaf.detach(); return; } // the sidebar only serves Plan my day / Plan my week
     const token = ++this.token; const s = this.plugin.settings;
     this.mode = this.currentMode(); const daily = this.mode === "daily";
     const date = daily ? this.plugin.plannerDate || today() : this.viewDate || today();
@@ -110,11 +111,6 @@ export class TodayView extends ItemView {
       renderTimeline(this.plugin, this.dnd, c, { date, day, events, notes, ro: plan.step <= 1, state: this.tlState });
       return;
     }
-    if (daily) { c.createDiv({ cls: "samaya-empty", text: "The day's status is in the planner now, in the column on the left." }); this.seenH = c.clientHeight; return; }
-    // the status column on other pages: it shows (and steps) the day on its own
-    const info = c.createDiv("samaya-info is-side");
-    const go = (d: string) => { if (daily) this.plugin.plannerGoTo?.(d); else { this.viewDate = d === today() ? "" : d; void this.render(); } };
-    await renderDayStatus(this.plugin, info, { date, events, go });
-    this.seenH = c.clientHeight;
+    c.createDiv({ cls: "samaya-empty", text: "Nothing to show here right now." }); this.seenH = c.clientHeight;
   }
 }

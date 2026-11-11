@@ -21,7 +21,7 @@ export class HomeView extends BasesView {
 
   constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
     super(controller);
-    this.root = parentEl.createDiv("samaya-home"); this.plugin.showStatusSidebar(this.root);
+    this.root = parentEl.createDiv("samaya-home");
     const ref = this.app.metadataCache.on("changed", () => this.schedule());
     this.off.push(() => this.app.metadataCache.offref(ref), this.plugin.bus.on(() => this.schedule()));
     const tick = window.setInterval(() => this.schedule(), 30000);

@@ -20,7 +20,7 @@ export class BacklogView extends BasesView {
 
   constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
     super(controller);
-    this.root = parentEl.createDiv("samaya-backlog-view"); this.plugin.showStatusSidebar(this.root);
+    this.root = parentEl.createDiv("samaya-backlog-view");
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
   }
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); }

@@ -17,7 +17,7 @@ export class GanttView extends BasesView {
 
   constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
     super(controller);
-    this.root = parentEl.createDiv("samaya-gantt"); this.plugin.showStatusSidebar(this.root);
+    this.root = parentEl.createDiv("samaya-gantt");
   }
   onunload() { window.clearTimeout(this.timer); }
   onDataUpdated(): void {

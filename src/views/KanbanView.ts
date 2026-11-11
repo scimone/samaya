@@ -16,7 +16,7 @@ export class KanbanView extends BasesView {
   private collapsed = new Set<string>();
   private scope = new DndScope();
   private pending = false;
-  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) { super(controller); this.root = parentEl.createDiv("samaya-kanban"); this.plugin.showStatusSidebar(this.root); this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.render(); } }; }
+  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) { super(controller); this.root = parentEl.createDiv("samaya-kanban"); this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.render(); } }; }
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); }
   private async setStatus(path: string, status: string) {
     const f = this.app.vault.getAbstractFileByPath(path); if (!(f instanceof TFile)) return;

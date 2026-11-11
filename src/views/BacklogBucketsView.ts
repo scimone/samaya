@@ -17,7 +17,7 @@ export class BacklogBucketsView extends BasesView {
 
   constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
     super(controller);
-    this.root = parentEl.createDiv("samaya-backlog-view samaya-bucketview"); this.plugin.showStatusSidebar(this.root);
+    this.root = parentEl.createDiv("samaya-backlog-view samaya-bucketview");
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
     // the base only feeds tickets; tasks change on their own
     this.registerEvent(this.app.metadataCache.on("changed", () => this.schedule()));

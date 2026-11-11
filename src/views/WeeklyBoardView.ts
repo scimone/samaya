@@ -37,7 +37,6 @@ export class WeeklyBoardView extends BasesView {
     this.register(plugin.bus.on(() => this.schedule()));
     const ref = plugin.app.metadataCache.on("changed", f => { if (!this.plugin.guide) return; if (inEventFolder(plugin.settings, f.path) || f.path.startsWith(prefixOf(plugin.settings.tasksPath))) this.schedule(); });
     this.register(() => plugin.app.metadataCache.offref(ref));
-    if (!host) void this.plugin.openToday(); // the sidebar shows the week's tasks while the standalone board is open (the Planner opens it itself for Plan my week)
   }
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); if (this.plugin.boardWeek === this.weekStart) { this.plugin.boardWeek = ""; this.plugin.modeBus.emit(); } }
   onDataUpdated(): void { this.schedule(); }

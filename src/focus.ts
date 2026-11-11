@@ -6,7 +6,7 @@ import { fmtDur, fmtHm } from "./util";
 
 export const FOCUS_VIEW_TYPE = "samaya-focus";
 
-export interface FocusState { path: string; accumulatedMs: number; startedAt: number | null; /** finished runs (start, end in epoch ms): the time frames actually worked */ runs?: Array<[number, number]>; }
+export interface FocusState { path: string; accumulatedMs: number; startedAt: number | null; /** finished runs (start, end in epoch ms): the time frames actually worked */ runs?: Array<[number, number]>; /** whole minutes of this session already added to the task's duration_actual */ loggedMin?: number; }
 
 const asList = (v: unknown): string[] => Array.isArray(v) ? v.map(String) : v ? [String(v)] : [];
 /** One focus run as "2026-11-11 09:05–09:40" (the end carries its date when the run crosses midnight). */
@@ -70,23 +70,36 @@ export class FocusManager {
     }
     await ws.revealLeaf(leaf);
   }
-  async pause() { const s = this.state; if (!s || !s.startedAt) return; const now = Date.now(); s.accumulatedMs += now - s.startedAt; (s.runs ??= []).push([s.startedAt, now]); s.startedAt = null; await this.persist(); this.refreshViews(); }
+  /** Pause (a break): write the time worked so far to the task, so duration_actual is up to date during the break. */
+  async pause() {
+    const s = this.state; if (!s || !s.startedAt) return;
+    const now = Date.now(); s.accumulatedMs += now - s.startedAt; (s.runs ??= []).push([s.startedAt, now]); s.startedAt = null;
+    await this.logProgress(); await this.persist(); this.refreshViews();
+  }
+  /** Add the minutes worked since the last log to `duration_actual` and the finished runs to `focus_sessions`. */
+  private async logProgress() {
+    const s = this.state; const file = this.file; if (!s || !file) return;
+    const total = Math.round(s.accumulatedMs / 60000); const delta = total - (s.loggedMin ?? 0);
+    const runs = (s.runs ?? []).filter(r => r[1] - r[0] >= 60000).map(fmtRun);
+    if (delta <= 0 && !runs.length) return;
+    const app = this.plugin.app; const t = readTask(app, file);
+    await patchTask(app, file, {
+      ...(delta > 0 ? { actual: t.actual + delta } : {}),
+      ...(runs.length ? { focus_sessions: [...asList(app.metadataCache.getFileCache(file)?.frontmatter?.focus_sessions), ...runs] } : {}),
+    });
+    s.loggedMin = total; s.runs = [];
+  }
   async resume() { const s = this.state; if (!s || s.startedAt) return; s.startedAt = Date.now(); await this.persist(); this.refreshViews(); }
-  /** Stop, add the session's minutes to the task's `duration_actual`, optionally complete it. */
+  /** Stop (the last run is logged like a break), optionally complete the task. */
   async stop(markDone: boolean) {
     const s = this.state; if (!s) return;
     await this.pause();
-    const minutes = Math.round(this.sessionMs() / 60000); const file = this.file; const runs = s.runs ?? [];
+    const minutes = s.loggedMin ?? 0; const file = this.file;
     this.state = null; await this.persist();
     this.plugin.app.workspace.detachLeavesOfType(FOCUS_VIEW_TYPE);
     this.renderStatus();
     if (file) {
-      const t = readTask(this.plugin.app, file);
-      await patchTask(this.plugin.app, file, {
-        actual: t.actual + minutes || undefined,
-        ...(runs.length ? { focus_sessions: [...asList(this.plugin.app.metadataCache.getFileCache(file)?.frontmatter?.focus_sessions), ...runs.filter(r => r[1] - r[0] >= 60000).map(fmtRun)] } : {}),
-        ...(markDone ? { status: "done", completed: new Date().toISOString().slice(0, 10) } : {}),
-      });
+      if (markDone) await patchTask(this.plugin.app, file, { status: "done", completed: new Date().toISOString().slice(0, 10) });
       new Notice(`Logged ${fmtDur(minutes)} on "${file.basename}"${markDone ? " - done" : ""}`);
     }
   }
@@ -121,7 +134,7 @@ export class FocusView extends ItemView {
   private tick() {
     const fm = this.plugin.focus; const f = fm.file; if (!fm.state || !f || !this.actualEl) return;
     const t = readTask(this.app, f);
-    const actualMin = t.actual + fm.sessionMs() / 60000;
+    const actualMin = t.actual + fm.sessionMs() / 60000 - (fm.state.loggedMin ?? 0); // the logged part is already in t.actual
     this.actualEl.setText(fmtHm(actualMin));
     const over = !!t.estimate && actualMin > t.estimate;
     this.actualEl.toggleClass("is-over", over);

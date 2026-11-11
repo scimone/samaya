@@ -703,8 +703,8 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: var(--sa
 .samaya-wg-col > .samaya-loadbar { margin: 4px 14px 6px; }
 .samaya-wg-col > .samaya-add { margin: 0 14px; width: auto; }
 .samaya-wg-board { display: flex; gap: 10px; overflow: auto; align-items: stretch; min-width: 0; padding-bottom: 6px; }
-.samaya-week.is-guided .samaya-wg-day { flex: 0 0 345px; width: 345px; min-width: 345px; }
-.samaya-wg-day { flex: 0 0 345px; width: 345px; box-sizing: border-box; min-height: 0; overflow-y: auto; }
+.samaya-week.is-guided .samaya-wg-day { flex: 0 0 300px; width: 300px; min-width: 300px; }
+.samaya-wg-day { flex: 0 0 300px; width: 300px; box-sizing: border-box; min-height: 0; overflow-y: auto; }
 .samaya-wg-day .samaya-col-bar { flex: none; }
 .samaya-agenda { display: flex; flex-direction: column; gap: 1px; margin-bottom: 8px; padding: 4px 0; font-size: var(--font-ui-smaller); max-height: 96px; overflow-y: auto; flex: none; }
 .samaya-agenda-row { display: flex; gap: 6px; min-width: 0; color: var(--text-muted); }

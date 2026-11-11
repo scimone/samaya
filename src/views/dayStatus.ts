@@ -1,4 +1,4 @@
-import { setIcon } from "obsidian";
+import { Notice, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import type { IcsEvent } from "../ics";
 import { allTasks, sortTasks } from "../model";
@@ -9,6 +9,7 @@ import { renderDateNav, renderResetPill } from "./dateNav";
 import { renderWorkdayCard } from "./workdayCard";
 import { capacityWindow } from "../worktime";
 import { bufferShare, loadLevel } from "../weekplan";
+import { openPeriodNote } from "../journal";
 
 /** The status column of the planner (lives in the right sidebar): day title and navigation, workday, daily and weekly capacity; End day: the shutdown guide. */
 export async function renderDayStatus(plugin: SamayaPlugin, host: HTMLElement, o: { date: string; events: IcsEvent[]; go: (date: string) => void; /** false = in the planner's own column: no date navigation, no "Open day" */ nav?: boolean }): Promise<void> {
@@ -58,13 +59,18 @@ export async function renderDayStatus(plugin: SamayaPlugin, host: HTMLElement, o
       const bar = row.createDiv({ cls: `samaya-col-bar is-${lvl}` });
       bar.createDiv("samaya-col-bar-fill").style.width = `${over || free <= 0 ? (planned > 0 ? 100 : 0) : (planned / free) * 100}%`;
       if (free > 0) { const mark = bar.createDiv("samaya-col-bar-mark"); mark.style.left = `${share * 100}%`; mark.title = `${pct}% of the free time`; }
-      return top.createDiv("samaya-cap-btns"); // the buttons of this row
+      return row.createDiv("samaya-cap-btns"); // the buttons of this row, under its bar
     };
     const dayBtns = capRow("Daily capacity", plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`);
     if (o.nav !== false) dayBtns.createEl("button", { cls: "samaya-cap-btn", text: "Open day" }).onclick = () => { void plugin.openPlanner().then(() => plugin.plannerGoTo?.(date)); };
     if (isToday && !plugin.guide) dayBtns.createEl("button", { cls: "samaya-cap-btn", text: "Plan day" }).onclick = () => { void plugin.startGuide(); };
+    const openNote = (p: "daily" | "weekly") => { void openPeriodNote(plugin.app, s, p, date).then(f => { if (f) return plugin.openNoteInMain(f); new Notice("Samaya: no journal location found for this note."); }); };
+    if (s.journalOn) dayBtns.createEl("button", { cls: "samaya-cap-btn", text: "Open daily note" }).onclick = () => openNote("daily");
 
     const weekBtns = capRow("Weekly capacity", weekPlanned, weekFree, "Free time of the week = work time - lunch - meetings");
     if (o.nav !== false) weekBtns.createEl("button", { cls: "samaya-cap-btn", text: "Open week" }).onclick = () => { void plugin.openPlanner().then(() => plugin.expandTimeline()); }; // in the planner itself the Day | Week switch does this
-    if (startOfWeek(date) === startOfWeek(today()) && !plugin.guide) weekBtns.createEl("button", { cls: "samaya-cap-btn", text: "Plan week" }).onclick = () => { void plugin.startWeekGuide(); };
+    const curWeek = startOfWeek(date) === startOfWeek(today());
+    if (curWeek && !plugin.guide) weekBtns.createEl("button", { cls: "samaya-cap-btn", text: "Plan week" }).onclick = () => { void plugin.startWeekGuide(); };
+    if (curWeek) weekBtns.createEl("button", { cls: "samaya-cap-btn", text: "Review week", attr: { title: "Open this week's review: the weekly note, or the work time dashboard" } }).onclick = () => { void plugin.reviewWeek(); };
+    if (s.journalOn && s.journalNotes.weekly.on) weekBtns.createEl("button", { cls: "samaya-cap-btn", text: "Open weekly note" }).onclick = () => openNote("weekly");
 }

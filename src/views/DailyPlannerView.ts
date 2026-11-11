@@ -147,7 +147,8 @@ export class DailyPlannerView extends BasesView {
     bindZone(this.scope, list, (path, i) => { void this.place(path, day.length, i.fromTimeline); });
 
     if (!sd && this.date >= today() && (!pg ? true : !review && step !== 2)) { // below the list; in the day view it sticks to the bottom edge. (no quick add in Review and Timebox: go back to Pick to add tasks)
-      const add = body.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
+      const dock = pg ? body : body.createDiv("samaya-add-dock"); // day view: a strip of its own, glued to the bottom edge (it covers whatever scrolls underneath)
+      const add = dock.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
       this.bindAdd(add, () => ({ planned: this.date, order: day.length }));
     }
 

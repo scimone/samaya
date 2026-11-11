@@ -646,7 +646,9 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: var(--sa
 .samaya-tasks-count { font-size: var(--font-ui-smaller); font-weight: 600; font-variant-numeric: tabular-nums; padding: 2px 10px; border-radius: var(--samaya-r-pill); background: var(--background-modifier-hover); color: var(--text-muted); white-space: nowrap; }
 .samaya-tasks-count.is-complete { background: color-mix(in srgb, var(--samaya-green) 18%, transparent); color: var(--samaya-green); }
 .samaya-tasks-head .samaya-donebar { margin-top: 8px; }
-.samaya-left.is-sticky-head > .samaya-add { position: sticky; bottom: 0; z-index: 2; box-sizing: border-box; width: 100%; margin: var(--samaya-sp-2) 0 0; box-shadow: 0 0 0 var(--samaya-sp-2) var(--background-primary); } /* the quick add stays at the bottom edge while the list scrolls */
+.samaya-left.is-sticky-head { padding-bottom: 0; } /* the quick add strip below owns the bottom edge */
+.samaya-add-dock { position: sticky; bottom: 0; z-index: 2; margin-top: auto; padding: var(--samaya-sp-2) 0 var(--samaya-sp-4); background: var(--background-primary); }
+.samaya-add-dock > .samaya-add { display: block; box-sizing: border-box; width: 100%; margin: 0; }
 .samaya-tasks-head .samaya-donebar-track { height: 4px; border-radius: var(--samaya-r-pill); }
 
 /* Plan my day: guide column (vertical stepper) */
@@ -997,13 +999,14 @@ button.samaya-datereset:hover, button.samaya-datereset:focus-visible { backgroun
 /* ---------- status column: one card for daily and weekly capacity ---------- */
 .samaya-info-caps { display: flex; flex-direction: column; gap: var(--samaya-sp-3); }
 .samaya-cap-row + .samaya-cap-row { padding-top: var(--samaya-sp-3); border-top: 1px solid var(--background-modifier-border); }
-.samaya-cap-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: var(--samaya-sp-2); }
-.samaya-cap-top .samaya-info-big { grid-column: 1; font-size: 1.15em; margin-top: 0; }
-.samaya-cap-btns { grid-column: 2; grid-row: 1 / span 2; display: flex; gap: 6px; }
+.samaya-cap-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--samaya-sp-2); flex-wrap: wrap; }
+.samaya-cap-top .samaya-info-big { font-size: 1.15em; margin-top: 0; }
+.samaya-cap-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--samaya-sp-3); }
 .samaya-cap-btns:empty { display: none; }
-.samaya-cap-btn { height: 24px; padding: 0 var(--samaya-sp-3); font-size: var(--font-ui-smaller); }
+.samaya-cap-btn { height: 26px; padding: 0 var(--samaya-sp-3); font-size: var(--font-ui-smaller); }
 .samaya-cap-row.is-over .samaya-info-big { color: var(--text-error); }
 .samaya-info-caps .samaya-col-bar { margin: 6px 0 0; height: 4px; }
 
 /* ---------- day timeline: all-day events as the week's chips ---------- */
 .samaya-tl-allday { display: flex; flex-direction: column; gap: 3px; margin: 0 4px var(--samaya-sp-2) 40px; }
+.samaya-cap-btns .samaya-cap-btn { flex: 1 1 auto; }

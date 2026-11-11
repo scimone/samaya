@@ -110,7 +110,8 @@ export class TodayView extends ItemView {
       renderTimeline(this.plugin, this.dnd, c, { date, day, events, notes, ro: plan.step <= 1, state: this.tlState });
       return;
     }
-    // the status column: next to the planner it steps the planner's day, elsewhere it shows (and steps) the day on its own
+    if (daily) { c.createDiv({ cls: "samaya-empty", text: "The day's status is in the planner now, in the column on the left." }); this.seenH = c.clientHeight; return; }
+    // the status column on other pages: it shows (and steps) the day on its own
     const info = c.createDiv("samaya-info is-side");
     const go = (d: string) => { if (daily) this.plugin.plannerGoTo?.(d); else { this.viewDate = d === today() ? "" : d; void this.render(); } };
     await renderDayStatus(this.plugin, info, { date, events, go });

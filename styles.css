@@ -914,7 +914,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-wtl.is-flow .samaya-wtl-scroll { overflow: visible; flex: none; }
 .samaya-wtl.is-flow .samaya-wtl-heads { position: static; }
 .samaya-wtl.is-flow { padding-bottom: 0; }
-.samaya-splitbar { flex: none; height: 34px; display: flex; align-items: center; justify-content: center; gap: 10px; position: sticky; top: var(--wk-head, 44px); bottom: 0; z-index: 9; background: var(--background-primary); } /* sticks under the heading when scrolled past, to the bottom edge when not reached yet: always in view */
+.samaya-splitbar { flex: none; height: var(--wk-bar, 26px); display: flex; align-items: center; justify-content: center; gap: 10px; position: sticky; top: var(--wk-head, 44px); bottom: 0; z-index: 9; background: var(--background-primary); } /* sticks under the heading when scrolled past, to the bottom edge when not reached yet: always in view */
 .samaya-splitbar::before { content: ""; position: absolute; left: var(--wk-pad); right: 12px; top: 50%; border-top: 1px solid var(--background-modifier-border); }
 .samaya-planner:not(.is-expanded) > .samaya-splitbar { display: none; }
 .samaya-splitarrow { all: unset; box-sizing: border-box; position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 20px; padding: 0 10px 0 6px; border-radius: 10px; cursor: pointer; color: var(--text-faint); font-size: var(--font-ui-smaller); background: var(--background-primary); border: 1px solid var(--background-modifier-border); transition: color .15s, background .15s; }
@@ -947,31 +947,20 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-planner.is-expanded > .samaya-planner-pane > * { transition: transform .42s cubic-bezier(.2, .8, .2, 1), padding .42s cubic-bezier(.2, .8, .2, 1); }
 .samaya-planner.is-expanded > .samaya-planner-pane.is-collapsed > * { padding-top: 0; padding-bottom: 0; } /* a collapsed pane must be 0px tall: its padding would keep it open */
 /* Board columns: heading, load bar and add box stay in view under the arrow bar while the cards scroll (overflow: clip above keeps the panes from being scroll containers, which would stop sticking) */
-.samaya-planner.is-expanded { --wk-col-top: calc(var(--wk-head, 44px) + 34px); }
+.samaya-planner.is-expanded { --wk-col-top: calc(var(--wk-head, 44px) + var(--wk-bar, 26px)); }
 .samaya-col-top { position: sticky; top: var(--wk-col-top, 0px); z-index: 4; background: var(--background-primary); padding-top: 2px; }
 .samaya-col.is-today > .samaya-col-top { background: color-mix(in srgb, var(--interactive-accent) 5%, var(--background-primary)); }
 .samaya-col-top > .samaya-add { margin: 0 0 8px; width: 100%; box-sizing: border-box; }
 .samaya-week.is-aligned .samaya-col > .samaya-col-top { margin: 0; padding: 2px 4px 0; }
 .samaya-week.is-aligned .samaya-col-top > .samaya-add { width: 100%; }
 
-/* Date navigation: the week heading of the expanded planner and the day heading of the sidebar share it */
+/* The Today / This week pill is shared by the week heading and the day's timeline header; the arrows keep their own designs */
 .samaya-planner-head { gap: 10px; }
-.samaya-datenav { display: inline-flex; align-items: center; flex: none; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); background: var(--background-primary); overflow: hidden; white-space: nowrap; }
-.samaya-datenav button { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; height: 28px; cursor: pointer; color: var(--text-muted); }
-.samaya-datenav button:hover, .samaya-datenav button:focus-visible { background: var(--background-modifier-hover); color: var(--text-normal); }
-.samaya-datenav-step { width: 28px; }
-.samaya-datenav-step svg { width: 16px; height: 16px; }
-.samaya-datenav-label { position: relative; gap: 6px; padding: 0 10px; font-weight: 600; font-size: var(--font-ui-small); font-variant-numeric: tabular-nums; border-left: 1px solid var(--background-modifier-border) !important; border-right: 1px solid var(--background-modifier-border) !important; }
-.samaya-datenav-label.is-wide { min-width: 140px; font-size: var(--font-ui-medium); }
-.samaya-datenav-icon { display: inline-flex; color: var(--text-faint); }
-.samaya-datenav-icon svg { width: 14px; height: 14px; }
-.samaya-datenav-pick { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; min-width: 0 !important; margin: 0 !important; padding: 0 !important; opacity: 0 !important; pointer-events: none; border: none !important; } /* beats Obsidian's own input[type=date] sizing, which otherwise stretches the button */
 button.samaya-datereset { all: unset; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px 0 6px; border-radius: 13px; cursor: pointer; font-size: var(--font-ui-smaller); font-weight: 500; color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); white-space: nowrap; }
 button.samaya-datereset:hover, button.samaya-datereset:focus-visible { background: color-mix(in srgb, var(--interactive-accent) 22%, transparent); }
 .samaya-datereset-icon { display: inline-flex; }
 .samaya-datereset-icon svg { width: 14px; height: 14px; }
 .samaya-weekno { color: var(--text-faint); font-size: var(--font-ui-smaller); }
-.samaya-info-side { display: flex; align-items: center; gap: 8px; }
 
 /* Day view: the Tasks heading and its bar stay in view while the tasks scroll. Nothing sits above the heading (no padding or margin), so it starts exactly where it sticks. */
 .samaya-left.is-sticky-head { padding-top: 0; }
@@ -989,3 +978,32 @@ button.samaya-datereset:hover, button.samaya-datereset:focus-visible { backgroun
 .samaya-planner.is-split > .samaya-splitbar::after { content: ""; position: absolute; top: 0; bottom: 0; left: calc(var(--wk-pad) + var(--wk-axis)); right: 12px; pointer-events: none;
   background: repeating-linear-gradient(90deg, var(--background-modifier-border) 0 1px, transparent 1px calc(100% / var(--wk-days, 5))); }
 .samaya-splitbar > .samaya-splitarrow { z-index: 1; }
+
+.samaya-info-today { height: 24px; padding: 0 10px; border-radius: 999px; font-size: var(--font-ui-smaller); font-weight: 600; }
+.samaya-info-daterow { display: flex; align-items: center; gap: 0; white-space: nowrap; }
+.samaya-info-side { display: flex; align-items: center; gap: 8px; margin-right: -6px; }
+.samaya-info-arrow { flex: none; width: 26px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); }
+.samaya-info-arrow svg { width: 18px; height: 18px; }
+.samaya-info-date { flex: none; width: auto; min-width: 0; position: relative; display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 2px 6px; height: auto; background: transparent !important; box-shadow: none !important; border: none; border-radius: var(--radius-s); color: var(--text-muted); font-size: var(--font-ui-small); cursor: pointer; }
+.samaya-info-date:hover { background: var(--background-modifier-hover) !important; color: var(--text-normal); }
+.samaya-info-date-icon { display: inline-flex; } .samaya-info-date-icon svg { width: 14px; height: 14px; }
+.samaya-info .samaya-info-date .samaya-info-datepick { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; min-width: 0 !important; margin: 0 !important; padding: 0 !important; opacity: 0 !important; pointer-events: none; border: none !important; } /* beats Obsidian's own input[type=date] sizing, which otherwise stretches the button */
+.samaya-weeknav { display: inline-flex; align-items: center; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); background: var(--background-primary); overflow: hidden; }
+.samaya-weeknav button.samaya-weeknav-step { all: unset; box-sizing: border-box; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); }
+.samaya-weeknav button.samaya-weeknav-step:hover, .samaya-weeknav button.samaya-weeknav-step:focus-visible { background: var(--background-modifier-hover); color: var(--text-normal); }
+.samaya-weeknav-step svg { width: 16px; height: 16px; }
+.samaya-weeknav-label { min-width: 118px; padding: 0 6px; text-align: center; font-weight: 600; font-size: var(--font-ui-medium); font-variant-numeric: tabular-nums; border-left: 1px solid var(--background-modifier-border); border-right: 1px solid var(--background-modifier-border); line-height: 30px; }
+.samaya-weekno { color: var(--text-faint); font-size: var(--font-ui-smaller); }
+
+.samaya-tl-bar { min-height: 30px; margin-bottom: 8px; }
+.samaya-tl-bar-right, .samaya-planner-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.samaya-planner-head { min-height: 30px; box-sizing: content-box; padding-top: 14px; }
+.samaya-planner-title { margin: 0; font-size: 1.5em; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; white-space: nowrap; }
+.samaya-info-sub { margin-top: 2px; color: var(--text-muted); font-size: var(--font-ui-small); }
+/* the day's status column: the leftmost column of the Today view */
+.samaya-daily > .samaya-info { flex: 0 1 340px; width: auto; min-width: 260px; margin-right: auto; overflow-y: auto; padding: 14px 20px 16px 24px; }
+.samaya-planner { --wk-bar: 26px; }
+.samaya-planner.is-timeline-only { --wk-bar: 20px; } /* the line hugs the end of the day */
+.samaya-tlpane { flex: 0 1 420px; min-width: 300px; }
+.samaya-daily .samaya-tl-bar { flex-wrap: wrap; row-gap: 6px; }
+.samaya-daily .samaya-tl-bar-title { display: none; } /* the date and the switch say what this column is; the room goes to the navigation */

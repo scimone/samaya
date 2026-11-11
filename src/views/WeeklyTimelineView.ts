@@ -200,7 +200,7 @@ export class WeeklyTimelineView extends BasesView {
   private fitFor(hours: number, fixed: number) {
     const h = this.host?.viewH?.() ?? 700;
     const alone = this.host?.layout?.() === "timeline"; // alone it must fit the window without scrolling, however small
-    return Math.max(alone ? 16 : MIN_HOUR_H, Math.floor((alone ? h - 34 - fixed : h * 0.66 - 90) / hours));
+    return Math.max(alone ? 16 : MIN_HOUR_H, (alone ? h - (this.host?.barH?.() ?? 26) - fixed : h * 0.66 - 90) / hours);
   }
   /** The layout changed: stretch or shrink the hours to fit, as a CSS transition (no redraw). */
   fit() {

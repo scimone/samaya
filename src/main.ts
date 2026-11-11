@@ -605,7 +605,8 @@ export default class SamayaPlugin extends Plugin {
     const leaf = found ?? ws.getLeaf("tab");
     if (!found) await leaf.openFile(f);
     await ws.revealLeaf(leaf);
-    await this.openToday(); // the timeline lives in the sidebar while the planner is open
+    const k = this.guide?.kind; // the day's status is part of the planner now; only Plan my day (timeline) and Plan my week (This week) still use the sidebar
+    if (k === "plan" || k === "week") await this.openToday(); else ws.rightSplit?.collapse();
     ws.setActiveLeaf(leaf, { focus: true });
   }
   /** Pages without a sidebar view of their own get the status column in the right sidebar; focus stays on the page. */
@@ -634,7 +635,8 @@ export default class SamayaPlugin extends Plugin {
   /** the right sidebar was closed when the week guide opened it: close it again afterwards */
   private rightOpenedByGuide = false;
   closeGuide() {
-    this.guide = null;
+    const was = this.guide?.kind; this.guide = null;
+    if (was === "plan") { this.rightOpenedByGuide = false; this.app.workspace.rightSplit?.collapse(); } // the timeline sidebar was only for planning
     if (this.leftCollapsedByGuide) { this.leftCollapsedByGuide = false; this.app.workspace.leftSplit?.expand(); }
     if (this.rightOpenedByGuide) { this.rightOpenedByGuide = false; this.app.workspace.rightSplit?.collapse(); }
     this.modeBus.emit();

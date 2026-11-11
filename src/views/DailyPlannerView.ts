@@ -14,6 +14,8 @@ import { renderTimeline, TimelineState } from "./timelineKit";
 import { ensureMeetingNote } from "../meetings";
 import { capacityWindow, Capacity } from "../worktime";
 import { bufferShare, loadLevel, trimToBuffer } from "../weekplan";
+import { renderDayStatus } from "./dayStatus";
+import { renderDateNav, renderResetPill } from "./dateNav";
 
 export const DAILY_VIEW_TYPE = "samaya-daily";
 
@@ -26,6 +28,7 @@ export class DailyPlannerView extends BasesView {
   private timer = 0;
   private token = 0;
   private leftScroll = 0;
+  private infoScroll = 0;
   private announced = false;
   private lastAll: { date: string; all: boolean } | null = null; // to spot the moment the last task of the day gets checked
   private lastOverdue: number | null = null; // Review: to spot the moment the last overdue task gets sorted out
@@ -43,7 +46,7 @@ export class DailyPlannerView extends BasesView {
     const evRef = plugin.app.metadataCache.on("changed", f => { if (inEventFolder(plugin.settings, f.path) || (this.plugin.guide && f.path.startsWith(prefixOf(plugin.settings.tasksPath)))) this.schedule(); });
     this.register(() => plugin.app.metadataCache.offref(evRef));
     this.registerInterval(window.setInterval(() => { if (!this.host?.hidden() && this.root.isConnected) this.schedule(); }, 60000)); // the now line moves
-    this.plugin.showStatusSidebar(this.root);
+    plugin.app.workspace.onLayoutReady(() => window.setTimeout(() => { const k = this.plugin.guide?.kind; if (k !== "plan" && k !== "week") this.plugin.app.workspace.rightSplit?.collapse(); }, 0)); // the status column lives in this view now: the right sidebar is not needed (only Plan my day / Plan my week use it)
   }
 
   private get showIcs() { return this.config.get("showIcs") !== false; }
@@ -73,6 +76,7 @@ export class DailyPlannerView extends BasesView {
     if (token !== this.token || this.scope.active) { if (this.scope.active) this.pending = true; return; }
 
     const lp = this.root.querySelector<HTMLElement>(".samaya-left"); if (lp) this.leftScroll = lp.scrollTop;
+    const ip = this.root.querySelector<HTMLElement>(".samaya-info"); if (ip) this.infoScroll = ip.scrollTop;
     this.root.empty(); this.scope.clear();
 
     const all = this.entryTasks(); const isToday = this.date === today();
@@ -92,7 +96,8 @@ export class DailyPlannerView extends BasesView {
     const g = isToday ? guide : null; const step = g?.step ?? -1;
     const sd = g?.kind === "shutdown"; const pg = sd ? null : g; const review = !sd && step === 0, pick = !sd && step === 1, check = !sd && step === 3;
     this.root.toggleClass("is-review", !!pg); // plan my day: guide + columns; otherwise one column of task cards
-    const left = this.root.createDiv("samaya-left"); // columns from the left: tasks, timeline; the status column lives in the right sidebar
+    const info = pg ? null : this.root.createDiv("samaya-info"); // columns from the left: status, tasks, timeline (Plan my day: guide and tasks, the timeline is in the sidebar)
+    const left = this.root.createDiv("samaya-left");
     if (!pg) this.renderPane(this.root.createDiv("samaya-today samaya-tlpane"), day, tlEvents, notes); // (plan my day: the timeline stays in the right sidebar)
     let body = left; // where today's planned list goes
     if (!pg) { // tasks heading: title, done count, progress
@@ -143,6 +148,9 @@ export class DailyPlannerView extends BasesView {
       this.bindAdd(add, () => ({ planned: this.date, order: day.length }));
     }
 
+    if (info) await renderDayStatus(this.plugin, info, { date: this.date, events: tlEvents, go: d => this.goTo(d), nav: false });
+    if (info) info.scrollTop = this.infoScroll;
+    if (token !== this.token) return;
     this.finishRender(left);
   }
 
@@ -151,7 +159,14 @@ export class DailyPlannerView extends BasesView {
     if (!this.plugin.guide) { // one clear way into the week: the timeline expands to the whole week
       const bar = pane.createDiv("samaya-tl-bar");
       bar.createSpan({ cls: "samaya-tl-bar-title", text: "Timeline" });
-      const sw = bar.createDiv("samaya-modeswitch");
+      const right = bar.createDiv("samaya-tl-bar-right"); // same spot as the week heading: navigation, then the Day | Week switch
+      if (this.date !== today()) renderResetPill(right, "Today", "Jump to today", this.date < today() ? "right" : "left", () => this.goTo(today()));
+      renderDateNav(right, {
+        variant: "plain", label: parseYmd(this.date).toLocaleDateString(undefined, { weekday: this.date === today() ? "short" : undefined, month: "short", day: "numeric" }),
+        prevLabel: "Previous day", nextLabel: "Next day", onPrev: () => this.goTo(addDays(this.date, -1)), onNext: () => this.goTo(addDays(this.date, 1)),
+        pick: { value: this.date, run: d => this.goTo(d) },
+      });
+      const sw = right.createDiv("samaya-modeswitch");
       sw.createEl("button", { text: "Day", cls: "is-active" });
       sw.createEl("button", { text: "Week", attr: { title: "Expand to the week timeline" } }).onclick = () => this.plugin.expandTimeline();
     } else pane.createDiv({ cls: "samaya-today-label", text: "Timeline" });
@@ -166,7 +181,7 @@ export class DailyPlannerView extends BasesView {
   private finishRender(left: HTMLElement) {
     left.scrollTop = this.leftScroll;
 
-    this.plugin.plannerGoTo = d => this.goTo(d); // the status column in the sidebar steps through the days
+    this.plugin.plannerGoTo = d => this.goTo(d); // "Open day" on other pages jumps here
     if (!this.announced || this.plugin.plannerDate !== this.date) { this.announced = true; this.plugin.plannerDate = this.date; this.plugin.modeBus.emit(); }
   }
 

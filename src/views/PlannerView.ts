@@ -52,7 +52,7 @@ export class PlannerView extends BasesView {
       aligned: () => this.mode() === "expanded",
     });
     this.tl = new WeeklyTimelineView(controller, this.tlPane, plugin, {
-      hidden: () => this.mode() !== "expanded", layout: () => this.plugin.weekLayout, flow: () => this.mode() === "expanded", viewH: () => this.rootEl.clientHeight - this.headEl.offsetHeight,
+      hidden: () => this.mode() !== "expanded", layout: () => this.plugin.weekLayout, flow: () => this.mode() === "expanded", viewH: () => this.rootEl.clientHeight - this.headEl.offsetHeight, barH: () => this.bar.offsetHeight,
       back: () => plugin.collapseTimeline(), weekChanged: sync, openDay: d => { this.day.goTo(d); plugin.collapseTimeline(); },
     });
     for (const c of [this.day, this.week, this.tl]) { // the panes read the data and settings of this view
@@ -93,14 +93,14 @@ export class PlannerView extends BasesView {
     const go = (w: string) => { this.tl.showWeekOf(w); this.week.showWeekOf(w); this.renderHead(); };
     const a = parseYmd(wk), z = parseYmd(addDays(wk, 6)); const mon = (d: Date) => d.toLocaleDateString(undefined, { month: "short" });
     const range = a.getMonth() === z.getMonth() ? `${mon(a)} ${a.getDate()} – ${z.getDate()}` : `${mon(a)} ${a.getDate()} – ${mon(z)} ${z.getDate()}`;
-    renderDateNav(h, {
-      label: range + (a.getFullYear() !== new Date().getFullYear() ? `, ${a.getFullYear()}` : ""), wide: true,
+    h.createEl("h2", { cls: "samaya-planner-title", text: `Week ${isoWeek(a)}` });
+    const right = h.createDiv("samaya-planner-right"); // same spot as the day view's timeline header: navigation, then the Day | Week switch
+    if (wk !== cur) renderResetPill(right, "This week", "Back to the current week", wk < cur ? "right" : "left", () => go(cur)); // only when you are somewhere else
+    renderDateNav(right, {
+      variant: "box", label: range + (a.getFullYear() !== new Date().getFullYear() ? `, ${a.getFullYear()}` : ""),
       prevLabel: "Previous week", nextLabel: "Next week", onPrev: () => go(addDays(wk, -7)), onNext: () => go(addDays(wk, 7)),
-      pick: { value: wk, run: d => go(startOfWeek(d)) },
     });
-    h.createSpan({ cls: "samaya-weekno", text: `Week ${isoWeek(a)}` });
-    if (wk !== cur) renderResetPill(h, "This week", "Back to the current week", wk < cur ? "right" : "left", () => go(cur)); // only when you are somewhere else
-    const sw = h.createDiv("samaya-modeswitch is-right");
+    const sw = right.createDiv("samaya-modeswitch");
     sw.createEl("button", { text: "Day", attr: { title: "Back to the day planner (Esc)" } }).onclick = () => this.plugin.collapseTimeline();
     sw.createEl("button", { text: "Week", cls: "is-active" });
   }

@@ -16,4 +16,6 @@ export interface PlannerHost {
   aligned?(): boolean;
   /** expanded week: which layout is showing */
   layout?(): "split" | "timeline" | "board";
+  /** expanded week: height of the arrow bar */
+  barH?(): number;
 }

@@ -1,32 +1,39 @@
 import { setIcon } from "obsidian";
 
 export interface DateNavOpts {
-  /** text between the arrows */
+  /** "box": arrows and label in one bordered control (week heading). "plain": plain arrows around a date button with a calendar picker (day header). */
+  variant: "box" | "plain";
   label: string;
   prevLabel: string; nextLabel: string;
   onPrev(): void; onNext(): void;
-  /** clicking the label opens a date picker preset to `value` */
+  /** plain: clicking the date opens a date picker preset to `value` */
   pick?: { value: string; run(value: string): void };
-  /** the label gets room for a typical text (week range), so the arrows do not jump while you step */
-  wide?: boolean;
 }
 
-/** ‹ [calendar] label › in one bordered control: the date navigation of the planner's week heading and of the day sidebar. */
+/** ‹ date › : the date navigation of the planner's week heading and of the day header. */
 export function renderDateNav(parent: HTMLElement, o: DateNavOpts): HTMLElement {
-  const nav = parent.createDiv("samaya-datenav");
-  const step = (icon: string, label: string, run: () => void) => { const b = nav.createEl("button", { cls: "samaya-datenav-step", attr: { "aria-label": label, title: label } }); setIcon(b, icon); b.onclick = run; };
-  step("chevron-left", o.prevLabel, o.onPrev);
-  const lbl = nav.createEl("button", { cls: "samaya-datenav-label" + (o.wide ? " is-wide" : ""), attr: { "aria-label": o.pick ? "Pick a date" : o.label } });
-  setIcon(lbl.createSpan("samaya-datenav-icon"), "calendar");
-  lbl.createSpan({ text: o.label });
+  if (o.variant === "box") {
+    const nav = parent.createDiv("samaya-weeknav");
+    const step = (icon: string, label: string, run: () => void) => { const b = nav.createEl("button", { cls: "samaya-weeknav-step", attr: { "aria-label": label, title: label } }); setIcon(b, icon); b.onclick = run; };
+    step("chevron-left", o.prevLabel, o.onPrev);
+    nav.createSpan({ cls: "samaya-weeknav-label", text: o.label });
+    step("chevron-right", o.nextLabel, o.onNext);
+    return nav;
+  }
+  const dr = parent.createDiv("samaya-info-daterow");
+  const arrow = (icon: string, label: string, run: () => void) => { const b = dr.createEl("button", { cls: "samaya-info-arrow clickable-icon", attr: { "aria-label": label } }); setIcon(b, icon); b.onclick = run; };
+  arrow("chevron-left", o.prevLabel, o.onPrev);
+  const dateBtn = dr.createEl("button", { cls: "samaya-info-date", attr: { "aria-label": "Pick a date" } });
+  setIcon(dateBtn.createSpan("samaya-info-date-icon"), "calendar");
+  dateBtn.createSpan({ text: o.label });
   if (o.pick) {
     const pick = o.pick;
-    const input = lbl.createEl("input", { type: "date", cls: "samaya-datenav-pick" }); input.value = pick.value; // sits invisibly over the label so the native calendar opens right there
-    input.addEventListener("change", () => { if (input.value) pick.run(input.value); });
-    lbl.onclick = e => { if (e.target !== input) { try { input.showPicker(); } catch { input.focus(); input.click(); } } };
+    const picker = dateBtn.createEl("input", { type: "date", cls: "samaya-info-datepick" }); picker.value = pick.value; // sits invisibly over the button so the native calendar opens right there
+    picker.addEventListener("change", () => { if (picker.value) pick.run(picker.value); });
+    dateBtn.onclick = e => { if (e.target !== picker) { try { picker.showPicker(); } catch { picker.focus(); picker.click(); } } };
   }
-  step("chevron-right", o.nextLabel, o.onNext);
-  return nav;
+  arrow("chevron-right", o.nextLabel, o.onNext);
+  return dr;
 }
 
 /** The soft accent pill that jumps back ("Today", "This week"); the arrow shows which way it goes. */

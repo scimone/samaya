@@ -1,31 +1,31 @@
 .samaya-daily { display: flex; flex-direction: column; height: 100%; width: 100%; overflow: hidden; }
 .samaya-daily-cols { display: flex; justify-content: flex-end; flex: 1 1 0; min-height: 0; width: 100%; gap: 0; overflow: hidden; } /* tasks and timeline sit at the right edge; spare room stays empty on the left */
-.samaya-info { flex: 0 0 420px; width: 420px; box-sizing: border-box; margin-right: auto; display: flex; flex-direction: column; padding: 16px 20px 16px 24px; }
-.samaya-left { flex: 0 1 520px; min-width: 300px; display: flex; flex-direction: column; padding: 16px; overflow-y: auto; }
+.samaya-info { box-sizing: border-box; display: flex; flex-direction: column; gap: var(--samaya-sp-3); padding: var(--samaya-sp-4) var(--samaya-sp-5) var(--samaya-sp-4) var(--samaya-sp-6); }
+/* tasks and timeline share one width */
+.samaya-left, .samaya-tlpane { flex: 0 1 460px; min-width: 300px; }
+.samaya-left { display: flex; flex-direction: column; padding: var(--samaya-sp-4); overflow-y: auto; }
 .samaya-head h2 { margin: 8px 0 2px; }
 .samaya-date { color: var(--text-muted); font-weight: 400; font-size: 0.7em; margin-left: 0.6em; }
-.samaya-nav, .samaya-head-buttons, .samaya-week-head { display: flex; gap: 6px; align-items: center; }
-.samaya-head-buttons { margin: 8px 0 12px; }
+.samaya-nav, .samaya-week-head { display: flex; gap: 6px; align-items: center; }
 .samaya-total { color: var(--text-muted); font-size: var(--font-ui-small); margin: 4px 0; }
 .samaya-total.is-over { color: var(--text-error); font-weight: 600; }
-.samaya-list { display: flex; flex-direction: column; gap: 6px; min-height: 40px; padding: 4px; border-radius: var(--radius-m); }
+.samaya-list { display: flex; flex-direction: column; gap: var(--samaya-sp-2); min-height: 40px; padding: var(--samaya-sp-1); border-radius: var(--samaya-r-m); }
 .samaya-list.is-drop, .samaya-col.is-drop, .samaya-backlog.is-drop, .samaya-group.is-drop { outline: 2px dashed var(--interactive-accent); outline-offset: -2px; }
-.samaya-card.drop-before::before, .samaya-card.drop-after::after { content: ""; position: absolute; left: 0; right: 0; height: 3px; border-radius: 2px; background: var(--interactive-accent); }
+.samaya-card.drop-before::before, .samaya-card.drop-after::after { content: ""; position: absolute; left: 0; right: 0; height: 3px; border-radius: var(--samaya-r-pill); background: var(--interactive-accent); }
 .samaya-card.drop-before::before { top: -5px; }
 .samaya-card.drop-after::after { bottom: -5px; }
-.samaya-empty { color: var(--text-faint); font-style: italic; padding: 12px 4px; }
-.samaya-card { display: flex; flex-direction: column; padding: 8px 10px; background: var(--background-primary-alt); border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); cursor: grab; touch-action: pan-y; user-select: none; position: relative; }
-.samaya-card-row { display: flex; align-items: center; gap: 8px; }
+.samaya-empty { color: var(--text-muted); font-style: italic; padding: 12px 4px; }
+.samaya-card { display: flex; flex-direction: column; padding: 8px 10px; background: var(--background-primary-alt); border: 1px solid var(--background-modifier-border); border-radius: var(--samaya-r-m); cursor: grab; touch-action: pan-y; user-select: none; position: relative; }
+.samaya-card-row { display: flex; align-items: flex-start; gap: 6px; }
 .samaya-card:hover { border-color: var(--interactive-accent); }
 .samaya-card.is-dragging, .samaya-block.is-dragging { opacity: 0.3; }
 .samaya-card.is-done .samaya-card-title { text-decoration: line-through; color: var(--text-faint); }
-.samaya-card-body { flex: 1; min-width: 0; }
-.samaya-card-title { cursor: pointer; overflow-wrap: anywhere; color: var(--text-normal); text-decoration: none; }
+.samaya-card-title { cursor: pointer; overflow-wrap: anywhere; color: var(--text-normal); text-decoration: none; font-size: var(--font-ui-medium); font-weight: 600; }
 .samaya-card-meta { display: flex; gap: 4px; flex-wrap: wrap; }
-.samaya-chip { font-size: var(--font-ui-smaller); color: var(--text-muted); background: var(--background-modifier-hover); padding: 0 6px; border-radius: 8px; }
+.samaya-chip { font-size: var(--font-ui-smaller); color: var(--text-muted); background: var(--background-modifier-hover); padding: 0 6px; border-radius: var(--samaya-r-pill); }
 .samaya-chip-channel { color: var(--interactive-accent); }
 .samaya-est { background: transparent; box-shadow: none; color: var(--text-muted); font-size: var(--font-ui-smaller); padding: 2px 6px; }
-.samaya-est-input { width: 64px; }
+.samaya-est-input { width: 64px; font-size: var(--font-ui-smaller); }
 .samaya-add { margin: 8px 4px; width: calc(100% - 8px); }
 .samaya-backlog { margin-top: 12px; }
 .samaya-backlog summary { cursor: pointer; font-weight: 600; color: var(--text-muted); }
@@ -33,26 +33,26 @@
 .samaya-scroll { flex: 1; overflow-y: auto; position: relative; }
 .samaya-grid { position: relative; margin-left: 52px; margin-right: 12px; }
 .samaya-hour { position: absolute; left: -52px; right: 0; border-top: 1px solid var(--background-modifier-border); }
-.samaya-hour-label { position: absolute; left: 0; top: -9px; width: 44px; text-align: right; font-size: var(--font-ui-smaller); color: var(--text-faint); background: var(--background-primary); padding-right: 4px; }
+.samaya-hour-label { position: absolute; left: 0; top: -9px; width: 44px; text-align: right; font-size: var(--font-ui-smaller); color: var(--text-muted); background: var(--background-primary); padding-right: 4px; }
 .samaya-lane { position: absolute; inset: 0; }
-.samaya-block { position: absolute; z-index: 2; touch-action: pan-y; user-select: none; box-sizing: border-box; padding: 3px 8px; border-radius: var(--radius-s); background: var(--samaya-task); color: var(--samaya-task-on); overflow: hidden; cursor: grab; font-size: var(--font-ui-small); }
-.samaya-block.is-done { opacity: 0.45; }
-.samaya-block-time { font-size: var(--font-ui-smaller); opacity: 0.85; }
+.samaya-block { position: absolute; z-index: 2; touch-action: pan-y; user-select: none; box-sizing: border-box; padding: 3px var(--samaya-sp-2); border-radius: var(--samaya-r-m); background: color-mix(in srgb, var(--samaya-task) var(--samaya-tint), var(--background-primary)); color: var(--text-normal); border-left: 3px solid var(--samaya-task); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); overflow: hidden; cursor: grab; font-size: var(--font-ui-small); }
+.samaya-block:hover { background: color-mix(in srgb, var(--samaya-task) calc(var(--samaya-tint) + 10%), var(--background-primary)); }
+.samaya-block-time { font-size: var(--samaya-fs-label); color: var(--text-muted); }
 .samaya-resize { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; cursor: ns-resize; }
-.samaya-event { position: absolute; box-sizing: border-box; padding: 2px 6px; border-left: 3px solid var(--samaya-meeting); background: color-mix(in srgb, var(--samaya-meeting) 18%, var(--background-primary)); border-radius: var(--radius-s); overflow: hidden; font-size: var(--font-ui-smaller); cursor: pointer; z-index: 1; }
-.samaya-event-time { color: var(--text-faint); }
+.samaya-event { position: absolute; box-sizing: border-box; padding: 3px var(--samaya-sp-2); border-left: 3px solid var(--samaya-meeting); background: color-mix(in srgb, var(--samaya-meeting) var(--samaya-tint), var(--background-primary)); border-radius: var(--samaya-r-m); overflow: hidden; font-size: var(--font-ui-smaller); cursor: pointer; z-index: 1; }
+.samaya-event-time { color: var(--text-muted); }
 .samaya-allday { padding: 2px 12px; color: var(--text-muted); font-size: var(--font-ui-smaller); }
 .samaya-now { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid var(--text-error); pointer-events: none; }
 
 .samaya-week { display: flex; flex-direction: column; height: 100%; padding: 12px; overflow: auto; }
 .samaya-week-head h2 { margin: 0 8px; }
-.samaya-cols { display: flex; flex: none; gap: 10px; margin-top: 10px; align-items: stretch; min-width: min-content; }
+.samaya-cols { display: flex; flex: none; gap: var(--samaya-sp-3); margin-top: var(--samaya-sp-3); align-items: stretch; min-width: min-content; }
 .samaya-col { flex: 1 0 250px; display: flex; flex-direction: column; padding: 8px; min-height: 200px; }
 .samaya-col.is-today .samaya-col-title { color: var(--interactive-accent); }
 .samaya-col > .samaya-add { margin: 0 0 8px; width: 100%; }
 .samaya-col-head { display: flex; justify-content: space-between; font-weight: 600; margin-bottom: 6px; }
 .samaya-col-total { color: var(--text-muted); font-weight: 400; }
-.samaya-col-body { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.samaya-col-body { flex: 1; display: flex; flex-direction: column; gap: var(--samaya-sp-2); }
 
 .samaya-ritual { width: 640px; max-width: 95vw; }
 .samaya-steps { display: flex; gap: 10px; flex-wrap: wrap; color: var(--text-faint); font-size: var(--font-ui-smaller); }
@@ -70,12 +70,12 @@
 .samaya-focus-label { color: var(--text-faint); letter-spacing: 0.12em; font-size: var(--font-ui-smaller); }
 .samaya-focus-title { margin: 6px 0 12px; }
 .samaya-focus-buttons { display: flex; gap: 12px; justify-content: center; margin: 12px 0 18px; }
-.samaya-focus-btn { width: 56px; height: 56px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-m); box-shadow: none; }
+.samaya-focus-btn { width: 56px; height: 56px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: var(--samaya-r-m); box-shadow: none; }
 .samaya-focus-stats { display: flex; justify-content: center; gap: 28px; margin: 8px 0; }
 .samaya-focus-stat-label { color: var(--text-faint); font-size: var(--font-ui-smaller); }
 .samaya-focus-stat-value { font-size: 1.2em; font-weight: 600; font-variant-numeric: tabular-nums; }
 .samaya-focus-stat-value.is-over, .samaya-focus-bar-fill.is-over { color: var(--text-error); }
-.samaya-focus-bar { height: 6px; background: var(--background-modifier-border); border-radius: 3px; overflow: hidden; margin: 8px 0 14px; }
+.samaya-focus-bar { height: 6px; background: var(--background-modifier-border); border-radius: var(--samaya-r-pill); overflow: hidden; margin: 8px 0 14px; }
 .samaya-focus-bar-fill { height: 100%; width: 0; background: var(--interactive-accent); }
 .samaya-focus-bar-fill.is-over { background: var(--text-error); }
 .samaya-focus h4 { text-align: left; margin: 18px 0 4px; }
@@ -83,14 +83,13 @@
 .samaya-status { cursor: pointer; }
 
 body.samaya-left-collapsed .samaya-daily-cols { justify-content: center; }
-.samaya-tlpane { flex: 0 1 380px; min-width: 260px; box-sizing: border-box; height: 100%; }
+.samaya-tlpane { box-sizing: border-box; height: 100%; }
 .samaya-info.is-side { flex: 1 1 auto; width: auto; min-width: 0; margin: 0; padding: 4px 4px 8px; overflow-y: auto; }
-@media (max-width: 700px) { .samaya-daily-cols { flex-direction: column; overflow-y: auto; } .samaya-left, .samaya-info { flex: none; } .samaya-tlpane { flex: none; height: 520px; } }
 
 /* drag & drop */
 .samaya-ghost { position: fixed !important; left: 0 !important; top: 0 !important; margin: 0 !important; z-index: 10000; pointer-events: none; opacity: 0.92; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); transform-origin: 0 0; cursor: grabbing; }
 body.samaya-dragging, body.samaya-dragging * { cursor: grabbing !important; user-select: none !important; }
-.samaya-preview { position: absolute; left: 0; width: 100%; box-sizing: border-box; border: 2px dashed var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 18%, transparent); border-radius: var(--radius-s); padding: 2px 8px; font-size: var(--font-ui-smaller); color: var(--interactive-accent); pointer-events: none; z-index: 5; }
+.samaya-preview { position: absolute; left: 0; width: 100%; box-sizing: border-box; border: 2px dashed var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 18%, transparent); border-radius: var(--samaya-r-s); padding: 2px 8px; font-size: var(--font-ui-smaller); color: var(--interactive-accent); pointer-events: none; z-index: 5; }
 
 /* tickets, subtasks */
 .samaya-chip-ticket { font-weight: 600; background: color-mix(in srgb, var(--interactive-accent) 16%, transparent); color: var(--interactive-accent); }
@@ -99,26 +98,25 @@ body.samaya-dragging, body.samaya-dragging * { cursor: grabbing !important; user
 .samaya-chip-sub { cursor: pointer; }
 .samaya-mini { background: transparent; box-shadow: none; padding: 0 6px; height: 22px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .samaya-mini:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
-.samaya-subs { margin: 6px 0 0 26px; cursor: default; }
 .samaya-sub-row { display: flex; align-items: center; gap: 6px; font-size: var(--font-ui-small); padding: 1px 0; }
 .samaya-sub-row.is-done span { text-decoration: line-through; color: var(--text-faint); }
 .samaya-sub-add { width: 100%; margin-top: 4px; font-size: var(--font-ui-small); }
 
 /* weekly board */
-.samaya-week-unsched { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: var(--radius-l); flex: 0 1 auto; max-height: 55%; min-height: 80px; background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-secondary)); border: 1px solid var(--interactive-accent); }
+.samaya-week-unsched { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: var(--samaya-r-l); flex: 0 1 auto; max-height: 55%; min-height: 80px; background: color-mix(in srgb, var(--interactive-accent) 14%, var(--background-secondary)); border: 1px solid var(--interactive-accent); }
 .samaya-week-unsched .samaya-card { border-left: 3px solid var(--samaya-task); }
 .samaya-week-unsched .samaya-today-label { color: var(--interactive-accent); }
 .samaya-week-unsched.is-drop { outline: 2px dashed var(--interactive-accent); outline-offset: -2px; }
 .samaya-week-sched { flex: 1; min-height: 0; }
 .samaya-week-sched .samaya-card { opacity: 0.8; }
-.samaya-week-day { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); margin-top: 2px; }
+.samaya-week-day { font-size: var(--samaya-fs-label); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-top: 2px; }
 
 /* backlog view */
 .samaya-backlog-view { display: flex; flex-direction: column; height: 100%; padding: 12px 16px; max-width: 900px; margin: 0 auto; }
 .samaya-backlog-head { display: flex; align-items: center; gap: 8px; }
 .samaya-backlog-head h2 { margin: 0 auto 0 0; }
 .samaya-groups { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; margin-top: 12px; padding-bottom: 40px; }
-.samaya-group { background: var(--background-secondary); border-radius: var(--radius-l); padding: 8px 10px 10px; border: 1px solid var(--background-modifier-border); }
+.samaya-group { background: var(--background-secondary); border-radius: var(--samaya-r-l); padding: 8px 10px 10px; border: 1px solid var(--background-modifier-border); }
 .samaya-group.is-none { background: transparent; border-style: dashed; }
 .samaya-group-head { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 2px 0 8px; }
 .samaya-group-chev { color: var(--text-faint); width: 12px; }
@@ -128,37 +126,29 @@ body.samaya-dragging, body.samaya-dragging * { cursor: grabbing !important; user
 .samaya-group-summary + .samaya-chip { margin-left: 0; }
 .samaya-group-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
 .samaya-group-body .samaya-empty { grid-column: 1 / -1; }
-.samaya-badge { font-size: var(--font-ui-smaller); font-weight: 600; padding: 1px 8px; border-radius: 10px; background: var(--background-modifier-hover); color: var(--text-muted); }
+.samaya-badge { font-size: var(--font-ui-smaller); font-weight: 600; padding: 1px 8px; border-radius: var(--samaya-r-pill); background: var(--background-modifier-hover); color: var(--text-muted); }
 .samaya-badge.is-jira { background: rgba(38, 132, 255, 0.16); color: #2684ff; }
 .samaya-badge.is-gitlab { background: rgba(252, 109, 38, 0.16); color: #fc6d26; }
 .samaya-search { width: 160px; }
 
 /* task card overhaul */
-.samaya-card-row { align-items: flex-start; }
-.samaya-card-body { display: flex; flex-direction: column; gap: 2px; }
+.samaya-card-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .samaya-card-time { font-size: var(--font-ui-smaller); color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.samaya-card-title { font-size: var(--font-ui-medium); font-weight: 600; cursor: pointer; }
 .samaya-card.is-done { opacity: 0.5; }
 .samaya-est, .samaya-est:hover { background: transparent !important; box-shadow: none !important; border: none; padding: 0 2px; height: auto; font-size: var(--font-ui-smaller); color: var(--text-muted); font-variant-numeric: tabular-nums; align-self: flex-start; white-space: nowrap; }
-.samaya-est-input { width: 64px; font-size: var(--font-ui-smaller); }
-.samaya-subs { margin: 6px 0 0 0; }
 .samaya-sub-row { font-size: var(--font-ui-small); font-weight: 400; color: var(--text-muted); gap: 8px; }
 .samaya-sub-row input[type="checkbox"], .samaya-check { margin: 0; flex: none; }
 .samaya-sub-add { border-color: transparent; background: transparent; box-shadow: none; color: var(--text-faint); padding-left: 0; height: 22px; }
 .samaya-sub-add:focus { border-color: var(--background-modifier-border); color: var(--text-normal); padding-left: 6px; }
 
 /* card v3: checkbox top right, duration to its left, subtasks slightly indented */
-.samaya-card-row { gap: 6px; }
-.samaya-card-body { flex: 1; min-width: 0; }
-.samaya-check { margin: 3px 0 0 4px; }
 .samaya-est { margin-top: 1px; }
-.samaya-subs { margin-left: 6px; }
 
 /* focus panel modes */
 .samaya-focus { border-top: 4px solid transparent; transition: background 0.2s; }
 .samaya-focus.is-focus { border-top-color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 9%, transparent); }
 .samaya-focus.is-break { border-top-color: var(--color-orange); background: color-mix(in srgb, var(--color-orange) 10%, transparent); }
-.samaya-focus-banner { display: inline-flex; align-items: center; gap: 8px; padding: 3px 14px; border-radius: 999px; font-size: var(--font-ui-smaller); font-weight: 700; letter-spacing: 0.1em; margin-bottom: 4px; }
+.samaya-focus-banner { display: inline-flex; align-items: center; gap: 8px; padding: 3px 14px; border-radius: var(--samaya-r-pill); font-size: var(--font-ui-smaller); font-weight: 700; letter-spacing: 0.1em; margin-bottom: 4px; }
 .samaya-focus.is-focus .samaya-focus-banner { background: var(--interactive-accent); color: var(--text-on-accent); }
 .samaya-focus.is-break .samaya-focus-banner { background: var(--color-orange); color: #fff; }
 .samaya-focus-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
@@ -175,80 +165,81 @@ body.samaya-dragging, body.samaya-dragging * { cursor: grabbing !important; user
 .samaya-backlog { overflow: visible; }
 
 /* ---------- today sidebar ---------- */
-.samaya-today { padding: 14px 12px 8px; display: flex; flex-direction: column; height: 100%; gap: 10px; overflow: hidden; }
+.samaya-today { padding: var(--samaya-sp-4) var(--samaya-sp-3) var(--samaya-sp-2); display: flex; flex-direction: column; height: 100%; gap: var(--samaya-sp-3); overflow: hidden; }
 .samaya-today-head { display: flex; flex-direction: column; gap: 6px; }
 .samaya-today-title { display: flex; align-items: baseline; gap: 8px; }
 .samaya-today-dow { font-size: 1.35em; font-weight: 700; letter-spacing: -0.01em; }
 .samaya-today-date { color: var(--text-muted); }
-.samaya-today-pill { align-self: flex-start; font-size: var(--font-ui-smaller); color: var(--text-muted); background: var(--background-modifier-hover); padding: 2px 10px; border-radius: 999px; }
-.samaya-today-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
-.samaya-today-unsched { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: var(--radius-l); background: var(--background-secondary); flex: 0 0 auto; max-height: 34%; min-height: 60px; }
+.samaya-today-pill { align-self: flex-start; font-size: var(--font-ui-smaller); color: var(--text-muted); background: var(--background-modifier-hover); padding: 2px 10px; border-radius: var(--samaya-r-pill); }
+.samaya-today-label { font-size: var(--samaya-fs-label); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
+.samaya-today-unsched { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: var(--samaya-r-l); background: var(--background-secondary); flex: 0 0 auto; max-height: 34%; min-height: 60px; }
 .samaya-today-unsched.is-drop { outline: 2px dashed var(--interactive-accent); outline-offset: -2px; }
-.samaya-today-cards { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
-.samaya-today-empty { color: var(--text-faint); font-size: var(--font-ui-smaller); padding: 6px 2px; text-align: center; }
-.samaya-today .samaya-card { padding: 6px 8px; border-radius: var(--radius-m); background: var(--background-primary); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
+.samaya-today-cards { display: flex; flex-direction: column; gap: var(--samaya-sp-2); overflow-y: auto; }
+.samaya-today-empty { color: var(--text-muted); font-size: var(--font-ui-smaller); padding: 6px 2px; text-align: center; }
+.samaya-today .samaya-card { padding: 6px 8px; border-radius: var(--samaya-r-m); background: var(--background-primary); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); }
 .samaya-today .samaya-card-title { font-size: var(--font-ui-small); }
 .samaya-today .samaya-scroll { flex: 1; min-height: 120px; padding-top: 10px; margin: 0 -4px; }
 .samaya-today .samaya-grid { margin-left: 40px; margin-right: 4px; }
 .samaya-today .samaya-hour { left: -40px; border-top: 1px solid color-mix(in srgb, var(--background-modifier-border) 55%, transparent); }
-.samaya-today .samaya-hour-label { left: 0; top: -7px; width: 34px; padding: 0; background: none; text-align: right; font-size: 10px; font-weight: 500; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; color: var(--text-faint); }
+.samaya-today .samaya-hour-label { left: 0; top: -7px; width: 34px; padding: 0; background: none; text-align: right; font-size: var(--samaya-fs-label); font-weight: 500; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; color: var(--text-muted); }
 .samaya-hour-half { position: absolute; left: 40px; right: 0; top: 50%; border-top: 1px dashed color-mix(in srgb, var(--background-modifier-border) 35%, transparent); }
-.samaya-today .samaya-block { background: color-mix(in srgb, var(--samaya-task) 20%, var(--background-primary)); color: var(--text-normal); border-left: 3px solid var(--samaya-task); border-radius: 6px; padding: 3px 8px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); }
-.samaya-today .samaya-block:hover { background: color-mix(in srgb, var(--samaya-task) 30%, var(--background-primary)); }
-.samaya-today .samaya-block.is-done { opacity: 0.5; }
-.samaya-today .samaya-block-title { font-weight: 600; line-height: 1.25; }
-.samaya-today .samaya-block-time { color: var(--text-muted); font-size: 10px; }
-.samaya-today .samaya-event { background: color-mix(in srgb, var(--samaya-meeting) 18%, var(--background-primary)); border-left: 3px solid var(--samaya-meeting); border-radius: 6px; padding: 3px 8px; }
-.samaya-today .samaya-now { border-top: 2px solid var(--text-error); }
 .samaya-today .samaya-now::before { content: ""; position: absolute; left: -5px; top: -6px; width: 10px; height: 10px; border-radius: 50%; background: var(--text-error); }
-.samaya-today .samaya-preview { width: calc(100% - 3px); border-radius: 6px; }
+.samaya-today .samaya-preview { width: calc(100% - 3px); border-radius: var(--samaya-r-m); }
 
 /* ---------- green = done ---------- */
-body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --samaya-task-on: var(--text-on-accent); --samaya-meeting: var(--color-cyan); }
+body {
+  --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --samaya-task-on: var(--text-on-accent); --samaya-meeting: var(--color-cyan);
+  /* type scale: 11px labels (hours, times, caps headings), then Obsidian's own --font-ui-smaller / small / medium / large */
+  --samaya-fs-label: 11px;
+  /* spacing scale, steps of 4px */
+  --samaya-sp-1: 4px; --samaya-sp-2: 8px; --samaya-sp-3: 12px; --samaya-sp-4: 16px; --samaya-sp-5: 20px; --samaya-sp-6: 24px;
+  /* corner radii: small = chips and bands, medium = cards and blocks, large = panels, pill = badges and bars */
+  --samaya-r-s: var(--radius-s); --samaya-r-m: var(--radius-m); --samaya-r-l: var(--radius-l); --samaya-r-pill: 999px;
+  --samaya-tint: 20%; /* how much of the task / meeting colour a block takes */
+}
 .samaya-daily, .samaya-week, .samaya-backlog-view, .samaya-today, .samaya-focus, .samaya-ritual, .samaya-dash {
   --checkbox-color: var(--samaya-green); --checkbox-color-hover: color-mix(in srgb, var(--samaya-green) 85%, black);
 }
-.samaya-block-title { display: flex; align-items: center; gap: 6px; }
+.samaya-block-title { display: flex; align-items: center; gap: 6px; font-weight: 600; line-height: 1.25; }
+.samaya-block.is-split { border-left-style: dashed; }
 .samaya-block-state { flex: none; width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid currentColor; position: relative; opacity: 0.75; box-sizing: border-box; }
-.samaya-block.is-done { opacity: 1 !important; }
+/* done = muted tint, a grey edge and a ticked circle (the same in the day, the sidebar and the week) */
+.samaya-block.is-done { background: color-mix(in srgb, var(--text-muted) 12%, var(--background-primary)); border-left-color: var(--text-faint); color: var(--text-muted); box-shadow: none; }
+.samaya-block.is-done:hover { background: color-mix(in srgb, var(--text-muted) 18%, var(--background-primary)); }
+.samaya-block.is-done .samaya-block-state { background: var(--text-faint); border-color: var(--text-faint); opacity: 1; }
 .samaya-block.is-done .samaya-block-title > span:last-child { text-decoration: line-through; }
 .samaya-block.is-done .samaya-block-state::after { content: ""; position: absolute; left: 3px; top: 0; width: 3px; height: 6px; border: solid #fff; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
 /* daily planner: solid blocks */
-.samaya-daily .samaya-block.is-done { background: var(--background-modifier-border); color: var(--text-muted); }
-.samaya-daily .samaya-block.is-done .samaya-block-state { background: var(--text-faint); border-color: var(--text-faint); opacity: 1; }
 /* sidebar: tinted blocks */
-.samaya-today .samaya-block.is-done { background: color-mix(in srgb, var(--text-muted) 12%, var(--background-primary)); border-left-color: var(--samaya-task); color: var(--text-muted); box-shadow: none; }
-.samaya-today .samaya-block.is-done:hover { background: color-mix(in srgb, var(--text-muted) 18%, var(--background-primary)); }
-.samaya-today .samaya-block.is-done .samaya-block-state { background: var(--text-faint); border-color: var(--text-faint); opacity: 1; }
 
 /* ---------- lunch / break bands ---------- */
-.samaya-band { position: absolute; left: 0; right: 0; pointer-events: none; z-index: 0; border-radius: 4px; border-top: 1px dashed color-mix(in srgb, var(--text-muted) 30%, transparent); border-bottom: 1px dashed color-mix(in srgb, var(--text-muted) 30%, transparent); background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--text-muted) 13%, transparent) 0 6px, transparent 6px 12px); }
+.samaya-band { position: absolute; left: 0; right: 0; pointer-events: none; z-index: 0; border-radius: var(--samaya-r-s); border-top: 1px dashed color-mix(in srgb, var(--text-muted) 30%, transparent); border-bottom: 1px dashed color-mix(in srgb, var(--text-muted) 30%, transparent); background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--text-muted) 13%, transparent) 0 6px, transparent 6px 12px); }
 .samaya-band.is-logged { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-orange) 20%, transparent) 0 6px, transparent 6px 12px); border-color: color-mix(in srgb, var(--color-orange) 45%, transparent); }
-.samaya-band-label { position: absolute; right: 6px; top: 1px; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
+.samaya-band-label { position: absolute; right: 6px; top: 1px; font-size: var(--samaya-fs-label); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
 
 /* ---------- workday card ---------- */
-.samaya-wd { margin: 8px 0 12px; padding: 10px 12px; border-radius: var(--radius-l); background: var(--background-secondary); border-left: 4px solid var(--background-modifier-border); }
+.samaya-wd { margin: 8px 0 12px; padding: 10px 12px; border-radius: var(--samaya-r-l); background: var(--background-secondary); border-left: 4px solid var(--background-modifier-border); }
 .samaya-wd.is-work { border-left-color: var(--interactive-accent); }
 .samaya-wd.is-break { border-left-color: var(--color-orange); background: color-mix(in srgb, var(--color-orange) 10%, var(--background-secondary)); }
-.samaya-wd-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--text-faint); }
+.samaya-wd-label { font-size: var(--samaya-fs-label); font-weight: 700; letter-spacing: 0.1em; color: var(--text-muted); }
 .samaya-wd.is-work .samaya-wd-label { color: var(--interactive-accent); }
 .samaya-wd.is-break .samaya-wd-label { color: var(--color-orange); }
 .samaya-wd-title { font-weight: 600; }
 .samaya-wd-big { font-size: 1.8em; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.15; }
 .samaya-wd-sub { color: var(--text-muted); font-size: var(--font-ui-smaller); }
-.samaya-wd-bar { height: 5px; border-radius: 3px; background: var(--background-modifier-border); overflow: hidden; margin: 8px 0 2px; }
+.samaya-wd-bar { height: 5px; border-radius: var(--samaya-r-pill); background: var(--background-modifier-border); overflow: hidden; margin: 8px 0 2px; }
 .samaya-wd-bar-fill { height: 100%; background: var(--interactive-accent); }
 .samaya-wd-bar-fill.is-over { background: var(--color-orange); }
 .samaya-wd-buttons { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
 
 /* ---------- planning guide ---------- */
 .samaya-guide-text { color: var(--text-muted); font-size: var(--font-ui-small); }
-.samaya-backlog.is-guided { border-radius: var(--radius-m); box-shadow: 0 0 0 2px var(--interactive-accent); animation: samaya-glow 2.2s ease-in-out infinite; }
+.samaya-backlog.is-guided { border-radius: var(--samaya-r-m); box-shadow: 0 0 0 2px var(--interactive-accent); animation: samaya-glow 2.2s ease-in-out infinite; }
 @keyframes samaya-glow { 0%, 100% { box-shadow: 0 0 0 2px var(--interactive-accent); } 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--interactive-accent) 35%, transparent); } }
 
 /* ---------- today sidebar extras ---------- */
 .samaya-today-pill.is-over { color: var(--text-error); background: color-mix(in srgb, var(--text-error) 12%, transparent); }
-.samaya-today-bar { height: 4px; border-radius: 2px; background: var(--background-modifier-border); overflow: hidden; }
+.samaya-today-bar { height: 4px; border-radius: var(--samaya-r-pill); background: var(--background-modifier-border); overflow: hidden; }
 .samaya-today-bar-fill { height: 100%; background: var(--interactive-accent); }
 .samaya-today-bar-fill.is-over { background: var(--text-error); }
 .samaya-today .samaya-wd { margin: 0; flex: 0 0 auto; }
@@ -259,19 +250,19 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 .samaya-dash-head h2 { margin: 0 auto 0 0; }
 .samaya-dash-range { color: var(--text-muted); }
 .samaya-dash-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-bottom: 18px; }
-.samaya-dash-tile { padding: 14px 16px; border-radius: var(--radius-l); background: var(--background-secondary); }
+.samaya-dash-tile { padding: 14px 16px; border-radius: var(--samaya-r-l); background: var(--background-secondary); }
 .samaya-dash-tile-label { font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .samaya-dash-tile-value { font-size: 2em; font-weight: 700; font-variant-numeric: tabular-nums; }
 .samaya-dash-tile-sub { font-size: var(--font-ui-smaller); color: var(--text-faint); }
 .is-pos { color: var(--samaya-green); } .is-neg { color: var(--text-error); }
 .samaya-dash-row { display: grid; grid-template-columns: 1fr 0.7fr 1fr 0.8fr 0.8fr 0.8fr 0.7fr 1.8fr; gap: 8px; align-items: center; padding: 8px 6px; border-bottom: 1px solid var(--background-modifier-border); font-variant-numeric: tabular-nums; }
 .samaya-dash-row.is-head { font-size: var(--font-ui-smaller); color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em; }
-.samaya-dash-row.is-today { background: color-mix(in srgb, var(--interactive-accent) 8%, transparent); border-radius: var(--radius-m); }
+.samaya-dash-row.is-today { background: color-mix(in srgb, var(--interactive-accent) 8%, transparent); border-radius: var(--samaya-r-m); }
 .samaya-dash-row.is-off { opacity: 0.45; }
 .samaya-dash-day { font-weight: 600; }
 .samaya-dash-worked { font-weight: 600; }
-.samaya-dash-bar { position: relative; height: 8px; border-radius: 4px; background: var(--background-modifier-border); }
-.samaya-dash-bar-fill { height: 100%; border-radius: 4px; background: var(--interactive-accent); }
+.samaya-dash-bar { position: relative; height: 8px; border-radius: var(--samaya-r-s); background: var(--background-modifier-border); }
+.samaya-dash-bar-fill { height: 100%; border-radius: var(--samaya-r-s); background: var(--interactive-accent); }
 .samaya-dash-bar-fill.is-over { background: var(--samaya-green); }
 .samaya-dash-bar-target { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--text-muted); z-index: 1; }
 .samaya-dash-note { margin-top: 14px; color: var(--text-faint); font-size: var(--font-ui-smaller); }
@@ -284,15 +275,9 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 .samaya-band-handle:hover { background: color-mix(in srgb, var(--interactive-accent) 40%, transparent); }
 
 /* ---------- minimal header + workday strip ---------- */
-.samaya-link-btn { background: transparent !important; box-shadow: none !important; border: none; height: auto; padding: 2px 8px; font-size: var(--font-ui-smaller); color: var(--text-muted); border-radius: var(--radius-s); }
+.samaya-link-btn { background: transparent !important; box-shadow: none !important; border: none; height: auto; padding: 2px 8px; font-size: var(--font-ui-smaller); color: var(--text-muted); border-radius: var(--samaya-r-s); }
 .samaya-link-btn:hover { color: var(--text-normal); background: var(--background-modifier-hover) !important; }
 .samaya-link-btn.is-cta { color: var(--interactive-accent); font-weight: 600; }
-.samaya-top { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
-.samaya-top-row { display: flex; align-items: baseline; gap: 8px; }
-.samaya-top-row h2 { margin: 0; font-size: 1.5em; letter-spacing: -0.01em; }
-.samaya-top-row .samaya-nav-min { margin-left: auto; }
-.samaya-nav-min { gap: 0; }
-.samaya-top .samaya-total { margin: 2px 0 0; font-size: var(--font-ui-smaller); }
 .samaya-wd { margin: 0; padding: 0; background: none; border: none; border-radius: 0; }
 .samaya-wd-line { display: flex; align-items: center; gap: 8px; min-height: 26px; }
 .samaya-wd-text { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; font-size: var(--font-ui-small); }
@@ -314,16 +299,16 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 /* tasks-done bar */
 .samaya-donebar { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
 .samaya-donebar-label { font-size: var(--font-ui-smaller); color: var(--text-muted); }
-.samaya-donebar-track { height: 3px; border-radius: 2px; background: var(--background-modifier-border); overflow: hidden; }
+.samaya-donebar-track { height: 3px; border-radius: var(--samaya-r-pill); background: var(--background-modifier-border); overflow: hidden; }
 .samaya-donebar-fill { height: 100%; background: var(--samaya-green); transition: width 0.3s; }
 
 .samaya-block-state { cursor: pointer; }
-.samaya-block-state::before { content: ""; position: absolute; inset: -4px; }
+.samaya-block-state::before { content: ""; position: absolute; inset: -6px; }
 .samaya-block-state:hover { opacity: 1; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 22%, transparent); }
 
 /* sidebar tabs (This week / Backlog) */
-.samaya-tabs { display: flex; gap: 2px; padding: 3px; border-radius: var(--radius-m); background: var(--background-modifier-hover); }
-.samaya-tab { flex: 1; background: transparent !important; box-shadow: none !important; border: none; height: 26px; font-size: var(--font-ui-smaller); color: var(--text-muted); border-radius: var(--radius-s); }
+.samaya-tabs { display: flex; gap: 2px; padding: 3px; border-radius: var(--samaya-r-m); background: var(--background-modifier-hover); }
+.samaya-tab { flex: 1; background: transparent !important; box-shadow: none !important; border: none; height: 26px; font-size: var(--font-ui-smaller); color: var(--text-muted); border-radius: var(--samaya-r-s); }
 .samaya-tab.is-active { background: var(--background-primary) !important; color: var(--text-normal); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12) !important; }
 
 /* ---------- round checkboxes, main checkbox left of the title ---------- */
@@ -331,7 +316,6 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 .samaya-check, .samaya-sub-row input[type="checkbox"] { width: 16px; height: 16px; }
 .samaya-check::after, .samaya-sub-row input[type="checkbox"]::after { border-radius: 50%; }
 .samaya-check { margin: 0; }
-.samaya-card-row { gap: 6px; }
 .samaya-card-line { display: flex; align-items: flex-start; gap: 2px; }
 .samaya-card-line .samaya-check { margin-top: 2px; }
 .samaya-card-meta { padding-left: 18px; }
@@ -340,12 +324,12 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 .samaya-today-title { align-items: center; }
 .samaya-day-nav { padding: 2px; height: auto; flex: none; }
 .samaya-today-title .samaya-mini { margin-left: auto; }
-.samaya-subs { margin-left: 18px; }
+.samaya-subs { margin: 6px 0 0 18px; cursor: default; }
 
 /* ---- settings tab: modules */
 .samaya-settings .samaya-section { margin-top: 28px; }
 .samaya-settings .samaya-section:first-child { margin-top: 0; }
-.samaya-mod { border: 1px solid var(--background-modifier-border); border-radius: var(--radius-l); background: var(--background-primary-alt); margin-top: 12px; padding: 0 16px; transition: opacity .2s; }
+.samaya-mod { border: 1px solid var(--background-modifier-border); border-radius: var(--samaya-r-l); background: var(--background-primary-alt); margin-top: 12px; padding: 0 16px; transition: opacity .2s; }
 .samaya-mod-head.setting-item { border-top: 0; padding: 14px 0; }
 .samaya-mod-head .setting-item-name { display: flex; align-items: center; gap: 8px; font-weight: var(--font-semibold); font-size: var(--font-ui-medium); }
 .samaya-mod-body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .25s ease; }
@@ -357,10 +341,10 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 .samaya-group-label { margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--background-modifier-border); font-size: var(--font-ui-smaller); font-weight: var(--font-semibold); letter-spacing: .05em; text-transform: uppercase; color: var(--text-faint); }
 .samaya-mod-inner > .samaya-group-label:first-child { margin-top: 0; }
 .samaya-mod-inner .setting-item { border-top: 0; padding: 10px 0; }
-.samaya-pill { font-size: var(--font-ui-smaller); font-weight: var(--font-normal); padding: 1px 8px; border-radius: 999px; background: var(--background-modifier-border); color: var(--text-muted); }
+.samaya-pill { font-size: var(--font-ui-smaller); font-weight: var(--font-normal); padding: 1px 8px; border-radius: var(--samaya-r-pill); background: var(--background-modifier-border); color: var(--text-muted); }
 .samaya-pill.is-ok { background: rgba(var(--color-green-rgb), .18); color: var(--color-green); }
 .samaya-pill.is-warn { background: rgba(var(--color-orange-rgb), .18); color: var(--color-orange); }
-.samaya-note { margin: 4px 0 8px; padding: 8px 10px; border-radius: var(--radius-s); background: var(--background-secondary); color: var(--text-muted); font-size: var(--font-ui-smaller); }
+.samaya-note { margin: 4px 0 8px; padding: 8px 10px; border-radius: var(--samaya-r-s); background: var(--background-secondary); color: var(--text-muted); font-size: var(--font-ui-smaller); }
 .samaya-path-preview { margin-top: 4px; font-family: var(--font-monospace); font-size: var(--font-ui-smaller); color: var(--text-accent); }
 .samaya-settings input.is-invalid { border-color: var(--text-error); }
 .samaya-settings input.samaya-num { width: 90px; text-align: right; }
@@ -371,45 +355,40 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 /* folder + file name of the daily note: one path, one preview */
 .samaya-pathgroup { margin: 6px 0 10px; padding-left: 12px; border-left: 3px solid var(--interactive-accent); }
 .samaya-pathgroup .setting-item { border-top: 0; padding: 8px 0; }
-.samaya-pathresult { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 4px; padding: 8px 10px; border-radius: var(--radius-s); background: var(--background-secondary); }
+.samaya-pathresult { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-top: 4px; padding: 8px 10px; border-radius: var(--samaya-r-s); background: var(--background-secondary); }
 .samaya-pathresult-label { font-size: var(--font-ui-smaller); font-weight: var(--font-semibold); letter-spacing: .05em; text-transform: uppercase; color: var(--text-faint); }
 .samaya-pathresult code { font-size: var(--font-ui-small); background: transparent; padding: 0; overflow-wrap: anywhere; }
 .samaya-pathresult-dir { color: var(--text-muted); }
 .samaya-pathresult-file { color: var(--text-accent); font-weight: var(--font-semibold); }
 
-.samaya-col-cap { font-size: var(--font-ui-smaller); font-weight: 400; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.samaya-col-cap { font-size: var(--font-ui-smaller); font-weight: 400; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .samaya-col-cap.is-over { color: var(--text-error); }
-.samaya-col-bar { height: 4px; border-radius: 2px; background: var(--background-modifier-border); overflow: hidden; margin-bottom: 6px; }
+.samaya-col-bar { height: 4px; border-radius: var(--samaya-r-pill); background: var(--background-modifier-border); overflow: hidden; margin-bottom: 6px; }
 .samaya-col-bar-fill { height: 100%; background: var(--interactive-accent); }
 .samaya-col-bar.is-over .samaya-col-bar-fill { background: var(--text-error); }
 
 /* weekly timeline */
 .samaya-wtl { display: flex; flex-direction: column; height: 100%; width: 100%; box-sizing: border-box; padding: 12px; overflow: hidden; }
-.samaya-wtl-scroll { flex: 1; min-height: 0; overflow-y: auto; margin-top: 10px; position: relative; }
+.samaya-wtl-scroll { flex: 1; min-height: 0; overflow-y: auto; margin-top: var(--samaya-sp-3); position: relative; }
 .samaya-wtl-heads { display: flex; position: sticky; top: 0; z-index: 5; background: var(--background-primary); border-bottom: 1px solid var(--background-modifier-border); }
 .samaya-wtl-axis-spacer, .samaya-wtl-axis { flex: 0 0 48px; }
-.samaya-wtl-head { flex: 1 1 0; min-width: 0; padding: 4px 4px 6px; display: flex; flex-direction: column; gap: 3px; border-left: 1px solid var(--background-modifier-border); }
+.samaya-wtl-head { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 4px 4px 6px; display: flex; flex-direction: column; gap: 3px; border-left: 1px solid var(--background-modifier-border); }
 .samaya-wtl-day { font-weight: 600; }
 .samaya-wtl-head.is-today .samaya-wtl-day { color: var(--interactive-accent); }
-.samaya-wtl-chip { font-size: var(--font-ui-smaller); padding: 1px 6px; border-radius: var(--radius-s); background: color-mix(in srgb, var(--samaya-task) 16%, var(--background-secondary)); border-left: 3px solid var(--samaya-task); display: flex; gap: 6px; justify-content: space-between; cursor: grab; user-select: none; }
+.samaya-wtl-chip { font-size: var(--font-ui-smaller); padding: 1px 6px; border-radius: var(--samaya-r-s); background: color-mix(in srgb, var(--samaya-task) var(--samaya-tint), var(--background-primary)); border-left: 3px solid var(--samaya-task); display: flex; gap: 6px; justify-content: space-between; cursor: grab; user-select: none; }
 .samaya-wtl-chip-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .samaya-wtl-chip-est { flex: none; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.samaya-wtl-chip.is-event { background: color-mix(in srgb, var(--samaya-meeting) 18%, var(--background-secondary)); border-left-color: var(--samaya-meeting); cursor: default; color: var(--text-muted); }
+.samaya-wtl-chip.is-event { background: color-mix(in srgb, var(--samaya-meeting) var(--samaya-tint), var(--background-primary)); border-left-color: var(--samaya-meeting); cursor: default; color: var(--text-muted); }
 .samaya-wtl-body { display: flex; position: relative; }
 .samaya-wtl-axis { position: relative; }
-.samaya-wtl-hour-label { position: absolute; right: 6px; transform: translateY(-50%); font-size: 10px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.samaya-wtl-hour-label { position: absolute; right: 6px; transform: translateY(-50%); font-size: var(--samaya-fs-label); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .samaya-wtl-col { flex: 1 1 0; min-width: 0; position: relative; border-left: 1px solid var(--background-modifier-border); }
 .samaya-wtl-col.is-today { background: color-mix(in srgb, var(--interactive-accent) 5%, transparent); }
 .samaya-wtl-hour { position: absolute; left: 0; right: 0; border-top: 1px solid color-mix(in srgb, var(--background-modifier-border) 60%, transparent); }
-.samaya-wtl .samaya-block { background: color-mix(in srgb, var(--samaya-task) 20%, var(--background-primary)); color: var(--text-normal); border-left: 3px solid var(--samaya-task); border-radius: 6px; }
-.samaya-wtl .samaya-block-time { color: var(--text-muted); font-size: 10px; }
-.samaya-wtl .samaya-block.is-done { background: color-mix(in srgb, var(--text-muted) 12%, var(--background-primary)); border-left-color: var(--samaya-task); color: var(--text-muted); }
-.samaya-wtl .samaya-block.is-done .samaya-block-state { background: var(--text-faint); border-color: var(--text-faint); opacity: 1; }
 .samaya-wtl .samaya-event { cursor: default; }
-.samaya-week-backlog { display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 0; }
+.samaya-week-backlog { display: flex; flex-direction: column; gap: var(--samaya-sp-2); flex: 1; min-height: 0; }
 .samaya-week-backlog .samaya-today-cards { flex: 1; }
 .samaya-week-backlog.is-drop { outline: 2px dashed var(--interactive-accent); outline-offset: -2px; }
-.samaya-wtl-head { min-height: 44px; }
 .samaya-wtl-head.is-drop { outline: 2px dashed var(--interactive-accent); outline-offset: -2px; background: color-mix(in srgb, var(--interactive-accent) 8%, var(--background-primary)); }
 
 /* ---- projects: gantt */
@@ -451,8 +430,8 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 .samaya-kb-lanehead { display: flex; gap: 6px; align-items: center; cursor: pointer; font-weight: 600; padding: 4px; border-bottom: 1px solid var(--background-modifier-border); margin-bottom: 6px; }
 .samaya-kb-lanehead.is-collapsed .samaya-kb-chevron { transform: rotate(-90deg); }
 .samaya-kb-count { color: var(--text-muted); font-weight: normal; font-size: var(--font-ui-smaller); }
-.samaya-kb-cell { display: flex; flex-direction: column; gap: 6px; min-height: 28px; padding: 4px; border-radius: 6px; background: var(--background-secondary); }
-.samaya-kb-card { padding: 6px 8px; border-radius: 6px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); cursor: pointer; }
+.samaya-kb-cell { display: flex; flex-direction: column; gap: 6px; min-height: 28px; padding: 4px; border-radius: var(--samaya-r-m); background: var(--background-secondary); }
+.samaya-kb-card { padding: 6px 8px; border-radius: var(--samaya-r-m); background: var(--background-primary); border: 1px solid var(--background-modifier-border); cursor: pointer; }
 .samaya-kb-card:hover { border-color: var(--interactive-accent); }
 .samaya-kb-title { margin-top: 4px; font-size: var(--font-ui-small); }
 .samaya-kb-meta { font-size: var(--font-ui-smaller); color: var(--text-muted); margin-top: 2px; }
@@ -471,7 +450,7 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 .samaya-jcal-dow { font-size: var(--font-ui-smaller); color: var(--text-muted); padding: 2px 0; }
 .samaya-jcal-wk { font-size: var(--font-ui-smaller); color: var(--text-faint); display: flex; align-items: center; justify-content: center; }
 .samaya-jcal-wk.has-note { color: var(--text-accent); }
-.samaya-jcal-day { position: relative; padding: 6px 0; border-radius: 6px; cursor: pointer; font-size: var(--font-ui-small); }
+.samaya-jcal-day { position: relative; padding: 6px 0; border-radius: var(--samaya-r-m); cursor: pointer; font-size: var(--font-ui-small); }
 .samaya-jcal-day:hover { background: var(--background-modifier-hover); }
 .samaya-jcal-day.is-other { color: var(--text-faint); }
 .samaya-jcal-day.is-today { color: var(--text-on-accent); background: var(--interactive-accent); }
@@ -480,7 +459,7 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 .samaya-journal-page { padding: 16px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .samaya-jcal-title { flex-wrap: wrap; }
 .samaya-jcal-quarter { flex-basis: 100%; font-size: var(--font-ui-smaller); font-weight: normal; color: var(--text-muted); }
-.samaya-jcal-day.is-selected:not(.is-today), .samaya-jcal-wk.is-selected { outline: 1px solid var(--interactive-accent); border-radius: 6px; }
+.samaya-jcal-day.is-selected:not(.is-today), .samaya-jcal-wk.is-selected { outline: 1px solid var(--interactive-accent); border-radius: var(--samaya-r-m); }
 .samaya-jcal-info { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--background-modifier-border); }
 .samaya-jcal-info-title { font-weight: 600; margin-bottom: 6px; }
 .samaya-jcal-info-rows { display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; font-size: var(--font-ui-small); }
@@ -497,7 +476,7 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 /* settings tabs */
 .samaya-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; padding-bottom: 0; margin-bottom: 4px; border-bottom: 1px solid var(--background-modifier-border); }
 .samaya-tabs-sep { width: 1px; height: 18px; margin: 0 6px; background: var(--background-modifier-border); }
-.samaya-tab { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; margin-bottom: -1px; background: transparent; box-shadow: none; border: 0; border-bottom: 2px solid transparent; border-radius: var(--radius-s) var(--radius-s) 0 0; color: var(--text-muted); font-size: var(--font-ui-small); cursor: pointer; height: auto; }
+.samaya-tab { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; margin-bottom: -1px; background: transparent; box-shadow: none; border: 0; border-bottom: 2px solid transparent; border-radius: var(--samaya-r-s) var(--radius-s) 0 0; color: var(--text-muted); font-size: var(--font-ui-small); cursor: pointer; height: auto; }
 .samaya-tab:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
 .samaya-tab.is-active { color: var(--text-normal); border-bottom-color: var(--interactive-accent); font-weight: var(--font-semibold); background: transparent; }
 .samaya-tab-icon { display: inline-flex; } .samaya-tab-icon svg { width: 15px; height: 15px; }
@@ -515,7 +494,7 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 .samaya-home-head h1 { margin: 0; font-size: 1.9em; font-weight: 650; letter-spacing: -0.01em; }
 .samaya-home-date { color: var(--text-muted); margin-top: 2px; }
 
-.samaya-home-hero { padding: 22px 24px; border-radius: var(--radius-l); background: var(--background-secondary); border: 1px solid var(--background-modifier-border); display: flex; flex-direction: column; gap: 6px; }
+.samaya-home-hero { padding: 22px 24px; border-radius: var(--samaya-r-l); background: var(--background-secondary); border: 1px solid var(--background-modifier-border); display: flex; flex-direction: column; gap: 6px; }
 .samaya-home-kicker { display: flex; align-items: center; gap: 8px; font-size: var(--font-ui-smaller); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-muted); }
 .samaya-home-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); }
 .samaya-home-hero.is-working .samaya-home-dot, .samaya-home-hero.is-wrapup .samaya-home-dot { background: var(--interactive-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--interactive-accent) 25%, transparent); }
@@ -550,12 +529,12 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 .samaya-home-nudge .samaya-link-btn { color: var(--color-orange); font-weight: 600; padding: 0 4px; }
 
 .samaya-home-week { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; }
-.samaya-home-day { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px 8px; border-radius: var(--radius-m); border: 1px solid var(--background-modifier-border); }
+.samaya-home-day { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px 8px; border-radius: var(--samaya-r-m); border: 1px solid var(--background-modifier-border); }
 .samaya-home-day.is-today { border-color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 8%, transparent); }
 .samaya-home-day.is-past { opacity: 0.65; }
 .samaya-home-day-dow { font-size: var(--font-ui-smaller); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .samaya-home-day-num { font-size: 1.25em; font-weight: 650; font-variant-numeric: tabular-nums; }
-.samaya-home-day-bar { width: 70%; height: 3px; border-radius: 2px; background: var(--background-modifier-border); overflow: hidden; margin: 4px 0 2px; }
+.samaya-home-day-bar { width: 70%; height: 3px; border-radius: var(--samaya-r-pill); background: var(--background-modifier-border); overflow: hidden; margin: 4px 0 2px; }
 .samaya-home-day-fill { height: 100%; background: var(--samaya-green); }
 .samaya-home-day-count { font-size: var(--font-ui-smaller); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .samaya-home-week-meta { color: var(--text-muted); font-size: var(--font-ui-smaller); }
@@ -572,11 +551,11 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 .samaya-journal-bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; padding: 6px var(--size-4-4, 16px); background: var(--background-primary); border-bottom: 1px solid var(--background-modifier-border); }
 .samaya-jb-nav { grid-column: 2; display: flex; align-items: center; gap: 4px; min-width: 0; }
 .samaya-jb-title { font-size: var(--font-ui-medium); font-weight: var(--font-semibold, 600); color: var(--text-normal); padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
-.samaya-jb-arrow { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: var(--radius-m); background: transparent; box-shadow: none; color: var(--text-muted); cursor: pointer; }
+.samaya-jb-arrow { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: var(--samaya-r-m); background: transparent; box-shadow: none; color: var(--text-muted); cursor: pointer; }
 .samaya-jb-arrow .svg-icon { width: 18px; height: 18px; }
 .samaya-jb-arrow:hover:not(:disabled) { background: var(--background-modifier-hover); color: var(--text-normal); }
 .samaya-jb-arrow:disabled { opacity: 0.3; cursor: default; }
-.samaya-jb-now { grid-column: 3; justify-self: end; height: 28px; padding: 0 12px; border-radius: var(--radius-m); font-size: var(--font-ui-small); font-weight: var(--font-medium, 500); background: transparent; border: 1px solid var(--background-modifier-border); box-shadow: none; color: var(--text-normal); cursor: pointer; white-space: nowrap; }
+.samaya-jb-now { grid-column: 3; justify-self: end; height: 28px; padding: 0 12px; border-radius: var(--samaya-r-m); font-size: var(--font-ui-small); font-weight: var(--font-medium, 500); background: transparent; border: 1px solid var(--background-modifier-border); box-shadow: none; color: var(--text-normal); cursor: pointer; white-space: nowrap; }
 .samaya-jb-now:hover:not(:disabled) { background: var(--background-modifier-hover); border-color: var(--background-modifier-border-hover); }
 .samaya-jb-now:disabled { opacity: 0.45; cursor: default; border-color: transparent; background: var(--background-secondary); }
 
@@ -588,7 +567,7 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 .samaya-list.is-timebox .samaya-card.is-timed:hover { opacity: 0.8; }
 .samaya-guide-hint { color: var(--text-muted); font-size: var(--font-ui-small); padding: 12px 4px; line-height: 1.5; }
 .samaya-dayline { position: absolute; left: 0; right: 0; height: 0; z-index: 3; pointer-events: none; border-top: 2px dashed var(--interactive-accent); }
-.samaya-dayline-label { position: absolute; right: 6px; z-index: 4; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: var(--text-on-accent); background: var(--interactive-accent); padding: 0 6px; border-radius: 3px; cursor: ns-resize; pointer-events: auto; touch-action: none; user-select: none; }
+.samaya-dayline-label { position: absolute; right: 6px; z-index: 4; font-size: var(--samaya-fs-label); font-weight: 700; letter-spacing: 0.06em; color: var(--text-on-accent); background: var(--interactive-accent); padding: 0 6px; border-radius: var(--samaya-r-s); cursor: ns-resize; pointer-events: auto; touch-action: none; user-select: none; }
 .samaya-dayline.is-start .samaya-dayline-label { top: 1px; }
 .samaya-dayline.is-end .samaya-dayline-label { bottom: 1px; }
 .samaya-dayshade { position: absolute; left: 0; right: 0; z-index: 1; pointer-events: none; background: color-mix(in srgb, var(--background-modifier-border) 45%, transparent); }
@@ -605,11 +584,11 @@ body { --samaya-green: #2fa862; --samaya-task: var(--interactive-accent); --sama
 .samaya-plancol { min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 4px 6px; }
 .samaya-colhead { display: flex; align-items: center; gap: 8px; }
 .samaya-colhead-title { font-weight: 700; font-size: var(--font-ui-medium); }
-.samaya-colhead-count { font-size: var(--font-ui-smaller); font-weight: 700; padding: 0 7px; border-radius: 10px; background: var(--interactive-accent); color: var(--text-on-accent); }
+.samaya-colhead-count { font-size: var(--font-ui-smaller); font-weight: 700; padding: 0 7px; border-radius: var(--samaya-r-pill); background: var(--interactive-accent); color: var(--text-on-accent); }
 .samaya-leftover-list { display: flex; flex-direction: column; gap: 8px; }
 .samaya-leftover .samaya-mini { padding: 4px 12px; font-size: var(--font-ui-small); }
 .samaya-card-title .samaya-chip-ticket { margin-left: 6px; vertical-align: middle; cursor: pointer; white-space: nowrap; }
-code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; color: var(--text-normal); background: var(--background-modifier-hover); }
+code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: var(--samaya-r-s); color: var(--text-normal); background: var(--background-modifier-hover); }
 .samaya-card-side { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: none; }
 .samaya-sub-row { align-items: flex-start; } .samaya-sub-row span { min-width: 0; overflow-wrap: anywhere; }
 .samaya-card-body > .samaya-subs { margin-top: 4px; }
@@ -619,6 +598,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 /* the meeting or task happening right now: full opacity and a stronger background */
 .samaya-lane .samaya-block.is-current:not(.is-dragging), .samaya-lane .samaya-event.is-current { opacity: 1; z-index: 4; }
 .samaya-lane .samaya-block.is-current { background: var(--samaya-task); color: var(--samaya-task-on); }
+.samaya-lane .samaya-block.is-current .samaya-block-time { color: inherit; opacity: 0.85; }
 .samaya-lane .samaya-event.is-current { background: color-mix(in srgb, var(--samaya-meeting) 45%, var(--background-primary)); border-left-color: var(--samaya-meeting); color: var(--text-normal); }
 .samaya-colhint { font-style: italic; margin: 0 14px; }
 .samaya-plancol > .samaya-loadbar { margin: 4px 14px 10px; }
@@ -632,24 +612,17 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-colhead-tab.is-active .samaya-colhead-count { background: var(--interactive-accent); color: var(--text-on-accent); }
 .samaya-pick > .samaya-colhead { gap: 18px; }
 /* split tasks: pieces share a dashed edge and a dot, and light up together on hover */
-.samaya-block.is-split { border-left: 3px dashed var(--samaya-task-on) !important; }
-.samaya-today .samaya-block.is-split { border-left: 3px dashed var(--samaya-task) !important; }
 .samaya-split-mark { display: inline-flex; align-items: center; gap: 3px; margin-left: 6px; font-size: 0.85em; opacity: 0.8; vertical-align: middle; white-space: nowrap; }
 .samaya-split-icon { display: inline-flex; } .samaya-split-icon svg { width: 11px; height: 11px; }
 .samaya-lane .samaya-block.is-linked:not(.is-done) { opacity: 1; outline: 2px solid var(--samaya-task); outline-offset: 1px; z-index: 3; }
 
 /* Daily: left info column */
-.samaya-info { gap: 14px; }
 .samaya-info-hero { display: block; margin-bottom: 10px; }
 .samaya-info-titles h2 { margin: 0; font-size: 1.8em; letter-spacing: -0.02em; line-height: 1.1; }
-.samaya-info-titlerow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.samaya-info-nav { display: flex; flex: none; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); overflow: hidden; }
-.samaya-info-navbtn { background: transparent !important; box-shadow: none !important; border: none; border-radius: 0; height: 26px; padding: 0 9px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
-.samaya-info-navbtn + .samaya-info-navbtn { border-left: 1px solid var(--background-modifier-border); }
-.samaya-info-navbtn:hover:not(:disabled) { background: var(--background-modifier-hover) !important; color: var(--text-normal); }
-.samaya-info-navbtn:disabled { color: var(--text-faint); cursor: default; }
-.samaya-info-card { padding: 12px 14px; border-radius: var(--radius-l); background: var(--background-secondary); }
-.samaya-info-label, .samaya-info .samaya-wd-panel .samaya-wd-state { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
+.samaya-info-titlerow { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--samaya-sp-2); }
+.samaya-info-titlerow > .samaya-planner-right { margin-left: auto; }
+.samaya-info-card { padding: 12px 14px; border-radius: var(--samaya-r-l); background: var(--background-secondary); }
+.samaya-info-label, .samaya-info .samaya-wd-panel .samaya-wd-state { font-size: var(--samaya-fs-label); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
 .samaya-info-big, .samaya-wd-figure { margin-top: 2px; font-size: 1.35em; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.25; }
 .samaya-info-rec { font-size: 0.6em; font-weight: 500; color: var(--text-muted); }
 .samaya-info-load.is-over .samaya-info-big { color: var(--text-error); }
@@ -662,24 +635,24 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-info .samaya-wd-panel.is-break .samaya-wd-state { color: var(--color-orange); }
 .samaya-info .samaya-wd-panel.is-break .samaya-wd-state::before { background: var(--color-orange); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-orange) 25%, transparent); }
 .samaya-info .samaya-wd-panel .samaya-wd-sub { margin-top: 1px; color: var(--text-muted); font-size: var(--font-ui-smaller); }
-.samaya-wd-prog { height: 5px; margin-top: 10px; border-radius: 3px; background: var(--background-modifier-border); overflow: hidden; }
+.samaya-wd-prog { height: 5px; margin-top: 10px; border-radius: var(--samaya-r-pill); background: var(--background-modifier-border); overflow: hidden; }
 .samaya-wd-prog-fill { height: 100%; background: var(--interactive-accent); }
 .samaya-info .samaya-wd-buttons { display: flex; gap: 6px; margin-top: 12px; }
 .samaya-info .samaya-wd-buttons button { flex: 1; height: 30px; }
 .samaya-info-card:has(.samaya-wd.is-break) { background: color-mix(in srgb, var(--color-orange) 10%, var(--background-secondary)); }
-.samaya-tasks-head { margin: 4px 6px 14px; }
+.samaya-tasks-head { margin: var(--samaya-sp-1) var(--samaya-sp-2) var(--samaya-sp-4); }
 .samaya-tasks-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .samaya-tasks-row h3 { margin: 0; font-size: 1.8em; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
-.samaya-tasks-count { font-size: var(--font-ui-smaller); font-weight: 600; font-variant-numeric: tabular-nums; padding: 2px 10px; border-radius: 999px; background: var(--background-modifier-hover); color: var(--text-muted); white-space: nowrap; }
+.samaya-tasks-count { font-size: var(--font-ui-smaller); font-weight: 600; font-variant-numeric: tabular-nums; padding: 2px 10px; border-radius: var(--samaya-r-pill); background: var(--background-modifier-hover); color: var(--text-muted); white-space: nowrap; }
 .samaya-tasks-count.is-complete { background: color-mix(in srgb, var(--samaya-green) 18%, transparent); color: var(--samaya-green); }
 .samaya-tasks-head .samaya-donebar { margin-top: 12px; }
-.samaya-tasks-head > .samaya-add { margin: 10px 0 0; width: 100%; box-sizing: border-box; }
-.samaya-tasks-head .samaya-donebar-track { height: 6px; border-radius: 3px; }
+.samaya-tasks-head > .samaya-add { margin: var(--samaya-sp-3) 0 0; width: 100%; box-sizing: border-box; }
+.samaya-tasks-head .samaya-donebar-track { height: 6px; border-radius: var(--samaya-r-pill); }
 
 /* Plan my day: guide column (vertical stepper) */
 .samaya-plan { display: flex; flex-direction: column; gap: 14px; padding: 4px 6px 4px 2px; }
 .samaya-plan-top { display: flex; align-items: center; justify-content: space-between; }
-.samaya-plan-kicker { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--interactive-accent); }
+.samaya-plan-kicker { font-size: var(--samaya-fs-label); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--interactive-accent); }
 .samaya-plan-cancel { width: 24px; height: 24px; padding: 0; color: var(--text-faint); }
 .samaya-plan-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .samaya-plan-step { position: relative; display: flex; gap: 12px; padding-bottom: 18px; }
@@ -696,7 +669,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-plan-step.is-done .samaya-plan-title { color: var(--text-muted); }
 .samaya-plan-step.is-link { cursor: pointer; }
 .samaya-plan-step.is-link:hover .samaya-plan-title { color: var(--text-normal); }
-.samaya-plan-badge { font-size: var(--font-ui-smaller); font-weight: 700; padding: 0 7px; border-radius: 10px; background: var(--color-orange); color: #fff; }
+.samaya-plan-badge { font-size: var(--font-ui-smaller); font-weight: 700; padding: 0 7px; border-radius: var(--samaya-r-pill); background: var(--color-orange); color: #fff; }
 .samaya-plan-text { margin-top: 6px; color: var(--text-muted); font-size: var(--font-ui-small); line-height: 1.5; }
 .samaya-plan-nav { display: flex; gap: 8px; padding-top: 4px; }
 .samaya-plan-next { flex: 1; height: 34px; }
@@ -707,7 +680,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-spark { position: absolute; left: 0; top: 0; width: var(--s, 5px); height: var(--s, 5px); margin: calc(var(--s, 5px) / -2); border-radius: 50%; background: var(--c); box-shadow: 0 0 6px var(--c); opacity: 0; animation: samaya-spark 900ms cubic-bezier(.15,.7,.3,1) forwards; }
 @keyframes samaya-spark { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 70% { opacity: 1; } 100% { transform: translate(var(--dx), calc(var(--dy) + 24px)) scale(0.2); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .samaya-sparks { display: none; } }
-.samaya-bucket { display: flex; flex-direction: column; gap: 6px; padding: 4px; border-radius: var(--radius-m); }
+.samaya-bucket { display: flex; flex-direction: column; gap: 6px; padding: 4px; border-radius: var(--samaya-r-m); }
 .samaya-bucket.is-drop { outline: 2px dashed var(--interactive-accent); outline-offset: -2px; }
 .samaya-buckets { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; overflow-y: auto; }
 .samaya-bucket-list { display: flex; flex-direction: column; gap: 6px; }
@@ -742,7 +715,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-loadbar.is-over .samaya-col-bar-fill { background: var(--text-error); }
 .samaya-wg-rowflag.is-over { color: var(--text-error); }
 .samaya-wg-rowflag.is-ok { color: var(--text-faint); }
-.samaya-plan-reminder { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: var(--radius-m); background: color-mix(in srgb, var(--color-orange) 12%, var(--background-primary)); border-left: 3px solid var(--color-orange); color: var(--text-muted); font-size: var(--font-ui-smaller); line-height: 1.45; }
+.samaya-plan-reminder { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: var(--samaya-r-m); background: color-mix(in srgb, var(--color-orange) 12%, var(--background-primary)); border-left: 3px solid var(--color-orange); color: var(--text-muted); font-size: var(--font-ui-smaller); line-height: 1.45; }
 .samaya-plan-reminder-icon { flex: none; color: var(--color-orange); display: inline-flex; }
 .samaya-plan-reminder-icon svg { width: 14px; height: 14px; }
 
@@ -792,7 +765,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-plan-alert.is-clear { color: var(--text-accent); font-weight: 600; }
 /* Backlog and Tickets boards look like the Schedule step: no column background, cards like the tasks there */
 .samaya-wg-kb .samaya-kb-cell { background: none; padding: 0; gap: 6px; min-height: 40px; }
-.samaya-wg-kb .samaya-kb-card { padding: 8px 10px; background: var(--background-primary-alt); border-radius: var(--radius-m); }
+.samaya-wg-kb .samaya-kb-card { padding: 8px 10px; background: var(--background-primary-alt); border-radius: var(--samaya-r-m); }
 /* This week in the right sidebar (Plan my week) */
 .samaya-today.is-wg { display: flex; flex-direction: column; padding: 8px; }
 .samaya-wg-side { flex: 1 1 auto; min-height: 0; padding: 4px 2px; overflow: hidden; }
@@ -807,7 +780,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 
 /* ---- Plan my week: Check step ---- */
 .samaya-chk { max-width: 980px; overflow-y: auto; padding: 2px 6px 24px 2px; display: flex; flex-direction: column; gap: 18px; }
-.samaya-chk-hero { --tone: var(--color-green); display: flex; gap: 16px; align-items: center; padding: 18px 20px; border-radius: var(--radius-l); background: color-mix(in srgb, var(--tone) 12%, var(--background-primary)); border: 1px solid color-mix(in srgb, var(--tone) 35%, transparent); }
+.samaya-chk-hero { --tone: var(--color-green); display: flex; gap: 16px; align-items: center; padding: 18px 20px; border-radius: var(--samaya-r-l); background: color-mix(in srgb, var(--tone) 12%, var(--background-primary)); border: 1px solid color-mix(in srgb, var(--tone) 35%, transparent); }
 .samaya-chk-hero.is-tight { --tone: var(--color-orange); }
 .samaya-chk-hero.is-over { --tone: var(--text-error); }
 .samaya-chk-hero-icon { flex: none; display: flex; width: 44px; height: 44px; border-radius: 50%; align-items: center; justify-content: center; background: var(--tone); color: #fff; }
@@ -815,7 +788,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-chk-hero-title { font-size: var(--font-ui-large); font-weight: 700; color: var(--text-normal); }
 .samaya-chk-hero-sub { margin-top: 2px; color: var(--text-muted); font-size: var(--font-ui-small); }
 .samaya-chk-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
-.samaya-chk-stat { padding: 12px 14px; border-radius: var(--radius-m); background: var(--background-primary-alt); border: 1px solid var(--background-modifier-border); }
+.samaya-chk-stat { padding: 12px 14px; border-radius: var(--samaya-r-m); background: var(--background-primary-alt); border: 1px solid var(--background-modifier-border); }
 .samaya-chk-stat-label { font-size: var(--font-ui-smaller); text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); font-weight: 600; }
 .samaya-chk-stat-value { margin-top: 2px; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-normal); }
 .samaya-chk-stat-sub { font-size: var(--font-ui-smaller); color: var(--text-muted); }
@@ -823,14 +796,14 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-chk-stat.is-over .samaya-chk-stat-value { color: var(--text-error); }
 .samaya-chk-h { font-size: var(--font-ui-small); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: -8px; }
 .samaya-chk-days { display: grid; grid-template-columns: repeat(var(--n), minmax(110px, 1fr)); gap: 12px; }
-.samaya-chk-day { --tone: var(--samaya-task); display: flex; flex-direction: column; gap: 2px; padding: 12px; border-radius: var(--radius-m); background: var(--background-primary-alt); border: 1px solid var(--background-modifier-border); }
+.samaya-chk-day { --tone: var(--samaya-task); display: flex; flex-direction: column; gap: 2px; padding: 12px; border-radius: var(--samaya-r-m); background: var(--background-primary-alt); border: 1px solid var(--background-modifier-border); }
 .samaya-chk-day.is-tight { --tone: var(--color-orange); }
 .samaya-chk-day.is-over { --tone: var(--text-error); border-color: color-mix(in srgb, var(--text-error) 45%, transparent); }
 .samaya-chk-day.is-today { box-shadow: inset 0 2px 0 var(--interactive-accent); }
 .samaya-chk-day-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
 .samaya-chk-day-name { font-weight: 700; color: var(--text-normal); }
 .samaya-chk-day-date { font-size: var(--font-ui-smaller); color: var(--text-faint); }
-.samaya-chk-bar { position: relative; height: 120px; border-radius: 6px; background: var(--background-modifier-border); overflow: hidden; margin-bottom: 8px; }
+.samaya-chk-bar { position: relative; height: 120px; border-radius: var(--samaya-r-m); background: var(--background-modifier-border); overflow: hidden; margin-bottom: 8px; }
 .samaya-chk-bar.is-off { background: repeating-linear-gradient(45deg, transparent 0 6px, var(--background-modifier-border) 6px 7px); }
 .samaya-chk-seg { position: absolute; left: 0; right: 0; bottom: 0; }
 .samaya-chk-seg.is-meet, .samaya-chk-swatch.is-meet { background: var(--samaya-meeting); }
@@ -846,9 +819,9 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-chk-day-meta { font-size: var(--font-ui-smaller); color: var(--text-faint); }
 .samaya-chk-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: -8px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .samaya-chk-legend-item { display: inline-flex; gap: 6px; align-items: center; }
-.samaya-chk-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.samaya-chk-swatch { width: 12px; height: 12px; border-radius: var(--samaya-r-s); display: inline-block; }
 .samaya-chk-swatch.is-line { height: 0; border-top: 2px dashed var(--text-normal); border-radius: 0; opacity: 0.7; }
-.samaya-chk-fix { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: var(--radius-m); border: 1px solid var(--background-modifier-border); background: var(--background-primary-alt); }
+.samaya-chk-fix { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: var(--samaya-r-m); border: 1px solid var(--background-modifier-border); background: var(--background-primary-alt); }
 .samaya-chk-fix.is-clear { flex-direction: row; align-items: center; gap: 10px; color: var(--text-muted); }
 .samaya-chk-fix-icon { display: flex; color: var(--color-green); } .samaya-chk-fix-icon svg { width: 18px; height: 18px; }
 .samaya-chk-fix-head { font-weight: 700; color: var(--text-normal); }
@@ -858,7 +831,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-chk-hero-count { margin-top: 6px; font-size: var(--font-ui-smaller); color: var(--text-faint); font-variant-numeric: tabular-nums; }
 .samaya-chk-kvs { display: flex; flex-direction: column; gap: 4px; }
 .samaya-chk-kv { display: flex; align-items: center; gap: 6px; font-size: var(--font-ui-smaller); }
-.samaya-chk-kv .samaya-chk-swatch { flex: none; width: 8px; height: 8px; border-radius: 2px; }
+.samaya-chk-kv .samaya-chk-swatch { flex: none; width: 8px; height: 8px; border-radius: var(--samaya-r-s); }
 .samaya-chk-kv-label { color: var(--text-muted); }
 .samaya-chk-kv-value { margin-left: auto; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-normal); }
 .samaya-chk-kv-extra { color: var(--text-faint); min-width: 1.2em; text-align: right; font-variant-numeric: tabular-nums; }
@@ -873,7 +846,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 
 /* daily Check step: the day as one horizontal bar */
 .samaya-chk-day-view { grid-column: 2 / -1; }
-.samaya-chk-hbar { position: relative; height: 30px; border-radius: 8px; background: var(--background-modifier-border); overflow: hidden; }
+.samaya-chk-hbar { position: relative; height: 30px; border-radius: var(--samaya-r-m); background: var(--background-modifier-border); overflow: hidden; }
 .samaya-chk-hbar.is-off { background: repeating-linear-gradient(45deg, transparent 0 6px, var(--background-modifier-border) 6px 7px); }
 .samaya-chk-hseg { position: absolute; top: 0; bottom: 0; left: 0; }
 .samaya-chk-hseg.is-meet { background: var(--samaya-meeting); }
@@ -893,15 +866,14 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-planner { height: 100%; width: 100%; }
 .samaya-planner-pane { height: 100%; width: 100%; }
 .samaya-planner-pane.is-hidden { display: none; }
-.samaya-tl-bar { display: flex; align-items: center; justify-content: space-between; margin: 0 0 6px; }
-.samaya-tl-bar-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-faint); }
+.samaya-tl-bar { display: flex; align-items: center; justify-content: space-between; min-height: 30px; margin: 0 0 var(--samaya-sp-2); }
+.samaya-tl-bar-title { font-size: var(--samaya-fs-label); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
 .samaya-wtl-day.is-link { cursor: pointer; }
 .samaya-wtl-day.is-link:hover { color: var(--interactive-accent); text-decoration: underline; }
-.samaya-modeswitch { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--radius-m); background: var(--background-modifier-hover); }
-.samaya-modeswitch button { box-shadow: none; background: transparent; height: 22px; padding: 0 12px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.samaya-modeswitch { display: inline-flex; gap: 2px; padding: 2px; border-radius: var(--samaya-r-m); background: var(--background-modifier-hover); }
+.samaya-modeswitch button { box-shadow: none; background: transparent; height: 28px; padding: 0 var(--samaya-sp-3); font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .samaya-modeswitch button:hover { color: var(--text-normal); }
 .samaya-modeswitch button.is-active { background: var(--background-primary); color: var(--text-normal); font-weight: 600; box-shadow: var(--input-shadow); }
-.samaya-modeswitch.is-right { margin-left: auto; }
 
 /* Expanded week: one scrolling page, timeline on top, task board below, arrows between them to collapse either one.
    Both panes stay rendered; a layout only collapses one of them (grid row 1fr -> 0fr), so the height, the fade and the slide are all CSS. */
@@ -916,10 +888,10 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-wtl.is-flow .samaya-wtl-scroll { overflow: visible; flex: none; }
 .samaya-wtl.is-flow .samaya-wtl-heads { position: static; }
 .samaya-wtl.is-flow { padding-bottom: 0; }
-.samaya-splitbar { flex: none; height: var(--wk-bar, 26px); display: flex; align-items: center; justify-content: center; gap: 10px; position: sticky; top: var(--wk-head, 44px); bottom: 0; z-index: 9; background: var(--background-primary); } /* sticks under the heading when scrolled past, to the bottom edge when not reached yet: always in view */
+.samaya-splitbar { flex: none; height: var(--wk-bar, 26px); display: flex; align-items: center; justify-content: center; gap: var(--samaya-sp-2); position: sticky; top: var(--wk-head, 44px); bottom: 0; z-index: 9; background: var(--background-primary); } /* sticks under the heading when scrolled past, to the bottom edge when not reached yet: always in view */
 .samaya-splitbar::before { content: ""; position: absolute; left: var(--wk-pad); right: 12px; top: 50%; border-top: 1px solid var(--background-modifier-border); }
 .samaya-planner:not(.is-expanded) > .samaya-splitbar { display: none; }
-.samaya-splitarrow { all: unset; box-sizing: border-box; position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 20px; padding: 0 10px 0 6px; border-radius: 10px; cursor: pointer; color: var(--text-faint); font-size: var(--font-ui-smaller); background: var(--background-primary); border: 1px solid var(--background-modifier-border); transition: color .15s, background .15s; }
+.samaya-splitarrow { all: unset; box-sizing: border-box; position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 4px; height: 20px; padding: 0 10px 0 6px; border-radius: var(--samaya-r-pill); cursor: pointer; color: var(--text-faint); font-size: var(--font-ui-smaller); background: var(--background-primary); border: 1px solid var(--background-modifier-border); transition: color .15s, background .15s; }
 .samaya-splitarrow:hover, .samaya-splitarrow:focus-visible { color: var(--text-normal); background: var(--background-modifier-hover); border-color: var(--background-modifier-border-hover); }
 .samaya-splitarrow-icon { display: inline-flex; }
 .samaya-splitarrow svg { width: 16px; height: 16px; }
@@ -929,7 +901,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-week.is-aligned .samaya-col > .samaya-add { width: calc(100% - 8px); }
 .samaya-week.is-aligned .samaya-col.is-today { background: color-mix(in srgb, var(--interactive-accent) 5%, transparent); }
 /* The expanded week has one heading of its own (PlannerView); the panes' own headings stay out. "Both" and timeline only also keep the board's day headings out (the timeline names the days) */
-.samaya-planner-head { display: none; padding: 12px 12px 8px var(--wk-pad); position: sticky; top: 0; z-index: 10; background: var(--background-primary); }
+.samaya-planner-head { display: none; box-sizing: content-box; min-height: 30px; gap: var(--samaya-sp-2); padding: var(--samaya-sp-4) var(--samaya-sp-3) var(--samaya-sp-2) var(--wk-pad); position: sticky; top: 0; z-index: 10; background: var(--background-primary); }
 .samaya-planner.is-expanded > .samaya-planner-head { display: flex; }
 .samaya-planner.is-expanded .samaya-wtl > .samaya-week-head, .samaya-planner.is-expanded .samaya-week > .samaya-week-head { display: none; }
 .samaya-planner.is-expanded:not(.is-board-only) .samaya-col-head, .samaya-planner.is-expanded:not(.is-board-only) .samaya-col-bar { display: none; }
@@ -957,16 +929,15 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: 4px; col
 .samaya-week.is-aligned .samaya-col-top > .samaya-add { width: 100%; }
 
 /* The Today / This week pill is shared by the week heading and the day's timeline header; the arrows keep their own designs */
-.samaya-planner-head { gap: 10px; }
 button.samaya-datereset { all: unset; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 10px 0 6px; border-radius: 13px; cursor: pointer; font-size: var(--font-ui-smaller); font-weight: 500; color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); white-space: nowrap; }
 button.samaya-datereset:hover, button.samaya-datereset:focus-visible { background: color-mix(in srgb, var(--interactive-accent) 22%, transparent); }
 .samaya-datereset-icon { display: inline-flex; }
 .samaya-datereset-icon svg { width: 14px; height: 14px; }
-.samaya-weekno { color: var(--text-faint); font-size: var(--font-ui-smaller); }
+.samaya-weekno { color: var(--text-muted); font-size: var(--font-ui-smaller); }
 
 /* Day view: the Tasks heading and its bar stay in view while the tasks scroll. Nothing sits above the heading (no padding or margin), so it starts exactly where it sticks. */
 .samaya-left.is-sticky-head { padding-top: 0; }
-.samaya-left.is-sticky-head > .samaya-tasks-head { position: sticky; top: 0; z-index: 5; margin: 0 -16px; padding: 20px 22px 12px; background: var(--background-primary); }
+.samaya-left.is-sticky-head > .samaya-tasks-head { position: sticky; top: 0; z-index: 5; margin: 0 -16px; padding: var(--samaya-sp-5) var(--samaya-sp-5) var(--samaya-sp-3); background: var(--background-primary); }
 
 /* the right-hand border of the last column, like the left one of every column */
 .samaya-wtl-head:last-child, .samaya-wtl-col:last-child, .samaya-week.is-aligned .samaya-col:last-child { border-right: 1px solid var(--background-modifier-border); }
@@ -981,39 +952,29 @@ button.samaya-datereset:hover, button.samaya-datereset:focus-visible { backgroun
   background: repeating-linear-gradient(90deg, var(--background-modifier-border) 0 1px, transparent 1px calc(100% / var(--wk-days, 5))); }
 .samaya-splitbar > .samaya-splitarrow { z-index: 1; }
 
-.samaya-info-today { height: 24px; padding: 0 10px; border-radius: 999px; font-size: var(--font-ui-smaller); font-weight: 600; }
-.samaya-info-daterow { display: flex; align-items: center; gap: 0; white-space: nowrap; }
-.samaya-info-side { display: flex; align-items: center; gap: 8px; margin-right: -6px; }
-.samaya-info-arrow { flex: none; width: 26px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); }
-.samaya-info-arrow svg { width: 18px; height: 18px; }
-.samaya-info-date { flex: none; width: auto; min-width: 0; position: relative; display: inline-flex; align-items: center; gap: 6px; margin: 0; padding: 2px 6px; height: auto; background: transparent !important; box-shadow: none !important; border: none; border-radius: var(--radius-s); color: var(--text-muted); font-size: var(--font-ui-small); cursor: pointer; }
-.samaya-info-date:hover { background: var(--background-modifier-hover) !important; color: var(--text-normal); }
-.samaya-info-date-icon { display: inline-flex; } .samaya-info-date-icon svg { width: 14px; height: 14px; }
-.samaya-info .samaya-info-date .samaya-info-datepick { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; min-width: 0 !important; margin: 0 !important; padding: 0 !important; opacity: 0 !important; pointer-events: none; border: none !important; } /* beats Obsidian's own input[type=date] sizing, which otherwise stretches the button */
-.samaya-weeknav { display: inline-flex; align-items: center; border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); background: var(--background-primary); overflow: hidden; }
+.samaya-weeknav { display: inline-flex; align-items: center; border: 1px solid var(--background-modifier-border); border-radius: var(--samaya-r-m); background: var(--background-primary); overflow: hidden; }
 .samaya-weeknav button.samaya-weeknav-step { all: unset; box-sizing: border-box; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-muted); }
 .samaya-weeknav button.samaya-weeknav-step:hover, .samaya-weeknav button.samaya-weeknav-step:focus-visible { background: var(--background-modifier-hover); color: var(--text-normal); }
 .samaya-weeknav-step svg { width: 16px; height: 16px; }
 .samaya-weeknav-label { min-width: 118px; padding: 0 6px; text-align: center; font-weight: 600; font-size: var(--font-ui-medium); font-variant-numeric: tabular-nums; border-left: 1px solid var(--background-modifier-border); border-right: 1px solid var(--background-modifier-border); line-height: 30px; }
-.samaya-weekno { color: var(--text-faint); font-size: var(--font-ui-smaller); }
 
-.samaya-tl-bar { min-height: 30px; margin-bottom: 8px; }
 .samaya-tl-bar-right, .samaya-planner-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
-.samaya-planner-head { min-height: 30px; box-sizing: content-box; padding-top: 14px; }
 .samaya-planner-title { margin: 0; font-size: 1.5em; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; white-space: nowrap; }
-.samaya-info-sub { margin-top: 2px; color: var(--text-muted); font-size: var(--font-ui-small); }
 /* the day's status column: the leftmost column of the Today view */
-.samaya-daily-cols > .samaya-info { flex: 0 1 340px; width: auto; min-width: 260px; margin-right: auto; overflow-y: auto; padding: 14px 20px 16px 24px; }
+.samaya-daily-cols > .samaya-info { flex: 0 1 340px; min-width: 260px; margin-right: auto; overflow-y: auto; } /* the day's status column: the leftmost column of the Today view */
 .samaya-planner { --wk-bar: 26px; }
 .samaya-planner.is-timeline-only { --wk-bar: 20px; } /* the line hugs the end of the day */
-.samaya-tlpane { flex: 0 1 420px; min-width: 300px; }
 .samaya-daily .samaya-tl-bar { flex-wrap: wrap; row-gap: 6px; }
 .samaya-daily .samaya-tl-bar-title { display: none; } /* the date and the switch say what this column is; the room goes to the navigation */
 .samaya-weeknav-label.is-pickable { position: relative; cursor: pointer; }
 .samaya-weeknav-label.is-pickable:hover { background: var(--background-modifier-hover); }
-.samaya-weeknav .samaya-weeknav-datepick { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; min-width: 0 !important; margin: 0 !important; padding: 0 !important; opacity: 0 !important; pointer-events: none; border: none !important; }
+.samaya-weeknav-label.is-pickable:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
+.samaya-weeknav .samaya-weeknav-label input.samaya-weeknav-datepick { position: absolute; inset: 0; width: 100%; height: 100%; min-width: 0; margin: 0; padding: 0; opacity: 0; pointer-events: none; border: none; }
 /* tasks and timeline columns share one width */
-.samaya-left, .samaya-tlpane { flex: 0 1 460px; min-width: 300px; }
 .samaya-daily.is-review .samaya-left { flex: 1 1 auto; }
-@media (max-width: 700px) { .samaya-left, .samaya-tlpane { flex: none; } }
-.samaya-day-head { flex: none; display: flex; align-items: center; gap: 10px; min-height: 30px; box-sizing: content-box; padding: 14px 16px 8px 24px; background: var(--background-primary); }
+@media (max-width: 700px) { .samaya-daily-cols { flex-direction: column; overflow-y: auto; } .samaya-left, .samaya-tlpane, .samaya-daily-cols > .samaya-info { flex: none; } .samaya-tlpane { height: 520px; } }
+.samaya-day-head { flex: none; display: flex; align-items: center; gap: var(--samaya-sp-2); min-height: 30px; box-sizing: content-box; padding: var(--samaya-sp-4) var(--samaya-sp-4) var(--samaya-sp-2) var(--samaya-sp-6); background: var(--background-primary); }
+
+/* ---------- keyboard focus: one ring for every control of the planner ---------- */
+:is(.samaya-block, .samaya-event, .samaya-wtl-chip):focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
+:is(.samaya-block-state, .samaya-card-title, .samaya-col-title.is-link, .samaya-wtl-day.is-link, .samaya-modeswitch button, .samaya-colhead-tab, .samaya-tab, .samaya-mini, .samaya-est):focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }

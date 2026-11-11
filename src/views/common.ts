@@ -12,6 +12,15 @@ export interface CardOpts {
   /** extra quick-action buttons (label, handler) */ actions?: Array<[string, () => void]>;
 }
 
+/**
+ * Make a non-button element usable from the keyboard: it joins the tab order, is announced as `role` with `label`, and Enter / Space run `run`.
+ * Only keys pressed on the element itself count, so a nested control (the done circle in a timeline block) keeps its own keys.
+ */
+export function keyActivate(el: HTMLElement, label: string, run: () => void, role = "button") {
+  el.setAttr("role", role); el.setAttr("tabindex", "0"); el.setAttr("aria-label", label);
+  el.addEventListener("keydown", e => { if (e.target !== el || (e.key !== "Enter" && e.key !== " ")) return; e.preventDefault(); run(); });
+}
+
 /** Fill `el` with text where `backticked` words (button names) are shown as inline code. */
 export function richText(el: HTMLElement, text: string) {
   text.split("`").forEach((part, i) => { if (!part) return; if (i % 2) el.createEl("code", { cls: "samaya-btn-ref", text: part }); else el.appendText(part); });
@@ -42,6 +51,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   cb.addEventListener("change", () => { void setDone(app, t, cb.checked); });
   const title = line.createDiv({ cls: "samaya-card-title", text: t.title });
   title.addEventListener("click", e => { void app.workspace.getLeaf(e.ctrlKey || e.metaKey ? "tab" : false).openFile(t.file); });
+  keyActivate(title, `Open task: ${t.title}`, () => { void app.workspace.getLeaf(false).openFile(t.file); }, "link");
   const meta = body.createDiv("samaya-card-meta");
   const tp = ticketPathOf(app, t);
   if (tp) {

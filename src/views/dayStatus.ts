@@ -33,12 +33,12 @@ export async function renderDayStatus(plugin: SamayaPlugin, host: HTMLElement, o
       const titles = hero.createDiv("samaya-info-titles");
       const top = titles.createDiv("samaya-info-titlerow");
       top.createEl("h2", { text: isToday ? "Today" : d.toLocaleDateString(undefined, { weekday: "long" }) }); // the sidebar on other pages: Today shortcut, then ‹ date ›. In the planner the navigation sits in the timeline header instead.
-      const side = top.createDiv("samaya-info-side");
+      const side = top.createDiv("samaya-planner-right");
       if (!isToday) renderResetPill(side, "Today", "Jump to today", date < today() ? "right" : "left", () => go(today()));
       renderDateNav(side, {
-        variant: "plain", label: d.toLocaleDateString(undefined, { weekday: isToday ? "short" : undefined, month: "short", day: "numeric" }),
+        label: d.toLocaleDateString(undefined, { weekday: isToday ? "short" : undefined, month: "short", day: "numeric" }),
         prevLabel: "Previous day", nextLabel: "Next day", onPrev: () => go(addDays(date, -1)), onNext: () => go(addDays(date, 1)),
-        pick: { value: date, run: go },
+        pick: { value: date, label: "Pick a day", run: go },
       });
     } // in the planner the title bar above the columns says which day it is
 

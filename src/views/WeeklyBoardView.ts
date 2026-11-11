@@ -7,13 +7,14 @@ import type { IcsEvent } from "../ics";
 import { bufferShare, isLeftover, loadLevel, trimToBuffer, weekVerdict } from "../weekplan";
 import { renderGuide } from "./guide";
 import { celebrate } from "./doneBar";
+import { renderWeekHead } from "./plannerHead";
 import { addTaskInput, capacityOf, weekBuckets } from "./weekColumn";
 import { TicketTaskModal } from "../modals";
 import { groupTickets, statusRank } from "../kanban";
 import { HORIZONS, addDays, bucketOf, fmtDur, horizonTarget, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { Capacity, capacityWindow } from "../worktime";
-import { bindCardDrop, bindZone, renderTaskCard, richText } from "./common";
+import { bindCardDrop, bindZone, keyActivate, renderTaskCard, richText } from "./common";
 
 export const WEEK_VIEW_TYPE = "samaya-week";
 
@@ -66,21 +67,8 @@ export class WeeklyBoardView extends BasesView {
     this.root.empty(); this.scope.clear(); this.root.toggleClass("is-aligned", !!this.host?.aligned?.()); // expanded week: the day columns line up with the timeline's, in every layout
 
     if (this.plugin.boardWeek !== this.weekStart) { this.plugin.boardWeek = this.weekStart; this.plugin.modeBus.emit(); }
-    let head: HTMLElement | null = null;
-    {
-      head = this.root.createDiv("samaya-week-head");
-      const go = (w: string) => { if (this.host?.weekChanged) this.host.weekChanged(w); else { this.weekStart = w; void this.render(); } };
-      head.createEl("button", { text: "‹" }).onclick = () => go(addDays(this.weekStart, -7));
-      head.createEl("button", { text: "This week" }).onclick = () => go(startOfWeek(today()));
-      head.createEl("button", { text: "›" }).onclick = () => go(addDays(this.weekStart, 7));
-      const fmt = (s: string) => parseYmd(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-      head.createEl("h2", { text: `${fmt(this.weekStart)} – ${fmt(addDays(this.weekStart, 6))}` });
-      if (this.host?.back) { // same Day | Week switch as on the timeline
-        const sw = head.createDiv("samaya-modeswitch is-right");
-        sw.createEl("button", { text: "Day", attr: { title: "Back to the day planner (Esc)" } }).onclick = () => this.host?.back?.();
-        sw.createEl("button", { text: "Week", cls: "is-active" });
-      }
-    }
+    const head = this.root.createDiv("samaya-week-head");
+    renderWeekHead(head, this.weekStart, w => { if (this.host?.weekChanged) this.host.weekChanged(w); else { this.weekStart = w; void this.render(); } }, this.host?.back);
 
     const cols2 = this.root.createDiv("samaya-cols");
     for (let i = 0; i < (weekends ? 7 : 5); i++) {
@@ -98,7 +86,7 @@ export class WeeklyBoardView extends BasesView {
     { // (expanded week, under the timeline: CSS hides the heading and bar, the day is already named above)
       const h = top.createDiv("samaya-col-head");
       const ttl = h.createSpan({ cls: "samaya-col-title", text: title });
-      if (this.host?.openDay) { ttl.addClass("is-link"); ttl.title = "Open this day in the planner"; ttl.onclick = () => this.host?.openDay?.(key); }
+      if (this.host?.openDay) { ttl.addClass("is-link"); ttl.title = "Open this day in the planner"; ttl.onclick = () => this.host?.openDay?.(key); keyActivate(ttl, `Open ${key} in the planner`, () => this.host?.openDay?.(key)); }
       const planned = tasks.reduce((a, t) => a + (t.estimate || 0), 0);
       const share = bufferShare(this.plugin.settings.bufferPercent); const lvl = loadLevel(planned, cap.free, share); // orange past the buffer, red over capacity, like the week guide
       const bar = top.createDiv({ cls: `samaya-col-bar is-${lvl}` });

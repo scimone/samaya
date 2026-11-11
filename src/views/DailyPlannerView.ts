@@ -16,6 +16,7 @@ import { capacityWindow, Capacity } from "../worktime";
 import { bufferShare, loadLevel, trimToBuffer } from "../weekplan";
 import { renderDayStatus } from "./dayStatus";
 import { renderDateNav, renderResetPill } from "./dateNav";
+import { renderModeSwitch } from "./plannerHead";
 
 export const DAILY_VIEW_TYPE = "samaya-daily";
 
@@ -167,13 +168,11 @@ export class DailyPlannerView extends BasesView {
     const right = h.createDiv("samaya-planner-right");
     if (!isToday) renderResetPill(right, "Today", "Jump to today", this.date < today() ? "right" : "left", () => this.goTo(today()));
     renderDateNav(right, {
-      variant: "box", label: parseYmd(this.date).toLocaleDateString(undefined, { weekday: isToday ? "short" : undefined, month: "short", day: "numeric" }),
+      label: parseYmd(this.date).toLocaleDateString(undefined, { weekday: isToday ? "short" : undefined, month: "short", day: "numeric" }),
       prevLabel: "Previous day", nextLabel: "Next day", onPrev: () => this.goTo(addDays(this.date, -1)), onNext: () => this.goTo(addDays(this.date, 1)),
-      pick: { value: this.date, run: d => this.goTo(d) },
+      pick: { value: this.date, label: "Pick a day", run: d => this.goTo(d) },
     });
-    const sw = right.createDiv("samaya-modeswitch");
-    sw.createEl("button", { text: "Day", cls: "is-active" });
-    sw.createEl("button", { text: "Week", attr: { title: "Expand to the week timeline" } }).onclick = () => this.plugin.expandTimeline();
+    renderModeSwitch(right, "day", { week: () => this.plugin.expandTimeline() });
   }
 
   /** The timeline next to the task list: Day/Week switch, all-day events, then the hours. */

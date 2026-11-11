@@ -7,8 +7,9 @@ import { addDays, fmtDur, hmToMin, minToHm, parseYmd, startOfWeek, today } from 
 import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { layoutItems } from "../timeline";
-import { bindZone, showTaskMenu } from "./common";
+import { bindZone, keyActivate, showTaskMenu } from "./common";
 import { addBands } from "./bands";
+import { renderWeekHead } from "./plannerHead";
 import { decorateSegment, dragDur, dropOnTimeline, segLabel, taskBlocks } from "./place";
 
 export const WTL_VIEW_TYPE = "samaya-week-timeline";
@@ -78,17 +79,7 @@ export class WeeklyTimelineView extends BasesView {
 
     if (this.plugin.boardWeek !== this.weekStart) { this.plugin.boardWeek = this.weekStart; this.plugin.modeBus.emit(); }
     const head = this.root.createDiv("samaya-week-head");
-    const go = (w: string) => { if (this.host?.weekChanged) this.host.weekChanged(w); else { this.weekStart = w; this.scrolledFor = ""; void this.render(); } };
-    head.createEl("button", { text: "‹" }).onclick = () => go(addDays(this.weekStart, -7));
-    head.createEl("button", { text: "This week" }).onclick = () => go(startOfWeek(today()));
-    head.createEl("button", { text: "›" }).onclick = () => go(addDays(this.weekStart, 7));
-    const fmt = (x: string) => parseYmd(x).toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    head.createEl("h2", { text: `${fmt(this.weekStart)} – ${fmt(addDays(this.weekStart, 6))}` });
-    if (this.host?.back) { // the same Day | Week switch as in the sidebar timeline, at the same top-right spot: click there again to fold back
-      const sw = head.createDiv("samaya-modeswitch is-right");
-      const day = sw.createEl("button", { text: "Day", attr: { title: "Back to the day planner (Esc)" } }); day.onclick = () => this.host?.back?.();
-      sw.createEl("button", { text: "Week", cls: "is-active" });
-    }
+    renderWeekHead(head, this.weekStart, w => { if (this.host?.weekChanged) this.host.weekChanged(w); else { this.weekStart = w; this.scrolledFor = ""; void this.render(); } }, this.host?.back);
 
     const scroll = this.root.createDiv("samaya-wtl-scroll");
     const cols = scroll.createDiv("samaya-wtl-heads");
@@ -113,12 +104,13 @@ export class WeeklyTimelineView extends BasesView {
       // header: weekday, all-day events, tasks without a time slot
       const h = cols.createDiv("samaya-wtl-head" + (isToday ? " is-today" : ""));
       const dayLbl = h.createDiv({ cls: "samaya-wtl-day", text: parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }) });
-      if (this.host?.openDay) { dayLbl.addClass("is-link"); dayLbl.title = "Open this day in the planner"; dayLbl.onclick = () => this.host?.openDay?.(date); }
+      if (this.host?.openDay) { dayLbl.addClass("is-link"); dayLbl.title = "Open this day in the planner"; dayLbl.onclick = () => this.host?.openDay?.(date); keyActivate(dayLbl, `Open ${date} in the planner`, () => this.host?.openDay?.(date)); }
       dayEvents.filter(e => e.allDay).forEach(e => h.createDiv({ cls: "samaya-wtl-chip is-event", text: e.title }));
       dayTasks.filter(t => !t.start && t.status !== "done").forEach(t => {
         const c = h.createDiv({ cls: "samaya-wtl-chip", attr: { title: "No time slot yet - drag onto the calendar" } });
         c.createSpan({ cls: "samaya-wtl-chip-title", text: t.title });
         c.createSpan({ cls: "samaya-wtl-chip-est", text: fmtDur(t.estimate || s.defaultEstimate) });
+        keyActivate(c, `Task without a time slot: ${t.title}. Press Enter to open`, () => open(t.file));
         c.addEventListener("dblclick", () => open(t.file)); c.addEventListener("contextmenu", e => showTaskMenu(this.plugin, t, e)); this.scope.draggable(c, t.file.path);
       });
 
@@ -176,10 +168,13 @@ export class WeeklyTimelineView extends BasesView {
         const t = it.task!;
         const bt = b.createDiv("samaya-block-title");
         const st = bt.createSpan({ cls: "samaya-block-state", attr: { title: t.status === "done" ? "Mark as not done" : "Mark as done" } });
-        st.addEventListener("click", e => { e.stopPropagation(); void setDone(this.app, t, t.status !== "done"); });
+        const toggle = () => { void setDone(this.app, t, t.status !== "done"); };
+        st.addEventListener("click", e => { e.stopPropagation(); toggle(); });
+        keyActivate(st, `Done: ${t.title}`, toggle, "checkbox"); st.setAttr("aria-checked", String(t.status === "done"));
         bt.createSpan({ text: t.title });
         b.createDiv({ cls: "samaya-block-time", text: `${minToHm(it.s)}–${minToHm(it.s + it.dur)} · ${fmtDur(it.dur)}${segLabel(it.seg!, it.n!)}` });
         decorateSegment(b, t, it.seg!, it.n!, lane);
+        keyActivate(b, `Task: ${t.title}, ${minToHm(it.s)}–${minToHm(it.s + it.dur)}. Press Enter to open`, () => open(t.file));
         b.addEventListener("dblclick", () => open(t.file));
         b.addEventListener("contextmenu", e => showTaskMenu(this.plugin, t, e));
         this.scope.draggable(b, t.file.path);

@@ -5,7 +5,7 @@ import type { DndScope } from "../dnd";
 import { Task, readTask, setDone } from "../model";
 import { layoutItems } from "../timeline";
 import { minToHm, parseYmd, today } from "../util";
-import { showTaskMenu } from "./common";
+import { keyActivate, showTaskMenu } from "./common";
 import { renderDayLines } from "./dayLines";
 import { decorateSegment, dragDur, dropOnTimeline, resizeBlock, segLabel, taskBlocks } from "./place";
 import { addBands } from "./bands";
@@ -86,12 +86,16 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
       if (!it.ev) {
         const task = it.task!;
         const st = bt.createSpan({ cls: "samaya-block-state", attr: { title: task.status === "done" ? "Mark as not done" : "Mark as done" } });
-        st.addEventListener("click", e => { e.stopPropagation(); void setDone(plugin.app, task, task.status !== "done"); });
+        const toggle = () => { void setDone(plugin.app, task, task.status !== "done"); };
+        st.addEventListener("click", e => { e.stopPropagation(); toggle(); });
+        keyActivate(st, `Done: ${task.title}`, toggle, "checkbox"); st.setAttr("aria-checked", String(task.status === "done"));
       }
       bt.createSpan({ text: it.ev ? it.ev.title : it.task!.title });
-      b.createDiv({ cls: it.ev ? "samaya-event-time" : "samaya-block-time", text: `${minToHm(it.s)} – ${minToHm(it.s + it.dur)}${it.ev ? "" : segLabel(it.seg!, it.n!)}` });
-      if (it.ev) { const n = notes.get(it.ev); if (n) { b.title = "Open meeting note"; b.addEventListener("click", () => open(n)); } return; }
+      const when = `${minToHm(it.s)} – ${minToHm(it.s + it.dur)}`;
+      b.createDiv({ cls: it.ev ? "samaya-event-time" : "samaya-block-time", text: `${when}${it.ev ? "" : segLabel(it.seg!, it.n!)}` });
+      if (it.ev) { const n = notes.get(it.ev); if (n) { b.title = "Open meeting note"; b.addEventListener("click", () => open(n)); keyActivate(b, `Meeting: ${it.ev.title}, ${when}. Open note`, () => open(n)); } return; }
       const t = it.task!;
+      keyActivate(b, `Task: ${t.title}, ${when}. Press Enter to open`, () => open(t.file));
       decorateSegment(b, t, it.seg!, it.n!, lane);
       b.addEventListener("dblclick", () => open(t.file));
       b.addEventListener("contextmenu", e => showTaskMenu(plugin, t, e));

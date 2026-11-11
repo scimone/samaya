@@ -1,16 +1,10 @@
 import { BasesView, QueryController, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
-import { addDays, parseYmd, startOfWeek, today } from "../util";
+import { startOfWeek, today } from "../util";
 import { DailyPlannerView, DAILY_VIEW_TYPE } from "./DailyPlannerView";
 import { WeeklyBoardView } from "./WeeklyBoardView";
 import { WeeklyTimelineView } from "./WeeklyTimelineView";
-import { renderDateNav, renderResetPill } from "./dateNav";
-
-/** ISO week number of a date (weeks start on Monday). */
-function isoWeek(d: Date): number {
-  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())); t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));
-  return Math.ceil(((t.getTime() - Date.UTC(t.getUTCFullYear(), 0, 1)) / 864e5 + 1) / 7);
-}
+import { renderWeekHead } from "./plannerHead";
 
 export { DAILY_VIEW_TYPE as PLANNER_VIEW_TYPE }; // the id stays "samaya-daily" so existing planner bases keep working
 
@@ -89,20 +83,8 @@ export class PlannerView extends BasesView {
    *  Both: ▲ ▼ (either view can take over) · Timeline only: ▲ (bring the board back) · Board only: ▼ (bring the timeline back). */
   /** The week heading, once, above both panes: [‹ Nov 9 – 15 ›] Week 46 · [↺ This week] (only when another week is showing) · Day | Week. */
   private renderHead() {
-    const h = this.headEl; h.empty(); const wk = this.tl.getWeek(); const cur = startOfWeek(today());
-    const go = (w: string) => { this.tl.showWeekOf(w); this.week.showWeekOf(w); this.renderHead(); };
-    const a = parseYmd(wk), z = parseYmd(addDays(wk, 6)); const mon = (d: Date) => d.toLocaleDateString(undefined, { month: "short" });
-    const range = a.getMonth() === z.getMonth() ? `${mon(a)} ${a.getDate()} – ${z.getDate()}` : `${mon(a)} ${a.getDate()} – ${mon(z)} ${z.getDate()}`;
-    h.createEl("h2", { cls: "samaya-planner-title", text: `Week ${isoWeek(a)}` });
-    const right = h.createDiv("samaya-planner-right"); // same spot as the day view's timeline header: navigation, then the Day | Week switch
-    if (wk !== cur) renderResetPill(right, "This week", "Back to the current week", wk < cur ? "right" : "left", () => go(cur)); // only when you are somewhere else
-    renderDateNav(right, {
-      variant: "box", label: range + (a.getFullYear() !== new Date().getFullYear() ? `, ${a.getFullYear()}` : ""),
-      prevLabel: "Previous week", nextLabel: "Next week", onPrev: () => go(addDays(wk, -7)), onNext: () => go(addDays(wk, 7)),
-    });
-    const sw = right.createDiv("samaya-modeswitch");
-    sw.createEl("button", { text: "Day", attr: { title: "Back to the day planner (Esc)" } }).onclick = () => this.plugin.collapseTimeline();
-    sw.createEl("button", { text: "Week", cls: "is-active" });
+    const h = this.headEl; h.empty();
+    renderWeekHead(h, this.tl.getWeek(), w => { this.tl.showWeekOf(w); this.week.showWeekOf(w); this.renderHead(); }, () => this.plugin.collapseTimeline());
   }
 
   private renderBars() {

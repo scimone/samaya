@@ -111,6 +111,10 @@ export class DailyPlannerView extends BasesView {
       row.createEl("h3", { text: "Tasks" });
       const badge = row.createSpan({ cls: "samaya-tasks-count" + (day.length && nd === day.length ? " is-complete" : ""), text: day.length ? `${nd} / ${day.length} done` : "0" });
       renderDoneBar(head, nd, day.length, false);
+      if (!sd && this.date >= today()) { // the quick add sits right under the bar and sticks with it
+        const add = head.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
+        this.bindAdd(add, () => ({ planned: this.date, order: day.length }));
+      }
       const all = day.length > 0 && nd === day.length;
       if (all && this.lastAll && this.lastAll.date === this.date && !this.lastAll.all) celebrate(badge); // right away: a delayed call can find the badge already replaced by the next re-render (the End day view re-renders several times per tick)
       this.lastAll = { date: this.date, all };
@@ -146,9 +150,8 @@ export class DailyPlannerView extends BasesView {
     });
     bindZone(this.scope, list, (path, i) => { void this.place(path, day.length, i.fromTimeline); });
 
-    if (!sd && this.date >= today() && (!pg ? true : !review && step !== 2)) { // below the list; in the day view it sticks to the bottom edge. (no quick add in Review and Timebox: go back to Pick to add tasks)
-      const dock = pg ? body : body.createDiv("samaya-add-dock"); // day view: a strip of its own, glued to the bottom edge (it covers whatever scrolls underneath)
-      const add = dock.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
+    if (pg && !sd && !review && step !== 2 && this.date >= today()) { // (no quick add in Review and Timebox: go back to Pick to add tasks)
+      const add = body.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
       this.bindAdd(add, () => ({ planned: this.date, order: day.length }));
     }
 

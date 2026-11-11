@@ -215,6 +215,10 @@ export default class SamayaPlugin extends Plugin {
     this.focus.init(this.addStatusBarItem(), this.data.focus ?? null);
     this.workday.init(this.addStatusBarItem(), this.data.workday ?? null);
 
+    this.registerEvent(this.app.workspace.on("active-leaf-change", leaf => { // switching to the planner tab folds the right sidebar away (the guides need it)
+      const k = this.guide?.kind; if (k === "plan" || k === "week" || !leaf || leaf.getRoot() !== this.app.workspace.rootSplit) return;
+      if (leaf.view.containerEl.querySelector(".samaya-planner, .samaya-daily")) this.app.workspace.rightSplit?.collapse();
+    }));
     this.addCommand({ id: "open-home", name: "Open home", checkCallback: c => { if (!this.settings.homeOn) return false; if (!c) void this.openHome(); return true; } });
     this.addCommand({ id: "plan-week", name: "Plan my week (guided)", callback: () => this.startWeekGuide() });
     this.addCommand({ id: "review-week", name: "Review my week", callback: () => this.reviewWeek() });

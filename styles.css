@@ -861,7 +861,7 @@ code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: var(--sa
 
 /* meetings that are over: greyed out like finished tasks, the left border keeps the meeting colour */
 .samaya-event.is-past { background: color-mix(in srgb, var(--text-muted) 12%, var(--background-primary)); color: var(--text-muted); border-left-color: var(--samaya-meeting); }
-.samaya-lane .samaya-event.is-past { opacity: 0.6; }
+.samaya-lane .samaya-event.is-past, .samaya-lane .samaya-block.is-done:not(.is-dragging):not(.is-current) { opacity: 0.6; } /* a meeting that is over and a done task look the same: grey, faded (each keeps its own colour edge) */
 
 /* Planner: Day and Week in one view */
 .samaya-planner { height: 100%; width: 100%; }

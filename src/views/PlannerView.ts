@@ -45,7 +45,7 @@ export class PlannerView extends BasesView {
       aligned: () => this.mode() === "expanded", placeBar: (r, head) => { if (head) head.after(this.barIn); else r.prepend(this.barIn); },
     });
     this.tl = new WeeklyTimelineView(controller, this.tlPane, plugin, {
-      hidden: () => this.mode() !== "expanded", flow: () => this.mode() === "expanded", viewH: () => this.rootEl.clientHeight,
+      hidden: () => this.mode() !== "expanded", layout: () => this.plugin.weekLayout, flow: () => this.mode() === "expanded", viewH: () => this.rootEl.clientHeight,
       back: () => plugin.collapseTimeline(), weekChanged: sync, openDay: d => { this.day.goTo(d); plugin.collapseTimeline(); },
     });
     for (const c of [this.day, this.week, this.tl]) { // the panes read the data and settings of this view
@@ -102,6 +102,7 @@ export class PlannerView extends BasesView {
     this.tlPane.toggleClass("is-collapsed", ex && l === "board"); // the other pane takes its room; CSS animates the height
     this.weekPane.toggleClass("is-collapsed", ex && l === "timeline");
     this.renderBars();
+    if (animate) this.tl.fit(); // the hours stretch or shrink with the layout
     if (animate && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
       for (const b of [this.bar, this.barIn]) b.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 260, delay: 120, fill: "backwards" });
     }

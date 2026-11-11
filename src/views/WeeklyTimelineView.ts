@@ -26,6 +26,8 @@ export class WeeklyTimelineView extends BasesView {
   private scrollTop = 0;
   private scrolledFor = "";
   private hourH = MIN_HOUR_H;
+  private hours = 12;
+  private fixed = 150; // height of everything but the hours (heading, day headers, padding), as last measured
   private seenH = 0;
 
   constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin, private host?: PlannerHost) {
@@ -93,12 +95,14 @@ export class WeeklyTimelineView extends BasesView {
     cols.createDiv("samaya-wtl-axis-spacer");
     // stretch the hours so the day fills the available height
     this.seenH = this.root.clientHeight;
-    const HOUR_H = this.hourH = flow ? Math.max(MIN_HOUR_H, Math.floor(((this.host?.viewH?.() ?? 700) * 0.66 - 90) / (endH - startH)))
-      : Math.max(MIN_HOUR_H, Math.floor((scroll.clientHeight - 70) / (endH - startH)));
+    this.hours = endH - startH;
+    const HOUR_H = this.hourH = flow ? this.fitFor(endH - startH, this.fixed) : Math.max(MIN_HOUR_H, Math.floor((scroll.clientHeight - 70) / (endH - startH)));
     const body = scroll.createDiv("samaya-wtl-body");
-    const axis = body.createDiv("samaya-wtl-axis"); axis.style.height = `${(endH - startH) * HOUR_H}px`;
-    for (let h = startH; h < endH; h++) axis.createSpan({ cls: "samaya-wtl-hour-label", text: minToHm(h * 60) }).style.top = `${(h - startH) * HOUR_H}px`;
-    const px = (m: number) => ((m - startH * 60) / 60) * HOUR_H;
+    this.root.style.setProperty("--wtl-hh", `${HOUR_H}px`); // every position below is a multiple of this, so the hours can stretch smoothly (fit)
+    const L = (hours: number) => `calc(${hours} * var(--wtl-hh))`; const T = (m: number) => L((m - startH * 60) / 60);
+    const axis = body.createDiv("samaya-wtl-axis"); axis.style.height = L(endH - startH);
+    for (let h = startH; h < endH; h++) axis.createSpan({ cls: "samaya-wtl-hour-label", text: minToHm(h * 60) }).style.top = L(h - startH);
+    const px = (m: number) => T(m);
     const open = (f: TFile) => { void this.app.workspace.getLeaf("tab").openFile(f); };
 
     for (let i = 0; i < days; i++) {
@@ -122,13 +126,13 @@ export class WeeklyTimelineView extends BasesView {
         const f = this.app.vault.getAbstractFileByPath(path);
         if (f instanceof TFile) void patchTask(this.app, f, { planned: date, week: null, start: null });
       });
-      const col = body.createDiv("samaya-wtl-col" + (isToday ? " is-today" : "")); col.style.height = `${(endH - startH) * HOUR_H}px`;
-      for (let hr = startH; hr < endH; hr++) col.createDiv("samaya-wtl-hour").style.top = `${(hr - startH) * HOUR_H}px`;
+      const col = body.createDiv("samaya-wtl-col" + (isToday ? " is-today" : "")); col.style.height = L(endH - startH);
+      for (let hr = startH; hr < endH; hr++) col.createDiv("samaya-wtl-hour").style.top = L(hr - startH);
       const lane = col.createDiv("samaya-lane");
-      addBands(this.plugin, lane, date, startH, endH, HOUR_H, today());
+      addBands(this.plugin, lane, date, startH, endH, () => this.hourH, today(), "var(--wtl-hh)");
 
       const startFor = (i2: { y: number; grabY: number }, dur: number) => {
-        const m = Math.round((((i2.y - lane.getBoundingClientRect().top - i2.grabY) / HOUR_H) * 60 + startH * 60) / slot) * slot;
+        const m = Math.round((((i2.y - lane.getBoundingClientRect().top - i2.grabY) / this.hourH) * 60 + startH * 60) / slot) * slot;
         return Math.max(startH * 60, Math.min(endH * 60 - Math.min(dur, slot), m));
       };
       let preview: HTMLElement | null = null;
@@ -136,7 +140,7 @@ export class WeeklyTimelineView extends BasesView {
         over: i2 => {
           const dur = dragDur(byPath.get(i2.path), i2.seg, s.defaultEstimate); const m = startFor(i2, dur);
           if (!preview) preview = lane.createDiv("samaya-preview");
-          preview.style.top = `${px(m)}px`; preview.style.height = `${Math.max(18, (dur / 60) * HOUR_H - 2)}px`;
+          preview.style.top = px(m); preview.style.height = `max(18px, calc(${L(dur / 60)} - 2px))`;
           preview.setText(`${minToHm(m)} – ${minToHm(m + dur)}`);
         },
         leave: () => { preview?.remove(); preview = null; },
@@ -160,9 +164,9 @@ export class WeeklyTimelineView extends BasesView {
       items.forEach(it => {
         if (it.s + it.dur <= startH * 60 || it.s >= endH * 60) return;
         const pl = slots.get(it)!; const top = px(Math.max(it.s, startH * 60));
-        const height = Math.max(18, px(Math.min(it.s + it.dur, endH * 60)) - top - 2);
+        const height = `max(18px, calc(${L((Math.min(it.s + it.dur, endH * 60) - Math.max(it.s, startH * 60)) / 60)} - 2px))`;
         const b = lane.createDiv({ cls: it.ev ? "samaya-event" : "samaya-block" + (it.task!.status === "done" ? " is-done" : "") });
-        b.style.top = `${top}px`; b.style.height = `${height}px`; b.style.left = `${(pl.col * 100) / pl.n}%`; b.style.width = `calc(${100 / pl.n}% - 2px)`;
+        b.style.top = top; b.style.height = height; b.style.left = `${(pl.col * 100) / pl.n}%`; b.style.width = `calc(${100 / pl.n}% - 2px)`;
         if (it.ev) {
           const nd = new Date(); if (date < today() || (isToday && nd.getHours() * 60 + nd.getMinutes() >= it.s + it.dur)) b.addClass("is-past"); // a meeting that is over
           b.createDiv({ cls: "samaya-event-title", text: it.ev.title });
@@ -185,16 +189,30 @@ export class WeeklyTimelineView extends BasesView {
     this.updateNowLines();
     if (this.scrolledFor !== this.weekStart) {
       this.scrolledFor = this.weekStart;
-      const nl = body.querySelector<HTMLElement>(".samaya-now");
-      this.scrollTop = nl ? Math.max(0, parseFloat(nl.style.top) - 150) : Math.max(0, (8 - startH) * HOUR_H);
+      const now = new Date(), nowM = now.getHours() * 60 + now.getMinutes();
+      this.scrollTop = body.querySelector(".samaya-now") ? Math.max(0, ((nowM - startH * 60) / 60) * HOUR_H - 150) : Math.max(0, (8 - startH) * HOUR_H);
     }
     if (!flow) scroll.scrollTop = this.scrollTop;
+  }
+
+  /** Expanded week: hour height for the current layout. Timeline only: the hours fill the window. Otherwise: about two thirds of it, the board takes the rest. */
+  private fitFor(hours: number, fixed: number) {
+    const h = this.host?.viewH?.() ?? 700;
+    return Math.max(MIN_HOUR_H, Math.floor((this.host?.layout?.() === "timeline" ? h - 28 - fixed : h * 0.66 - 90) / hours));
+  }
+  /** The layout changed: stretch or shrink the hours to fit, as a CSS transition (no redraw). */
+  fit() {
+    const body = this.root.querySelector<HTMLElement>(".samaya-wtl-body"); if (!body || !this.host?.flow?.()) return;
+    const fixed = this.root.offsetHeight - body.offsetHeight; // heading, day headers, padding
+    this.fixed = fixed; this.hourH = this.fitFor(this.hours, fixed);
+    this.root.addClass("is-fitting"); this.root.style.setProperty("--wtl-hh", `${this.hourH}px`);
+    window.setTimeout(() => this.root.removeClass("is-fitting"), 520);
   }
 
   private updateNowLines() {
     const now = new Date();
     this.root.querySelectorAll<HTMLElement>(".samaya-now").forEach(nl => {
-      nl.style.top = `${((now.getHours() * 60 + now.getMinutes() - Number(nl.dataset.startH ?? 0) * 60) / 60) * this.hourH}px`;
+      nl.style.top = `calc(${(now.getHours() * 60 + now.getMinutes() - Number(nl.dataset.startH ?? 0) * 60) / 60} * var(--wtl-hh))`;
     });
   }
 }

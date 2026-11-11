@@ -16,4 +16,6 @@ export interface PlannerHost {
   placeBar?(root: HTMLElement, head: HTMLElement | null): void;
   /** expanded week: the board's day columns line up with the timeline's, in every layout */
   aligned?(): boolean;
+  /** expanded week: which layout is showing */
+  layout?(): "split" | "timeline" | "board";
 }

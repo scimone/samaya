@@ -6,12 +6,13 @@ import { nowMin } from "../workday";
  * Lunch window (drag to move, drag the edges to resize - saved as the default) and today's logged
  * breaks as hatched bands behind the items of a timeline lane.
  */
-export function addBands(plugin: SamayaPlugin, lane: HTMLElement, date: string, startH: number, endH: number, hourH: number, todayStr: string) {
-  const s = plugin.settings; const px = (m: number) => ((m - startH * 60) / 60) * hourH;
+export function addBands(plugin: SamayaPlugin, lane: HTMLElement, date: string, startH: number, endH: number, hourH: number | (() => number), todayStr: string, cssHour?: string) {
+  const s = plugin.settings; const hpx = () => (typeof hourH === "function" ? hourH() : hourH); const px = (m: number) => ((m - startH * 60) / 60) * hpx();
   const band = (from: number, to: number, label: string, cls: string) => {
     const a = Math.max(from, startH * 60), b = Math.min(to, endH * 60); if (b <= a) return null;
     const el = lane.createDiv({ cls: `samaya-band ${cls}` });
-    el.style.top = `${px(a)}px`; el.style.height = `${px(b) - px(a)}px`;
+    if (cssHour) { el.style.top = `calc(${(a - startH * 60) / 60} * ${cssHour})`; el.style.height = `calc(${(b - a) / 60} * ${cssHour})`; } // stretches with the hours
+    else { el.style.top = `${px(a)}px`; el.style.height = `${px(b) - px(a)}px`; }
     const lbl = el.createSpan({ cls: "samaya-band-label", text: label });
     return { el, lbl };
   };
@@ -28,7 +29,7 @@ export function addBands(plugin: SamayaPlugin, lane: HTMLElement, date: string, 
       const y0 = e.clientY, slot = Math.max(5, s.slotMinutes); const lo = startH * 60, hi = endH * 60;
       let ns = ls, ne = le;
       const move = (ev: PointerEvent) => {
-        const dm = Math.round((((ev.clientY - y0) / hourH) * 60) / slot) * slot;
+        const dm = Math.round((((ev.clientY - y0) / hpx()) * 60) / slot) * slot;
         if (mode === "move") { const len = le - ls; ns = Math.max(lo, Math.min(hi - len, ls + dm)); ne = ns + len; }
         else if (mode === "top") { ns = Math.max(lo, Math.min(le - slot, ls + dm)); ne = le; }
         else { ne = Math.min(hi, Math.max(ls + slot, le + dm)); ns = ls; }

@@ -54,6 +54,9 @@ export function sortTasks(ts: Task[]): Task[] {
 /** Patch frontmatter; undefined/null/"" removes the key. */
 export async function patchTask(app: App, file: TFile, patch: Record<string, string | number | string[] | null | undefined>): Promise<void> {
   await app.fileManager.processFrontMatter(file, fm => {
+    // moved to another day: its time slot belonged to the old day, so it goes (unless a new slot is written with the move)
+    const moved = typeof patch.planned === "string" && patch.planned !== "" && String(fm.planned ?? "").slice(0, 10) !== patch.planned;
+    if (moved && !("start" in patch)) { delete fm.start; if (!("segments" in patch)) delete fm.segments; }
     // a split task keeps its segments only when they are written together with the new time or length
     if (!("segments" in patch) && ("start" in patch || ("estimate" in patch && fm.estimate !== patch.estimate))) delete fm.segments;
     // giving a task a day or a week ends its parking

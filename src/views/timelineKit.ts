@@ -92,7 +92,7 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
         keyActivate(st, `Done: ${task.title}`, toggle, "checkbox"); st.setAttr("aria-checked", String(task.status === "done"));
       }
       bt.createSpan({ text: it.ev ? it.ev.title : it.task!.title });
-      if (it.task && b.hasClass("is-current")) focusButton(plugin, bt, it.task); // the ongoing task can be started right here
+      if (it.task && isToday && it.task.status !== "done") focusButton(plugin, bt, it.task); // any task of today can be started right here
       const when = `${minToHm(it.s)} – ${minToHm(it.s + it.dur)}`;
       b.createDiv({ cls: it.ev ? "samaya-event-time" : "samaya-block-time", text: `${when}${it.ev ? "" : segLabel(it.seg!, it.n!)}` });
       if (it.ev) { const n = notes.get(it.ev); if (n) { b.title = "Open meeting note"; b.addEventListener("click", () => open(n)); keyActivate(b, `Meeting: ${it.ev.title}, ${when}. Open note`, () => open(n)); } return; }

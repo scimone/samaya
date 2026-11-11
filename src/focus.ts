@@ -6,8 +6,15 @@ import { fmtDur, fmtHm } from "./util";
 
 export const FOCUS_VIEW_TYPE = "samaya-focus";
 
-export interface FocusState { path: string; accumulatedMs: number; startedAt: number | null; }
+export interface FocusState { path: string; accumulatedMs: number; startedAt: number | null; /** finished runs (start, end in epoch ms): the time frames actually worked */ runs?: Array<[number, number]>; }
 
+const asList = (v: unknown): string[] => Array.isArray(v) ? v.map(String) : v ? [String(v)] : [];
+/** One focus run as "2026-11-11 09:05–09:40" (the end carries its date when the run crosses midnight). */
+const fmtRun = ([a, b]: [number, number]): string => {
+  const d = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+  const hm = (x: Date) => `${String(x.getHours()).padStart(2, "0")}:${String(x.getMinutes()).padStart(2, "0")}`;
+  const A = new Date(a), B = new Date(b); return `${d(A)} ${hm(A)}–${d(A) === d(B) ? "" : d(B) + " "}${hm(B)}`;
+};
 const clock = (ms: number): string => {
   const sec = Math.floor(ms / 1000); const f = (n: number) => String(n).padStart(2, "0");
   return `${f(Math.floor(sec / 3600))}:${f(Math.floor(sec / 60) % 60)}:${f(sec % 60)}`;
@@ -63,13 +70,13 @@ export class FocusManager {
     }
     await ws.revealLeaf(leaf);
   }
-  async pause() { const s = this.state; if (!s || !s.startedAt) return; s.accumulatedMs += Date.now() - s.startedAt; s.startedAt = null; await this.persist(); this.refreshViews(); }
+  async pause() { const s = this.state; if (!s || !s.startedAt) return; const now = Date.now(); s.accumulatedMs += now - s.startedAt; (s.runs ??= []).push([s.startedAt, now]); s.startedAt = null; await this.persist(); this.refreshViews(); }
   async resume() { const s = this.state; if (!s || s.startedAt) return; s.startedAt = Date.now(); await this.persist(); this.refreshViews(); }
   /** Stop, add the session's minutes to the task's `actual`, optionally complete it. */
   async stop(markDone: boolean) {
     const s = this.state; if (!s) return;
     await this.pause();
-    const minutes = Math.round(this.sessionMs() / 60000); const file = this.file;
+    const minutes = Math.round(this.sessionMs() / 60000); const file = this.file; const runs = s.runs ?? [];
     this.state = null; await this.persist();
     this.plugin.app.workspace.detachLeavesOfType(FOCUS_VIEW_TYPE);
     this.renderStatus();
@@ -77,6 +84,7 @@ export class FocusManager {
       const t = readTask(this.plugin.app, file);
       await patchTask(this.plugin.app, file, {
         actual: t.actual + minutes || undefined,
+        ...(runs.length ? { focus_sessions: [...asList(this.plugin.app.metadataCache.getFileCache(file)?.frontmatter?.focus_sessions), ...runs.filter(r => r[1] - r[0] >= 60000).map(fmtRun)] } : {}),
         ...(markDone ? { status: "done", completed: new Date().toISOString().slice(0, 10) } : {}),
       });
       new Notice(`Logged ${fmtDur(minutes)} on "${file.basename}"${markDone ? " - done" : ""}`);

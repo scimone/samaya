@@ -149,7 +149,7 @@ export class DailyPlannerView extends PlannerPane {
     else if (!shown.length) list.createDiv({ cls: "samaya-empty samaya-allset", text: "Nothing left to schedule." });
     shown.forEach(t => {
       const idx = day.indexOf(t);
-      const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true, focus: "ongoing" });
+      const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true, focus: "today" });
       c.toggleClass("is-timed", !!t.start);
       bindCardDrop(this.scope, c, (path, after, i) => { void this.place(path, idx + (after ? 1 : 0), i.fromTimeline); });
     });

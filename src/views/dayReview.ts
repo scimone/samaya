@@ -7,21 +7,23 @@ import { breakMinutes, workedMinutes } from "../worktime";
 import { fmtDur } from "../util";
 import { nowMin } from "../workday";
 
-/** Everything the review needs from the day: tasks planned for it plus any task worked on (focus runs written on that date). */
-function reviewItems(plugin: SamayaPlugin, all: Task[], date: string): ReviewItem[] {
-  const app = plugin.app; const planned = new Map(onDay(all, date).map(t => [t.file.path, t]));
+/** Everything the review needs. The baseline is the plan saved when the day was first planned; without one, today's list as it is now (`hasPlan` false). */
+function reviewItems(plugin: SamayaPlugin, all: Task[], date: string): { items: ReviewItem[]; hasPlan: boolean } {
+  const app = plugin.app; const snap = plugin.data.dayPlans?.[date]; const hasPlan = !!snap;
+  const now = new Map(onDay(all, date).map(t => [t.file.path, t]));
+  const base = new Map<string, number>(snap ? snap.map(x => [x.path, x.est] as [string, number]) : [...now].map(([p, t]) => [p, t.estimate] as [string, number]));
   const items: ReviewItem[] = [];
   for (const t of all) {
     const fm = (app.metadataCache.getFileCache(t.file)?.frontmatter ?? {}) as Record<string, unknown>;
     const runs = Array.isArray(fm.focus_sessions) ? fm.focus_sessions : fm.focus_sessions ? [fm.focus_sessions] : [];
-    const actual = runMinutesOn(runs, date); const p = planned.get(t.file.path);
+    const actual = runMinutesOn(runs, date); const est = base.get(t.file.path);
     const doneToday = t.status === "done" && String(fm.day_completed ?? "").slice(0, 10) === date; // ticked off today, even if never planned or timed
-    if (!p && !actual && !doneToday) continue;
+    if (est === undefined && !actual && !doneToday) continue;
     const tf = t.ticket ? app.metadataCache.getFirstLinkpathDest(t.ticket, t.file.path) : null;
     const pp = plugin.settings.projectsOn ? projectPathOf(app, t.file) : "";
-    items.push({ title: t.title, wasPlanned: !!p, planned: p?.estimate ?? 0, actual, done: t.status === "done", ticket: tf ? readTicket(app, tf).key : "", project: pp ? pp.split("/").pop()!.replace(/\.md$/, "") : "" });
+    items.push({ title: t.title, wasPlanned: est !== undefined || !hasPlan, planned: est ?? 0, actual, done: t.status === "done", ticket: tf ? readTicket(app, tf).key : "", project: pp ? pp.split("/").pop()!.replace(/\.md$/, "") : "" });
   }
-  return items;
+  return { items, hasPlan };
 }
 
 /** The charts grow in once; the planner re-renders often, and a re-render soon after the last one shows the final state at once. */
@@ -33,10 +35,10 @@ const ICON_OK = "check", ICON_UP = "trending-up", ICON_DOWN = "trending-down";
 /** Second step of "End my day": the day in numbers and charts - how the time was spent, and how that compares with the plan. */
 export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { date: string; all: Task[]; meetings: number }) {
   anim = Date.now() - lastShown > 4000; lastShown = Date.now();
-  const grid = host.createDiv("samaya-rv"); const box = grid.createDiv("samaya-rv-col"); const side = grid.createDiv("samaya-rv-col"); const items = reviewItems(plugin, o.all, o.date);
+  const grid = host.createDiv("samaya-rv"); const box = grid.createDiv("samaya-rv-col"); const side = grid.createDiv("samaya-rv-col"); const { items, hasPlan } = reviewItems(plugin, o.all, o.date);
   const log = plugin.workday.log; const worked = workedMinutes(log, nowMin()); const breaks = log ? breakMinutes(log) + (log.open ? Math.max(0, nowMin() - Number(log.open.start.slice(0, 2)) * 60 - Number(log.open.start.slice(3, 5))) : 0) : 0;
   const focus = items.reduce((a, i) => a + i.actual, 0); const planned = items.reduce((a, i) => a + i.planned, 0);
-  const plannedItems = items.filter(i => i.wasPlanned); const added = items.filter(i => !i.wasPlanned); const done = plannedItems.filter(i => i.done).length;
+  const plannedItems = items.filter(i => i.wasPlanned); const added = hasPlan ? items.filter(i => !i.wasPlanned) : []; const done = plannedItems.filter(i => i.done).length;
   const comparable = plannedItems.reduce((a, i) => a + i.planned, 0); const comparableActual = plannedItems.reduce((a, i) => a + i.actual, 0);
   const sp = daySplit(worked, focus, o.meetings, breaks);
 
@@ -79,7 +81,8 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   for (const [cls, name] of [["is-plan", "Planned"], ["is-act", "Actual"], ["is-over", "Over plan"]]) { const l = keyEl.createSpan("samaya-rv-legend-item"); l.createSpan({ cls: `samaya-rv-swatch ${cls}` }); l.createSpan({ text: name }); }
   if (!planRows.length) side.createDiv({ cls: "samaya-empty", text: "Nothing was planned for today." });
   else drawBars(side, planRows.map(r => ({ label: r.label, planned: r.planned, actual: r.actual, done: r.done, tag: "" })));
-  if (addRows.length) {
+  if (!hasPlan) side.createDiv({ cls: "samaya-rv-note", text: "No plan was saved when this day was planned, so today's list is used as the plan." });
+  if (addRows.length && hasPlan) {
     const h = side.createDiv({ cls: "samaya-rv-h samaya-rv-h-row" }); h.createSpan({ text: "Added during the day" }); h.createSpan({ cls: "samaya-rv-row-tag", text: `${addRows.length} not in this morning's plan` });
     drawBars(side, addRows.map(r => ({ label: r.label, planned: 0, actual: r.actual, done: r.done, tag: "" })), false, true);
   }

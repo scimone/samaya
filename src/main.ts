@@ -31,7 +31,7 @@ import { BUFFER_SHARE, isLeftover, weekSteps, weekToPlan } from "./weekplan";
 import { capacityOf, weekBuckets } from "./views/weekColumn";
 import type { DayLog } from "./worktime";
 
-interface PluginData { settings?: Partial<SamayaSettings>; focus?: FocusState | null; workday?: DayLog | null; /** per-day workday start/end set with the timeline lines */ dayWindows?: Record<string, [string, string]>; }
+interface PluginData { settings?: Partial<SamayaSettings>; focus?: FocusState | null; workday?: DayLog | null; /** per-day workday start/end set with the timeline lines */ dayWindows?: Record<string, [string, string]>; /** the plan as it was when the day was first planned (date -> task path and estimate), the baseline of the end-of-day review */ dayPlans?: Record<string, Array<{ path: string; est: number }>>; }
 export interface GuideState { step: number; /** the Review step exists (there were unfinished overdue tasks) */ review: boolean; fresh: boolean; /** "shutdown": the one-step end-of-day guide; "week": the guided week plan */ kind: "plan" | "shutdown" | "week"; /** week guide: the monday (ymd) being planned */ week?: string; /** week guide: the Tickets step exists (there are open tickets) */ tickets?: boolean; /** week guide: days shown by the board (5 or 7), for the sidebar */ days?: number; }
 
 const TICKETS_BASE_TEMPLATE = (folder: string) => `filters:
@@ -666,6 +666,12 @@ export default class SamayaPlugin extends Plugin {
       if (evs) await writeSection(this.app, s, td, "Meetings", meetingLines(await Promise.all(evs.map(async e => ({ ...e, note: e.allDay ? undefined : await ensureMeetingNote(this.app, s, e, evs).then(f => f.basename, () => undefined) })))));
     }
     if (write && journalWants(s, "journalPlanned")) await writeSection(this.app, s, td, "Planned tasks", taskLines(await toJournalTasks(this.app, sortByStart(day), false, true)));
+    const plans = (this.data.dayPlans ??= {}); // the first plan of the day stays as the baseline; planning again does not replace it
+    if (!plans[td]) {
+      plans[td] = day.map(t => ({ path: t.file.path, est: t.estimate }));
+      for (const d of Object.keys(plans)) if (d < addDays(td, -60)) delete plans[d];
+      await this.saveData(this.data);
+    }
     const wasStarted = this.workday.started;
     await this.workday.startDay();
     this.closeGuide();

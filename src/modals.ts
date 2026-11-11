@@ -32,6 +32,19 @@ export class ConfirmCreateModal extends Modal {
   }
 }
 
+/** "Delete this task?" - the delete button is the warning one; Cancel has the focus. */
+export class ConfirmDeleteModal extends Modal {
+  constructor(plugin: SamayaPlugin, private title: string, private onDelete: () => void) { super(plugin.app); }
+  onOpen() {
+    this.titleEl.setText("Delete task?");
+    this.contentEl.createEl("p", { text: `“${this.title}” will be deleted (it goes where your vault's “Deleted files” setting sends it).` });
+    const nav = this.contentEl.createDiv("samaya-ritual-nav");
+    const cancel = nav.createEl("button", { text: "Cancel" }); cancel.onclick = () => this.close();
+    nav.createEl("button", { text: "Delete", cls: "mod-warning" }).onclick = () => { this.close(); this.onDelete(); };
+    cancel.focus();
+  }
+}
+
 export class TicketSuggestModal extends FuzzySuggestModal<Ticket | null> {
   constructor(private plugin: SamayaPlugin, private choose: (t: Ticket | null) => void) {
     super(plugin.app); this.setPlaceholder("Assign to ticket…");

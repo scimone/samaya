@@ -2,7 +2,7 @@ import { App, Menu, TFile } from "obsidian";
 import type SamayaPlugin from "../main";
 import { DndScope, DropInfo } from "../dnd";
 import { Task, addSubtask, assignTicket, parkTask, patchTask, readSubtasks, readTicket, setDone, ticketPathOf, toggleSubtask } from "../model";
-import { ProjectSuggestModal, TicketSuggestModal } from "../modals";
+import { ConfirmDeleteModal, ProjectSuggestModal, TicketSuggestModal } from "../modals";
 import { assignProject, projectPathOf } from "../projects";
 import { HORIZONS, Horizon, bucketOf, fmtHm, minToHm, parseDuration, startOfWeek, today } from "../util";
 
@@ -125,8 +125,8 @@ export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent) {
   HORIZONS.filter(([h]) => h !== "someday" && h !== "never").forEach(([h, label]) => m.addItem(i => i.setTitle(`Backlog: ${label.toLowerCase()}`).setIcon("calendar-clock").onClick(() => { void parkTask(app, t.file, h); })));
   m.addSeparator();
   m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { void app.workspace.getLeaf("tab").openFile(t.file); }));
-  m.addItem(i => i.setTitle("Delete task").setIcon("trash").setWarning(true).onClick(() => { // follows the vault's "deleted files" setting (system trash, .trash or permanent)
-    void app.fileManager.trashFile(t.file).then(() => { window.setTimeout(() => plugin.bus.emit(), 150); });
+  m.addItem(i => i.setTitle("Delete task").setIcon("trash").setWarning(true).onClick(() => { // asks first; then follows the vault's "deleted files" setting (system trash, .trash or permanent)
+    new ConfirmDeleteModal(plugin, t.title, () => { void app.fileManager.trashFile(t.file).then(() => { window.setTimeout(() => plugin.bus.emit(), 150); }); }).open();
   }));
   m.showAtMouseEvent(e);
 }

@@ -2,10 +2,7 @@ import { Editor, MarkdownView, Notice, Plugin, TFile, normalizePath, setIcon } f
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FOCUS_VIEW_TYPE, FocusManager, FocusState, FocusView } from "./focus";
 import { IcsClient, allTickets, assignTicket, createTask, momentFmt } from "./model";
-import { DAILY_VIEW_TYPE } from "./views/DailyPlannerView";
-import { PlannerView } from "./views/PlannerView";
-import { WEEK_VIEW_TYPE, WeeklyBoardView } from "./views/WeeklyBoardView";
-import { WTL_VIEW_TYPE } from "./views/WeeklyTimelineView";
+import { PLANNER_VIEW_TYPE, PlannerView } from "./views/PlannerView";
 import { BACKLOG_VIEW_TYPE, BacklogView } from "./views/BacklogView";
 import { BACKLOG_BUCKETS_VIEW_TYPE, BacklogBucketsView } from "./views/BacklogBucketsView";
 import { syncTickets } from "./sync";
@@ -34,21 +31,6 @@ import type { DayLog } from "./worktime";
 
 interface PluginData { settings?: Partial<SamayaSettings>; focus?: FocusState | null; workday?: DayLog | null; /** per-day workday start/end set with the timeline lines */ dayWindows?: Record<string, [string, string]>; }
 export interface GuideState { step: number; /** the Review step exists (there were unfinished overdue tasks) */ review: boolean; fresh: boolean; /** "shutdown": the one-step end-of-day guide; "week": the guided week plan */ kind: "plan" | "shutdown" | "week"; /** week guide: the monday (ymd) being planned */ week?: string; /** week guide: the Tickets step exists (there are open tickets) */ tickets?: boolean; /** week guide: days shown by the board (5 or 7), for the sidebar */ days?: number; }
-
-const BASE_TEMPLATE = (folder: string) => `filters:
-  and:
-    - file.inFolder("${folder}")
-properties:
-  note.planned:
-    displayName: Planned
-  note.estimate:
-    displayName: Estimate (min)
-  note.start:
-    displayName: Start
-views:
-  - type: ${DAILY_VIEW_TYPE}
-    name: Planner
-`;
 
 const TICKETS_BASE_TEMPLATE = (folder: string) => `filters:
   and:
@@ -122,20 +104,6 @@ views:
         direction: DESC
 `;
 
-/** Remove the Backlog / All tasks views (they moved to the Tasks base) from a planner base file. */
-function stripTaskViews(txt: string): string {
-  const out: string[] = []; let block: string[] = []; let inViews = false;
-  const flush = () => { if (!block.length || !/^    name: (Backlog|All tasks)\s*$/m.test(block.join("\n"))) out.push(...block); block = []; };
-  for (const line of txt.split("\n")) {
-    if (/^views:/.test(line)) { inViews = true; out.push(line); continue; }
-    if (inViews && /^  - /.test(line)) { flush(); block.push(line); }
-    else if (inViews && block.length && /^\s/.test(line)) block.push(line);
-    else { flush(); out.push(line); }
-  }
-  flush();
-  return out.join("\n");
-}
-
 export default class SamayaPlugin extends Plugin {
   settings!: SamayaSettings;
   data: PluginData = {};
@@ -179,6 +147,7 @@ export default class SamayaPlugin extends Plugin {
     this.data = (await this.loadData()) ?? {};
     this.settings = Object.assign({}, DEFAULT_SETTINGS, migrateSettings(this.data.settings ?? {}));
     applyColors(this.settings);
+    this.registerView(PLANNER_VIEW_TYPE, leaf => new PlannerView(leaf, this));
     this.registerView(DASHBOARD_VIEW_TYPE, leaf => new DashboardView(leaf, this));
     this.registerView(TODAY_VIEW_TYPE, leaf => new TodayView(leaf, this));
     this.registerView(JOURNAL_CAL_TYPE, leaf => new JournalCalendarView(leaf, this));
@@ -187,15 +156,6 @@ export default class SamayaPlugin extends Plugin {
 
     const ok = (id: string, name: string, icon: string, factory: Parameters<Plugin["registerBasesView"]>[1]["factory"], options: Parameters<Plugin["registerBasesView"]>[1]["options"]) =>
       this.registerBasesView(id, { name, icon, factory, options });
-    const a = ok(DAILY_VIEW_TYPE, "Planner", "lucide-calendar-clock",
-      (c, el) => new PlannerView(c, el, this),
-      () => [
-        { type: "toggle", key: "showIcs", displayName: "Count calendar events as busy", default: true },
-        { type: "toggle", key: "showWeekends", displayName: "Show weekends (plan week)", default: false },
-      ]);
-    const b = ok(WEEK_VIEW_TYPE, "Weekly Board", "lucide-columns-3",
-      (c, el) => new WeeklyBoardView(c, el, this),
-      () => [{ type: "toggle", key: "showWeekends", displayName: "Show weekends", default: false }]);
     const c = ok(BACKLOG_VIEW_TYPE, "Backlog", "lucide-inbox",
       (ct, el) => new BacklogView(ct, el, this),
       () => [{ type: "toggle", key: "hideEmptyTickets", displayName: "Hide tickets without tasks", default: false }]);
@@ -213,7 +173,7 @@ export default class SamayaPlugin extends Plugin {
       (ct, el) => new JournalBaseView(ct, el, this), () => []);
     const h = ok(HOME_VIEW_TYPE, "Home", "lucide-home",
       (ct, el) => new HomeView(ct, el, this), () => []);
-    if (!a || !b || !c || !e || !f || !g || !h) new Notice("Samaya: could not register Bases views. Enable the core Bases plugin and use Obsidian 1.10+.");
+    if (!c || !e || !f || !g || !h) new Notice("Samaya: could not register Bases views. Enable the core Bases plugin and use Obsidian 1.10+.");
 
     this.addRibbonIcon("calendar-clock", "Open Samaya planner", () => { void this.openPlanner(); });
     this.focus.init(this.addStatusBarItem(), this.data.focus ?? null);
@@ -543,7 +503,7 @@ export default class SamayaPlugin extends Plugin {
       if (this.settings.journalOn && !(await this.app.vault.adapter.exists(dn))) await this.app.vault.adapter.write(dn, JSON.stringify({ folder: rootOf(this.settings.journalFolder).replace(/^\/$/, ""), format: "YYYY-MM-DD" }, null, 2));
     } catch (e) { console.warn("Samaya: could not seed daily-notes.json", e); }
 
-    // Backlog + All tasks live in their own base inside the tasks folder; moved out of the planner base once
+    // Backlog + All tasks live in their own base inside the tasks folder
     const tp = normalizePath(folder === "/" ? "Tasks.base" : `${folder}/Tasks.base`);
     const tasksBaseFile = this.app.vault.getAbstractFileByPath(tp);
     const tasksBaseNew = !tasksBaseFile;
@@ -557,38 +517,31 @@ export default class SamayaPlugin extends Plugin {
     }
     if (tasksBaseNew) { await this.app.vault.create(tp, TASKS_BASE_TEMPLATE(folder)); if (announce) new Notice("Created " + tp); }
 
-    const bp = normalizePath(this.settings.plannerFile);
-    const bf = this.app.vault.getAbstractFileByPath(bp);
-    if (!bf) { const dir = bp.split("/").slice(0, -1).join("/"); if (dir) await ensureFolder(this.app, dir); await this.app.vault.create(bp, BASE_TEMPLATE(folder)); if (announce) new Notice("Created " + bp); }
-    else if (bf instanceof TFile) {
-      let txt = await this.app.vault.read(bf);
-      if (/file\.folder == "/.test(txt)) { txt = txt.replace(/file\.folder == "([^"]*)"/, 'file.inFolder("$1")'); await this.app.vault.modify(bf, txt); } // tasks now live in year/month subfolders
-      if (tasksBaseNew) {
-        const next = stripTaskViews(txt);
-        if (next !== txt) { await this.app.vault.modify(bf, next); txt = next; new Notice(`Samaya: moved the Backlog and All tasks views to ${tp}`); }
-      } else if (announce) new Notice("Planner files already exist.");
-      // the Daily view is now the Planner (day + week in one): rename it, and drop the separate Weekly Board tab
-      let next = txt.replace(new RegExp(`(  - type: ${DAILY_VIEW_TYPE}\\n    name: )(?:Daily Planner|Daily)(\\s*\\n)`), "$1Planner$2")
-        .replace(new RegExp(`  - type: ${WEEK_VIEW_TYPE}\\n    name: [^\\n]*\\n`), "");
-      next = next.replace(new RegExp(`  - type: ${WTL_VIEW_TYPE}\\n    name: [^\\n]*\\n`), "");
-      if (next !== txt) await this.app.vault.modify(bf, next);
+    await this.removeLegacyPlannerBase();
+  }
+
+  /** The planner used to live in a base file (Planner/Planner.base): it is a view of its own now, so that file is moved to the trash. */
+  private async removeLegacyPlannerBase() {
+    for (const f of this.app.vault.getFiles()) {
+      if (f.extension !== "base" || f.basename !== "Planner") continue;
+      const txt = await this.app.vault.read(f);
+      if (/^\s*- type: samaya-daily\s*$/m.test(txt) && !/^\s*- type: (?!samaya-)/m.test(txt)) { const dir = f.parent; await this.app.fileManager.trashFile(f); if (dir && !dir.isRoot() && dir.children.length === 0) await this.app.fileManager.trashFile(dir); }
     }
   }
 
   /** Open (or focus) the planner in the MAIN area, even when called from a sidebar. */
   async openPlanner() {
     await this.scaffold(false);
-    const f = this.app.vault.getAbstractFileByPath(normalizePath(this.settings.plannerFile));
-    if (!(f instanceof TFile)) return;
-    const ws = this.app.workspace; let found: import("obsidian").WorkspaceLeaf | null = null;
-    ws.iterateRootLeaves(l => { if (!found && (l.view as { file?: TFile }).file?.path === f.path) found = l; });
-    const leaf = found ?? ws.getLeaf("tab");
-    if (!found) await leaf.openFile(f);
+    const ws = this.app.workspace;
+    let leaf = ws.getLeavesOfType(PLANNER_VIEW_TYPE)[0];
+    if (!leaf) { leaf = ws.getLeaf("tab"); await leaf.setViewState({ type: PLANNER_VIEW_TYPE, active: true }); }
     await ws.revealLeaf(leaf);
     const k = this.guide?.kind; // the day's status is part of the planner now; only Plan my day (timeline) and Plan my week (This week) still use the sidebar
     if (k === "plan" || k === "week") await this.openToday(); else ws.rightSplit?.collapse();
     ws.setActiveLeaf(leaf, { focus: true });
   }
+  /** Redraw the open planner (its options changed). */
+  refreshPlanner() { this.app.workspace.getLeavesOfType(PLANNER_VIEW_TYPE).forEach(l => (l.view as PlannerView).onDataUpdated()); }
   /** The right sidebar only serves the guides: the timeline of Plan my day, the This week column of Plan my week. */
   async openToday() {
     const ws = this.app.workspace;

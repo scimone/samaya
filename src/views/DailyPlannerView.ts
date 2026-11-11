@@ -1,4 +1,5 @@
-import { BasesView, Notice, QueryController, TFile, WorkspaceLeaf, setIcon } from "obsidian";
+import { Notice, TFile, WorkspaceLeaf, setIcon } from "obsidian";
+import { PlannerPane } from "./plannerPane";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, allTasks, prefixOf, createTask, patchTask, parkTask, placeInDay, readTask, sortTasks, isOverdue } from "../model";
@@ -18,10 +19,8 @@ import { renderDayHeadStatus, renderDayNoteIcon } from "./headStatus";
 import { renderDateNav, renderResetPill } from "./dateNav";
 import { dayHeadSub, fitHead, renderHeadTitle, renderModeSwitch } from "./plannerHead";
 
-export const DAILY_VIEW_TYPE = "samaya-daily";
 
-export class DailyPlannerView extends BasesView {
-  readonly type = DAILY_VIEW_TYPE;
+export class DailyPlannerView extends PlannerPane {
   private root: HTMLElement;
   private date = today();
   private scope = new DndScope();
@@ -39,8 +38,8 @@ export class DailyPlannerView extends BasesView {
   private tlHeight = 0;
   private tlWatch: ResizeObserver | null = null;
 
-  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin, private host?: PlannerHost) {
-    super(controller);
+  constructor(parentEl: HTMLElement, plugin: SamayaPlugin, private host?: PlannerHost) {
+    super(plugin);
     this.root = parentEl.createDiv("samaya-daily");
     const light = (e: MouseEvent, on: boolean) => { // hover a task card or a timeline block: the other one is highlighted too
       const el = (e.target as HTMLElement).closest<HTMLElement>("[data-link]"); if (!el) return;
@@ -57,7 +56,7 @@ export class DailyPlannerView extends BasesView {
 
   private get showIcs() { return this.config.get("showIcs") !== false; }
   /** While planning my day, read the vault directly: a task just added must show up at once, not when the base has refreshed. */
-  private entryTasks(): Task[] { return this.plugin.guide ? allTasks(this.app, this.plugin.settings) : this.data.data.map(e => readTask(this.app, e.file)); }
+  private entryTasks(): Task[] { return allTasks(this.app, this.plugin.settings); }
 
   onDataUpdated(): void { this.schedule(); }
   refresh() { this.schedule(); }

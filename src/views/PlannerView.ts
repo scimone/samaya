@@ -1,13 +1,13 @@
-import { BasesView, QueryController, setIcon } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { startOfWeek, today } from "../util";
-import { DailyPlannerView, DAILY_VIEW_TYPE } from "./DailyPlannerView";
+import { DailyPlannerView } from "./DailyPlannerView";
 import { WeeklyBoardView } from "./WeeklyBoardView";
 import { WeeklyTimelineView } from "./WeeklyTimelineView";
 import { renderWeekHead } from "./plannerHead";
 import { DashboardPanel } from "./DashboardView";
 
-export { DAILY_VIEW_TYPE as PLANNER_VIEW_TYPE }; // the id stays "samaya-daily" so existing planner bases keep working
+export const PLANNER_VIEW_TYPE = "samaya-planner";
 
 type Mode = "day" | "week" | "expanded" | "worktime";
 type Layout = "split" | "timeline" | "board";
@@ -17,25 +17,29 @@ type Layout = "split" | "timeline" | "board";
  * ("Plan week"), which takes over while it runs. In the expanded week both panes stay rendered: the layouts only collapse one of them
  * (a CSS height transition), so switching never redraws anything.
  */
-export class PlannerView extends BasesView {
-  readonly type = DAILY_VIEW_TYPE;
-  private rootEl: HTMLElement;
-  private dayPane: HTMLElement;
-  private weekPane: HTMLElement; // the task board (and the week guide)
-  private tlPane: HTMLElement;
-  private headEl: HTMLElement; // the week heading: one for the whole expanded week, so it never moves when the layout changes
-  private wtPane: HTMLElement; // the work time dashboard
-  private wt: DashboardPanel;
-  private bar: HTMLElement; // between the panes
-  private day: DailyPlannerView;
-  private week: WeeklyBoardView;
-  private tl: WeeklyTimelineView;
-  private shown: Mode;
-  private shownLayout: Layout;
+export class PlannerView extends ItemView {
+  private rootEl!: HTMLElement;
+  private dayPane!: HTMLElement;
+  private weekPane!: HTMLElement; // the task board (and the week guide)
+  private tlPane!: HTMLElement;
+  private headEl!: HTMLElement; // the week heading: one for the whole expanded week, so it never moves when the layout changes
+  private wtPane!: HTMLElement; // the work time dashboard
+  private wt!: DashboardPanel;
+  private bar!: HTMLElement; // between the panes
+  private day!: DailyPlannerView;
+  private week!: WeeklyBoardView;
+  private tl!: WeeklyTimelineView;
+  private shown: Mode = "day";
+  private shownLayout: Layout = "split";
   private seenH = 0;
 
-  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
-    super(controller);
+  constructor(leaf: WorkspaceLeaf, private plugin: SamayaPlugin) { super(leaf); }
+  getViewType() { return PLANNER_VIEW_TYPE; }
+  getDisplayText() { return "Planner"; }
+  getIcon() { return "calendar-clock"; }
+
+  async onOpen() {
+    const plugin = this.plugin; const parentEl = this.contentEl; parentEl.empty();
     const root = this.rootEl = parentEl.createDiv("samaya-planner");
     this.headEl = root.createDiv("samaya-week-head samaya-planner-head");
     this.dayPane = root.createDiv("samaya-planner-pane");
@@ -45,26 +49,26 @@ export class PlannerView extends BasesView {
     this.wtPane = root.createDiv("samaya-planner-pane samaya-wt-pane is-hidden");
     this.wt = new DashboardPanel(plugin, this.wtPane.createDiv(), () => plugin.hideWorkTime());
     const sync = (w: string) => { this.tl.showWeekOf(w); this.week.showWeekOf(w); this.renderHead(); };
-    this.day = new DailyPlannerView(controller, this.dayPane, plugin, { hidden: () => this.mode() !== "day" });
-    this.week = new WeeklyBoardView(controller, this.weekPane, plugin, {
+    this.day = new DailyPlannerView(this.dayPane, plugin, { hidden: () => this.mode() !== "day" });
+    this.week = new WeeklyBoardView(this.weekPane, plugin, {
       hidden: () => this.mode() === "day" || this.mode() === "worktime", openDay: d => { this.day.goTo(d); plugin.collapseTimeline(); }, back: () => plugin.collapseTimeline(), weekChanged: sync,
       aligned: () => this.mode() === "expanded",
     });
-    this.tl = new WeeklyTimelineView(controller, this.tlPane, plugin, {
+    this.tl = new WeeklyTimelineView(this.tlPane, plugin, {
       hidden: () => this.mode() !== "expanded", layout: () => this.plugin.weekLayout, flow: () => this.mode() === "expanded", viewH: () => this.rootEl.clientHeight - this.headEl.offsetHeight, barH: () => this.bar.offsetHeight,
       back: () => plugin.collapseTimeline(), weekChanged: sync, openDay: d => { this.day.goTo(d); plugin.collapseTimeline(); },
     });
-    for (const c of [this.day, this.week, this.tl]) { // the panes read the data and settings of this view
-      Object.defineProperty(c, "data", { get: () => this.data, configurable: true });
-      Object.defineProperty(c, "config", { get: () => this.config, configurable: true });
-      Object.defineProperty(c, "allProperties", { get: () => this.allProperties, configurable: true });
-      this.addChild(c);
-    }
+    for (const c of [this.day, this.week, this.tl]) this.addChild(c);
     const ro = new ResizeObserver(() => { if (this.shown === "expanded" && this.rootEl.clientHeight !== this.seenH) { this.seenH = this.rootEl.clientHeight; this.tl.refresh(); } }); // the hours follow the window
     ro.observe(this.rootEl); this.register(() => ro.disconnect());
     const hro = new ResizeObserver(() => { this.rootEl.style.setProperty("--wk-head", `${this.headEl.getBoundingClientRect().height}px`); }); // the arrow bar sticks exactly under the heading, whenever the heading fills in or resizes
     hro.observe(this.headEl); this.register(() => hro.disconnect());
     this.shown = this.mode(); this.shownLayout = plugin.weekLayout; this.applyMode(false);
+    const mc = plugin.app.metadataCache, vault = plugin.app.vault; let tm = 0; // tasks changed, created, moved or deleted: the panes read them from the vault
+    const touched = () => { window.clearTimeout(tm); tm = window.setTimeout(() => this.onDataUpdated(), 150); };
+    this.registerEvent(mc.on("changed", touched)); this.registerEvent(mc.on("deleted", touched));
+    this.registerEvent(vault.on("create", touched)); this.registerEvent(vault.on("rename", touched)); this.registerEvent(vault.on("delete", touched));
+    this.register(() => window.clearTimeout(tm));
     this.register(() => this.wt.dispose());
     this.register(plugin.bus.on(() => { if (this.shown === "worktime") this.wt.schedule(); }));
     this.registerEvent(plugin.app.metadataCache.on("changed", () => { if (this.shown === "worktime") this.wt.schedule(); }));
@@ -84,7 +88,7 @@ export class PlannerView extends BasesView {
       if (this.mode() === "worktime") plugin.hideWorkTime(); else plugin.collapseTimeline();
     });
   }
-  onunload() { this.plugin.workTimeOpen = false; if (this.plugin.timelineWide) this.plugin.collapseTimeline(); } // closing the tab must not leave the sidebars folded
+  async onClose() { this.plugin.workTimeOpen = false; if (this.plugin.timelineWide) this.plugin.collapseTimeline(); } // closing the tab must not leave the sidebars folded
 
   private mode(): Mode {
     if (this.plugin.guide) this.plugin.workTimeOpen = false; // a guide takes the planner over
@@ -133,6 +137,7 @@ export class PlannerView extends BasesView {
     }
     this.plugin.modeBus.emit(); // the sidebar follows the pane in front
   }
-  private setDays() { this.rootEl.style.setProperty("--wk-days", this.config?.get("showWeekends") === true ? "7" : "5"); } // the column lines run through the arrow bar
+  private setDays() { this.rootEl.style.setProperty("--wk-days", this.plugin.settings.plannerWeekends ? "7" : "5"); } // the column lines run through the arrow bar
+  /** Settings changed or tasks changed: redraw every pane. */
   onDataUpdated(): void { this.setDays(); this.day.onDataUpdated(); this.week.onDataUpdated(); this.tl.onDataUpdated(); }
 }

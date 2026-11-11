@@ -1,8 +1,9 @@
-import { BasesView, QueryController, TFile, setIcon } from "obsidian";
+import { TFile, setIcon } from "obsidian";
+import { PlannerPane } from "./plannerPane";
 import type { PlannerHost } from "./plannerHost";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
-import { Task, patchTask, readTask, setDone, sortTasks } from "../model";
+import { Task, allTasks, patchTask, readTask, setDone, sortTasks } from "../model";
 import { addDays, fmtDur, hmToMin, minToHm, parseYmd, startOfWeek, today } from "../util";
 import type { IcsEvent } from "../ics";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
@@ -12,12 +13,10 @@ import { addBands } from "./bands";
 import { renderWeekHead } from "./plannerHead";
 import { decorateSegment, dragDur, dropOnTimeline, segLabel, taskBlocks } from "./place";
 
-export const WTL_VIEW_TYPE = "samaya-week-timeline";
 const MIN_HOUR_H = 40;
 
 /** The calendar of one week: a column per day with meetings and the tasks that have a time slot. */
-export class WeeklyTimelineView extends BasesView {
-  readonly type = WTL_VIEW_TYPE;
+export class WeeklyTimelineView extends PlannerPane {
   private root: HTMLElement;
   private weekStart = startOfWeek(today());
   private scope = new DndScope();
@@ -31,8 +30,8 @@ export class WeeklyTimelineView extends BasesView {
   private fixed = 150; // height of everything but the hours (heading, day headers, padding), as last measured
   private seenH = 0;
 
-  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin, private host?: PlannerHost) {
-    super(controller);
+  constructor(parentEl: HTMLElement, plugin: SamayaPlugin, private host?: PlannerHost) {
+    super(plugin);
     this.root = parentEl.createDiv("samaya-wtl");
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
     const ro = new ResizeObserver(() => { if (!this.host?.flow?.() && this.root.clientHeight !== this.seenH) this.schedule(); });
@@ -73,7 +72,7 @@ export class WeeklyTimelineView extends BasesView {
     const flow = !!this.host?.flow?.(); this.root.toggleClass("is-flow", flow); // stacked above the board on one scrolling page
     const old = this.root.querySelector<HTMLElement>(".samaya-wtl-scroll"); if (old && !flow) this.scrollTop = old.scrollTop;
     this.root.empty(); this.scope.clear();
-    const all = this.data.data.map(e => readTask(this.app, e.file));
+    const all = allTasks(this.app, this.plugin.settings);
     const byPath = new Map(all.map(t => [t.file.path, t]));
 
     if (this.plugin.boardWeek !== this.weekStart) { this.plugin.boardWeek = this.weekStart; this.plugin.modeBus.emit(); }

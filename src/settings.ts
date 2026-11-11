@@ -9,10 +9,12 @@ import { DEFAULT_EVENT_PATTERN, PATTERN_HELP, compilePattern } from "./eventnote
 
 export interface PeriodCfg { on: boolean; source: "auto" | JournalSource; folder: string; format: string; }
 export interface SamayaSettings {
-  tasksPath: string; ticketsPath: string; meetingsPath: string; journalSource: "auto" | JournalSource; journalFolder: string; journalFormat: string; plannerFile: string;
+  tasksPath: string; ticketsPath: string; meetingsPath: string; journalSource: "auto" | JournalSource; journalFolder: string; journalFormat: string;
   taskTemplate: string; meetingTemplate: string; ticketTemplate: string; ticketFileName: string;
   calendarSource: "ics" | "notes"; eventNotesFolder: string; eventNotePattern: string;
   icsUrls: string[]; icsRefreshMinutes: number;
+  /** Planner: plan Saturday and Sunday too; count calendar events as busy time */
+  plannerWeekends: boolean; plannerShowIcs: boolean;
   dayStartHour: number; dayEndHour: number; slotMinutes: number;
   defaultEstimate: number; shutdownTime: string; dayStartTime: string; openOnStartup: boolean;
   jiraFlavor: "cloud" | "server"; jiraUrl: string; jiraEmail: string; jiraToken: string; jiraJql: string;
@@ -39,9 +41,10 @@ export interface SamayaSettings {
   homeOn: boolean; homePath: string; homeOnStartup: boolean;
 }
 export const DEFAULT_SETTINGS: SamayaSettings = {
-  tasksPath: "[Tasks]/YYYY/MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", meetingsPath: "[Meetings]/YYYY/MM", journalSource: "auto", journalFolder: "[Journal]/YYYY/YYYY-MM", journalFormat: "YYYY-MM-DD", plannerFile: "Planner/Planner.base", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
+  tasksPath: "[Tasks]/YYYY/MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", meetingsPath: "[Meetings]/YYYY/MM", journalSource: "auto", journalFolder: "[Journal]/YYYY/YYYY-MM", journalFormat: "YYYY-MM-DD", taskTemplate: "", meetingTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
   calendarSource: "ics", eventNotesFolder: "Meetings", eventNotePattern: "{{date}}_{{title}}",
   icsUrls: [], icsRefreshMinutes: 15,
+  plannerWeekends: false, plannerShowIcs: true,
   dayStartHour: 7, dayEndHour: 20, slotMinutes: 5, defaultEstimate: 30, shutdownTime: "17:00", dayStartTime: "08:00", openOnStartup: false,
   jiraFlavor: "cloud", jiraUrl: "", jiraEmail: "", jiraToken: "",
   jiraJql: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
@@ -369,7 +372,8 @@ export class SamayaSettingTab extends PluginSettingTab {
       });
       label(b, "Startup & files");
       toggle(b, "Open planner on startup", "Open today's planner whenever Obsidian starts.", () => s.openOnStartup, v => (s.openOnStartup = v));
-      text(b, "Planner base file", "The base file opened by the ribbon icon.", () => s.plannerFile, v => (s.plannerFile = v || "Planner/Planner.base"), { placeholder: "Planner/Planner.base" });
+      toggle(b, "Show weekends", "Plan Saturday and Sunday in the week views too.", () => s.plannerWeekends, v => { s.plannerWeekends = v; this.plugin.bus.emit(); this.plugin.refreshPlanner(); });
+      toggle(b, "Count calendar events as busy", "Meetings from your calendar take up time in the planner.", () => s.plannerShowIcs, v => { s.plannerShowIcs = v; this.plugin.bus.emit(); this.plugin.refreshPlanner(); });
     }
 
     tab("tasks", "Tasks", "check-square");

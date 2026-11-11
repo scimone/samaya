@@ -1,5 +1,6 @@
 import type { PlannerHost } from "./plannerHost";
-import { BasesView, Notice, QueryController, TFile, setIcon } from "obsidian";
+import { Notice, TFile, setIcon } from "obsidian";
+import { PlannerPane } from "./plannerPane";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, Ticket, allTasks, allTickets, ticketPathOf, createTask, parkTask, patchTask, placeInDay, prefixOf, readTask, sortTasks } from "../model";
@@ -17,10 +18,8 @@ import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { Capacity, capacityWindow } from "../worktime";
 import { bindCardDrop, bindZone, keyActivate, renderTaskCard, richText } from "./common";
 
-export const WEEK_VIEW_TYPE = "samaya-week";
 
-export class WeeklyBoardView extends BasesView {
-  readonly type = WEEK_VIEW_TYPE;
+export class WeeklyBoardView extends PlannerPane {
   private root: HTMLElement;
   private weekStart = startOfWeek(today());
   private scope = new DndScope();
@@ -31,8 +30,8 @@ export class WeeklyBoardView extends BasesView {
   private kbX = 0;
   private lastLeft: number | null = null; // Overdue step: to spot the moment the last overdue task gets sorted out
 
-  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin, private host?: PlannerHost) {
-    super(controller);
+  constructor(parentEl: HTMLElement, plugin: SamayaPlugin, private host?: PlannerHost) {
+    super(plugin);
     this.root = parentEl.createDiv("samaya-week");
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
     this.register(plugin.bus.on(() => this.schedule()));
@@ -62,7 +61,7 @@ export class WeeklyBoardView extends BasesView {
     if (wg?.fresh) { wg.fresh = false; this.weekStart = wg.week ?? this.weekStart; }
     if (wg) { await this.renderGuided(wg.step, from); return; }
     this.root.removeClass("is-guided");
-    const all = this.data.data.map(e => readTask(this.app, e.file));
+    const all = allTasks(this.app, this.plugin.settings);
     const scrollX = this.root.scrollLeft; const scrollY = this.root.scrollTop;
     this.root.empty(); this.scope.clear(); this.root.toggleClass("is-aligned", !!this.host?.aligned?.()); // expanded week: the day columns line up with the timeline's, in every layout
 

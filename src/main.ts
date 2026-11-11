@@ -213,7 +213,7 @@ export default class SamayaPlugin extends Plugin {
     gated("sync-jira", "Sync Jira tickets", () => this.settings.jiraOn, "jira");
     gated("sync-gitlab", "Sync GitLab issues", () => this.settings.gitlabOn, "gitlab");
     this.addCommand({ id: "assign-ticket", name: "Assign current task note to a ticket", checkCallback: c => {
-      const f = this.app.workspace.getActiveFile(); const ok2 = !!f && f.path.startsWith(prefixOf(this.settings.tasksPath));
+      const f = this.app.workspace.getActiveFile(); const ok2 = (this.settings.jiraOn || this.settings.gitlabOn) && !!f && f.path.startsWith(prefixOf(this.settings.tasksPath));
       if (ok2 && !c && f) new TicketSuggestModal(this, t => { void assignTicket(this.app, f, t); }).open(); return ok2;
     } });
     // project commands only show while the module is switched on
@@ -582,7 +582,7 @@ export default class SamayaPlugin extends Plugin {
     this.collapseTimeline();
     const ws = this.app.workspace; const now = new Date(); const wk = weekToPlan(today(), now.getDay());
     const leftover = allTasks(this.app, this.settings).some(t => isLeftover(t, today(), wk));
-    const tickets = allTickets(this.app, this.settings).some(t => !/(done|closed|resolved|complete|finished|released|cancel)/i.test(t.state));
+    const tickets = (this.settings.jiraOn || this.settings.gitlabOn) && allTickets(this.app, this.settings).some(t => !/(done|closed|resolved|complete|finished|released|cancel)/i.test(t.state));
     this.guide = { step: weekSteps(leftover, tickets)[0], review: leftover, fresh: true, kind: "week", week: wk, tickets };
     await this.openPlanner();
     if (ws.leftSplit && !ws.leftSplit.collapsed) { ws.leftSplit.collapse(); this.leftCollapsedByGuide = true; }

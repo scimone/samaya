@@ -147,8 +147,9 @@ export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent, seg: 
   const part = !!t.part || t.segments.length > 1; // planned in parts: the buttons below act on this part
   const send = (dest: Parameters<typeof sendPiece>[4]) => { void sendPiece(app, st, t.file, from, dest); };
   m.addItem(i => i.setTitle("Start focus").setIcon("timer").onClick(() => { void plugin.focus.start(t.file); }));
-  m.addItem(i => i.setTitle(tp ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void assignTicket(app, t.file, tk); }).open()));
-  if (tp) m.addItem(i => i.setTitle("Remove ticket").setIcon("unlink").onClick(() => { void assignTicket(app, t.file, null); }));
+  const ticketsOn = st.jiraOn || st.gitlabOn;
+  if (ticketsOn || tp) m.addItem(i => i.setTitle(tp ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void assignTicket(app, t.file, tk); }).open()));
+  if (tp && ticketsOn) m.addItem(i => i.setTitle("Remove ticket").setIcon("unlink").onClick(() => { void assignTicket(app, t.file, null); }));
   if (plugin.settings.projectsOn) {
     const has = !!projectPathOf(app, t.file);
     m.addItem(i => i.setTitle(has ? "Change project…" : "Assign project…").setIcon("folder-kanban").onClick(() => new ProjectSuggestModal(plugin, pr => { void assignProject(app, t.file, pr); }).open()));

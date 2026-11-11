@@ -4,7 +4,7 @@ import { nowMin } from "../workday";
 import { breakMinutes, fmtSigned, workedMinutes } from "../worktime";
 
 /** Workday status with actions: a minimal one-liner, or (`panel`) a card with the time worked in large type. Repaints itself until removed from the DOM. */
-export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { compact?: boolean; panel?: boolean; /** another day than today: a read-only summary from its log */ date?: string } = {}) {
+export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { compact?: boolean; panel?: boolean; /** heading pieces: just the status chip, or just the buttons */ part?: "status" | "actions"; /** another day than today: a read-only summary from its log */ date?: string } = {}) {
   const wd = plugin.workday; const s = plugin.settings;
   let timer = 0; let off = () => {};
   const paint = () => {
@@ -29,12 +29,12 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
       }
     } else if (!l || !l.start) {
       state = "Day not started";
-      if (o.panel) { sub = "Start the clock when you begin working."; buttons.push(["Start day", () => { void wd.startDay(); }, true]); }
+      if (o.panel || o.part) { sub = "Start the clock when you begin working."; buttons.push(["Start day", () => { void wd.startDay(); }, true]); }
       else { sub = "Plan your day, or just start the clock."; buttons.push(["Plan my day", () => plugin.startGuide(), true], ["Just start", () => { void wd.startDay(); }]); }
     } else if (l.end) {
       const worked = workedMinutes(l, 1440);
       state = "Day finished"; big = fmtDur(worked); sub = `${l.start}–${l.end}${target ? ` · ${fmtSigned(worked - target)}` : ""}`;
-      buttons.push(["Reopen", () => { void wd.reopenDay(); }], ["Dashboard", () => { void plugin.openDashboard(); }]);
+      buttons.push(["Reopen", () => { void wd.reopenDay(); }]); if (!o.part) buttons.push(["Dashboard", () => { void plugin.openDashboard(); }]);
     } else if (l.open) {
       state = "On break"; big = fmtDur(Math.max(0, nowMin() - hmToMin(l.open.start))); sub = `since ${l.open.start}`;
       buttons.push(["Back to work", () => { void wd.endBreak(); }, true]);
@@ -47,6 +47,17 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
       buttons.push(["Break", () => { void wd.startBreak(); }], ["End day", () => plugin.startShutdown()]);
     }
 
+    if (o.part === "status") { // the heading's chip: a dot, the state and the time worked
+      strip.addClass("samaya-wd-chip"); strip.title = [sub, sub2].filter(Boolean).join(" · ");
+      strip.createSpan({ cls: "samaya-wd-state", text: state });
+      if (big) strip.createSpan({ cls: "samaya-wd-chip-fig", text: big });
+      return;
+    }
+    if (o.part === "actions") {
+      strip.addClass("is-part-actions");
+      buttons.forEach(([label, fn, cta]) => { strip.createEl("button", { text: label, cls: "samaya-hd-btn" + (cta ? " mod-cta" : "") }).onclick = fn; });
+      return;
+    }
     if (o.panel) {
       strip.createDiv({ cls: "samaya-wd-state", text: state });
       if (big) strip.createDiv({ cls: "samaya-wd-figure", text: big });

@@ -67,7 +67,7 @@ export class WeeklyBoardView extends BasesView {
 
     if (this.plugin.boardWeek !== this.weekStart) { this.plugin.boardWeek = this.weekStart; this.plugin.modeBus.emit(); }
     const head = this.root.createDiv("samaya-week-head");
-    renderWeekHead(head, this.weekStart, w => { if (this.host?.weekChanged) this.host.weekChanged(w); else { this.weekStart = w; void this.render(); } }, this.host?.back);
+    renderWeekHead(head, this.weekStart, w => { if (this.host?.weekChanged) this.host.weekChanged(w); else { this.weekStart = w; void this.render(); } }, this.host?.back, this.host ? undefined : this.plugin);
 
     const cols2 = this.root.createDiv("samaya-cols");
     for (let i = 0; i < (weekends ? 7 : 5); i++) {

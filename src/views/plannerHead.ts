@@ -1,5 +1,7 @@
 import { addDays, parseYmd, startOfWeek, today } from "../util";
+import type SamayaPlugin from "../main";
 import { renderDateNav, renderResetPill } from "./dateNav";
+import { renderWeekHeadStatus } from "./headStatus";
 
 /** ISO week number of a date (weeks start on Monday). */
 export function isoWeek(d: Date): number {
@@ -42,11 +44,13 @@ export function renderModeSwitch(parent: HTMLElement, active: "day" | "week", go
   return sw;
 }
 
-/** The week heading: "Week 46" over its date range, then [This week pill] ‹ 📅 › (the calendar button opens a date picker: pick any day to jump to its week) and Day | Week. */
-export function renderWeekHead(head: HTMLElement, weekStart: string, go: (weekStart: string) => void, back?: () => void): void {
+/** The week heading: "Week 46" over its date range, the workday status and weekly capacity, then the actions (Plan week, Review week, Weekly note), [This week pill] ‹ 📅 › (the calendar button opens a date picker: pick any day to jump to its week) and Day | Week. */
+export function renderWeekHead(head: HTMLElement, weekStart: string, go: (weekStart: string) => void, back?: () => void, plugin?: SamayaPlugin): void {
   const cur = startOfWeek(today());
   renderHeadTitle(head, `Week ${isoWeek(parseYmd(weekStart))}`, weekRangeLabel(weekStart) + (weekStart === cur ? " · This week" : ""));
-  const right = head.createDiv("samaya-planner-right"); // same spot as the day heading's controls: navigation, then the Day | Week switch
+  const mid = plugin ? head.createDiv("samaya-head-mid") : null; // workday status and weekly capacity (a pane hidden behind the planner's own heading skips them)
+  const right = head.createDiv("samaya-planner-right"); // same spot as the day heading's controls: actions, navigation, then the Day | Week switch
+  if (plugin && mid) renderWeekHeadStatus(plugin, mid, right.createDiv("samaya-head-actions"), weekStart);
   if (weekStart !== cur) renderResetPill(right, "This week", "Back to the current week", weekStart < cur ? "right" : "left", () => go(cur)); // only when you are somewhere else
   renderDateNav(right, {
     label: weekRangeLabel(weekStart), prevLabel: "Previous week", nextLabel: "Next week",

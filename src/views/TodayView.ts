@@ -6,7 +6,6 @@ import { DndScope } from "../dnd";
 import { ensureMeetingNote } from "../meetings";
 import { Task, prefixOf, allTasks, createTask, patchTask, readTask, setDone, sortTasks } from "../model";
 import { renderTimeline, TimelineState } from "./timelineKit";
-import { renderDayStatus } from "./dayStatus";
 import { addDays, fmtDur, hmToMin, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { bindZone, renderBacklogBuckets, renderTaskCard, richText, showTaskMenu } from "./common";
 import { renderLoadBar } from "./loadBar";

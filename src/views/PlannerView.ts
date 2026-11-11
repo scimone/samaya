@@ -84,7 +84,7 @@ export class PlannerView extends BasesView {
   /** The week heading, once, above both panes: [‹ Nov 9 – 15 ›] Week 46 · [↺ This week] (only when another week is showing) · Day | Week. */
   private renderHead() {
     const h = this.headEl; h.empty();
-    renderWeekHead(h, this.tl.getWeek(), w => { this.tl.showWeekOf(w); this.week.showWeekOf(w); this.renderHead(); }, () => this.plugin.collapseTimeline());
+    renderWeekHead(h, this.tl.getWeek(), w => { this.tl.showWeekOf(w); this.week.showWeekOf(w); this.renderHead(); }, () => this.plugin.collapseTimeline(), this.plugin);
   }
 
   private renderBars() {

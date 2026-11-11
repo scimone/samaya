@@ -78,7 +78,7 @@ export class WeeklyTimelineView extends BasesView {
 
     if (this.plugin.boardWeek !== this.weekStart) { this.plugin.boardWeek = this.weekStart; this.plugin.modeBus.emit(); }
     const head = this.root.createDiv("samaya-week-head");
-    renderWeekHead(head, this.weekStart, w => { if (this.host?.weekChanged) this.host.weekChanged(w); else { this.weekStart = w; this.scrolledFor = ""; void this.render(); } }, this.host?.back);
+    renderWeekHead(head, this.weekStart, w => { if (this.host?.weekChanged) this.host.weekChanged(w); else { this.weekStart = w; this.scrolledFor = ""; void this.render(); } }, this.host?.back, this.host ? undefined : this.plugin);
 
     const scroll = this.root.createDiv("samaya-wtl-scroll");
     const cols = scroll.createDiv("samaya-wtl-heads");

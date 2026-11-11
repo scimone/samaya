@@ -993,17 +993,34 @@ button.samaya-datereset:hover, button.samaya-datereset:focus-visible { backgroun
 .samaya-daily:not(.is-review) > .samaya-daily-cols > .samaya-info { margin-right: 0; }
 .samaya-day-head { min-height: 0; box-sizing: border-box; }
 
-/* ---------- status column: one card for daily and weekly capacity ---------- */
-.samaya-info-caps { display: flex; flex-direction: column; gap: var(--samaya-sp-3); }
-.samaya-cap-row + .samaya-cap-row { padding-top: var(--samaya-sp-3); border-top: 1px solid var(--background-modifier-border); }
-.samaya-cap-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--samaya-sp-2); flex-wrap: wrap; }
-.samaya-cap-top .samaya-info-big { font-size: 1.15em; margin-top: 0; }
-.samaya-cap-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--samaya-sp-3); }
-.samaya-cap-btns:empty { display: none; }
-.samaya-cap-btn { height: 26px; padding: 0 var(--samaya-sp-3); font-size: var(--font-ui-smaller); }
-.samaya-cap-row.is-over .samaya-info-big { color: var(--text-error); }
-.samaya-info-caps .samaya-col-bar { margin: 6px 0 0; height: 4px; }
 
 /* ---------- day timeline: all-day events as the week's chips ---------- */
 .samaya-tl-allday { display: flex; flex-direction: column; gap: 3px; margin: 0 4px var(--samaya-sp-2) 40px; }
-.samaya-cap-btns .samaya-cap-btn { flex: 1 1 auto; }
+
+
+/* ---------- planner heading: workday status, capacity and actions (day and week alike) ---------- */
+.samaya-week-head, .samaya-day-head { flex-wrap: wrap; row-gap: var(--samaya-sp-2); }
+.samaya-head-mid { display: flex; align-items: center; gap: var(--samaya-sp-5); margin-left: var(--samaya-sp-5); min-width: 0; flex-wrap: wrap; row-gap: var(--samaya-sp-2); }
+.samaya-hs-wd, .samaya-hs-wd-actions, .samaya-hs-slot { display: contents; }
+.samaya-wd.samaya-wd-chip { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; font-size: var(--font-ui-small); cursor: default; }
+.samaya-wd-chip::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); }
+.samaya-wd-chip.is-work::before { background: var(--interactive-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--interactive-accent) 25%, transparent); }
+.samaya-wd-chip.is-break::before { background: var(--color-orange); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-orange) 25%, transparent); }
+.samaya-wd-chip .samaya-wd-state { font-weight: 600; }
+.samaya-wd-chip.is-break .samaya-wd-state { color: var(--color-orange); }
+.samaya-wd-chip-fig { color: var(--text-muted); font-weight: 600; font-variant-numeric: tabular-nums; }
+.samaya-wd.is-part-actions { display: contents; }
+.samaya-hs-cap { display: flex; flex-direction: column; gap: 4px; min-width: 120px; }
+.samaya-hs-cap-top { display: flex; align-items: baseline; gap: 7px; white-space: nowrap; }
+.samaya-hs-cap-label { font-size: var(--samaya-fs-label); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); }
+.samaya-hs-cap-fig { font-size: var(--font-ui-small); font-weight: 600; font-variant-numeric: tabular-nums; }
+.samaya-hs-cap-rec { font-weight: 500; color: var(--text-muted); }
+.samaya-hs-cap.is-over .samaya-hs-cap-fig { color: var(--text-error); }
+.samaya-hs-bar { position: relative; height: 4px; border-radius: var(--samaya-r-pill); background: var(--background-modifier-border); overflow: hidden; }
+.samaya-hs-bar-fill { height: 100%; background: var(--interactive-accent); }
+.samaya-hs-bar.is-tight .samaya-hs-bar-fill { background: var(--color-orange); }
+.samaya-hs-bar.is-over .samaya-hs-bar-fill { background: var(--text-error); }
+.samaya-hs-bar-mark { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px solid var(--background-primary); opacity: 0.9; }
+.samaya-head-actions { display: flex; align-items: center; gap: 6px; }
+.samaya-head-actions:has(button) { padding-right: var(--samaya-sp-3); margin-right: var(--samaya-sp-1); border-right: 1px solid var(--background-modifier-border); }
+.samaya-hd-btn { height: 26px; padding: 0 var(--samaya-sp-3); font-size: var(--font-ui-smaller); white-space: nowrap; }

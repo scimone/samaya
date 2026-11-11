@@ -14,7 +14,7 @@ import { renderTimeline, TimelineState } from "./timelineKit";
 import { ensureMeetingNote } from "../meetings";
 import { capacityWindow, Capacity } from "../worktime";
 import { bufferShare, loadLevel, trimToBuffer } from "../weekplan";
-import { renderDayStatus } from "./dayStatus";
+import { renderDayHeadStatus } from "./headStatus";
 import { renderDateNav, renderResetPill } from "./dateNav";
 import { dayHeadSub, renderHeadTitle, renderModeSwitch } from "./plannerHead";
 
@@ -97,9 +97,9 @@ export class DailyPlannerView extends BasesView {
     const g = isToday ? guide : null; const step = g?.step ?? -1;
     const sd = g?.kind === "shutdown"; const pg = sd ? null : g; const review = !sd && step === 0, pick = !sd && step === 1, check = !sd && step === 3;
     this.root.toggleClass("is-review", !!pg); // plan my day: guide + columns; otherwise one column of task cards
-    if (!this.plugin.guide) this.renderHead(isToday); // no title bar in Plan my day / End day
+    if (!this.plugin.guide) this.renderHead(isToday, plannedAll, cap); // no title bar in Plan my day / End day
     const cols = this.root.createDiv("samaya-daily-cols"); // everything else sits below the title bar
-    const info = pg ? null : cols.createDiv("samaya-info"); // columns from the left: status, tasks, timeline (Plan my day: guide and tasks, the timeline is in the sidebar)
+    const info = sd ? cols.createDiv("samaya-info") : null; // End day: the shutdown guide takes the first column; otherwise tasks and timeline, status lives in the heading (Plan my day: guide and tasks, the timeline is in the sidebar)
     const left = cols.createDiv("samaya-left");
     if (!pg) this.renderPane(cols.createDiv("samaya-today samaya-tlpane"), day, tlEvents, notes); // (plan my day: the timeline stays in the right sidebar)
     let body = left; // where today's planned list goes
@@ -155,17 +155,18 @@ export class DailyPlannerView extends BasesView {
       this.bindAdd(add, () => ({ planned: this.date, order: day.length }));
     }
 
-    if (info) await renderDayStatus(this.plugin, info, { date: this.date, events: tlEvents });
-    if (info) info.scrollTop = this.infoScroll;
+    if (info) { renderGuide(this.plugin, info, { overdue: 0 }); info.scrollTop = this.infoScroll; }
     if (token !== this.token) return;
     this.finishRender(left);
   }
 
-  /** The title bar, same design as the week heading: title, then reset pill, ‹ 📅 ›, Day | Week. Everything else starts below it. */
-  private renderHead(isToday: boolean) {
+  /** The title bar, same design as the week heading: title, the day's status and capacity, then the actions, reset pill, ‹ 📅 ›, Day | Week. Everything else starts below it. */
+  private renderHead(isToday: boolean, planned: number, cap: Capacity) {
     const h = this.root.createDiv("samaya-week-head samaya-day-head");
     renderHeadTitle(h, isToday ? "Today" : parseYmd(this.date).toLocaleDateString(undefined, { weekday: "long" }), dayHeadSub(this.date));
+    const mid = h.createDiv("samaya-head-mid");
     const right = h.createDiv("samaya-planner-right");
+    renderDayHeadStatus(this.plugin, mid, right.createDiv("samaya-head-actions"), { date: this.date, planned, free: cap.free, what: `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings` });
     if (!isToday) renderResetPill(right, "Today", "Jump to today", this.date < today() ? "right" : "left", () => this.goTo(today()));
     renderDateNav(right, {
       label: parseYmd(this.date).toLocaleDateString(undefined, { weekday: isToday ? "short" : undefined, month: "short", day: "numeric" }),

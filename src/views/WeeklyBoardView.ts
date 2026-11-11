@@ -63,7 +63,7 @@ export class WeeklyBoardView extends BasesView {
     this.root.removeClass("is-guided");
     const all = this.data.data.map(e => readTask(this.app, e.file));
     const scrollX = this.root.scrollLeft; const scrollY = this.root.scrollTop;
-    this.root.empty(); this.scope.clear(); this.root.toggleClass("is-aligned", !!this.host?.flow?.()); // under the timeline: its day columns line up with the timeline's
+    this.root.empty(); this.scope.clear(); this.root.toggleClass("is-aligned", !!this.host?.aligned?.()); // expanded week: the day columns line up with the timeline's, in every layout
 
     if (this.plugin.boardWeek !== this.weekStart) { this.plugin.boardWeek = this.weekStart; this.plugin.modeBus.emit(); }
     let head: HTMLElement | null = null;

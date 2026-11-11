@@ -35,7 +35,7 @@ export class PlannerView extends BasesView {
     const sync = (w: string) => { this.tl.showWeekOf(w); this.week.showWeekOf(w); };
     this.day = new DailyPlannerView(controller, this.dayPane, plugin, { hidden: () => this.mode() !== "day" });
     this.week = new WeeklyBoardView(controller, this.weekPane, plugin, {
-      hidden: () => !this.boardShown(), placeBar: (root, head) => this.placeBar(root, head), back: () => plugin.collapseTimeline(), weekChanged: sync,
+      hidden: () => !this.boardShown(), aligned: () => this.mode() === "expanded", placeBar: (root, head) => this.placeBar(root, head), back: () => plugin.collapseTimeline(), weekChanged: sync,
       flow: () => this.flow(),
     });
     this.tl = new WeeklyTimelineView(controller, this.tlPane, plugin, {
@@ -54,7 +54,9 @@ export class PlannerView extends BasesView {
     this.register(plugin.bus.on(() => {
       const m = this.mode(), l = plugin.weekLayout;
       if (m === this.shown && l === this.shownLayout) return;
-      const prev = this.shown; this.shown = m; this.shownLayout = l; this.applyMode();
+      const prev = this.shown; const ghosts = prev === "expanded" && m === "expanded" ? this.snapshot() : null;
+      this.shown = m; this.shownLayout = l; this.applyMode();
+      if (ghosts) this.animate(ghosts);
       if (m === "expanded") { // the week follows you between the layouts
         if (prev === "expanded") { this.tl.refresh(); this.week.refresh(); } // just another layout: same week, same scroll position
         else { const wk = plugin.plannerDate || today(); this.tl.showWeekOf(wk); this.week.showWeekOf(wk); }
@@ -90,6 +92,30 @@ export class PlannerView extends BasesView {
   private placeBar(root: HTMLElement, head: HTMLElement | null) {
     if (this.shown !== "expanded" || this.shownLayout !== "board") return;
     if (head) head.after(this.bar); else root.prepend(this.bar);
+  }
+  /** The panes as they are right now, so the one that goes away can slide off instead of vanishing. */
+  private snapshot() {
+    return [this.tlPane, this.weekPane].filter(p => !p.hasClass("is-hidden")).map(pane =>
+      ({ pane, clone: pane.cloneNode(true) as HTMLElement, top: pane.offsetTop, left: pane.offsetLeft, width: pane.offsetWidth, height: pane.offsetHeight }));
+  }
+  /** Layout change: the pane that leaves slides away and fades, the one that arrives slides in from its side, the one that stays eases over. */
+  private animate(ghosts: { pane: HTMLElement; clone: HTMLElement; top: number; left: number; width: number; height: number }[]) {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const D = 24; // px the panes travel: timeline from/to the top, board from/to the bottom
+    const dir = (p: HTMLElement) => (p === this.tlPane ? -D : D);
+    for (const g of ghosts) {
+      if (!g.pane.hasClass("is-hidden")) continue;
+      const c = g.clone; c.addClass("samaya-ghost");
+      Object.assign(c.style, { top: `${g.top}px`, left: `${g.left}px`, width: `${g.width}px`, height: `${g.height}px` });
+      this.rootEl.append(c);
+      c.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: `translateY(${dir(g.pane)}px)` }], { duration: 200, easing: "ease-in", fill: "forwards" }).onfinish = () => c.remove();
+    }
+    for (const p of [this.tlPane, this.weekPane]) {
+      if (p.hasClass("is-hidden")) continue;
+      if (ghosts.some(g => g.pane === p)) p.animate([{ opacity: 0.5 }, { opacity: 1 }], { duration: 240, easing: "ease-out" });
+      else p.animate([{ opacity: 0, transform: `translateY(${dir(p)}px)` }, { opacity: 1, transform: "none" }], { duration: 280, delay: 60, easing: "cubic-bezier(.2,.8,.2,1)", fill: "backwards" });
+    }
+    this.bar.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 60, fill: "backwards" });
   }
   private applyMode() {
     const ex = this.shown === "expanded", l = this.shownLayout;

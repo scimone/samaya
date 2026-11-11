@@ -14,4 +14,6 @@ export interface PlannerHost {
   viewH?(): number;
   /** expanded week: the board has drawn its header (or has none); the layout bar goes right under it when the board is alone */
   placeBar?(root: HTMLElement, head: HTMLElement | null): void;
+  /** expanded week: the board's day columns line up with the timeline's, in every layout */
+  aligned?(): boolean;
 }

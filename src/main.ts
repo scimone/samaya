@@ -17,6 +17,7 @@ import { ConfirmOverwriteModal } from "./modals";
 import { renderTaskCard } from "./views/taskCard";
 import { DayPlan, LEGACY_WEEK_HEADINGS, readSection, WEEK_MEETINGS, WEEK_ORDER, WEEK_OVERVIEW, WEEK_TASKS, removeSection, upsertSection, weekMeetings, weekOverview, bulletLines, journalPath, journalWants, meetingLines, readJournalSection, sortByStart, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
 import { ensureMeetingNote } from "./meetings";
+import { MeetingBanner } from "./meetingbanner";
 import { calendarEnabled, calendarEvents } from "./calendar";
 import { Emitter, addDays, hmToMin, minToHm, parseTitleEstimate as parseTitleEstimateSafe, parseYmd, today } from "./util";
 import { WorkdayManager } from "./workday";
@@ -34,6 +35,7 @@ export default class SamayaPlugin extends Plugin {
   settings!: SamayaSettings;
   data: PluginData = {};
   focus = new FocusManager(this);
+  meetingBanner = new MeetingBanner(this);
   workday = new WorkdayManager(this);
   nav = new NavShortcuts(this);
   /** fires when workday / guide state changes so views can refresh */
@@ -85,6 +87,7 @@ export default class SamayaPlugin extends Plugin {
 
     this.addRibbonIcon("calendar-clock", "Open Samaya planner", () => { void this.openPlanner(); });
     this.focus.init(this.data.focus ?? null);
+    this.meetingBanner.init();
     this.workday.init(this.data.workday ?? null);
 
     this.registerEvent(this.app.workspace.on("active-leaf-change", leaf => { // switching to the planner tab folds the right sidebar away

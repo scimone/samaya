@@ -60,6 +60,7 @@ export class NavShortcuts {
     if (!wd.started) m.addItem(i => i.setTitle("Start day").setIcon("play").onClick(() => { void wd.startDay(); }));
     else if (!p.focus.state) m.addItem(i => i.setTitle("End day").setIcon("moon").onClick(() => { void p.startShutdown(); }));
     if (!p.focus.state) m.addItem(i => i.setTitle("Plan week").setIcon("calendar-range").onClick(() => { void p.startWeekGuide(); }));
+    if (p.focus.state) return; // while focusing: no review, no dashboard
     m.addItem(i => i.setTitle("Review week").setIcon("clipboard-check").onClick(() => { void p.reviewWeek(); }));
     m.addItem(i => i.setTitle("Open worktime dashboard").setIcon("bar-chart-3").onClick(() => { void p.openDashboard(); }));
   }

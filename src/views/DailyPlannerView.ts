@@ -149,7 +149,7 @@ export class DailyPlannerView extends PlannerPane {
         if (allSet && this.lastBoxed && this.lastBoxed.date === this.date && !this.lastBoxed.all) { todayBadge.addClass("is-pop"); celebrate(todayBadge); }
         this.lastBoxed = { date: this.date, all: allSet };
       } else this.lastBoxed = null;
-      renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`, bufferShare(s.bufferPercent), cap.meetings);
+      renderLoadBar(body, plannedAll, cap.free, `Free capacity = ${fmtDur(cap.total)} capacity - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings`, bufferShare(s.bufferPercent), cap.meetings, this.date < today());
     }
 
     const list = body.createDiv("samaya-list" + (step === 2 ? " is-timebox" : ""));

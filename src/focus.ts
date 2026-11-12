@@ -66,7 +66,8 @@ export class FocusManager {
     document.querySelectorAll(".samaya-focus-bar").forEach(el => el.remove());
     const bar = createDiv("samaya-focus-bar"); bar.dataset.variant = variant; bar.toggleClass("is-current", here);
     const header = host.querySelector(":scope > .view-header");
-    if (header) header.after(bar); else host.prepend(bar);
+    const meet = host.querySelector(":scope > .samaya-meet-bar"); // a meeting banner stays on top
+    if (meet) meet.after(bar); else if (header) header.after(bar); else host.prepend(bar);
     this.buildBanner(bar, here);
     this.tickBanners();
   }

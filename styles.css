@@ -1329,3 +1329,12 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
 .samaya-card-actions .samaya-focus-stop:hover { color: var(--text-error); box-shadow: inset 0 0 0 1px var(--text-error); background: transparent; }
 .samaya-card-actions .samaya-split-btn { padding: 0 6px; }
 .samaya-card.is-compact .samaya-card-foot { margin-top: 4px; }
+
+/* meeting banner: in the meeting colour, above the focus banner; nothing in the planner fades */
+.samaya-meet-bar { position: relative; min-height: 38px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 5px 16px; font-size: var(--font-ui-small); flex: none; background: color-mix(in srgb, var(--samaya-meeting) 22%, var(--background-primary)); border-bottom: 1px solid color-mix(in srgb, var(--samaya-meeting) 70%, transparent); }
+.samaya-meet-status { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+.samaya-meet-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--samaya-meeting); animation: samaya-pulse 1.6s ease-in-out infinite; }
+.samaya-meet-state { font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: var(--font-ui-smaller); color: var(--text-normal); }
+.samaya-meet-title { font-weight: 600; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-normal); }
+.samaya-meet-prog { font-variant-numeric: tabular-nums; flex: none; color: var(--text-muted); }
+.samaya-meet-meter { position: absolute; left: 0; bottom: -1px; height: 2px; width: var(--p, 0%); background: var(--samaya-meeting); transition: width 1s linear; }

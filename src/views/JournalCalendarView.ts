@@ -1,7 +1,7 @@
 import { ItemView, TFile, WorkspaceLeaf } from "obsidian";
 import type SamayaPlugin from "../main";
 import { Period, identifyNote, openPeriodNote, periodLocation, periodNotePath, journalPathFor } from "../journal";
-import { breakMinutes, dailyTarget, fmtSigned, periodRange, periodStats, workedMinutes } from "../worktime";
+import { breakMinutes, dailyTarget, fmtSigned, periodRange, periodStats, workedOn } from "../worktime";
 import { nowMin } from "../workday";
 import { ConfirmCreateModal } from "../modals";
 import { isoWeek, monthGrid } from "../monthgrid";
@@ -121,14 +121,14 @@ export class JournalCalendarView extends ItemView {
       const live = this.plugin.workday.log?.date === date ? this.plugin.workday.log : null;
       const log = logs.find(l => l.date === date) ?? live;
       if (!log?.start) { box.createDiv({ cls: "samaya-jcal-info-empty", text: "No work time logged." }); return; }
-      const running = !log.end; const worked = workedMinutes(log, date === today() ? nowMin() : 1440); const target = dailyTarget(s.weeklyHours, s.workDays, date);
+      const running = !log.end; const worked = workedOn(log, date === today() ? nowMin() : 1440, this.plugin.dayRules); const target = dailyTarget(s.weeklyHours, s.workDays, date);
       row("Started", log.start); row("Finished", log.end ? log.end + (log.endAuto ? " (auto)" : "") : "still running");
       row("Breaks", fmtDur(breakMinutes(log))); row("Worked", fmtDur(worked));
       if (target) row("Required", fmtDur(target));
       if (target && !running) { const d = worked - target; row("Over / under", fmtSigned(d), d < 0 ? "is-neg" : "is-pos"); }
       return;
     }
-    const st = periodStats(logs, from, to, s.weeklyHours, s.workDays);
+    const st = periodStats(logs, from, to, s.weeklyHours, s.workDays, this.plugin.dayRules);
     if (!st.days) { box.createDiv({ cls: "samaya-jcal-info-empty", text: "No finished workdays logged." }); return; }
     row("Days worked", String(st.days)); row("Average start", st.avgStart!); row("Average end", st.avgEnd!);
     row("Average per day", fmtDur(st.avgWorked)); row("Total worked", fmtDur(st.worked)); row("Required", fmtDur(st.target));

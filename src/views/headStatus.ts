@@ -73,7 +73,7 @@ export function renderWeekHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, rig
   else if (weekStart < thisWeek) void (async () => {
     const events = calendarEnabled(s) ? await calendarEvents(plugin, parseYmd(weekStart), parseYmd(addDays(weekStart, 7))).catch(() => []) : [];
     if (!chip.isConnected) return;
-    renderWorkdayCard(plugin, chip, { part: "status", average: weekAverageWorked(plugin.workday.allLogs(), weekStart, s.workDays, vacationDates(events, s.vacationKeyword)) });
+    renderWorkdayCard(plugin, chip, { part: "status", average: weekAverageWorked(plugin.workday.allLogs(), weekStart, s.workDays, vacationDates(events, s.vacationKeyword), plugin.dayRules) });
   })();
   const group = mid.createDiv("samaya-hs-group is-cap");
   const slot = group.createDiv("samaya-hs-slot"); let token = 0; let timer = 0;

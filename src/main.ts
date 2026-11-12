@@ -23,7 +23,7 @@ import { NavShortcuts } from "./navigation";
 import { applyColors, clearColors } from "./colors";
 import { BUFFER_SHARE, isLeftover, weekSteps, weekToPlan } from "./weekplan";
 import { capacityOf, weekBuckets } from "./views/weekColumn";
-import type { DayLog } from "./worktime";
+import type { DayLog, RulesFor } from "./worktime";
 
 interface PluginData { settings?: Partial<SamayaSettings>; focus?: FocusState | null; workday?: DayLog | null; /** per-day workday start/end set with the timeline lines */ dayWindows?: Record<string, [string, string]>; /** the plan as it was when the day was first planned (date -> task path and estimate), the baseline of the end-of-day review */ dayPlans?: Record<string, Array<{ path: string; est: number }>>; }
 export interface GuideState { step: number; /** the Review step exists (there were unfinished overdue tasks) */ review: boolean; fresh: boolean; /** "shutdown": the one-step end-of-day guide; "week": the guided week plan */ kind: "plan" | "shutdown" | "week"; /** week guide: the monday (ymd) being planned */ week?: string; /** week guide: the Tickets step exists (there are open tickets) */ tickets?: boolean; /** week guide: days shown by the board (5 or 7), for the sidebar */ days?: number; }
@@ -231,6 +231,8 @@ export default class SamayaPlugin extends Plugin {
 
   // ---- per-day workday window (start/end lines of the timeline): kept in data.json, the settings are the default
   /** Workday [start, end] in minutes for a date: the day's own lines if moved, else the default from the settings. */
+  /** What counts as work time on a day: from the start line, minus breaks and lunch (see workedOn). */
+  get dayRules(): RulesFor { return d => ({ from: this.workWindowFor(d)[0], lunch: this.lunchFor(d) }); }
   workWindowFor(date: string): [number, number] {
     const w = this.data.dayWindows?.[date] ?? [this.settings.dayStartTime, this.settings.shutdownTime];
     return [hmToMin(w[0]), hmToMin(w[1])];

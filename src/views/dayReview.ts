@@ -3,7 +3,7 @@ import type SamayaPlugin from "../main";
 import { Task, onDay, readTicket } from "../model";
 import { projectPathOf } from "../projects";
 import { Grouping, ReviewItem, daySplit, groupRows, hasGroups, runMinutesOn, taskRows, verdict } from "../dayreview";
-import { breakMinutes, workedMinutes } from "../worktime";
+import { breakMinutes, workedOn } from "../worktime";
 import { fmtDur } from "../util";
 import { nowMin } from "../workday";
 
@@ -36,7 +36,7 @@ const ICON_OK = "check", ICON_UP = "trending-up", ICON_DOWN = "trending-down";
 export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { date: string; all: Task[]; meetings: number }) {
   anim = Date.now() - lastShown > 4000; lastShown = Date.now();
   const grid = host.createDiv("samaya-rv"); const box = grid.createDiv("samaya-rv-col"); const side = grid.createDiv("samaya-rv-col"); const { items, hasPlan } = reviewItems(plugin, o.all, o.date);
-  const log = plugin.workday.log; const worked = workedMinutes(log, nowMin()); const breaks = log ? breakMinutes(log) + (log.open ? Math.max(0, nowMin() - Number(log.open.start.slice(0, 2)) * 60 - Number(log.open.start.slice(3, 5))) : 0) : 0;
+  const log = plugin.workday.log; const worked = workedOn(log, nowMin(), plugin.dayRules); const breaks = log ? breakMinutes(log) + (log.open ? Math.max(0, nowMin() - Number(log.open.start.slice(0, 2)) * 60 - Number(log.open.start.slice(3, 5))) : 0) : 0;
   const focus = items.reduce((a, i) => a + i.actual, 0); const planned = items.reduce((a, i) => a + i.planned, 0);
   const plannedItems = items.filter(i => i.wasPlanned); const added = hasPlan ? items.filter(i => !i.wasPlanned) : []; const done = plannedItems.filter(i => i.done).length;
   const comparable = plannedItems.reduce((a, i) => a + i.planned, 0); const comparableActual = plannedItems.reduce((a, i) => a + i.actual, 0);

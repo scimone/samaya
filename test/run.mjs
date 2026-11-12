@@ -13,7 +13,12 @@ const { fetchJira, fetchGitlab, adfToText } = await import("./.tickets.mjs");
 const { renderTicketPath, renderTicketFileName, renderTicketNote, pathRoot: pathRoot2 } = await import("./.taskbody.mjs");
 
 // ---- workedSince: time since the start line minus breaks and lunch, overlaps once
-{ const { workedSince } = await import("./.worktime.mjs");
+{ const { workedSince, workedOn, totalBalance } = await import("./.worktime.mjs");
+  const log = { date: "2026-11-10", start: "09:00", end: "17:00", breaks: [{ start: "12:00", end: "13:00", kind: "lunch" }], open: null };
+  const rules = () => ({ from: 510, lunch: [720, 780] }); // start line 08:30, lunch 12:00-13:00
+  assert.equal(workedOn(log, 1440), 420); // old rule: logged start, logged breaks
+  assert.equal(workedOn(log, 1440, rules), 450); // 08:30-17:00 = 510 - 60 lunch (the tracked lunch counts once): the start line wins over the logged 09:00
+  assert.equal(totalBalance([log], 40, 5, () => ({ from: 540, lunch: [720, 780] })), 420 - 480);
   assert.equal(workedSince(480, 600, [720, 780], []), 120); // before lunch
   assert.equal(workedSince(480, 840, [720, 780], []), 300); // lunch subtracted
   assert.equal(workedSince(480, 840, [720, 780], [[720, 780]]), 300); // a tracked lunch break is not subtracted twice

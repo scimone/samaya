@@ -18,8 +18,8 @@ export class DashboardPanel {
 
   render() {
     const c = this.c; c.empty(); const s = this.plugin.settings;
-    const logs = this.logs(); const wk = weekSummary(logs, this.weekStart, s.weeklyHours, s.workDays, today(), nowMin());
-    const total = totalBalance(logs, s.weeklyHours, s.workDays);
+    const logs = this.logs(); const wk = weekSummary(logs, this.weekStart, s.weeklyHours, s.workDays, today(), nowMin(), this.plugin.dayRules);
+    const total = totalBalance(logs, s.weeklyHours, s.workDays, this.plugin.dayRules);
 
     const head = c.createDiv("samaya-dash-head");
     if (this.back) { const bk = head.createEl("button", { cls: "samaya-dash-back mod-cta", attr: { "aria-label": "Back to the planner (Esc)" } }); setIcon(bk.createSpan("samaya-dash-back-icon"), "arrow-left"); bk.createSpan({ text: "Planner" }); bk.onclick = this.back; }

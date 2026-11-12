@@ -1,7 +1,7 @@
 import { App, Menu, Notice } from "obsidian";
 import type SamayaPlugin from "./main";
 import { journalWants, setJournalProps } from "./journal";
-import { Break, BreakKind, DayLog, autoLunch, breakMinutes, fmtBreak, parseBreak, workedMinutes } from "./worktime";
+import { Break, BreakKind, DayLog, autoLunch, breakMinutes, fmtBreak, parseBreak, workedOn } from "./worktime";
 import { fmtDur, hmToMin, minToHm, today } from "./util";
 
 export const nowHm = (): string => { const d = new Date(); return minToHm(d.getHours() * 60 + d.getMinutes()); };
@@ -34,7 +34,7 @@ export class WorkdayManager {
   }
   get started(): boolean { return !!this.log?.start && !this.log.end; }
   get onBreak(): boolean { return !!this.log?.open; }
-  worked(): number { return workedMinutes(this.log, nowMin()); }
+  worked(): number { return workedOn(this.log, nowMin(), this.plugin.dayRules); }
 
   init(saved: DayLog | null) {
     this.log = saved;
@@ -66,7 +66,7 @@ export class WorkdayManager {
 
   private async persist() { this.plugin.data.workday = this.log; await this.plugin.saveData(this.plugin.data); }
   private async writeProps(l: DayLog) {
-    const worked = workedMinutes(l, nowMin());
+    const worked = workedOn(l, nowMin(), this.plugin.dayRules);
     const s = this.s; const patch: Record<string, string | number | boolean | string[] | null> = {};
     if (journalWants(s, "journalWorkTimes")) Object.assign(patch, { work_start: l.start, work_end: l.end, work_end_auto: l.endAuto ? true : null });
     if (journalWants(s, "journalBreaks")) Object.assign(patch, {
@@ -106,6 +106,6 @@ export class WorkdayManager {
     const lunch = this.s.autoLunch ? autoLunch(l, this.plugin.lunchFor(l.date)) : null;
     if (lunch) { l.breaks.push(lunch); new Notice(`No lunch logged - subtracted the default ${lunch.start}-${lunch.end}`); }
     await this.commit();
-    new Notice(`Workday ended at ${at} - worked ${fmtDur(workedMinutes(l, nowMin()))}`);
+    new Notice(`Workday ended at ${at} - worked ${fmtDur(workedOn(l, nowMin(), this.plugin.dayRules))}`);
   }
 }

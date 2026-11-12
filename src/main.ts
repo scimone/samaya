@@ -494,6 +494,7 @@ export default class SamayaPlugin extends Plugin {
     frag.createEl("button", { text: label, cls: "mod-cta" }).onclick = () => { n.hide(); void this.openNoteInMain(file); };
   }
   async startGuide() {
+    if (this.focus.state) { new Notice("Samaya: stop or finish the running focus first."); return; }
     this.collapseTimeline();
     const ls = this.app.workspace.leftSplit;
     if (ls && !ls.collapsed) { ls.collapse(); this.leftCollapsedByGuide = true; } // room for the planner while planning
@@ -529,6 +530,7 @@ export default class SamayaPlugin extends Plugin {
   }
   /** End of day: the planner with a two-step guide (tick off forgotten tasks, review the day), then finalize. */
   async startShutdown() {
+    if (this.focus.state) { new Notice("Samaya: stop or finish the running focus first."); return; }
     this.collapseTimeline();
     const td = today(); const day = onDay(allTasks(this.app, this.settings), td);
     this.guide = { step: day.every(t => t.status === "done") ? 1 : 0, // nothing left to check off: straight to the review

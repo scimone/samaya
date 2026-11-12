@@ -56,9 +56,9 @@ export class NavShortcuts {
   /** Planner menu: the workday step that fits the current state. */
   private dayItems(m: Menu) {
     const p = this.plugin, wd = p.workday;
-    m.addItem(i => i.setTitle("Plan day").setIcon("list-todo").onClick(() => { void p.startGuide(); }));
+    if (!p.focus.state) m.addItem(i => i.setTitle("Plan day").setIcon("list-todo").onClick(() => { void p.startGuide(); }));
     if (!wd.started) m.addItem(i => i.setTitle("Start day").setIcon("play").onClick(() => { void wd.startDay(); }));
-    else m.addItem(i => i.setTitle("End day").setIcon("moon").onClick(() => { void p.startShutdown(); }));
+    else if (!p.focus.state) m.addItem(i => i.setTitle("End day").setIcon("moon").onClick(() => { void p.startShutdown(); }));
     if (!p.focus.state) m.addItem(i => i.setTitle("Plan week").setIcon("calendar-range").onClick(() => { void p.startWeekGuide(); }));
     m.addItem(i => i.setTitle("Review week").setIcon("clipboard-check").onClick(() => { void p.reviewWeek(); }));
     m.addItem(i => i.setTitle("Open worktime dashboard").setIcon("bar-chart-3").onClick(() => { void p.openDashboard(); }));

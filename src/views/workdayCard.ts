@@ -34,7 +34,7 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
     } else if (!l || !l.start) {
       state = "Day not started";
       if (o.panel || o.part) { sub = "Start the clock when you begin working."; buttons.push(["Start day", () => { void wd.startDay(); }, true]); }
-      else { sub = "Plan your day, or just start the clock."; buttons.push(["Plan my day", () => plugin.startGuide(), true], ["Just start", () => { void wd.startDay(); }]); }
+      else { sub = "Plan your day, or just start the clock."; if (!plugin.focus.state) buttons.push(["Plan my day", () => plugin.startGuide(), true]); buttons.push(["Just start", () => { void wd.startDay(); }]); }
     } else if (l.end) {
       const worked = workedTo(hmToMin(l.end));
       state = "Day finished"; big = fmtDur(worked); sub = `${l.start}–${l.end}${target ? ` · ${fmtSigned(worked - target)}` : ""}`;
@@ -49,7 +49,7 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
       sub = `Start time ${l.start} · Finish time ${minToHm(winEnd)}`; // the finish line of the timeline, which can be moved per day
       if (target) sub2 = worked < target ? `${fmtDur(target - worked)} left of ${fmtDur(target)}` : `Target of ${fmtDur(target)} reached (+${fmtDur(worked - target)})`;
       if (target) progress = Math.min(1, worked / target);
-      buttons.push(["Break", () => { void wd.startBreak(); }], ["End day", () => plugin.startShutdown()]);
+      buttons.push(["Break", () => { void wd.startBreak(); }]); if (!plugin.focus.state) buttons.push(["End day", () => plugin.startShutdown()]);
     }
 
     if (o.part === "status") { // the heading's chip: a dot, the state and the time worked

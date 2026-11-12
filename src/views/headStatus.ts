@@ -54,7 +54,7 @@ export function renderDayHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, righ
   workTimeIcon(plugin, sg);
   const group = mid.createDiv("samaya-hs-group is-cap");
   renderCapMeter(plugin, group, { label: "Capacity", planned: o.planned, meetings: o.meetings, free: o.free, what: o.what });
-  if (isToday && !plugin.guide) btn(group, "Plan day", () => { void plugin.startGuide(); });
+  if (isToday && !plugin.guide && !plugin.focus.state) btn(group, "Plan day", () => { void plugin.startGuide(); });
   const slot = right.createDiv("samaya-head-var"); // today: the day's actions; another day: the "Today" pill. One fixed width, so nothing moves between days
   const actions = slot.createDiv("samaya-head-actions"); // things to do: buttons
   if (isToday) renderWorkdayCard(plugin, actions.createDiv("samaya-hs-wd-actions"), { part: "actions" });

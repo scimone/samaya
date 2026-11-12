@@ -34,7 +34,7 @@ export interface SamayaSettings {
   /** navigation bar above journal notes */
   journalNavBar: boolean;
   /** projects module: folder of project notes and the base that shows them */
-  projectsOn: boolean; projectsPath: string; projectsBase: string;
+  projectsOn: boolean; projectsPath: string;
   /** shortcuts (Planner, Tasks, ...) at the top of the file explorer; their folders are hidden */
   navigationOn: boolean;
 }
@@ -57,7 +57,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
     quarterly: { on: false, source: "auto", folder: "[Journal]/YYYY/[Quarterly]", format: PERIOD_DEFAULT_FORMAT.quarterly },
     yearly: { on: false, source: "auto", folder: "[Journal]/YYYY", format: PERIOD_DEFAULT_FORMAT.yearly },
   },
-  projectsOn: false, projectsPath: "Projects", projectsBase: "Projects/Projects.base",
+  projectsOn: false, projectsPath: "Projects",
   navigationOn: false,
 };
 
@@ -410,8 +410,7 @@ export class SamayaSettingTab extends PluginSettingTab {
         status: () => s.projectsPath.trim() ? ["On", "ok"] : ["Needs a folder", "warn"],
       });
       text(b, "Projects folder", "One note per project, with start, end and status properties.", () => s.projectsPath, v => (s.projectsPath = v.replace(/\/+$/, "") || "Projects"), { placeholder: "Projects", suggest: folders });
-      text(b, "Projects base file", "The base with the Gantt chart and the Add project button.", () => s.projectsBase, v => (s.projectsBase = v || "Projects/Projects.base"), { placeholder: "Projects/Projects.base" });
-      new Setting(b).setName("Create and open").setDesc("Create the folder and base if they are missing, then open the base.")
+      new Setting(b).setName("Create and open").setDesc("Create the folder if it is missing, then open the projects.")
         .addButton(bt => bt.setButtonText("Open projects").onClick(async () => { await this.plugin.openProjects(); }));
       note(b, "Assign a task from its right-click menu in the planner, or any task or ticket note with the “Assign to a project” command. The link is stored in the assigned_project property.");
     }
@@ -459,7 +458,7 @@ export class SamayaSettingTab extends PluginSettingTab {
     tab("tickets", "Tickets", "list-checks");
     {
       const b = card("Tickets", "Ticket notes imported from Jira and GitLab. Both share these settings. Appears when either is on.", { activeWhen: () => s.jiraOn || s.gitlabOn });
-      note(b, "A kanban board of all tickets (columns: status, rows: Jira / GitLab project) lives in Tickets.base inside the tickets folder.");
+      note(b, "A kanban board of all tickets (columns: status, rows: Jira / GitLab project) is the Tickets entry of the planner.");
       label(b, "Notes & templates");
       pathText(b, "Tickets path", "Where ticket notes are stored.", "ticketsPath", `May contain ticket variables (${vars(TICKET_VARIABLES)}), e.g. [Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}} ({{TICKET_SOURCE}} is JIRA or GITLAB). With {{TICKET_STATUS}}, notes move when the ticket's status changes.`);
       const fn = new Setting(b).setName("Ticket file name").setDesc("Ticket variables in double braces, plus {{TICKET_TITLE_SLUG}} (the title as a slug). Leave out “.md”.");

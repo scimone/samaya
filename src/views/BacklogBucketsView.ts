@@ -1,4 +1,4 @@
-import { BasesView, QueryController } from "obsidian";
+import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { allTasks, sortTasks, ticketPathOf, unplanned } from "../model";
@@ -8,15 +8,14 @@ import { renderBacklogBuckets } from "./common";
 export const BACKLOG_BUCKETS_VIEW_TYPE = "samaya-backlog-buckets";
 
 /** The backlog grouped by when it is due: Next week / month / quarter / year, Someday, Never. Drag a task between groups to re-park it. Lives in the Tasks base; can be limited to tasks that belong to a ticket. */
-export class BacklogBucketsView extends BasesView {
-  readonly type = BACKLOG_BUCKETS_VIEW_TYPE;
+export class BacklogBucketsView extends Panel {
   private root: HTMLElement;
   private scope = new DndScope();
   private pending = false;
   private timer = 0;
 
-  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
-    super(controller);
+  constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
+    super(plugin);
     this.root = parentEl.createDiv("samaya-backlog-view samaya-bucketview");
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
     // the base only feeds tickets; tasks change on their own

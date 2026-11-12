@@ -1,4 +1,5 @@
-import { BasesView, Menu, QueryController, TFile } from "obsidian";
+import { Menu, TFile } from "obsidian";
+import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, Ticket, allTickets, assignTicket, createTask, readTask, sendPiece, sortTasks, ticketPathOf, unplanned } from "../model";
@@ -9,8 +10,7 @@ export const BACKLOG_VIEW_TYPE = "samaya-backlog";
 
 interface Group { key: string; ticket: Ticket | null; tasks: Task[]; }
 
-export class BacklogView extends BasesView {
-  readonly type = BACKLOG_VIEW_TYPE;
+export class BacklogView extends Panel {
   private root: HTMLElement;
   private scope = new DndScope();
   private pending = false;
@@ -18,8 +18,8 @@ export class BacklogView extends BasesView {
   private filter = "";
   private collapsed = new Set<string>();
 
-  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
-    super(controller);
+  constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
+    super(plugin, () => plugin.settings.tasksPath);
     this.root = parentEl.createDiv("samaya-backlog-view");
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
   }

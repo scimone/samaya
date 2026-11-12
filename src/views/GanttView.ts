@@ -1,4 +1,4 @@
-import { BasesView, QueryController } from "obsidian";
+import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { DragMode, daysBetween, dragSpan, ganttRange, monthMarks } from "../gantt";
 import { Project, projectStats, readProject, createProject } from "../projects";
@@ -8,15 +8,14 @@ import { addDays, parseYmd, today } from "../util";
 
 export const GANTT_VIEW_TYPE = "samaya-gantt";
 
-export class GanttView extends BasesView {
-  readonly type = GANTT_VIEW_TYPE;
+export class GanttView extends Panel {
   private root: HTMLElement;
   private timer = 0;
   private dragging = false;
   private pending = false;
 
-  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
-    super(controller);
+  constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
+    super(plugin, () => plugin.settings.projectsPath);
     this.root = parentEl.createDiv("samaya-gantt");
   }
   onunload() { window.clearTimeout(this.timer); }

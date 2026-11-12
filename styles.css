@@ -1210,12 +1210,12 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-shell { display: flex; height: 100%; width: 100%; }
 .samaya-shell-main { flex: 1 1 auto; min-width: 0; height: 100%; position: relative; }
 .samaya-shell-main > .is-hidden { display: none; }
-.samaya-embed { height: 100%; overflow: auto; }
-.samaya-embed-body { height: 100%; padding: 0 var(--size-4-3); }
-.samaya-embed-body .internal-embed { display: block; height: 100%; }
-.samaya-rail { flex: 0 0 auto; width: 36px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: var(--size-4-2) 0; border-left: 1px solid var(--background-modifier-border); background: var(--background-secondary); }
+.samaya-embed { height: 100%; overflow: auto; display: flex; flex-direction: column; }
+.samaya-embed-tabs { display: flex; justify-content: center; padding: var(--size-4-2) var(--size-4-3) 0; }
+.samaya-embed-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 var(--size-4-3); }
+.samaya-rail { flex: 0 0 auto; width: 44px; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: var(--size-4-3) 0; }
 .samaya-rail.is-hidden { display: none; }
-.samaya-rail-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; background: transparent; box-shadow: none; border: 0; border-radius: var(--radius-s); color: var(--text-muted); cursor: pointer; }
-.samaya-rail-btn svg { width: 16px; height: 16px; stroke-width: 1.7; }
-.samaya-rail-btn:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
-.samaya-rail-btn.is-active { background: var(--background-modifier-active-hover); color: var(--interactive-accent); }
+.samaya-rail-btn { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; background: none !important; box-shadow: none !important; border: 0 !important; color: var(--text-faint); cursor: pointer; }
+.samaya-rail-btn svg { width: 22px; height: 22px; stroke-width: 1.6; }
+.samaya-rail-btn:hover { color: var(--text-normal); }
+.samaya-rail-btn.is-active { color: var(--interactive-accent); }

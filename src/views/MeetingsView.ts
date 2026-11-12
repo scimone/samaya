@@ -1,4 +1,5 @@
-import { BasesView, QueryController, TFile } from "obsidian";
+import { TFile } from "obsidian";
+import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { Instance, MeetingNote, Series, buildSeries, hueOf, nextWorkday, parseNote, seriesKey } from "../meetingseries";
 import { addDays, parseYmd, startOfWeek, today as todayYmd } from "../util";
@@ -19,8 +20,7 @@ const byTime = (a: Instance, b: Instance) => a.date.localeCompare(b.date) || (a.
 const memory = { mode: "series" as Mode, week: 0, selected: null as string | null, query: "", onlyNotes: false };
 
 /** A quiet, typographic overview of meeting notes: today and tomorrow, then recurring meetings as a plain list; open one to read its notes. */
-export class MeetingsView extends BasesView {
-  readonly type = MEETINGS_VIEW_TYPE;
+export class MeetingsView extends Panel {
   private root: HTMLElement;
   private timer = 0;
   private loading = false; // note bodies still being read: counts and excerpts would be wrong, so they stay hidden
@@ -28,8 +28,8 @@ export class MeetingsView extends BasesView {
   private cache = new Map<string, { mtime: number; body: string }>();
 
   private tick = 0;
-  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
-    super(controller); this.root = parentEl.createDiv("samaya-mt");
+  constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
+    super(plugin, () => plugin.settings.eventNotesFolder.trim() || "Meetings"); this.root = parentEl.createDiv("samaya-mt");
     this.tick = window.setInterval(() => { if (this.root.isShown() && !this.root.querySelector("input:focus")) this.rerender(); }, 60000); // a meeting that ends moves from next to recent
   }
   onunload() { window.clearTimeout(this.timer); window.clearInterval(this.tick); }

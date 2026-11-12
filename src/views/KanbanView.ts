@@ -1,4 +1,4 @@
-import { BasesView, QueryController } from "obsidian";
+import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { groupTickets } from "../kanban";
 import { DndScope } from "../dnd";
@@ -9,14 +9,13 @@ import { TFile } from "obsidian";
 export const KANBAN_VIEW_TYPE = "samaya-kanban";
 
 /** Board of ticket notes: columns are statuses, one swimlane per Jira / GitLab project. Drag a card to another column to set its status (until the next sync, which restores the remote status). */
-export class KanbanView extends BasesView {
-  readonly type = KANBAN_VIEW_TYPE;
+export class KanbanView extends Panel {
   private root: HTMLElement;
   private timer = 0;
   private collapsed = new Set<string>();
   private scope = new DndScope();
   private pending = false;
-  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) { super(controller); this.root = parentEl.createDiv("samaya-kanban"); this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.render(); } }; }
+  constructor(parentEl: HTMLElement, plugin: SamayaPlugin) { super(plugin, () => plugin.settings.ticketsPath); this.root = parentEl.createDiv("samaya-kanban"); this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.render(); } }; }
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); }
   private async setStatus(path: string, status: string) {
     const f = this.app.vault.getAbstractFileByPath(path); if (!(f instanceof TFile)) return;

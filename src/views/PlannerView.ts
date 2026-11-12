@@ -1,4 +1,7 @@
-import { Component, ItemView, MarkdownRenderer, Notice, TFile, WorkspaceLeaf, normalizePath, setIcon } from "obsidian";
+import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
+import { Panel } from "./panel";
+import { SECTION_TABS } from "./sections";
+import { renderSwitch } from "./plannerHead";
 import type SamayaPlugin from "../main";
 import { startOfWeek, today } from "../util";
 import { DailyPlannerView } from "./DailyPlannerView";
@@ -34,7 +37,8 @@ export class PlannerView extends ItemView {
   private seenH = 0;
   private embedEl!: HTMLElement; // a base (tasks, journal, ...) shown inside the planner, chosen on the side rail
   private railEl!: HTMLElement;
-  private embedC: Component | null = null;
+  private embedC: Panel | null = null;
+  private tabs: Record<string, string> = {}; // the tab last shown per section
   private section = "planner"; // "planner" or the id of the nav item showing in the embed
   private railKey = "";
 
@@ -107,12 +111,12 @@ export class PlannerView extends ItemView {
   private async renderRail() {
     const plugin = this.plugin, on = !plugin.settings.navigationOn;
     const items = on ? await plugin.nav.items() : [];
-    const key = items.map(i => `${i.id}:${i.base?.path ?? ""}`).join("|");
+    const key = items.map(i => i.id).join("|");
     if (key === this.railKey && (this.section === "planner" || items.some(i => i.id === this.section))) return;
     this.railKey = key;
     this.railEl.toggleClass("is-hidden", !on);
     this.railEl.empty();
-    if (!on) { if (this.section !== "planner") void this.showSection("planner", items); return; }
+    if (!on) return; // the explorer shortcuts navigate instead; a section opened through them stays
     if (this.section !== "planner" && !items.some(i => i.id === this.section)) { void this.showSection("planner", items); return; }
     for (const it of items) {
       const b = this.railEl.createEl("button", { cls: "samaya-rail-btn", attr: { "aria-label": it.name, title: it.name, "data-id": it.id } });
@@ -121,19 +125,21 @@ export class PlannerView extends ItemView {
     }
   }
 
+  /** Show a section by id (the navigation shortcuts and commands call this). */
+  async showSectionById(id: string) { await this.showSection(id, await this.plugin.nav.items()); }
+
   private async showSection(id: string, items: Awaited<ReturnType<SamayaPlugin["nav"]["items"]>>) {
-    const it = items.find(i => i.id === id);
-    this.section = it ? id : "planner";
+    const tabs = SECTION_TABS[id];
+    this.section = items.some(i => i.id === id) && tabs ? id : "planner";
     this.railEl.querySelectorAll<HTMLElement>(".samaya-rail-btn").forEach(b => b.toggleClass("is-active", b.dataset.id === this.section));
     this.embedC?.unload(); this.embedC = null; this.embedEl.empty();
-    const planner = this.section === "planner" || !it?.base;
+    const planner = this.section === "planner";
     this.rootEl.toggleClass("is-hidden", !planner); this.embedEl.toggleClass("is-hidden", planner);
     if (planner) { this.plugin.modeBus.emit(); return; }
-    await it!.base!.prep?.();
-    const path = normalizePath(it!.base!.path);
-    if (!(this.plugin.app.vault.getAbstractFileByPath(path) instanceof TFile)) { new Notice(`Samaya: ${path} does not exist.`); return; }
-    const c = this.embedC = new Component(); c.load();
-    await MarkdownRenderer.render(this.plugin.app, `![[${path}]]`, this.embedEl.createDiv("samaya-embed-body markdown-rendered"), "", c);
+    const list = SECTION_TABS[this.section], cur = list.find(t => t.name === this.tabs[this.section]) ?? list[0];
+    if (list.length > 1) renderSwitch(this.embedEl.createDiv("samaya-embed-tabs"), list.map(t => [t.name, t.name, t.name] as [string, string, string]), cur.name, n => { this.tabs[this.section] = n; void this.showSection(this.section, items); }, "View");
+    const host = this.embedEl.createDiv("samaya-embed-body");
+    const c = this.embedC = cur.make(host, this.plugin); c.load();
   }
 
   private mode(): Mode {

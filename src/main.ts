@@ -3,20 +3,14 @@ import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } f
 import { FOCUS_VIEW_TYPE, FocusManager, FocusState, FocusView } from "./focus";
 import { allTickets, assignTicket, createTask, momentFmt } from "./model";
 import { PLANNER_VIEW_TYPE, PlannerView } from "./views/PlannerView";
-import { BACKLOG_VIEW_TYPE, BacklogView } from "./views/BacklogView";
-import { BACKLOG_BUCKETS_VIEW_TYPE, BacklogBucketsView } from "./views/BacklogBucketsView";
 import { syncTickets } from "./sync";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
 import { ConfirmCreateModal, ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "./modals";
-import { GANTT_VIEW_TYPE, GanttView } from "./views/GanttView";
-import { KANBAN_VIEW_TYPE, KanbanView } from "./views/KanbanView";
 import { JOURNAL_CAL_TYPE, JournalCalendarView } from "./views/JournalCalendarView";
-import { JOURNAL_BASE_VIEW_TYPE, JournalBaseView } from "./views/JournalBaseView";
-import { MEETINGS_VIEW_TYPE, MeetingsView } from "./views/MeetingsView";
 import type { Period } from "./journal";
 import { PERIOD_UI, identifyNote, findLatestPeriodNote, listPeriodNotes, neighbours, journalLocation, openPeriodNote, periodNotePath } from "./journal";
 import { affectsTaskLists, syncTaskLists } from "./tasklinks";
-import { PROJECTS_BASE_TEMPLATE, assignProject, createProject } from "./projects";
+import { assignProject, createProject } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { promoteParked, allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask, isOverdue, onDay } from "./model";
 import { ConfirmOverwriteModal } from "./modals";
@@ -34,70 +28,6 @@ import type { DayLog } from "./worktime";
 interface PluginData { settings?: Partial<SamayaSettings>; focus?: FocusState | null; workday?: DayLog | null; /** per-day workday start/end set with the timeline lines */ dayWindows?: Record<string, [string, string]>; /** the plan as it was when the day was first planned (date -> task path and estimate), the baseline of the end-of-day review */ dayPlans?: Record<string, Array<{ path: string; est: number }>>; }
 export interface GuideState { step: number; /** the Review step exists (there were unfinished overdue tasks) */ review: boolean; fresh: boolean; /** "shutdown": the one-step end-of-day guide; "week": the guided week plan */ kind: "plan" | "shutdown" | "week"; /** week guide: the monday (ymd) being planned */ week?: string; /** week guide: the Tickets step exists (there are open tickets) */ tickets?: boolean; /** week guide: days shown by the board (5 or 7), for the sidebar */ days?: number; }
 
-const TICKETS_BASE_TEMPLATE = (folder: string) => `filters:
-  and:
-    - file.inFolder("${folder}")
-    - file.ext == "md"
-views:
-  - type: ${KANBAN_VIEW_TYPE}
-    name: Board
-  - type: table
-    name: All tickets
-    order:
-      - file.name
-      - title
-      - status
-      - project
-      - assignee
-`;
-
-const JOURNAL_BASE_TEMPLATE = (folder: string) => `filters:
-  and:
-    - file.inFolder("${folder}")
-    - file.ext == "md"
-views:
-  - type: ${JOURNAL_BASE_VIEW_TYPE}
-    name: Calendar
-  - type: table
-    name: All notes
-    order:
-      - file.name
-      - file.mtime
-    sort:
-      - property: file.name
-        direction: DESC
-`;
-
-const TASKS_BASE_TEMPLATE = (folder: string) => `filters:
-  and:
-    - file.inFolder("${folder}")
-properties:
-  note.planned_sessions:
-    displayName: Planned sessions
-  note.duration_estimate:
-    displayName: Estimate (min)
-views:
-  - type: ${BACKLOG_VIEW_TYPE}
-    name: Backlog
-    filters:
-      and:
-        - planned.isEmpty()
-        - status != "done"
-  - type: ${BACKLOG_BUCKETS_VIEW_TYPE}
-    name: Backlog by date
-  - type: table
-    name: All tasks
-    order:
-      - file.name
-      - status
-      - planned
-      - start
-      - estimate
-      - actual
-    sort:
-      - property: planned
-        direction: DESC
-`;
 
 export default class SamayaPlugin extends Plugin {
   settings!: SamayaSettings;
@@ -152,27 +82,6 @@ export default class SamayaPlugin extends Plugin {
     this.registerView(FOCUS_VIEW_TYPE, leaf => new FocusView(leaf, this));
     this.addSettingTab(new SamayaSettingTab(this.app, this));
 
-    const ok = (id: string, name: string, icon: string, factory: Parameters<Plugin["registerBasesView"]>[1]["factory"], options: Parameters<Plugin["registerBasesView"]>[1]["options"]) =>
-      this.registerBasesView(id, { name, icon, factory, options });
-    const c = ok(BACKLOG_VIEW_TYPE, "Backlog", "lucide-inbox",
-      (ct, el) => new BacklogView(ct, el, this),
-      () => [{ type: "toggle", key: "hideEmptyTickets", displayName: "Hide tickets without tasks", default: false }]);
-    const e = ok(GANTT_VIEW_TYPE, "Gantt", "lucide-gantt-chart",
-      (ct, el) => new GanttView(ct, el, this),
-      () => [{ type: "slider", key: "dayWidth", displayName: "Day width (px)", min: 8, max: 48, step: 2, default: 22 }]);
-    const f = ok(KANBAN_VIEW_TYPE, "Ticket board", "lucide-kanban",
-      (ct, el) => new KanbanView(ct, el, this),
-      () => [{ type: "toggle", key: "hideDone", displayName: "Hide done / closed tickets", default: false }]);
-    const bb = ok(BACKLOG_BUCKETS_VIEW_TYPE, "Backlog by date", "lucide-calendar-clock",
-      (ct, el) => new BacklogBucketsView(ct, el, this),
-      () => [{ type: "toggle", key: "onlyWithTicket", displayName: "Only tasks with a ticket", default: false }]);
-    if (!bb) new Notice("Samaya: could not register the Backlog by date view.");
-    const g = ok(JOURNAL_BASE_VIEW_TYPE, "Journal calendar", "lucide-calendar",
-      (ct, el) => new JournalBaseView(ct, el, this), () => []);
-    const mt = ok(MEETINGS_VIEW_TYPE, "Meetings", "lucide-users",
-      (ct, el) => new MeetingsView(ct, el, this), () => []);
-    if (!mt) new Notice("Samaya: could not register the Meetings view.");
-    if (!c || !e || !f || !g) new Notice("Samaya: could not register Bases views. Enable the core Bases plugin and use Obsidian 1.10+.");
 
     this.addRibbonIcon("calendar-clock", "Open Samaya planner", () => { void this.openPlanner(); });
     this.focus.init(this.addStatusBarItem(), this.data.focus ?? null);
@@ -220,7 +129,7 @@ export default class SamayaPlugin extends Plugin {
     } });
     this.addCommand({ id: "open-tickets", name: "Open ticket board", checkCallback: c => {
       if (!this.settings.jiraOn && !this.settings.gitlabOn) return false;
-      if (!c) void this.scaffoldTickets(false).then(() => { const r = rootOf(this.settings.ticketsPath); const f = this.app.vault.getAbstractFileByPath(normalizePath(r === "/" ? "Tickets.base" : `${r}/Tickets.base`)); if (f instanceof TFile) return this.app.workspace.getLeaf("tab").openFile(f); });
+      if (!c) void this.scaffoldTickets(false).then(() => this.openSection("tickets"));
       return true;
     } });
     this.addCommand({ id: "open-journal", name: "Open journal calendar", checkCallback: c => { if (!this.settings.journalOn) return false; if (!c) void this.openJournalCalendar(); return true; } });
@@ -341,15 +250,10 @@ export default class SamayaPlugin extends Plugin {
 
   syncTickets(only?: "jira" | "gitlab") { return syncTickets(this, only); }
 
-  /** Projects folder and its base (only when the module is on). */
-  async scaffoldProjects(announce: boolean) {
-    const s = this.settings; if (!s.projectsOn) return;
-    const folder = normalizePath(s.projectsPath.trim() || "Projects"); await ensureFolder(this.app, folder);
-    const bp = normalizePath(s.projectsBase.trim() || `${folder}/Projects.base`);
-    if (this.app.vault.getAbstractFileByPath(bp)) { if (announce) new Notice("Projects base already exists."); return; }
-    const dir = bp.split("/").slice(0, -1).join("/"); if (dir) await ensureFolder(this.app, dir);
-    await this.app.vault.create(bp, PROJECTS_BASE_TEMPLATE(folder, GANTT_VIEW_TYPE));
-    if (announce) new Notice("Created " + bp);
+  /** Projects folder (only when the module is on). */
+  async scaffoldProjects(_announce: boolean) {
+    if (!this.settings.projectsOn) return;
+    await ensureFolder(this.app, normalizePath(this.settings.projectsPath.trim() || "Projects"));
   }
   /** Weekly note when the journal keeps them, else the work time dashboard. */
   async reviewWeek() {
@@ -361,25 +265,13 @@ export default class SamayaPlugin extends Plugin {
     await this.openDashboard();
   }
 
-  /** Tickets/Tickets.base: a kanban board of the imported tickets (only while Jira or GitLab is on). */
-  async scaffoldTickets(announce: boolean) {
+  /** Tickets folder (only while Jira or GitLab is on). */
+  async scaffoldTickets(_announce: boolean) {
     if (!this.settings.jiraOn && !this.settings.gitlabOn) return;
     const folder = rootOf(this.settings.ticketsPath);
     if (folder !== "/") await ensureFolder(this.app, folder);
-    const bp = normalizePath(folder === "/" ? "Tickets.base" : `${folder}/Tickets.base`);
-    if (this.app.vault.getAbstractFileByPath(bp)) { if (announce) new Notice("Tickets base already exists."); return; }
-    await this.app.vault.create(bp, TICKETS_BASE_TEMPLATE(folder)); if (announce) new Notice("Created " + bp);
   }
-  /** Journal/Journal.base: opens the calendar sidebar (only while the journal is on). */
-  async scaffoldJournal(announce: boolean) {
-    if (!this.settings.journalOn) return;
-    const loc = await journalLocation(this.app, this.settings);
-    const root = loc.pattern ? rootOf(loc.folder) : normalizePath(loc.folder || "/");
-    const bp = "Journal/Journal.base";
-    if (this.app.vault.getAbstractFileByPath(bp)) { if (announce) new Notice("Journal base already exists."); return; }
-    await ensureFolder(this.app, "Journal");
-    await this.app.vault.create(bp, JOURNAL_BASE_TEMPLATE(root === "/" ? "Journal" : root)); if (announce) new Notice("Created " + bp);
-  }
+  async scaffoldJournal(_announce: boolean) { /* the journal needs no files of its own */ }
   private marking = false; private markAgain = false;
   /** Per open note tab: mark journal notes with `samaya-journal-note` (hides their title and properties, styles.css) and show / remove the navigation bar. Runs one at a time. */
   async markJournalNotes() {
@@ -463,10 +355,12 @@ export default class SamayaPlugin extends Plugin {
     if (!leaf) { leaf = ws.getRightLeaf(false) ?? ws.getLeaf("split", "vertical"); await leaf.setViewState({ type: JOURNAL_CAL_TYPE, active: true }); }
     await ws.revealLeaf(leaf);
   }
-  async openProjects() {
-    await this.scaffoldProjects(false);
-    const f = this.app.vault.getAbstractFileByPath(normalizePath(this.settings.projectsBase.trim() || "Projects/Projects.base"));
-    if (f instanceof TFile) await this.app.workspace.getLeaf("tab").openFile(f);
+  async openProjects() { await this.scaffoldProjects(false); await this.openSection("projects"); }
+  /** Open the planner (in the current tab when asked) showing a section: "planner" or a module shown on its side rail. */
+  async openSection(id: string) {
+    await this.openPlanner(id === "planner");
+    const v = this.app.workspace.getLeavesOfType(PLANNER_VIEW_TYPE)[0]?.view as PlannerView | undefined;
+    await v?.showSectionById(id);
   }
 
   async scaffold(announce: boolean) {
@@ -479,29 +373,18 @@ export default class SamayaPlugin extends Plugin {
       if (this.settings.journalOn && !(await this.app.vault.adapter.exists(dn))) await this.app.vault.adapter.write(dn, JSON.stringify({ folder: rootOf(this.settings.journalFolder).replace(/^\/$/, ""), format: "YYYY-MM-DD" }, null, 2));
     } catch (e) { console.warn("Samaya: could not seed daily-notes.json", e); }
 
-    // Backlog + All tasks live in their own base inside the tasks folder
-    const tp = normalizePath(folder === "/" ? "Tasks.base" : `${folder}/Tasks.base`);
-    const tasksBaseFile = this.app.vault.getAbstractFileByPath(tp);
-    const tasksBaseNew = !tasksBaseFile;
-    if (tasksBaseFile instanceof TFile) {
-      // older Tasks.base files get the Backlog by date view added once
-      const txt = await this.app.vault.read(tasksBaseFile);
-      if (!txt.includes(BACKLOG_BUCKETS_VIEW_TYPE) && /^views:/m.test(txt)) {
-        const next = /^  - type: table\n    name: All tasks/m.test(txt) ? txt.replace(/^(  - type: table\n    name: All tasks)/m, `  - type: ${BACKLOG_BUCKETS_VIEW_TYPE}\n    name: Backlog by date\n$1`) : txt.replace(/\n*$/, "\n") + `  - type: ${BACKLOG_BUCKETS_VIEW_TYPE}\n    name: Backlog by date\n`;
-        await this.app.vault.modify(tasksBaseFile, next); new Notice("Samaya: added the Backlog by date view to " + tp);
-      }
-    }
-    if (tasksBaseNew) { await this.app.vault.create(tp, TASKS_BASE_TEMPLATE(folder)); if (announce) new Notice("Created " + tp); }
-
-    await this.removeLegacyPlannerBase();
+    await this.removeSamayaBases();
   }
 
-  /** The planner used to live in a base file (Planner/Planner.base): it is a view of its own now, so that file is moved to the trash. */
-  private async removeLegacyPlannerBase() {
+  /** The modules used to live in base files (Tasks.base, Journal.base, ...): they are shown inside the planner now, so the bases made for Samaya's views are moved to the trash (recoverable). */
+  private async removeSamayaBases() {
     for (const f of this.app.vault.getFiles()) {
-      if (f.extension !== "base" || f.basename !== "Planner") continue;
+      if (f.extension !== "base") continue;
       const txt = await this.app.vault.read(f);
-      if (/^\s*- type: samaya-daily\s*$/m.test(txt) && !/^\s*- type: (?!samaya-)/m.test(txt)) { const dir = f.parent; await this.app.fileManager.trashFile(f); if (dir && !dir.isRoot() && dir.children.length === 0) await this.app.fileManager.trashFile(dir); }
+      if (/^\s*- type: samaya-(daily|backlog|backlog-buckets|kanban|gantt|journal|meetings)\s*$/m.test(txt) && !/^\s*- type: (?!samaya-|table\b)/m.test(txt)) {
+        const dir = f.parent; await this.app.fileManager.trashFile(f);
+        if (dir && !dir.isRoot() && dir.children.length === 0) await this.app.fileManager.trashFile(dir);
+      }
     }
   }
 

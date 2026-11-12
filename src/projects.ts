@@ -59,27 +59,3 @@ export async function createProject(app: App, s: SamayaSettings, name: string): 
   await patchNote(app, f, { status: "active", start, end: addDays(start, DEFAULT_PROJECT_DAYS - 1) });
   return f;
 }
-
-export const PROJECTS_BASE_TEMPLATE = (folder: string, ganttType: string) => `filters:
-  and:
-    - file.inFolder("${folder}")
-    - file.ext == "md"
-properties:
-  note.start:
-    displayName: Start
-  note.end:
-    displayName: End
-views:
-  - type: ${ganttType}
-    name: Gantt
-  - type: table
-    name: All projects
-    order:
-      - file.name
-      - status
-      - start
-      - end
-    sort:
-      - property: start
-        direction: ASC
-`;

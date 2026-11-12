@@ -1,9 +1,9 @@
-import { ItemView, Notice, TFile, WorkspaceLeaf } from "obsidian";
+import { Notice, TFile, WorkspaceLeaf, setIcon } from "obsidian";
 import type SamayaPlugin from "./main";
-import { patchTask, readTask, readTicket, ticketPathOf } from "./model";
-import { renderSubtasks } from "./views/common";
+import { patchTask, readTask } from "./model";
 import { fmtDur, fmtHm } from "./util";
 
+/** the retired focus sidebar: leftovers of it in a saved layout are closed */
 export const FOCUS_VIEW_TYPE = "samaya-focus";
 
 export interface FocusState { path: string; accumulatedMs: number; startedAt: number | null; /** finished runs (start, end in epoch ms): the time frames actually worked */ runs?: Array<[number, number]>; /** whole minutes of this session already added to the task's duration_actual */ loggedMin?: number; }
@@ -23,13 +23,24 @@ const clock = (ms: number): string => {
 export class FocusManager {
   state: FocusState | null = null;
   private statusEl: HTMLElement | null = null;
+  private stopping = false;
   constructor(private plugin: SamayaPlugin) {}
 
   init(statusEl: HTMLElement, saved: FocusState | null) {
     this.statusEl = statusEl; this.state = saved;
     statusEl.addClass("samaya-status");
-    statusEl.addEventListener("click", () => { void this.openView(); });
-    this.plugin.registerInterval(window.setInterval(() => this.renderStatus(), 1000));
+    statusEl.addEventListener("click", () => { this.openNote(); });
+    const app = this.plugin.app;
+    this.plugin.registerInterval(window.setInterval(() => { this.renderStatus(); this.tickBanners(); }, 1000));
+    const ensure = () => this.ensureBanners();
+    this.plugin.registerEvent(app.workspace.on("layout-change", ensure));
+    this.plugin.registerEvent(app.workspace.on("active-leaf-change", ensure));
+    this.plugin.registerEvent(app.workspace.on("file-open", ensure));
+    // checking the focused task off ends the focus and logs the time
+    this.plugin.registerEvent(app.metadataCache.on("changed", f => {
+      if (this.state && !this.stopping && f.path === this.state.path && app.metadataCache.getFileCache(f)?.frontmatter?.status === "done") void this.stop(false);
+    }));
+    app.workspace.onLayoutReady(() => { app.workspace.detachLeavesOfType(FOCUS_VIEW_TYPE); this.refreshViews(); });
     this.renderStatus();
   }
   /** Session time of the running / paused focus. */
@@ -44,9 +55,51 @@ export class FocusManager {
   }
   private refreshViews() {
     this.renderStatus();
-    this.plugin.app.workspace.getLeavesOfType(FOCUS_VIEW_TYPE).forEach(l => { if (l.view instanceof FocusView) l.view.render(); });
+    document.querySelectorAll(".samaya-focus-bar").forEach(el => el.remove());
+    this.ensureBanners();
     this.plugin.refreshPlanner(); // cards and timeline blocks follow the focus
   }
+
+  /** The banner on top of every page in the main area while a focus runs (or is on a break). */
+  private ensureBanners() {
+    const ws = this.plugin.app.workspace;
+    if (!this.state) { document.querySelectorAll(".samaya-focus-bar").forEach(el => el.remove()); return; }
+    ws.iterateRootLeaves(leaf => {
+      const host = leaf.view?.containerEl; if (!host || host.querySelector(":scope > .samaya-focus-bar")) return;
+      const bar = createDiv("samaya-focus-bar");
+      const header = host.querySelector(":scope > .view-header");
+      if (header) header.after(bar); else host.prepend(bar);
+      this.buildBanner(bar);
+    });
+    this.tickBanners();
+  }
+  private buildBanner(bar: HTMLElement) {
+    const st = this.state; const file = this.file; if (!st) return;
+    bar.toggleClass("is-focus", !!st.startedAt); bar.toggleClass("is-break", !st.startedAt);
+    bar.createSpan({ cls: "samaya-focus-dot" });
+    bar.createSpan({ cls: "samaya-focus-state", text: st.startedAt ? "FOCUS" : "BREAK" });
+    const link = bar.createEl("a", { cls: "samaya-focus-link", text: file?.basename ?? "", attr: { title: "Open task note" } });
+    link.addEventListener("click", e => { e.preventDefault(); this.openNote(); });
+    bar.createSpan({ cls: "samaya-focus-clock" });
+    bar.createSpan({ cls: "samaya-focus-prog" });
+    const btn = (icon: string, label: string, fn: () => Promise<void>) => {
+      const b = bar.createEl("button", { cls: "samaya-focus-bbtn", attr: { "aria-label": label, title: label } });
+      setIcon(b, icon); b.addEventListener("click", () => { void fn(); });
+    };
+    if (st.startedAt) btn("pause", "Take a break", () => this.pause()); else btn("play", "Resume", () => this.resume());
+    btn("square-check", "Complete and log time", () => this.stop(true));
+  }
+  private tickBanners() {
+    const st = this.state; const f = this.file; if (!st) return;
+    const t = f ? readTask(this.plugin.app, f) : null;
+    const actual = t ? t.actual + this.sessionMs() / 60000 - (st.loggedMin ?? 0) : 0; // the logged part is already in t.actual
+    document.querySelectorAll<HTMLElement>(".samaya-focus-bar").forEach(bar => {
+      bar.querySelector(".samaya-focus-clock")?.setText(clock(this.sessionMs()));
+      const prog = bar.querySelector<HTMLElement>(".samaya-focus-prog");
+      if (prog && t) { prog.setText(`${fmtHm(actual)} / ${t.estimate ? fmtHm(t.estimate) : "--:--"}`); prog.toggleClass("is-over", !!t.estimate && actual > t.estimate); }
+    });
+  }
+  openNote() { const f = this.file; if (f) void this.plugin.app.workspace.getLeaf("tab").openFile(f); }
 
   async start(file: TFile) {
     if (this.state && this.state.path !== file.path) await this.stop(false);
@@ -59,17 +112,7 @@ export class FocusManager {
     app.workspace.iterateAllLeaves(l => { if (!leaf && l.view instanceof Object && (l.view as { file?: TFile }).file?.path === file.path && l.getRoot() === app.workspace.rootSplit) leaf = l; });
     if (!leaf) { leaf = app.workspace.getLeaf("tab"); await leaf.openFile(file); }
     app.workspace.setActiveLeaf(leaf, { focus: true });
-    await this.openView();
     this.refreshViews();
-  }
-  async openView() {
-    const ws = this.plugin.app.workspace;
-    let leaf = ws.getLeavesOfType(FOCUS_VIEW_TYPE)[0];
-    if (!leaf) {
-      leaf = ws.getRightLeaf(false) ?? ws.getLeaf("split", "vertical");
-      await leaf.setViewState({ type: FOCUS_VIEW_TYPE, active: false });
-    }
-    await ws.revealLeaf(leaf);
   }
   /** Pause (a break): write the time worked so far to the task, so duration_actual is up to date during the break. */
   async pause() {
@@ -93,86 +136,19 @@ export class FocusManager {
   async resume() { const s = this.state; if (!s || s.startedAt) return; s.startedAt = Date.now(); await this.persist(); this.refreshViews(); }
   /** Stop (the last run is logged like a break), optionally complete the task. */
   async stop(markDone: boolean) {
-    const s = this.state; if (!s) return;
+    const s = this.state; if (!s || this.stopping) return;
+    this.stopping = true;
+    try { await this.stopRun(s, markDone); } finally { this.stopping = false; }
+  }
+  private async stopRun(s: FocusState, markDone: boolean) {
     await this.pause();
     const minutes = s.loggedMin ?? 0; const file = this.file;
     this.state = null; await this.persist();
-    this.plugin.app.workspace.detachLeavesOfType(FOCUS_VIEW_TYPE);
     this.refreshViews();
     if (file) {
       if (markDone) await patchTask(this.plugin.app, file, { status: "done", completed: new Date().toISOString().slice(0, 10) });
-      new Notice(`Logged ${fmtDur(minutes)} on "${file.basename}"${markDone ? " - done" : ""}`);
+      new Notice(`Logged ${fmtDur(minutes)} on "${file.basename}"${markDone || readTask(this.plugin.app, file).status === "done" ? " - done" : ""}`);
     }
   }
 }
 
-type IconKind = "pause" | "play" | "check";
-function drawIcon(parent: HTMLElement, kind: IconKind) {
-  const svg = parent.createSvg("svg", { attr: { viewBox: "0 0 24 24", width: "26", height: "26", fill: "none", stroke: "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round" } });
-  if (kind === "pause") {
-    svg.createSvg("rect", { attr: { x: "6", y: "5", width: "4", height: "14", rx: "1", fill: "currentColor" } });
-    svg.createSvg("rect", { attr: { x: "14", y: "5", width: "4", height: "14", rx: "1", fill: "currentColor" } });
-  } else if (kind === "play") {
-    svg.createSvg("path", { attr: { d: "M8 5v14l11-7z", fill: "currentColor" } });
-  } else { // checked checkbox
-    svg.createSvg("rect", { attr: { x: "3", y: "3", width: "18", height: "18", rx: "3" } });
-    svg.createSvg("path", { attr: { d: "m8 12 3 3 5-6" } });
-  }
-}
-
-export class FocusView extends ItemView {
-  private actualEl: HTMLElement | null = null;
-  private barEl: HTMLElement | null = null;
-  constructor(leaf: WorkspaceLeaf, private plugin: SamayaPlugin) { super(leaf); }
-  getViewType() { return FOCUS_VIEW_TYPE; }
-  getDisplayText() { return "Focus"; }
-  getIcon() { return "timer"; }
-  async onOpen() {
-    this.render();
-    this.registerInterval(window.setInterval(() => this.tick(), 1000));
-  }
-
-  private tick() {
-    const fm = this.plugin.focus; const f = fm.file; if (!fm.state || !f || !this.actualEl) return;
-    const t = readTask(this.app, f);
-    const actualMin = t.actual + fm.sessionMs() / 60000 - (fm.state.loggedMin ?? 0); // the logged part is already in t.actual
-    this.actualEl.setText(fmtHm(actualMin));
-    const over = !!t.estimate && actualMin > t.estimate;
-    this.actualEl.toggleClass("is-over", over);
-    if (this.barEl) { this.barEl.style.width = `${t.estimate ? Math.min(100, (actualMin / t.estimate) * 100) : 0}%`; this.barEl.toggleClass("is-over", over); }
-  }
-
-  render() {
-    const c = this.contentEl; c.empty(); c.addClass("samaya-focus");
-    const fm = this.plugin.focus; const st = fm.state; const file = fm.file;
-    if (!st || !file) { c.createDiv({ cls: "samaya-empty", text: "No task in focus. Right-click a task and choose Start focus." }); this.actualEl = null; return; }
-    const t = readTask(this.app, file);
-    c.removeClass("is-focus"); c.removeClass("is-break"); c.addClass(st.startedAt ? "is-focus" : "is-break");
-    const banner = c.createDiv("samaya-focus-banner");
-    banner.createSpan({ cls: "samaya-focus-dot" });
-    banner.createSpan({ text: st.startedAt ? "FOCUS MODE" : "BREAK - timer paused" });
-    c.createEl("h2", { cls: "samaya-focus-title", text: t.title });
-    const tp = ticketPathOf(this.app, t); const tf = tp ? this.app.vault.getAbstractFileByPath(tp) : null;
-    if (tf instanceof TFile) { const tk = readTicket(this.app, tf); c.createDiv({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}`, text: `${tk.key} ${tk.summary}` }); }
-
-    const row = c.createDiv("samaya-focus-buttons");
-    const btn = (kind: IconKind, label: string, fn: () => Promise<void>, cta = false) => {
-      const b = row.createEl("button", { cls: "samaya-focus-btn" + (cta ? " mod-cta" : ""), attr: { "aria-label": label, title: label } });
-      drawIcon(b, kind); b.onclick = () => { void fn(); };
-    };
-    if (st.startedAt) btn("pause", "Pause", () => fm.pause()); else btn("play", "Resume", () => fm.resume(), true);
-    btn("check", "Complete and log time", () => fm.stop(true));
-
-    const stats = c.createDiv("samaya-focus-stats");
-    const stat = (label: string, value: string) => { const d = stats.createDiv("samaya-focus-stat"); d.createDiv({ cls: "samaya-focus-stat-label", text: label }); return d.createDiv({ cls: "samaya-focus-stat-value", text: value }); };
-    stat("Planned", t.estimate ? fmtHm(t.estimate) : "--:--");
-    this.actualEl = stat("Actual so far", "");
-    const bar = c.createDiv("samaya-focus-bar"); this.barEl = bar.createDiv("samaya-focus-bar-fill");
-    this.tick();
-
-    c.createEl("button", { text: "Open note" }).onclick = () => { void this.app.workspace.getLeaf("tab").openFile(file); };
-
-    c.createEl("h4", { text: "Subtasks" });
-    void renderSubtasks(this.plugin, c.createDiv("samaya-subs samaya-focus-subs"), file);
-  }
-}

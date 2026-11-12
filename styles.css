@@ -66,20 +66,6 @@
 .samaya-reflection { width: 100%; }
 .samaya-sub { color: var(--text-muted); margin-top: 8px; }
 
-.samaya-focus { padding: 16px; text-align: center; }
-.samaya-focus-label { color: var(--text-faint); letter-spacing: 0.12em; font-size: var(--font-ui-smaller); }
-.samaya-focus-title { margin: 6px 0 12px; }
-.samaya-focus-buttons { display: flex; gap: 12px; justify-content: center; margin: 12px 0 18px; }
-.samaya-focus-btn { width: 56px; height: 56px; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: var(--samaya-r-m); box-shadow: none; }
-.samaya-focus-stats { display: flex; justify-content: center; gap: 28px; margin: 8px 0; }
-.samaya-focus-stat-label { color: var(--text-faint); font-size: var(--font-ui-smaller); }
-.samaya-focus-stat-value { font-size: 1.2em; font-weight: 600; font-variant-numeric: tabular-nums; }
-.samaya-focus-stat-value.is-over, .samaya-focus-bar-fill.is-over { color: var(--text-error); }
-.samaya-focus-bar { height: 6px; background: var(--background-modifier-border); border-radius: var(--samaya-r-pill); overflow: hidden; margin: 8px 0 14px; }
-.samaya-focus-bar-fill { height: 100%; width: 0; background: var(--interactive-accent); }
-.samaya-focus-bar-fill.is-over { background: var(--text-error); }
-.samaya-focus h4 { text-align: left; margin: 18px 0 4px; }
-.samaya-focus-subs { text-align: left; }
 .samaya-status { cursor: pointer; }
 
 body.samaya-left-collapsed .samaya-daily-cols { justify-content: center; }
@@ -143,15 +129,6 @@ body.samaya-dragging, body.samaya-dragging * { cursor: grabbing !important; user
 /* card v3: checkbox top right, duration to its left, subtasks slightly indented */
 .samaya-est { margin-top: 1px; }
 
-/* focus panel modes */
-.samaya-focus { border-top: 4px solid transparent; transition: background 0.2s; }
-.samaya-focus.is-focus { border-top-color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 9%, transparent); }
-.samaya-focus.is-break { border-top-color: var(--color-orange); background: color-mix(in srgb, var(--color-orange) 10%, transparent); }
-.samaya-focus-banner { display: inline-flex; align-items: center; gap: 8px; padding: 3px 14px; border-radius: var(--samaya-r-pill); font-size: var(--font-ui-smaller); font-weight: 700; letter-spacing: 0.1em; margin-bottom: 4px; }
-.samaya-focus.is-focus .samaya-focus-banner { background: var(--interactive-accent); color: var(--text-on-accent); }
-.samaya-focus.is-break .samaya-focus-banner { background: var(--color-orange); color: #fff; }
-.samaya-focus-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-.samaya-focus.is-focus .samaya-focus-dot { animation: samaya-pulse 1.6s ease-in-out infinite; }
 @keyframes samaya-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } }
 .samaya-status.is-break { color: var(--color-orange); }
 
@@ -196,7 +173,7 @@ body {
   --samaya-r-s: var(--radius-s); --samaya-r-m: var(--radius-m); --samaya-r-l: var(--radius-l); --samaya-r-pill: 999px;
   --samaya-tint: 20%; /* how much of the task / meeting colour a block takes */
 }
-.samaya-daily, .samaya-week, .samaya-backlog-view, .samaya-today, .samaya-focus, .samaya-ritual, .samaya-dash {
+.samaya-daily, .samaya-week, .samaya-backlog-view, .samaya-today, .samaya-ritual, .samaya-dash {
   --checkbox-color: var(--samaya-green); --checkbox-color-hover: color-mix(in srgb, var(--samaya-green) 85%, black);
 }
 .samaya-block-title { display: flex; align-items: center; gap: 6px; font-weight: 600; line-height: 1.25; }
@@ -1222,3 +1199,16 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-rail-btn svg { width: 22px; height: 22px; stroke-width: 1.6; }
 .samaya-rail-btn:hover { color: var(--text-normal); }
 .samaya-rail-btn.is-active { color: var(--interactive-accent); }
+
+/* focus banner: on top of every page in the main area while a focus runs */
+.samaya-focus-bar { display: flex; align-items: center; gap: 10px; padding: 4px 14px; font-size: var(--font-ui-small); border-bottom: 1px solid var(--background-modifier-border); flex: none; }
+.samaya-focus-bar.is-focus { background: color-mix(in srgb, var(--interactive-accent) 16%, var(--background-primary)); border-bottom-color: var(--interactive-accent); }
+.samaya-focus-bar.is-break { background: color-mix(in srgb, var(--color-orange) 16%, var(--background-primary)); border-bottom-color: var(--color-orange); }
+.samaya-focus-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+.samaya-focus-bar.is-focus .samaya-focus-dot { color: var(--interactive-accent); animation: samaya-pulse 1.6s ease-in-out infinite; }
+.samaya-focus-bar.is-break .samaya-focus-dot { color: var(--color-orange); }
+.samaya-focus-state { font-weight: 700; letter-spacing: 0.1em; font-size: var(--font-ui-smaller); }
+.samaya-focus-link { font-weight: 600; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.samaya-focus-clock, .samaya-focus-prog { font-variant-numeric: tabular-nums; flex: none; }
+.samaya-focus-prog { color: var(--text-muted); } .samaya-focus-prog.is-over { color: var(--text-error); }
+.samaya-focus-bbtn { padding: 2px 6px; height: auto; box-shadow: none; flex: none; } .samaya-focus-bbtn svg { width: 16px; height: 16px; }

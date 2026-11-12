@@ -1,6 +1,6 @@
 import { Editor, MarkdownView, Notice, Plugin, TFile, normalizePath, setIcon } from "obsidian";
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
-import { FOCUS_VIEW_TYPE, FocusManager, FocusState, FocusView } from "./focus";
+import { FocusManager, FocusState } from "./focus";
 import { allTickets, assignTicket, createTask, momentFmt } from "./model";
 import { PLANNER_VIEW_TYPE, PlannerView } from "./views/PlannerView";
 import { syncTickets } from "./sync";
@@ -79,7 +79,6 @@ export default class SamayaPlugin extends Plugin {
     this.registerView(DASHBOARD_VIEW_TYPE, leaf => new DashboardView(leaf, this));
     this.registerView(TODAY_VIEW_TYPE, leaf => new TodayView(leaf));
     this.registerView(JOURNAL_CAL_TYPE, leaf => new JournalCalendarView(leaf, this));
-    this.registerView(FOCUS_VIEW_TYPE, leaf => new FocusView(leaf, this));
     this.addSettingTab(new SamayaSettingTab(this.app, this));
 
 
@@ -109,7 +108,6 @@ export default class SamayaPlugin extends Plugin {
       const f = this.app.workspace.getActiveFile(); const ok2 = !!f && f.path.startsWith(prefixOf(this.settings.tasksPath));
       if (ok2 && !c && f) void this.focus.start(f); return ok2;
     } });
-    this.addCommand({ id: "focus-show", name: "Show focus timer", callback: () => { void this.focus.openView(); } });
     this.addCommand({ id: "convert-checkbox", name: "Convert checkbox line to task note", editorCallback: (ed, v) => this.convertCheckbox(ed, v as MarkdownView) });
     // sync commands only show while their module is switched on
     const gated = (id: string, name: string, on: () => boolean, only?: "jira" | "gitlab") =>

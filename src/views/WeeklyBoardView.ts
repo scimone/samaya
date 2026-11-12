@@ -106,7 +106,7 @@ export class WeeklyBoardView extends PlannerPane {
     });
     const body = col.createDiv("samaya-col-body");
     tasks.forEach((t, idx) => {
-      const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true });
+      const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true, focus: "today" });
       bindCardDrop(this.scope, c, (path, after, i) => { this.dropOn(path, i, key, idx + (after ? 1 : 0)); });
     });
     bindZone(this.scope, col, (path, i) => { this.dropOn(path, i, key, tasks.length); });
@@ -258,7 +258,7 @@ export class WeeklyBoardView extends PlannerPane {
     addBox(col, "+ Add task", () => ({ planned: date, order: tasks.length }));
     const body = col.createDiv("samaya-col-body");
     tasks.forEach((t, idx) => {
-      const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true, split: true });
+      const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true, split: true, focus: "today" });
       bindCardDrop(this.scope, c, (path, after, i) => { this.dropOn(path, i, date, idx + (after ? 1 : 0)); });
     });
     bindZone(this.scope, col, (path, i) => { this.dropOn(path, i, date, tasks.length); });
@@ -348,7 +348,7 @@ function renderAgenda(parent: HTMLElement, events: CalendarEvent[], date: string
   const ag = parent.createDiv("samaya-agenda");
   if (!evs.length) ag.createDiv({ cls: "samaya-agenda-empty", text: "No meetings" });
   evs.forEach(e => {
-    const r = ag.createDiv({ cls: "samaya-agenda-row" + (e.allDay ? " is-allday" : ""), attr: { title: e.title } });
+    const r = ag.createDiv({ cls: "samaya-agenda-row" + (e.allDay ? " is-allday" : "") + (!e.allDay && Date.now() >= e.start.getTime() && Date.now() < e.end.getTime() ? " is-current" : ""), attr: { title: e.title } });
     r.createSpan({ cls: "samaya-agenda-time", text: e.allDay ? "all day" : minToHm(Math.max(0, (e.start.getTime() - dayMs) / 60000)) });
     r.createSpan({ cls: "samaya-agenda-title", text: e.title });
   });

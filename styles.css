@@ -1225,3 +1225,4 @@ body.samaya-focusing .samaya-block:not(.is-current):hover { background: color-mi
 body.samaya-focusing .samaya-block.is-done:not(.is-current):hover { background: color-mix(in srgb, var(--text-muted) 12%, var(--background-primary)); }
 .samaya-focus-stop { margin-left: 4px; }
 body.samaya-focusing .samaya-hs-group.is-cap, body.samaya-focusing .samaya-hd-btn.is-end-day, body.samaya-focusing .samaya-hd-btn.is-review-week, body.samaya-focusing .samaya-hd-icon.is-worktime { display: none; }
+body.samaya-focusing :is(.samaya-agenda-row:not(.is-current), .samaya-agenda-empty) { opacity: 0.15; }

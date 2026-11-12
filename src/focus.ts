@@ -38,6 +38,8 @@ export class FocusManager {
   }
   /** Session time of the running / paused focus. */
   sessionMs(): number { const s = this.state; return s ? s.accumulatedMs + (s.startedAt ? Date.now() - s.startedAt : 0) : 0; }
+  /** Minutes of the running session of `path` that are not in the task's duration_actual yet (0 for any other task, and on a break). */
+  liveMin(path: string): number { const st = this.state; return st && st.path === path ? Math.max(0, this.sessionMs() / 60000 - (st.loggedMin ?? 0)) : 0; }
   get file(): TFile | null { const f = this.state && this.plugin.app.vault.getAbstractFileByPath(this.state.path); return f instanceof TFile ? f : null; }
 
   private async persist() { this.plugin.data.focus = this.state; await this.plugin.saveData(this.plugin.data); }
@@ -86,6 +88,9 @@ export class FocusManager {
     const before = t ? trackedBefore(this.plugin, t, today()) : 0;
     const actual = t ? Math.max(0, t.actual - before + this.sessionMs() / 60000 - (st.loggedMin ?? 0)) : 0; // the logged part is already in t.actual
     const planned = day ? day.estimate : 0;
+    document.querySelectorAll<HTMLElement>(".samaya-est[data-focus-base]").forEach(el => { // the focused task's cards count along with the banner
+      el.setText(`${fmtHm(+el.dataset.focusBase! + this.liveMin(st.path))}/${el.dataset.focusEst}`);
+    });
     document.querySelectorAll<HTMLElement>(".samaya-focus-bar").forEach(bar => {
       const prog = bar.querySelector<HTMLElement>(".samaya-focus-prog");
       if (prog && t) { prog.setText(`${fmtHm(actual)} / ${planned ? fmtHm(planned) : "--:--"}`); prog.toggleClass("is-over", !!planned && actual > planned); }

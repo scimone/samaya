@@ -89,10 +89,12 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   if (!meta.childElementCount) meta.remove();
 
   // top right: [logged/]estimated as hh:mm
-  const label = t.actual ? `${fmtHm(t.actual)}/${t.estimate ? fmtHm(t.estimate) : "--:--"}` : t.estimate ? fmtHm(t.estimate) : "--:--";
+  const live = plugin.focus.liveMin(t.file.path); const estTxt = t.estimate ? fmtHm(t.estimate) : "--:--"; // the focused task counts the running session too
+  const label = t.actual || live ? `${fmtHm(t.actual + live)}/${estTxt}` : estTxt;
   if (o.dayLabel) row.createSpan({ cls: "samaya-card-day", text: o.dayLabel }); // left of the estimate; the title wraps instead of running under it
   const side = row.createDiv("samaya-card-side");
   const est = side.createEl("button", { cls: "samaya-est", text: label, attr: { title: "Estimated time (hh:mm). Click to edit" } });
+  if (plugin.focus.state?.path === t.file.path) { est.dataset.focusBase = String(t.actual); est.dataset.focusEst = estTxt; }
   est.title = t.part ? (t.part.kind === "rest" ? `Not planned yet: ${fmtDur(t.estimate)} of ${fmtDur(t.part.total)}. Click to edit` : `This part: ${fmtDur(t.estimate)} of ${fmtDur(t.part.total)}. Click to edit`) : est.title;
   est.addEventListener("click", e => {
     e.stopPropagation();

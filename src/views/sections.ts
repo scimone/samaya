@@ -1,7 +1,6 @@
 import type SamayaPlugin from "../main";
 import { Panel } from "./panel";
-import { BacklogView } from "./BacklogView";
-import { BacklogBucketsView } from "./BacklogBucketsView";
+import { TasksView } from "./TasksView";
 import { KanbanView } from "./KanbanView";
 import { GanttView } from "./GanttView";
 import { MeetingsView } from "./MeetingsView";
@@ -11,7 +10,7 @@ export interface Tab { name: string; make: (el: HTMLElement, plugin: SamayaPlugi
 
 /** What each planner section (side rail entry) shows: one panel, or several behind a small tab switch. */
 export const SECTION_TABS: Record<string, Tab[]> = {
-  tasks: [{ name: "Backlog", make: (el, p) => new BacklogView(el, p) }, { name: "By date", make: (el, p) => new BacklogBucketsView(el, p) }],
+  tasks: [{ name: "Tasks", make: (el, p) => new TasksView(el, p) }],
   journal: [{ name: "Calendar", make: (el, p) => new JournalBaseView(el, p) }],
   meetings: [{ name: "Meetings", make: (el, p) => new MeetingsView(el, p) }],
   projects: [{ name: "Gantt", make: (el, p) => new GanttView(el, p) }],

@@ -475,3 +475,25 @@ await bundle("src/meetingseries.ts", "test/.meetingseries.mjs");
   { const r = buildSeries([mk("Daily", "2026-11-12", true)], "2026-11-12", 9 * 60 + 29).series[0]; assert.deepEqual([r.instances[0].when, r.held], ["today", 0]); }
   assert.equal(buildSeries([mk("A", "2026-11-01"), mk("A", "2026-11-08"), mk("B", "2026-11-02")], "2026-11-12").series.length, 1); // no property: repeats count as a series
 }
+
+// ---- tasks board
+await bundle("src/tasksboard.ts", "test/.tasksboard.mjs");
+{
+  const { columnOf, doneThisWeek, lanes } = await import("./.tasksboard.mjs");
+  const td = "2026-11-12", wk = "2026-11-09"; // Thursday of the week starting Mon 9th
+  assert.equal(columnOf("2026-11-11", "", td, wk), "overdue");
+  assert.equal(columnOf("2026-11-12", "", td, wk), "today");
+  assert.equal(columnOf("2026-11-13", "", td, wk), "week");
+  assert.equal(columnOf("2026-11-15", "", td, wk), "week"); // Sunday still belongs to this week
+  assert.equal(columnOf("2026-11-16", "", td, wk), "later");
+  assert.equal(columnOf("", "2026-11-02", td, wk), "overdue"); // a week that is over
+  assert.equal(columnOf("", wk, td, wk), "week");
+  assert.equal(columnOf("", "2026-11-16", td, wk), "later");
+  assert.equal(columnOf("", "", td, wk), null); // backlog
+  assert.equal(doneThisWeek("2026-11-09", "", wk), true);
+  assert.equal(doneThisWeek("2026-11-08", "2026-11-12", wk), false); // finished last week
+  assert.equal(doneThisWeek("", "2026-11-05", wk), false);
+  assert.equal(doneThisWeek("", "", wk), true);
+  const ls = lanes([{ k: "b" }, { k: "" }, { k: "a" }, { k: "b" }], t => t.k, k => k);
+  assert.deepEqual(ls.map(l => [l.key, l.items.length]), [["a", 1], ["b", 2], ["", 1]]); // named A-Z, no group last
+}

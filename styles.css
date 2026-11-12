@@ -1340,3 +1340,57 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
 .samaya-meet-title { font-weight: 600; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-normal); }
 .samaya-meet-prog { font-variant-numeric: tabular-nums; flex: none; color: var(--text-muted); }
 .samaya-meet-meter { position: absolute; left: 0; bottom: -1px; height: 2px; width: var(--p, 0%); background: var(--samaya-meeting); transition: width 1s linear; }
+
+/* ---------- Tasks page: board and backlog, built like the planner and the meetings ---------- */
+.samaya-embed-body:has(> .samaya-tk) { padding: 0; overflow: hidden; }
+.samaya-tk { --checkbox-color: var(--samaya-green); --checkbox-color-hover: color-mix(in srgb, var(--samaya-green) 85%, black); height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.samaya-tk-head { flex: none; width: 100%; flex-wrap: wrap; overflow: visible; row-gap: var(--samaya-sp-2); border-bottom: 1px solid var(--background-modifier-border); padding-top: var(--samaya-sp-3); padding-bottom: var(--samaya-sp-3); }
+.samaya-tk-head > .samaya-planner-titles { flex: 1 1 140px; width: auto; }
+.samaya-tk-head .samaya-planner-right { flex-wrap: wrap; justify-content: flex-end; }
+.samaya-tk-group { display: inline-flex; align-items: center; gap: var(--samaya-sp-2); }
+.samaya-tk-grouplabel { color: var(--text-faint); font-size: var(--font-ui-smaller); }
+.samaya-tk-scroll { flex: 1; min-height: 0; overflow: auto; padding: 0 var(--samaya-sp-5) var(--samaya-sp-6) var(--samaya-sp-6); }
+.samaya-tk-grid { display: flex; flex-direction: column; min-height: 100%; min-width: calc(var(--cols) * 232px); }
+
+/* column headings: the quiet small caps of the meetings sections, with a count and the planned time */
+.samaya-tk-cols, .samaya-tk-row { display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: var(--samaya-sp-3); }
+.samaya-tk-cols { flex: none; position: sticky; top: 0; z-index: 3; background: var(--background-primary); padding: var(--samaya-sp-3) 0 var(--samaya-sp-2); }
+.samaya-tk-colhead { --tone: var(--text-faint); display: flex; align-items: baseline; gap: var(--samaya-sp-2); padding: 0 var(--samaya-sp-1); min-width: 0; }
+.samaya-tk-colhead.is-warn { --tone: var(--color-orange); } .samaya-tk-colhead.is-accent { --tone: var(--interactive-accent); } .samaya-tk-colhead.is-done { --tone: var(--samaya-green); }
+.samaya-tk-collabel { color: var(--tone); font-size: var(--samaya-fs-label); font-weight: 600; letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
+.samaya-tk-colcount { font-size: var(--font-ui-smaller); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.samaya-tk-colhead.is-warn .samaya-tk-colcount, .samaya-tk-colhead.is-accent .samaya-tk-colcount { color: var(--tone); }
+.samaya-tk-colest { margin-left: auto; font-size: var(--font-ui-smaller); color: var(--text-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* cells: soft panels that light up as drop targets */
+.samaya-tk-lane.is-only { flex: 1; display: flex; flex-direction: column; }
+.samaya-tk-lane.is-only > .samaya-tk-row { flex: 1; }
+.samaya-tk-cell { display: flex; flex-direction: column; gap: var(--samaya-sp-2); min-width: 0; min-height: 84px; padding: var(--samaya-sp-2); border-radius: var(--samaya-r-l); background: color-mix(in srgb, var(--background-secondary) 70%, transparent); transition: background .15s, outline-color .15s; }
+.samaya-tk-cell.is-drop { background: color-mix(in srgb, var(--interactive-accent) 10%, var(--background-secondary)); outline: 2px dashed var(--interactive-accent); outline-offset: -2px; }
+.samaya-tk-cell > * { flex-shrink: 0; }
+.samaya-tk-cell > .samaya-add { width: 100%; box-sizing: border-box; margin: 0; background: transparent; border-color: transparent; box-shadow: none; color: var(--text-muted); }
+.samaya-tk-cell > .samaya-add:hover, .samaya-tk-cell > .samaya-add:focus { background: var(--background-primary); border-color: var(--background-modifier-border); }
+.samaya-tk-cell .samaya-card { background: var(--background-primary); border-color: transparent; box-shadow: 0 1px 2px rgba(0, 0, 0, .1); }
+.samaya-tk-cell .samaya-card:hover { border-color: var(--background-modifier-border-hover); }
+.samaya-tk-empty { margin: auto; padding: var(--samaya-sp-4) 0; color: var(--text-faint); font-size: var(--font-ui-smaller); text-align: center; }
+.samaya-tk-cell.is-drop .samaya-tk-empty { color: var(--text-accent); }
+.samaya-tk-none { color: var(--text-faint); font-size: var(--font-ui-small); padding: var(--samaya-sp-6) 0; text-align: center; }
+/* the lane already says which ticket / project a card belongs to */
+.samaya-tk.by-ticket .samaya-tk-cell .samaya-chip-ticket, .samaya-tk.by-project .samaya-tk-cell .samaya-chip-project { display: none; }
+
+/* swimlanes */
+.samaya-tk-lane:not(.is-only) { margin-top: var(--samaya-sp-4); }
+.samaya-tk-lanehead { display: flex; align-items: center; gap: var(--samaya-sp-2); padding: var(--samaya-sp-1) var(--samaya-sp-1) var(--samaya-sp-2); margin-bottom: var(--samaya-sp-2); border-bottom: 1px solid var(--background-modifier-border); cursor: pointer; min-width: 0; }
+.samaya-tk-chevron { display: inline-flex; color: var(--text-faint); transition: transform .15s; }
+.samaya-tk-chevron svg { width: 14px; height: 14px; }
+.samaya-tk-lanehead.is-collapsed .samaya-tk-chevron { transform: rotate(-90deg); }
+.samaya-tk-lanehead:hover .samaya-tk-chevron { color: var(--text-normal); }
+.samaya-tk-lanename { display: flex; align-items: baseline; gap: var(--samaya-sp-2); min-width: 0; flex: 0 1 auto; }
+.samaya-tk-lanekey { font-weight: 600; white-space: nowrap; }
+.samaya-tk-lanekey.is-none { color: var(--text-muted); font-weight: 500; }
+.samaya-tk-lanesum { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.samaya-tk-lanecount { flex: none; color: var(--text-faint); font-size: var(--font-ui-smaller); font-variant-numeric: tabular-nums; }
+.samaya-tk-laneacts { margin-left: auto; display: flex; gap: 2px; opacity: 0; transition: opacity .15s; }
+.samaya-tk-lanehead:hover .samaya-tk-laneacts, .samaya-tk-lanehead:focus-within .samaya-tk-laneacts { opacity: 1; }
+.samaya-tk-laneadd { width: 100%; max-width: 420px; box-sizing: border-box; margin: 0 0 var(--samaya-sp-2) var(--samaya-sp-1); }
+@media (prefers-reduced-motion: reduce) { .samaya-tk-cell, .samaya-tk-chevron, .samaya-tk-laneacts { transition: none; } }

@@ -1,6 +1,8 @@
 import { Notice, TFile, WorkspaceLeaf, setIcon } from "obsidian";
 import type SamayaPlugin from "./main";
-import { patchTask, readTask } from "./model";
+import { dayTask, patchTask, readTask } from "./model";
+import { trackedBefore } from "./views/place";
+import { today } from "./util";
 import { fmtDur, fmtHm } from "./util";
 
 /** the retired focus sidebar: leftovers of it in a saved layout are closed */
@@ -64,13 +66,15 @@ export class FocusManager {
   private ensureBanners() {
     const ws = this.plugin.app.workspace;
     if (!this.state) { document.querySelectorAll(".samaya-focus-bar").forEach(el => el.remove()); return; }
-    ws.iterateRootLeaves(leaf => {
-      const host = leaf.view?.containerEl; if (!host || host.querySelector(":scope > .samaya-focus-bar")) return;
-      const bar = createDiv("samaya-focus-bar");
-      const header = host.querySelector(":scope > .view-header");
-      if (header) header.after(bar); else host.prepend(bar);
-      this.buildBanner(bar);
-    });
+    // one banner, in the pane in front (it moves along when another pane is picked)
+    const leaf = ws.getMostRecentLeaf(ws.rootSplit); const host = leaf?.view?.containerEl;
+    if (!host) return;
+    if (host.querySelector(":scope > .samaya-focus-bar")) return;
+    document.querySelectorAll(".samaya-focus-bar").forEach(el => el.remove());
+    const bar = createDiv("samaya-focus-bar");
+    const header = host.querySelector(":scope > .view-header");
+    if (header) header.after(bar); else host.prepend(bar);
+    this.buildBanner(bar);
     this.tickBanners();
   }
   private buildBanner(bar: HTMLElement) {
@@ -80,7 +84,6 @@ export class FocusManager {
     bar.createSpan({ cls: "samaya-focus-state", text: st.startedAt ? "FOCUS" : "BREAK" });
     const link = bar.createEl("a", { cls: "samaya-focus-link", text: file?.basename ?? "", attr: { title: "Open task note" } });
     link.addEventListener("click", e => { e.preventDefault(); this.openNote(); });
-    bar.createSpan({ cls: "samaya-focus-clock" });
     bar.createSpan({ cls: "samaya-focus-prog" });
     const btn = (icon: string, label: string, fn: () => Promise<void>) => {
       const b = bar.createEl("button", { cls: "samaya-focus-bbtn", attr: { "aria-label": label, title: label } });
@@ -92,11 +95,14 @@ export class FocusManager {
   private tickBanners() {
     const st = this.state; const f = this.file; if (!st) return;
     const t = f ? readTask(this.plugin.app, f) : null;
-    const actual = t ? t.actual + this.sessionMs() / 60000 - (st.loggedMin ?? 0) : 0; // the logged part is already in t.actual
+    // a task spread over several days: today's piece is the plan, and what was tracked on earlier days does not count
+    const day = t ? dayTask(t, today()) : null;
+    const before = t ? trackedBefore(this.plugin, t, today()) : 0;
+    const actual = t ? Math.max(0, t.actual - before + this.sessionMs() / 60000 - (st.loggedMin ?? 0)) : 0; // the logged part is already in t.actual
+    const planned = day ? day.estimate : 0;
     document.querySelectorAll<HTMLElement>(".samaya-focus-bar").forEach(bar => {
-      bar.querySelector(".samaya-focus-clock")?.setText(clock(this.sessionMs()));
       const prog = bar.querySelector<HTMLElement>(".samaya-focus-prog");
-      if (prog && t) { prog.setText(`${fmtHm(actual)} / ${t.estimate ? fmtHm(t.estimate) : "--:--"}`); prog.toggleClass("is-over", !!t.estimate && actual > t.estimate); }
+      if (prog && t) { prog.setText(`${fmtHm(actual)} / ${planned ? fmtHm(planned) : "--:--"}`); prog.toggleClass("is-over", !!planned && actual > planned); }
     });
   }
   openNote() { const f = this.file; if (f) void this.plugin.app.workspace.getLeaf("tab").openFile(f); }

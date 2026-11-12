@@ -1209,6 +1209,6 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-focus-bar.is-break .samaya-focus-dot { color: var(--color-orange); }
 .samaya-focus-state { font-weight: 700; letter-spacing: 0.1em; font-size: var(--font-ui-smaller); }
 .samaya-focus-link { font-weight: 600; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
-.samaya-focus-clock, .samaya-focus-prog { font-variant-numeric: tabular-nums; flex: none; }
+.samaya-focus-prog { font-variant-numeric: tabular-nums; flex: none; }
 .samaya-focus-prog { color: var(--text-muted); } .samaya-focus-prog.is-over { color: var(--text-error); }
 .samaya-focus-bbtn { padding: 2px 6px; height: auto; box-shadow: none; flex: none; } .samaya-focus-bbtn svg { width: 16px; height: 16px; }

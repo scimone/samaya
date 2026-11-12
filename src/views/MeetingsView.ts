@@ -2,6 +2,8 @@ import { BasesView, QueryController, TFile } from "obsidian";
 import type SamayaPlugin from "../main";
 import { Instance, MeetingNote, Series, buildSeries, hueOf, parseNote, seriesKey } from "../meetingseries";
 import { addDays, parseYmd, startOfWeek, today as todayYmd } from "../util";
+import { renderDateNav, renderResetPill } from "./dateNav";
+import { dayHeadSub, isoWeek, renderHeadTitle, renderSwitch, weekRangeLabel } from "./plannerHead";
 
 export const MEETINGS_VIEW_TYPE = "samaya-meetings";
 type Mode = "series" | "agenda";
@@ -13,19 +15,17 @@ const short = (d: string) => parseYmd(d).toLocaleDateString(undefined, { weekday
 const hue = (i: { title: string }) => hueOf(seriesKey(i.title));
 const byTime = (a: Instance, b: Instance) => a.date.localeCompare(b.date) || (a.start ?? 0) - (b.start ?? 0);
 
+/** What the view was showing, kept for the session: opening a meeting note replaces the view, and going back must land on the same tab, week and series. */
+const memory = { mode: "series" as Mode, week: 0, selected: null as string | null, query: "", onlyNotes: false };
+
 /** A quiet, typographic overview of meeting notes: today and tomorrow, then recurring meetings as a plain list; open one to read its notes. */
 export class MeetingsView extends BasesView {
   readonly type = MEETINGS_VIEW_TYPE;
   private root: HTMLElement;
   private timer = 0;
   private token = 0;
-  private mode: Mode = "series";
-  private selected: string | null = null;
-  private query = "";
-  private onlyNotes = false;
   private cache = new Map<string, { mtime: number; body: string }>();
 
-  private week = 0; // agenda: weeks from the current one
   private tick = 0;
   constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
     super(controller); this.root = parentEl.createDiv("samaya-mt");
@@ -60,26 +60,49 @@ export class MeetingsView extends BasesView {
     const { series, oneOffs } = buildSeries(notes, td, now.getHours() * 60 + now.getMinutes());
     const y = this.root.querySelector<HTMLElement>(".samaya-mt-page")?.scrollTop ?? 0;
     this.root.empty();
+    const sel = memory.selected ? series.find(s => s.key === memory.selected) : undefined;
+    if (memory.selected && !sel) memory.selected = null;
+    this.head(td, sel);
     const scroller = this.root.createDiv("samaya-mt-page"); const page = scroller.createDiv("samaya-mt-col");
-    const sel = this.selected ? series.find(s => s.key === this.selected) : undefined;
-    if (this.selected && !sel) this.selected = null;
     if (sel) this.detail(page, sel, td); else this.overview(page, series, oneOffs, td, notes.length);
     if (y) scroller.scrollTop = y;
   }
 
+  /** The top bar, built like the planner's heading: title over a muted line, then search, week navigation and the Overview | Agenda switch on the right. */
+  private head(td: string, sel?: Series) {
+    const head = this.root.createDiv("samaya-week-head samaya-day-head samaya-mt-head");
+    const cur = startOfWeek(td); const w = addDays(cur, memory.week * 7);
+    if (sel) {
+      head.addClass("is-detail");
+      renderHeadTitle(head, sel.title, [sel.cadence, sel.days, sel.time].filter(Boolean).join(" · "));
+      renderResetPill(head.createDiv("samaya-planner-right"), memory.mode === "agenda" ? "Agenda" : "Overview", "Back to the list of meetings", "left", () => { memory.selected = null; this.rerender(); });
+      return;
+    }
+    if (memory.mode === "agenda") renderHeadTitle(head, `Week ${isoWeek(parseYmd(w))}`, weekRangeLabel(w) + (memory.week === 0 ? " · This week" : ""));
+    else renderHeadTitle(head, "Meetings", dayHeadSub(td));
+    const right = head.createDiv("samaya-planner-right");
+    const search = right.createEl("input", { cls: "samaya-mt-search", type: "search", placeholder: "Search meetings" }); search.value = memory.query;
+    search.oninput = () => {
+      memory.query = search.value; window.clearTimeout(this.timer);
+      this.timer = window.setTimeout(() => { void this.render().then(() => { const el = this.root.querySelector<HTMLInputElement>(".samaya-mt-search"); el?.focus(); el?.setSelectionRange(el.value.length, el.value.length); }); }, 150);
+    };
+    if (memory.mode === "agenda") {
+      if (memory.week !== 0) renderResetPill(right, "This week", "Back to the current week", memory.week < 0 ? "right" : "left", () => { memory.week = 0; this.rerender(); });
+      renderDateNav(right, {
+        label: weekRangeLabel(w), prevLabel: "Previous week", nextLabel: "Next week",
+        onPrev: () => { memory.week--; this.rerender(); }, onNext: () => { memory.week++; this.rerender(); },
+        pick: { value: w, label: "Pick a week", run: d => { memory.week = Math.round((parseYmd(startOfWeek(d)).getTime() - parseYmd(cur).getTime()) / (7 * 864e5)); this.rerender(); } }, icon: "calendar",
+      });
+    }
+    renderSwitch<Mode>(right, [["series", "Overview", "Today, recent and recurring meetings"], ["agenda", "Agenda", "One week at a time"]], memory.mode, m => { memory.mode = m; memory.week = 0; this.rerender(); }, "Meetings view");
+  }
+
   // ---- overview
   private overview(page: HTMLElement, series: Series[], oneOffs: Instance[], td: string, total: number) {
-    const head = page.createDiv("samaya-mt-head");
-    head.createEl("h2", { text: "Meetings" });
-    const nav = head.createDiv("samaya-mt-nav");
-    this.link(nav, "Overview", this.mode === "series", () => { this.mode = "series"; this.rerender(); });
-    this.link(nav, "Agenda", this.mode === "agenda", () => { this.mode = "agenda"; this.week = 0; this.rerender(); });
-    const search = nav.createEl("input", { cls: "samaya-mt-search", type: "search", placeholder: "Search" }); search.value = this.query;
-    search.oninput = () => { this.query = search.value; window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { void this.render().then(() => { const el = this.root.querySelector<HTMLInputElement>(".samaya-mt-search"); el?.focus(); el?.setSelectionRange(el.value.length, el.value.length); }); }, 150); };
     if (!total) { page.createDiv({ cls: "samaya-mt-none", text: "No meeting notes yet." }); return; }
 
     const all = [...series.flatMap(s => s.instances), ...oneOffs].filter(i => this.matches(i));
-    if (this.mode === "agenda") { this.agenda(page, all, td); return; }
+    if (memory.mode === "agenda") { this.agenda(page, all, td); return; }
 
     const tomorrow = addDays(td, 1);
     page.createDiv({ cls: "samaya-mt-h", text: "Next" });
@@ -105,7 +128,7 @@ export class MeetingsView extends BasesView {
       r.createSpan({ cls: "samaya-mt-cad", text: [s.cadence, s.days].filter(Boolean).join(" · ") });
       r.createSpan({ cls: "samaya-mt-sub", text: s.next ? (s.next.date === td ? "today" : short(s.next.date)) : "" });
       r.createSpan({ cls: "samaya-mt-count", text: s.held ? `${s.withNotes}/${s.held}` : "", attr: { title: "past meetings with notes" } });
-      r.onclick = () => { this.selected = s.key; this.onlyNotes = false; this.rerender(); };
+      r.onclick = () => { memory.selected = s.key; memory.onlyNotes = false; this.rerender(); };
     }
   }
 
@@ -118,7 +141,7 @@ export class MeetingsView extends BasesView {
       r.createSpan({ cls: "samaya-mt-name", text: i.title.trim() }); this.mark(r, i); r.onclick = e => this.open(i.path, e);
     }
   }
-  private matches(i: { title: string }) { const q = this.query.trim().toLowerCase(); return !q || i.title.toLowerCase().includes(q); }
+  private matches(i: { title: string }) { const q = memory.query.trim().toLowerCase(); return !q || i.title.toLowerCase().includes(q); }
   private rowEl(parent: HTMLElement, i: { title: string }) { const r = parent.createDiv("samaya-mt-item"); r.style.setProperty("--h", String(hue(i))); r.createSpan("samaya-mt-dot"); return r; }
   /** a small note marker: a dot for notes, the open action count */
   private mark(r: HTMLElement, i: Instance) { if (i.open) r.createSpan({ cls: "samaya-mt-count", text: `${i.open} open` }); else if (i.hasNotes) r.createSpan({ cls: "samaya-mt-count", text: "notes" }); }
@@ -126,14 +149,11 @@ export class MeetingsView extends BasesView {
   // ---- one series
   private detail(page: HTMLElement, s: Series, td: string) {
     page.style.setProperty("--h", String(s.hue));
-    const back = page.createDiv({ cls: "samaya-mt-link samaya-mt-back", text: "← Meetings" }); back.onclick = () => { this.selected = null; this.rerender(); };
-    page.createEl("h2", { cls: "samaya-mt-dtitle", text: s.title });
-    page.createDiv({ cls: "samaya-mt-sub", text: [s.cadence, s.days, s.time].filter(Boolean).join(" · ") });
     const facts = [`${s.held} held`, `${s.withNotes} with notes`, s.open ? `${s.open} open action${s.open === 1 ? "" : "s"}` : "", s.next ? `next ${s.next.date === td ? "today" : short(s.next.date)}` : ""].filter(Boolean);
     const line = page.createDiv({ cls: "samaya-mt-facts", text: facts.join("  ·  ") });
-    this.link(line, this.onlyNotes ? "show all" : "only with notes", false, () => { this.onlyNotes = !this.onlyNotes; this.rerender(); }).addClass("samaya-mt-toggle");
+    this.link(line, memory.onlyNotes ? "show all" : "only with notes", false, () => { memory.onlyNotes = !memory.onlyNotes; this.rerender(); }).addClass("samaya-mt-toggle");
 
-    const items = [...s.instances].reverse().filter(i => !this.onlyNotes || i.hasNotes);
+    const items = [...s.instances].reverse().filter(i => !memory.onlyNotes || i.hasNotes);
     if (!items.length) page.createDiv({ cls: "samaya-mt-none", text: "No meetings with notes yet." });
     let last = "";
     let list = page.createDiv("samaya-mt-list");
@@ -152,14 +172,7 @@ export class MeetingsView extends BasesView {
 
   // ---- agenda: one week at a time
   private agenda(page: HTMLElement, all: Instance[], td: string) {
-    const cur = startOfWeek(td); const w = addDays(cur, this.week * 7); const end = addDays(w, 6);
-    const fmt = (d: string) => parseYmd(d).toLocaleDateString(undefined, { day: "numeric", month: "short" });
-    const bar = page.createDiv("samaya-mt-weeknav");
-    const prev = bar.createSpan({ cls: "samaya-mt-arrow", text: "‹", attr: { title: "Previous week" } }); prev.onclick = () => { this.week--; this.rerender(); };
-    const label = bar.createSpan({ cls: "samaya-mt-weeklabel", text: `${this.week === 0 ? "This week" : this.week === 1 ? "Next week" : this.week === -1 ? "Last week" : "Week of " + fmt(w)}  ·  ${fmt(w)} – ${fmt(end)}` });
-    const next = bar.createSpan({ cls: "samaya-mt-arrow", text: "›", attr: { title: "Next week" } }); next.onclick = () => { this.week++; this.rerender(); };
-    if (this.week !== 0) { label.title = "Back to this week"; label.onclick = () => { this.week = 0; this.rerender(); }; }
-
+    const w = addDays(startOfWeek(td), memory.week * 7); const end = addDays(w, 6);
     const items = all.filter(i => i.date >= w && i.date <= end).sort(byTime);
     if (!items.length) page.createDiv({ cls: "samaya-mt-none", text: "No meetings this week." });
     for (let n = 0; n < 7; n++) {

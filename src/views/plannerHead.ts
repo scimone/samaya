@@ -44,6 +44,17 @@ export function renderModeSwitch(parent: HTMLElement, active: "day" | "week", go
   return sw;
 }
 
+/** The same switch with any labels (the meetings view's Overview | Agenda): the active side is highlighted, the others call `go`. */
+export function renderSwitch<K extends string>(parent: HTMLElement, sides: Array<[K, string, string]>, active: K, go: (key: K) => void, label = "View"): HTMLElement {
+  const sw = parent.createDiv("samaya-modeswitch"); sw.setAttr("role", "group"); sw.setAttr("aria-label", label);
+  for (const [key, text, hint] of sides) {
+    const on = active === key;
+    const b = sw.createEl("button", { text, cls: on ? "is-active" : "", attr: { title: on ? text : hint, "aria-pressed": String(on) } });
+    if (!on) b.onclick = () => go(key);
+  }
+  return sw;
+}
+
 /** Fit the heading into one line: while it overflows, step `data-fit` up (CSS drops the less important parts one by one: wider labels, then texts, then groups). Re-checked whenever the heading resizes. */
 const fitters = new WeakMap<HTMLElement, ResizeObserver>();
 export function fitHead(head: HTMLElement): void {

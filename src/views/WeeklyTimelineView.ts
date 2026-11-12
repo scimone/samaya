@@ -11,7 +11,7 @@ import { layoutItems } from "../timeline";
 import { bindZone, keyActivate, showTaskMenu } from "./common";
 import { addBands } from "./bands";
 import { renderWeekHead } from "./plannerHead";
-import { decorateSegment, dragLen, dropOnTimeline, remainingBlocks, segLabel, splitTitle } from "./place";
+import { isCurrentTask, decorateSegment, dragLen, dropOnTimeline, remainingBlocks, segLabel, splitTitle } from "./place";
 
 const MIN_HOUR_H = 40;
 
@@ -105,7 +105,7 @@ export class WeeklyTimelineView extends PlannerPane {
       if (this.host?.openDay) { dayLbl.addClass("is-link"); dayLbl.title = "Open this day in the planner"; dayLbl.onclick = () => this.host?.openDay?.(date); keyActivate(dayLbl, `Open ${date} in the planner`, () => this.host?.openDay?.(date)); }
       dayEvents.filter(e => e.allDay).forEach(e => h.createDiv({ cls: "samaya-wtl-chip is-event", text: e.title }));
       dayTasks.filter(t => !t.start && t.status !== "done").forEach(t => {
-        const c = h.createDiv({ cls: "samaya-wtl-chip", attr: { title: t.part ? `${splitTitle(t)}. No time slot yet - drag onto the calendar` : "No time slot yet - drag onto the calendar" } }); c.dataset.day = date;
+        const c = h.createDiv({ cls: "samaya-wtl-chip", attr: { title: t.part ? `${splitTitle(t)}. No time slot yet - drag onto the calendar` : "No time slot yet - drag onto the calendar" } }); c.dataset.day = date; if (this.plugin.focus.state?.path === t.file.path) c.addClass("is-current");
         c.createSpan({ cls: "samaya-wtl-chip-title", text: t.title });
         c.createSpan({ cls: "samaya-wtl-chip-est", text: fmtDur(t.estimate || s.defaultEstimate) });
         keyActivate(c, `Task without a time slot: ${t.title}. Press Enter to open`, () => open(t.file));
@@ -158,12 +158,14 @@ export class WeeklyTimelineView extends PlannerPane {
         const b = lane.createDiv({ cls: it.ev ? "samaya-event" : "samaya-block" + (it.task!.status === "done" ? " is-done" : "") });
         b.style.top = top; b.style.height = height; b.style.left = `${(pl.col * 100) / pl.n}%`; b.style.width = `calc(${100 / pl.n}% - 2px)`;
         if (it.ev) {
-          const nd = new Date(); if (date < today() || (isToday && nd.getHours() * 60 + nd.getMinutes() >= it.s + it.dur)) b.addClass("is-past"); // a meeting that is over
+          const nd = new Date(); const nm = nd.getHours() * 60 + nd.getMinutes(); if (date < today() || (isToday && nm >= it.s + it.dur)) b.addClass("is-past"); // a meeting that is over
+          if (isToday && nm >= it.s && nm < it.s + it.dur) b.addClass("is-current"); // the meeting on now stays lit while focusing
           b.createDiv({ cls: "samaya-event-title", text: it.ev.title });
           b.createDiv({ cls: "samaya-event-time", text: `${minToHm(it.s)}–${minToHm(it.s + it.dur)}` });
           return;
         }
         const t = it.task!;
+        if (isToday && t.status !== "done" && isCurrentTask(this.plugin, t)) { const nd = new Date(); const nm = nd.getHours() * 60 + nd.getMinutes(); if (this.plugin.focus.state || (nm >= it.s && nm < it.s + it.dur)) b.addClass("is-current"); } // the focused task (else the one running by the clock) is lit
         const bt = b.createDiv("samaya-block-title");
         const st = bt.createSpan({ cls: "samaya-block-state", attr: { title: t.status === "done" ? "Mark as not done" : "Mark as done" } });
         const toggle = () => { void setDone(this.app, t, t.status !== "done"); };

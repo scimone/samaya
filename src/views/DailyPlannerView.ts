@@ -47,7 +47,7 @@ export class DailyPlannerView extends PlannerPane {
       const el = (e.target as HTMLElement).closest<HTMLElement>("[data-link]"); if (!el) return;
       this.root.querySelectorAll<HTMLElement>("[data-link]").forEach(x => { if (x !== el && x.dataset.link === el.dataset.link) x.toggleClass("is-linked", on && !document.body.hasClass("samaya-focusing")); });
     };
-    this.root.addEventListener("mouseover", e => { light(e, true); if ((e.target as HTMLElement).closest("[data-link]")) this.root.addClass("is-hovering-task"); });
+    this.root.addEventListener("mouseover", e => { light(e, true); if (!document.body.hasClass("samaya-focusing") && (e.target as HTMLElement).closest("[data-link]")) this.root.addClass("is-hovering-task"); }); // (while focusing, the focused task keeps its lit look)
     this.root.addEventListener("mouseout", e => { light(e, false); if (!(e.relatedTarget as HTMLElement | null)?.closest?.("[data-link]")) this.root.removeClass("is-hovering-task"); });
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
     this.register(plugin.bus.on(() => this.schedule()));

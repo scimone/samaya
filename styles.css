@@ -1216,7 +1216,8 @@ input.is-invalid { border-color: var(--text-error); }
 /* focus on: everything but the focused task and the meeting that is on now fades */
 body.samaya-focusing .samaya-lane .samaya-block:not(.is-current):not(.is-dragging), body.samaya-focusing .samaya-lane .samaya-event:not(.is-current),
 body.samaya-focusing .samaya-daily .samaya-card:not(.is-current):not(.is-linked) { opacity: 0.15; }
-body.samaya-focusing :is(.samaya-donebar, .samaya-add, .samaya-dayline, .samaya-hour-label, .samaya-tasks-count) { opacity: 0.15; }
+body.samaya-focusing .samaya-week .samaya-card:not(.is-current), body.samaya-focusing .samaya-wtl-chip:not(.is-current) { opacity: 0.15; }
+body.samaya-focusing :is(.samaya-wtl-hour-label, .samaya-wtl-day, .samaya-donebar, .samaya-add, .samaya-dayline, .samaya-hour-label, .samaya-tasks-count) { opacity: 0.15; }
 /* no hover highlight while focusing: hovered tasks keep their resting look */
 body.samaya-focusing .samaya-card:not(.is-current):hover { border-color: var(--background-modifier-border); }
 body.samaya-focusing .samaya-daily .samaya-card:not(.is-current):hover { background: var(--background-primary-alt); box-shadow: none; }

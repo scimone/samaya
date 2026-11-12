@@ -111,6 +111,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
     cut.addEventListener("click", e => { e.stopPropagation(); new PartsModal(plugin, t, "split").open(); });
   }
 
+  if (plugin.focus.state && isCurrentTask(plugin, t)) el.addClass("is-current"); // the focused task is lit on every card, with or without a Focus button
   if (o.focus) {
     const on = isCurrentTask(plugin, t); if (on) el.addClass("is-current");
     if (on || (o.focus === "today" && t.planned === today() && t.status !== "done")) focusButton(plugin, side, t);

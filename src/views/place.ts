@@ -61,11 +61,11 @@ export function isCurrentTask(plugin: SamayaPlugin, t: Task): boolean {
 export function focusButton(plugin: SamayaPlugin, parent: HTMLElement, t: Task, cls = "samaya-mini samaya-focus-go"): HTMLElement | null {
   const f = plugin.focus.state;
   if (f && f.path !== t.file.path) return null;
-  const b = parent.createEl("button", { cls: cls + (f ? " is-active" : ""), attr: { "aria-label": f ? (f.startedAt ? "Take a focus break" : "Resume focus") : "Start focus on this task" } });
-  setIcon(b.createSpan({ cls: "samaya-focus-go-icon" }), f ? (f.startedAt ? "pause" : "play") : "timer"); b.createSpan({ text: f ? (f.startedAt ? "Break" : "Resume") : "Focus" });
+  const b = parent.createEl("button", { cls: cls + (f ? " is-active" : ""), attr: { "aria-label": f ? (f.startedAt ? "Pause focus" : "Resume focus") : "Start focus on this task" } });
+  setIcon(b.createSpan({ cls: "samaya-focus-go-icon" }), f ? (f.startedAt ? "pause" : "play") : "timer"); b.createSpan({ text: f ? (f.startedAt ? "Pause" : "Resume") : "Focus" });
   b.addEventListener("pointerdown", e => e.stopPropagation()); // not a drag
   b.addEventListener("click", e => { e.stopPropagation(); void (f ? (f.startedAt ? plugin.focus.pause() : plugin.focus.resume()) : plugin.focus.start(t.file)); });
-  if (f && !f.startedAt) { // on a break: Stop next to Resume logs the time and leaves the task open
+  if (f && !f.startedAt) { // paused: Stop next to Resume logs the time and leaves the task open
     const st = parent.createEl("button", { cls: cls + " is-active samaya-focus-stop", attr: { "aria-label": "Stop focus and log the time" } });
     setIcon(st.createSpan({ cls: "samaya-focus-go-icon" }), "square"); st.createSpan({ text: "Stop" });
     st.addEventListener("pointerdown", e => e.stopPropagation());

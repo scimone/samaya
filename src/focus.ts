@@ -38,20 +38,20 @@ export class FocusManager {
   }
   /** Session time of the running / paused focus. */
   sessionMs(): number { const s = this.state; return s ? s.accumulatedMs + (s.startedAt ? Date.now() - s.startedAt : 0) : 0; }
-  /** Minutes of the running session of `path` that are not in the task's duration_actual yet (0 for any other task, and on a break). */
+  /** Minutes of the running session of `path` that are not in the task's duration_actual yet (0 for any other task, and while paused). */
   liveMin(path: string): number { const st = this.state; return st && st.path === path ? Math.max(0, this.sessionMs() / 60000 - (st.loggedMin ?? 0)) : 0; }
   get file(): TFile | null { const f = this.state && this.plugin.app.vault.getAbstractFileByPath(this.state.path); return f instanceof TFile ? f : null; }
 
   private async persist() { this.plugin.data.focus = this.state; await this.plugin.saveData(this.plugin.data); }
   private refreshViews() {
-    document.body.toggleClass("samaya-focusing", !!this.state?.startedAt); // while a focus runs (not on a break): dims the rest of the day and hides the planning buttons
+    document.body.toggleClass("samaya-focusing", !!this.state?.startedAt); // while a focus runs (not paused): dims the rest of the day and hides the planning buttons
     document.querySelectorAll(".samaya-focus-bar").forEach(el => el.remove());
     this.ensureBanners();
     void this.plugin.markJournalNotes(); // the task note's card follows the focus
     this.plugin.refreshPlanner(); // cards and timeline blocks follow the focus
   }
 
-  /** The banner on top of the pane in front while a focus runs (or is on a break). Two looks: the full one on the focused task's own note, a slim reminder on every other page. */
+  /** The banner on top of the pane in front while a focus runs (or is paused). Two looks: the minimal one (label and progress line) on the focused task's own note, a slim reminder on every other page. */
   private ensureBanners() {
     const ws = this.plugin.app.workspace;
     if (!this.state) { document.querySelectorAll(".samaya-focus-bar").forEach(el => el.remove()); return; }
@@ -79,21 +79,18 @@ export class FocusManager {
     };
     const status = bar.createDiv("samaya-focus-status");
     status.createSpan({ cls: "samaya-focus-dot" });
-    status.createSpan({ cls: "samaya-focus-state", text: st.startedAt ? (here ? "In focus" : "Focusing") : "On a break" });
-    if (here) {
-      // the task is right below: just the clock, its progress and the controls
-      bar.createSpan({ cls: "samaya-focus-prog" });
-    } else {
+    status.createSpan({ cls: "samaya-focus-state", text: st.startedAt ? (here ? "In focus" : "Focusing") : "Paused" });
+    if (!here) {
       // somewhere else: say what is running, and a way back
       const link = bar.createEl("a", { cls: "samaya-focus-link", text: file?.basename ?? "", attr: { title: "Back to the task" } });
       link.addEventListener("click", e => { e.preventDefault(); this.openNote(); });
       bar.createSpan({ cls: "samaya-focus-prog" });
     }
+    if (here) { bar.createDiv("samaya-focus-meter"); return; } // the task's own note: just the label and the progress line (clock, Pause and the checkbox are on the title line)
     const ctl = bar.createDiv("samaya-focus-ctl");
-    if (st.startedAt) btn(ctl, "pause", "Break", () => this.pause());
+    if (st.startedAt) btn(ctl, "pause", "Pause", () => this.pause());
     else { btn(ctl, "play", "Resume", () => this.resume(), "mod-cta"); btn(ctl, "square", "Stop (log the time, task stays open)", () => this.stop(false)); }
     btn(ctl, "square-check", "Done (complete and log time)", () => this.stop(true), st.startedAt ? "mod-cta" : "");
-    bar.createDiv("samaya-focus-meter");
   }
   private tickBanners() {
     const st = this.state; const f = this.file; if (!st) return;
@@ -128,7 +125,7 @@ export class FocusManager {
     app.workspace.setActiveLeaf(leaf, { focus: true });
     this.refreshViews();
   }
-  /** Pause (a break): write the time worked so far to the task, so duration_actual is up to date during the break. */
+  /** Pause (a pause): write the time worked so far to the task, so duration_actual is up to date during the pause. */
   async pause() {
     const s = this.state; if (!s || !s.startedAt) return;
     const now = Date.now(); s.accumulatedMs += now - s.startedAt; (s.runs ??= []).push([s.startedAt, now]); s.startedAt = null;
@@ -148,7 +145,7 @@ export class FocusManager {
     s.loggedMin = total; s.runs = [];
   }
   async resume() { const s = this.state; if (!s || s.startedAt) return; s.startedAt = Date.now(); await this.persist(); this.refreshViews(); }
-  /** Stop (the last run is logged like a break), optionally complete the task. */
+  /** Stop (the last run is logged like a pause), optionally complete the task. */
   async stop(markDone: boolean) {
     const s = this.state; if (!s || this.stopping) return;
     this.stopping = true;

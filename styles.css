@@ -460,7 +460,11 @@ body {
 .samaya-tc-line > * { pointer-events: auto; }
 .samaya-tc-line.is-flow { position: static; margin: 0 0 8px; }
 .samaya-tc-spacer { flex: 1; pointer-events: none !important; }
-.samaya-tc-check { --checkbox-size: 28px; flex: none; width: 28px; height: 28px; margin: 0; cursor: pointer; }
+.samaya-tc-check { -webkit-appearance: none; appearance: none; position: relative; flex: none; width: 22px; height: 22px; margin: 0; padding: 0; cursor: pointer; border-radius: 50%; border: 2px solid var(--text-faint); background: transparent; box-shadow: none; transition: border-color 0.12s, background 0.12s; }
+.samaya-tc-check:hover { border-color: var(--interactive-accent); }
+.samaya-tc-check:checked { background: var(--interactive-accent); border-color: var(--interactive-accent); }
+.samaya-tc-check:checked::after { content: ""; position: absolute; left: 6px; top: 2px; width: 5px; height: 10px; border: solid var(--text-on-accent, #fff); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+.samaya-tc-check:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
 .samaya-tc-right { display: inline-flex; align-items: flex-end; gap: 16px; }
 .samaya-tc-clock { display: inline-flex; align-items: flex-end; gap: 8px; font-weight: var(--font-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
 .samaya-tc-num { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
@@ -1245,12 +1249,9 @@ input.is-invalid { border-color: var(--text-error); }
 
 /* focus banner: on top of every page in the main area while a focus runs */
 /* focus bar on top of the pane in front. Slim reminder on other pages; taller, with the clock and a progress line, on the focused task's own note */
-.samaya-focus-bar { position: relative; display: flex; align-items: center; gap: 12px; padding: 5px 16px; font-size: var(--font-ui-small); border-bottom: 1px solid var(--background-modifier-border); flex: none; }
+.samaya-focus-bar { position: relative; min-height: 38px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 5px 16px; font-size: var(--font-ui-small); border-bottom: 1px solid var(--background-modifier-border); flex: none; }
 .samaya-focus-bar.is-focus { background: color-mix(in srgb, var(--interactive-accent) 9%, var(--background-primary)); border-bottom-color: color-mix(in srgb, var(--interactive-accent) 45%, transparent); }
 .samaya-focus-bar.is-break { background: color-mix(in srgb, var(--color-orange) 11%, var(--background-primary)); border-bottom-color: color-mix(in srgb, var(--color-orange) 45%, transparent); }
-.samaya-focus-bar.is-current { padding: 10px 16px; gap: 16px; }
-.samaya-focus-bar.is-current.is-focus { background: color-mix(in srgb, var(--interactive-accent) 18%, var(--background-primary)); }
-.samaya-focus-bar.is-current.is-break { background: color-mix(in srgb, var(--color-orange) 20%, var(--background-primary)); }
 .samaya-focus-status { display: inline-flex; align-items: center; gap: 8px; flex: none; }
 .samaya-focus-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
 .samaya-focus-bar.is-focus .samaya-focus-dot { color: var(--interactive-accent); animation: samaya-pulse 1.6s ease-in-out infinite; }
@@ -1260,7 +1261,6 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-focus-link { font-weight: 600; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; color: var(--text-normal); text-decoration: none; }
 .samaya-focus-link:hover { text-decoration: underline; }
 .samaya-focus-prog { font-variant-numeric: tabular-nums; flex: none; color: var(--text-muted); }
-.samaya-focus-bar.is-current .samaya-focus-prog { flex: 1 1 auto; font-size: var(--font-ui-large); font-weight: var(--font-semibold); color: var(--text-normal); }
 .samaya-focus-prog.is-over { color: var(--text-error) !important; }
 .samaya-focus-ctl { display: inline-flex; gap: 6px; flex: none; }
 .samaya-focus-meter { position: absolute; left: 0; bottom: -1px; height: 2px; width: var(--p, 0%); background: var(--interactive-accent); transition: width 1s linear; }
@@ -1268,7 +1268,6 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-focus-bar.is-break .samaya-focus-meter { background: var(--color-orange); }
 .samaya-focus-bicon { display: inline-flex; }
 .samaya-focus-bbtn { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; height: auto; box-shadow: none; flex: none; } .samaya-focus-bbtn svg { width: 16px; height: 16px; }
-.samaya-focus-bar.is-current .samaya-focus-bbtn { padding: 5px 12px; }
 
 /* focus on: everything but the focused task and the meeting that is on now fades */
 body.samaya-focusing .samaya-lane .samaya-block:not(.is-current):not(.is-dragging), body.samaya-focusing .samaya-lane .samaya-event:not(.is-current),
@@ -1284,3 +1283,5 @@ body.samaya-focusing .samaya-block.is-done:not(.is-current):hover { background: 
 body.samaya-focusing .samaya-hs-group.is-cap, body.samaya-focusing .samaya-hd-btn.is-end-day, body.samaya-focusing .samaya-hd-btn.is-review-week, body.samaya-focusing .samaya-hd-icon.is-worktime { display: none; }
 body.samaya-focusing :is(.samaya-agenda-row:not(.is-current), .samaya-agenda-empty) { opacity: 0.15; }
 body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .samaya-col-head, .samaya-loadbar, .samaya-colhead-count) { opacity: 0.15; }
+
+.samaya-tc-input { height: 24px; width: 110px; font-size: var(--font-ui-small); }

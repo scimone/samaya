@@ -118,3 +118,10 @@ export function untilLabel(date: string, startMin: number | null, today: string,
   if (date === addDays(today, 1)) return "Tomorrow";
   return weekdayDate(date);
 }
+
+/** The next working day after `today` (Friday and the weekend: Monday): the second day of the "Next" list. */
+export function nextWorkday(today: string): string {
+  let d = addDays(today, 1);
+  while ([0, 6].includes(parseYmd(d).getDay())) d = addDays(d, 1);
+  return d;
+}

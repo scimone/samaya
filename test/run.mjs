@@ -445,7 +445,8 @@ await bundle("src/dayreview.ts", "test/.dayreview.mjs");
 // ---- meeting series
 await bundle("src/meetingseries.ts", "test/.meetingseries.mjs");
 {
-  const { buildSeries, cadenceOf, analyse, parseNote, seriesKey, stripFrontmatter } = await import("./.meetingseries.mjs");
+  const { nextWorkday, buildSeries, cadenceOf, analyse, parseNote, seriesKey, stripFrontmatter } = await import("./.meetingseries.mjs");
+  assert.deepEqual(["2026-11-12", "2026-11-13", "2026-11-14", "2026-11-15"].map(nextWorkday), ["2026-11-13", "2026-11-16", "2026-11-16", "2026-11-16"]);
   assert.equal(seriesKey("  AI Next  Daily "), "ai next daily");
   assert.deepEqual(cadenceOf(["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-09"]), { label: "Daily", days: "Mon–Fri" });
   assert.deepEqual(cadenceOf(["2026-11-03", "2026-11-10", "2026-11-17"]), { label: "Weekly", days: "Tue" });

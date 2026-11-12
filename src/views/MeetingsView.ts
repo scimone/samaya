@@ -1,6 +1,6 @@
 import { BasesView, QueryController, TFile } from "obsidian";
 import type SamayaPlugin from "../main";
-import { Instance, MeetingNote, Series, buildSeries, hueOf, parseNote, seriesKey } from "../meetingseries";
+import { Instance, MeetingNote, Series, buildSeries, hueOf, nextWorkday, parseNote, seriesKey } from "../meetingseries";
 import { addDays, parseYmd, startOfWeek, today as todayYmd } from "../util";
 import { renderDateNav, renderResetPill } from "./dateNav";
 import { isoWeek, renderHeadTitle, renderSwitch, weekRangeLabel } from "./plannerHead";
@@ -23,7 +23,8 @@ export class MeetingsView extends BasesView {
   readonly type = MEETINGS_VIEW_TYPE;
   private root: HTMLElement;
   private timer = 0;
-  private token = 0;
+  private loading = false; // note bodies still being read: counts and excerpts would be wrong, so they stay hidden
+  private inflight = new Set<string>();
   private cache = new Map<string, { mtime: number; body: string }>();
 
   private tick = 0;
@@ -32,16 +33,27 @@ export class MeetingsView extends BasesView {
     this.tick = window.setInterval(() => { if (this.root.isShown() && !this.root.querySelector("input:focus")) this.rerender(); }, 60000); // a meeting that ends moves from next to recent
   }
   onunload() { window.clearTimeout(this.timer); window.clearInterval(this.tick); }
-  onDataUpdated(): void { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { void this.render(); }, 30); }
+  onDataUpdated(): void { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { this.render(); }, 30); }
 
-  private async readNotes(): Promise<MeetingNote[]> {
-    const files = this.data.data.map(e => e.file).filter(f => f.extension === "md");
-    const notes = await Promise.all(files.map(async f => {
-      let c = this.cache.get(f.path);
-      if (!c || c.mtime !== f.stat.mtime) { c = { mtime: f.stat.mtime, body: await this.app.vault.cachedRead(f) }; this.cache.set(f.path, c); }
-      return parseNote(f.path, this.app.metadataCache.getFileCache(f)?.frontmatter, f.basename, c.body);
-    }));
-    return notes.filter((n): n is MeetingNote => !!n);
+  /** Notes from what Obsidian already has in memory (front matter and any body read before), plus the files whose body still has to be read. Nothing here waits for the disk. */
+  private collect(): { notes: MeetingNote[]; missing: TFile[] } {
+    const notes: MeetingNote[] = []; const missing: TFile[] = [];
+    for (const e of this.data.data) {
+      const f = e.file; if (f.extension !== "md") continue;
+      const c = this.cache.get(f.path);
+      if (!c || c.mtime !== f.stat.mtime) missing.push(f);
+      const n = parseNote(f.path, this.app.metadataCache.getFileCache(f)?.frontmatter, f.basename, c?.body ?? ""); if (n) notes.push(n);
+    }
+    return { notes, missing };
+  }
+  /** Read bodies in the background, then draw once more with the notes' text. */
+  private fill(files: TFile[]) {
+    const todo = files.filter(f => !this.inflight.has(f.path)); if (!todo.length) return;
+    for (const f of todo) this.inflight.add(f.path);
+    void Promise.all(todo.map(async f => {
+      try { this.cache.set(f.path, { mtime: f.stat.mtime, body: await this.app.vault.cachedRead(f) }); } catch { this.cache.set(f.path, { mtime: f.stat.mtime, body: "" }); }
+      this.inflight.delete(f.path);
+    })).then(() => { if (this.root.isConnected) this.render(); });
   }
   private open(path: string, e: MouseEvent) {
     const f = this.app.vault.getAbstractFileByPath(path);
@@ -50,12 +62,11 @@ export class MeetingsView extends BasesView {
   private link(parent: HTMLElement, text: string, active: boolean, on: () => void) {
     const a = parent.createSpan({ cls: "samaya-mt-link" + (active ? " is-active" : ""), text }); a.onclick = on; return a;
   }
-  private rerender() { void this.render(); }
+  private rerender() { this.render(); }
 
-  private async render() {
-    const token = ++this.token;
-    const notes = await this.readNotes();
-    if (token !== this.token) return;
+  private render() {
+    const { notes, missing } = this.collect();
+    this.loading = missing.length > 0;
     const td = todayYmd(); const now = new Date();
     const { series, oneOffs } = buildSeries(notes, td, now.getHours() * 60 + now.getMinutes());
     const y = this.root.querySelector<HTMLElement>(".samaya-mt-page")?.scrollTop ?? 0;
@@ -66,6 +77,7 @@ export class MeetingsView extends BasesView {
     const scroller = this.root.createDiv("samaya-mt-page"); const page = scroller.createDiv("samaya-mt-col");
     if (sel) this.detail(page, sel, td); else this.overview(page, series, oneOffs, td, notes.length);
     if (y) scroller.scrollTop = y;
+    this.fill(missing);
   }
 
   /** The top bar, built like the planner's heading: title over a muted line, then (agenda only) week navigation, search and the Overview | Agenda switch on the right: search and switch keep their place in both tabs. */
@@ -92,7 +104,7 @@ export class MeetingsView extends BasesView {
     const search = right.createEl("input", { cls: "samaya-mt-search", type: "search", placeholder: "Search meetings" }); search.value = memory.query;
     search.oninput = () => {
       memory.query = search.value; window.clearTimeout(this.timer);
-      this.timer = window.setTimeout(() => { void this.render().then(() => { const el = this.root.querySelector<HTMLInputElement>(".samaya-mt-search"); el?.focus(); el?.setSelectionRange(el.value.length, el.value.length); }); }, 150);
+      this.timer = window.setTimeout(() => { this.render(); const el = this.root.querySelector<HTMLInputElement>(".samaya-mt-search"); el?.focus(); el?.setSelectionRange(el.value.length, el.value.length); }, 150);
     };
     renderSwitch<Mode>(right, [["series", "Overview", "Today, recent and recurring meetings"], ["agenda", "Agenda", "One week at a time"]], memory.mode, m => { memory.mode = m; memory.week = 0; this.rerender(); }, "Meetings view");
   }
@@ -104,14 +116,14 @@ export class MeetingsView extends BasesView {
     const all = [...series.flatMap(s => s.instances), ...oneOffs].filter(i => this.matches(i));
     if (memory.mode === "agenda") { this.agenda(page, all, td); return; }
 
-    const tomorrow = addDays(td, 1);
+    const tomorrow = nextWorkday(td);
     const next = this.section(page, "Next");
-    const upcoming = all.filter(i => i.when !== "past" && i.date <= tomorrow).sort(byTime);
-    if (!upcoming.length) next.createDiv({ cls: "samaya-mt-none", text: "Nothing planned today or tomorrow." });
+    const upcoming = all.filter(i => i.when !== "past" && i.date <= tomorrow).sort(byTime); // today and the next working day (Monday from Friday on)
+    if (!upcoming.length) next.createDiv({ cls: "samaya-mt-none", text: "Nothing planned for the next two days." });
     for (const day of [td, tomorrow]) {
       const items = upcoming.filter(i => i.date === day); if (!items.length) continue;
       const g = next.createDiv("samaya-mt-group");
-      g.createDiv({ cls: "samaya-mt-gl", text: day === td ? "Today" : "Tomorrow" });
+      g.createDiv({ cls: "samaya-mt-gl", text: day === td ? "Today" : day === addDays(td, 1) ? "Tomorrow" : parseYmd(day).toLocaleDateString(undefined, { weekday: "long" }) });
       this.meetingList(g, items, false);
     }
 
@@ -126,7 +138,7 @@ export class MeetingsView extends BasesView {
       r.createSpan({ cls: "samaya-mt-name", text: s.title });
       r.createSpan({ cls: "samaya-mt-cad", text: [s.cadence, s.days].filter(Boolean).join(" · ") });
       r.createSpan({ cls: "samaya-mt-sub", text: s.next ? (s.next.date === td ? "today" : short(s.next.date)) : "" });
-      r.createSpan({ cls: "samaya-mt-count", text: s.held ? `${s.withNotes}/${s.held}` : "", attr: { title: "past meetings with notes" } });
+      r.createSpan({ cls: "samaya-mt-count", text: s.held && !this.loading ? `${s.withNotes}/${s.held}` : "", attr: { title: "past meetings with notes" } });
       r.onclick = () => { memory.selected = s.key; memory.onlyNotes = false; this.rerender(); };
     }
   }
@@ -147,12 +159,12 @@ export class MeetingsView extends BasesView {
   private matches(i: { title: string }) { const q = memory.query.trim().toLowerCase(); return !q || i.title.toLowerCase().includes(q); }
   private rowEl(parent: HTMLElement, i: { title: string }) { const r = parent.createDiv("samaya-mt-item"); r.style.setProperty("--h", String(hue(i))); r.createSpan("samaya-mt-dot"); return r; }
   /** a small note marker: a dot for notes, the open action count */
-  private mark(r: HTMLElement, i: Instance) { if (i.open) r.createSpan({ cls: "samaya-mt-count", text: `${i.open} open` }); else if (i.hasNotes) r.createSpan({ cls: "samaya-mt-count", text: "notes" }); }
+  private mark(r: HTMLElement, i: Instance) { if (this.loading) return; if (i.open) r.createSpan({ cls: "samaya-mt-count", text: `${i.open} open` }); else if (i.hasNotes) r.createSpan({ cls: "samaya-mt-count", text: "notes" }); }
 
   // ---- one series
   private detail(page: HTMLElement, s: Series, td: string) {
     page.style.setProperty("--h", String(s.hue));
-    const facts = [`${s.held} held`, `${s.withNotes} with notes`, s.open ? `${s.open} open action${s.open === 1 ? "" : "s"}` : "", s.next ? `next ${s.next.date === td ? "today" : short(s.next.date)}` : ""].filter(Boolean);
+    const facts = [`${s.held} held`, this.loading ? "" : `${s.withNotes} with notes`, s.open && !this.loading ? `${s.open} open action${s.open === 1 ? "" : "s"}` : "", s.next ? `next ${s.next.date === td ? "today" : short(s.next.date)}` : ""].filter(Boolean);
     const line = page.createDiv({ cls: "samaya-mt-facts", text: facts.join("  ·  ") });
     this.link(line, memory.onlyNotes ? "show all" : "only with notes", false, () => { memory.onlyNotes = !memory.onlyNotes; this.rerender(); }).addClass("samaya-mt-toggle");
 
@@ -167,7 +179,7 @@ export class MeetingsView extends BasesView {
       r.createDiv({ cls: "samaya-mt-edate", text: short(i.date) + (i.date === td ? " · today" : "") });
       const body = r.createDiv("samaya-mt-ebody");
       if (i.hasNotes) for (const t of i.excerpt) body.createDiv({ cls: "samaya-mt-eline", text: t });
-      else body.createDiv({ cls: "samaya-mt-none", text: i.when === "past" ? "no notes" : span(i) });
+      else body.createDiv({ cls: "samaya-mt-none", text: this.loading ? "…" : i.when === "past" ? "no notes" : span(i) });
       if (i.open) body.createDiv({ cls: "samaya-mt-count", text: `${i.open} open` });
       r.onclick = e => this.open(i.path, e);
     }

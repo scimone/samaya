@@ -50,7 +50,8 @@ export class NavShortcuts {
       const dir = tdir;
       out.push({ id: "tickets", name: "Tickets", icon: "ticket", open: () => p.openSection("tickets"), folders: dir ? [dir] : [], folder: dir ?? "/" });
     }
-    return out;
+    const ORDER = ["planner", "meetings", "journal", "tasks", "projects", "tickets"]; // the order of both navigations (file explorer shortcuts and side rail)
+    return out.sort((a, b) => ORDER.indexOf(a.id) - ORDER.indexOf(b.id));
   }
 
   /** Planner menu: the workday step that fits the current state. */

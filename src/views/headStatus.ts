@@ -43,13 +43,18 @@ const viewIcon = (host: HTMLElement, icon: string, label: string, run: () => voi
 
 const btn = (host: HTMLElement, text: string, run: () => void, title?: string) => { const b = host.createEl("button", { cls: "samaya-hd-btn", text, attr: title ? { title } : {} }); b.onclick = run; return b; };
 
+/** The work time dashboard (in the Planner, with a button back), grouped with the status. */
+const workTimeIcon = (plugin: SamayaPlugin, host: HTMLElement) => viewIcon(host, "bar-chart-2", "Work time dashboard", () => { void plugin.openDashboard(); }).addClass("is-worktime");
+
 /** Day heading: workday status, then the daily capacity grouped with Plan day; Break / End day (the workday's own buttons) and Daily note in the actions. */
 export function renderDayHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, right: HTMLElement, o: { date: string; planned: number; meetings: number; free: number; what: string }): HTMLElement {
   const s = plugin.settings; const isToday = o.date === today();
   const sg = mid.createDiv("samaya-hs-group is-status");
   renderWorkdayCard(plugin, sg.createDiv("samaya-hs-wd"), { part: "status", date: o.date });
+  workTimeIcon(plugin, sg);
   const group = mid.createDiv("samaya-hs-group is-cap");
   renderCapMeter(plugin, group, { label: "Capacity", planned: o.planned, meetings: o.meetings, free: o.free, what: o.what });
+  if (isToday && !plugin.guide) btn(group, "Plan day", () => { void plugin.startGuide(); });
   const slot = right.createDiv("samaya-head-var"); // today: the day's actions; another day: the "Today" pill. One fixed width, so nothing moves between days
   const actions = slot.createDiv("samaya-head-actions"); // things to do: buttons
   if (isToday) renderWorkdayCard(plugin, actions.createDiv("samaya-hs-wd-actions"), { part: "actions" });
@@ -62,6 +67,7 @@ export function renderWeekHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, rig
   const s = plugin.settings; const thisWeek = startOfWeek(today()); const cur = weekStart === thisWeek;
   const sg = mid.createDiv("samaya-hs-group is-status");
   const chip = sg.createDiv("samaya-hs-wd");
+  workTimeIcon(plugin, sg);
   if (weekStart > thisWeek) { const c = chip.createDiv({ cls: "samaya-wd samaya-wd-chip", attr: { title: "Nothing to track yet: this week has not started." } }); c.createSpan({ cls: "samaya-wd-state", text: "Not started yet" }); }
   else if (cur) renderWorkdayCard(plugin, chip, { part: "status" });
   else if (weekStart < thisWeek) void (async () => {
@@ -83,8 +89,10 @@ export function renderWeekHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, rig
   const off = plugin.bus.on(later);
   const ref = plugin.app.metadataCache.on("changed", later); const metaOff = () => plugin.app.metadataCache.offref(ref);
   void paint();
+  if (cur && !plugin.guide) btn(group, "Plan week", () => { void plugin.startWeekGuide(); });
   const varSlot = right.createDiv("samaya-head-var"); // this week: Review week; another week: the "This week" pill
   const actions = varSlot.createDiv("samaya-head-actions");
+  if (cur) btn(actions, "Review week", () => { void plugin.reviewWeek(); }, "Open this week's review: the weekly note, or the work time dashboard").addClass("is-review-week");
 
   return varSlot;
 }

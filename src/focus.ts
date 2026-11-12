@@ -42,7 +42,7 @@ export class FocusManager {
 
   private async persist() { this.plugin.data.focus = this.state; await this.plugin.saveData(this.plugin.data); }
   private refreshViews() {
-    document.body.toggleClass("samaya-focusing", !!this.state); // dims the rest of the day while a focus runs
+    document.body.toggleClass("samaya-focusing", !!this.state?.startedAt); // while a focus runs (not on a break): dims the rest of the day and hides the planning buttons
     document.querySelectorAll(".samaya-focus-bar").forEach(el => el.remove());
     this.ensureBanners();
     this.plugin.refreshPlanner(); // cards and timeline blocks follow the focus

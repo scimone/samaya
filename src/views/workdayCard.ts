@@ -46,7 +46,7 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
       sub = `Start time ${l.start} · Finish time ${minToHm(winEnd)}`; // the finish line of the timeline, which can be moved per day
       if (target) sub2 = worked < target ? `${fmtDur(target - worked)} left of ${fmtDur(target)}` : `Target of ${fmtDur(target)} reached (+${fmtDur(worked - target)})`;
       if (target) progress = Math.min(1, worked / target);
-      buttons.push(["Break", () => { void wd.startBreak(); }]);
+      buttons.push(["Break", () => { void wd.startBreak(); }], ["End day", () => plugin.startShutdown()]);
     }
 
     if (o.part === "status") { // the heading's chip: a dot, the state and the time worked
@@ -57,7 +57,7 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
     }
     if (o.part === "actions") {
       strip.addClass("is-part-actions");
-      buttons.forEach(([label, fn, cta]) => { strip.createEl("button", { text: label, cls: "samaya-hd-btn" + (cta ? " mod-cta" : "") }).onclick = fn; });
+      buttons.forEach(([label, fn, cta]) => { strip.createEl("button", { text: label, cls: "samaya-hd-btn" + (cta ? " mod-cta" : "") + (label === "End day" ? " is-end-day" : "") }).onclick = fn; });
       return;
     }
     if (o.panel) {

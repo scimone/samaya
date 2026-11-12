@@ -78,10 +78,16 @@ export class NavShortcuts {
     m.addSeparator();
     const copy = (text: string) => { void navigator.clipboard.writeText(text); new Notice("Path copied"); };
     const ad = app.vault.adapter;
-    m.addItem(i => i.setTitle("Copy path from vault folder").setIcon("copy").onClick(() => copy(folder)));
+    m.addItem(i => {
+      i.setTitle("Copy path").setIcon("clipboard");
+      const sub = (i as unknown as { setSubmenu(): Menu }).setSubmenu();
+      sub.addItem(j => j.setTitle("From vault folder").setIcon("vault").onClick(() => copy(folder)));
+      if (ad instanceof FileSystemAdapter) {
+        const root = ad.getBasePath().replace(/[\\/]+$/, "");
+        sub.addItem(j => j.setTitle("From system root").setIcon("monitor").onClick(() => copy(folder === "/" ? root : `${root}/${folder}`)));
+      }
+    });
     if (ad instanceof FileSystemAdapter) {
-      const root = ad.getBasePath().replace(/[\\/]+$/, "");
-      m.addItem(i => i.setTitle("Copy path from system root").setIcon("copy").onClick(() => copy(folder === "/" ? root : `${root}/${folder}`)));
       m.addSeparator();
       m.addItem(i => i.setTitle("Show in system explorer").setIcon("arrow-up-right").onClick(() => { (app as unknown as { showInFolder(p: string): void }).showInFolder(folder === "/" ? "" : folder); }));
     }

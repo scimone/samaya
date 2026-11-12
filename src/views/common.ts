@@ -67,37 +67,23 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   el.dataset.path = t.file.path; el.dataset.day = t.planned; el.dataset.link = t.file.path; // (link: hovering a card lights up its timeline block, and the other way round)
   const row = el.createDiv("samaya-card-row");
   const body = row.createDiv("samaya-card-body");
-  if (o.showTime && t.start) body.createDiv({ cls: "samaya-card-time", text: t.segments.length > 1 ? t.segments.map(g => `${minToHm(g.s)}-${minToHm(g.s + g.dur)}`).join(", ") : t.start }); // a split task lists all its time slots
+  // eyebrow above the title, aligned with the title text: [day ·] start time (a split task lists all its time slots)
+  const time = o.showTime && t.start ? (t.segments.length > 1 ? t.segments.map(g => `${minToHm(g.s)}-${minToHm(g.s + g.dur)}`).join(", ") : t.start) : "";
+  if (time || o.dayLabel) { const eb = body.createDiv("samaya-card-eyebrow"); if (o.dayLabel) eb.createSpan({ cls: "samaya-card-day", text: o.dayLabel }); if (time) eb.createSpan({ cls: "samaya-card-time", text: time }); }
   const line = body.createDiv("samaya-card-line");
   const cb = line.createEl("input", { type: "checkbox", cls: "samaya-check" }); cb.checked = t.status === "done";
   cb.addEventListener("change", () => { void setDone(app, t, cb.checked); });
   const title = line.createDiv({ cls: "samaya-card-title", text: t.title });
   title.addEventListener("click", e => { void openFileSmart(app, t.file, e.ctrlKey || e.metaKey ? "tab" : false); });
   keyActivate(title, `Open task: ${t.title}`, () => { void openFileSmart(app, t.file, false); }, "link");
-  const meta = body.createDiv("samaya-card-meta");
-  const tp = ticketPathOf(app, t);
-  if (tp) {
-    const tf = app.vault.getAbstractFileByPath(tp);
-    if (tf instanceof TFile) ticketChip(plugin, title, tf); // inside the title, so it follows the last word when the title wraps
-  }
-  if (plugin.settings.projectsOn) {
-    const pp = projectPathOf(app, t.file);
-    if (pp) meta.createSpan({ cls: "samaya-chip samaya-chip-project", text: pp.split("/").pop()!.replace(/\.md$/, "") });
-  }
-  if (t.channel) meta.createSpan({ cls: "samaya-chip samaya-chip-channel", text: t.channel });
-  if (t.part) partChip(plugin, meta, t);
-  if (!o.actionsSide) o.actions?.forEach(([label, fn]) => { const b = meta.createEl("button", { cls: "samaya-mini", text: label }); b.addEventListener("click", fn); });
-  if (!meta.childElementCount) meta.remove();
 
-  // top right: [logged/]estimated as hh:mm
-  const estTxt = t.estimate ? fmtHm(t.estimate) : "--:--"; const focused = plugin.focus.state?.path === t.file.path;
+  // duration pill at the end of the title line: [logged/]estimated as hh:mm, filled like a progress bar
+  const estTxt = t.estimate ? fmtHm(t.estimate) : "--:--";
   const dayActual = Math.max(0, t.actual - trackedBefore(plugin, t, t.planned || today())); // this day's tracked time only
   const shown = dayActual + plugin.focus.liveMin(t.file.path); // the focused task also counts its running session
-  const label = shown ? `${fmtHm(shown)}/${estTxt}` : estTxt;
-  if (o.dayLabel) row.createSpan({ cls: "samaya-card-day", text: o.dayLabel }); // left of the estimate; the title wraps instead of running under it
-  const side = row.createDiv("samaya-card-side");
-  const est = side.createEl("button", { cls: "samaya-est", text: label, attr: { title: "Estimated time (hh:mm). Click to edit" } });
-  if (plugin.focus.state?.path === t.file.path) { est.dataset.focusBase = String(dayActual); est.dataset.focusEst = estTxt; }
+  const est = line.createEl("button", { cls: "samaya-est", text: shown ? `${fmtHm(shown)}/${estTxt}` : estTxt, attr: { title: "Estimated time (hh:mm). Click to edit" } });
+  est.style.setProperty("--p", `${t.estimate ? Math.min(100, (shown / t.estimate) * 100) : 0}%`); est.toggleClass("is-over", !!t.estimate && shown > t.estimate); est.toggleClass("is-empty", !t.estimate);
+  if (plugin.focus.state?.path === t.file.path) { est.dataset.focusBase = String(dayActual); est.dataset.focusEst = estTxt; est.dataset.focusMin = String(t.estimate || 0); }
   est.title = t.part ? (t.part.kind === "rest" ? `Not planned yet: ${fmtDur(t.estimate)} of ${fmtDur(t.part.total)}. Click to edit` : `This part: ${fmtDur(t.estimate)} of ${fmtDur(t.part.total)}. Click to edit`) : est.title;
   est.addEventListener("click", e => {
     e.stopPropagation();
@@ -108,22 +94,50 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
     input.addEventListener("keydown", ev => { if (ev.key === "Enter") input.blur(); if (ev.key === "Escape") { done = true; input.replaceWith(est); } });
   });
 
-  if (o.actionsSide) o.actions?.forEach(([label, fn]) => { side.createEl("button", { cls: "samaya-mini", text: label }).addEventListener("click", fn); });
+  // context row under the title: ticket, project, channel, split parts
+  const meta = body.createDiv("samaya-card-meta");
+  const tp = ticketPathOf(app, t);
+  if (tp) {
+    const tf = app.vault.getAbstractFileByPath(tp);
+    if (tf instanceof TFile) ticketChip(plugin, meta, tf);
+  }
+  if (plugin.settings.projectsOn) {
+    const pp = projectPathOf(app, t.file);
+    if (pp) { const pc = meta.createSpan({ cls: "samaya-chip samaya-chip-project" }); setIcon(pc.createSpan({ cls: "samaya-chip-icon" }), "folder"); pc.createSpan({ text: pp.split("/").pop()!.replace(/\.md$/, "") }); }
+  }
+  if (t.channel) meta.createSpan({ cls: "samaya-chip samaya-chip-channel", text: t.channel });
+  if (t.part) partChip(plugin, meta, t);
+  if (!meta.childElementCount) meta.remove();
+
+  if (plugin.focus.state && isCurrentTask(plugin, t)) el.addClass("is-current"); // the focused task is lit on every card, with or without a Focus button
+
+  const subs = !o.compact ? body.createDiv("samaya-subs") : null;
+  if (!subs) el.addClass("is-compact");
+
+  // footer: "+ Add subtask" on the left, the card's actions on the right (one row, so the card gets no extra height)
+  const foot = el.createDiv("samaya-card-foot");
+  const acts = foot.createDiv("samaya-card-actions");
+  const ICONS: Record<string, string> = { Today: "sun", Week: "calendar-days", "This week": "calendar-days" };
+  o.actions?.forEach(([label, fn]) => {
+    const b = acts.createEl("button", { cls: "samaya-mini samaya-act" });
+    if (ICONS[label]) setIcon(b.createSpan({ cls: "samaya-act-icon" }), ICONS[label]);
+    b.createSpan({ text: label });
+    b.addEventListener("pointerdown", e => e.stopPropagation()); // not a drag
+    b.addEventListener("click", e => { e.stopPropagation(); fn(); });
+  });
   if (o.split && canSplit(t)) { // scissors: cut the task into parts, here or on other days
-    const cut = side.createEl("button", { cls: "samaya-mini samaya-split-btn", attr: { "aria-label": "Split into parts" } });
+    const cut = acts.createEl("button", { cls: "samaya-mini samaya-split-btn", attr: { "aria-label": "Split into parts", title: "Split into parts" } });
     setIcon(cut, "scissors");
     cut.addEventListener("pointerdown", e => e.stopPropagation()); // not a drag
     cut.addEventListener("click", e => { e.stopPropagation(); new PartsModal(plugin, t, "split").open(); });
   }
-
-  if (plugin.focus.state && isCurrentTask(plugin, t)) el.addClass("is-current"); // the focused task is lit on every card, with or without a Focus button
   if (o.focus) {
     const on = isCurrentTask(plugin, t); if (on) el.addClass("is-current");
-    if (on || (o.focus === "today" && t.planned === today() && t.status !== "done")) focusButton(plugin, side, t);
+    if (on || (o.focus === "today" && t.planned === today() && t.status !== "done")) focusButton(plugin, acts, t);
   }
-
-  if (!o.compact) void renderSubtasks(plugin, (o.actionsSide ? body : el).createDiv("samaya-subs"), t.file, t.status !== "done"); // beside the side column, so there is no gap and long subtasks wrap
-  else el.addClass("is-compact");
+  if (subs) void renderSubtasks(plugin, subs, t.file, t.status !== "done", foot);
+  if (!acts.childElementCount) acts.remove();
+  if (!foot.childElementCount) foot.remove();
 
   el.addEventListener("contextmenu", e => showTaskMenu(plugin, t, e, null, !!o.split));
 
@@ -193,7 +207,7 @@ export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent, seg: 
   m.showAtMouseEvent(e);
 }
 
-export async function renderSubtasks(plugin: SamayaPlugin, host: HTMLElement, file: TFile, canAdd = true) {
+export async function renderSubtasks(plugin: SamayaPlugin, host: HTMLElement, file: TFile, canAdd: boolean, addHost: HTMLElement) {
   const app = plugin.app;
   const paint = async () => {
     if (!host.isConnected) return;
@@ -205,13 +219,15 @@ export async function renderSubtasks(plugin: SamayaPlugin, host: HTMLElement, fi
       c.addEventListener("change", () => { void toggleSubtask(app, file, s.line, c.checked); });
       r.createSpan({ text: s.text });
     });
-    if (!canAdd) return; // checked-off tasks take no new subtasks
-    const add = host.createEl("input", { type: "text", cls: "samaya-sub-add", attr: { placeholder: "+ Add subtask" } });
+  };
+  if (canAdd) { // checked-off tasks take no new subtasks
+    const add = addHost.createEl("input", { type: "text", cls: "samaya-sub-add", attr: { placeholder: "+ Add subtask" } });
+    addHost.prepend(add);
     add.addEventListener("keydown", e => {
       if (e.key !== "Enter" || !add.value.trim()) return;
       const v = add.value.trim(); add.value = ""; void addSubtask(app, file, v);
     });
-  };
+  }
   await paint();
   const ref = app.metadataCache.on("changed", f => {
     if (!host.isConnected) { app.metadataCache.offref(ref); return; }

@@ -559,7 +559,6 @@ button.samaya-tc-status { cursor: pointer; } button.samaya-tc-status:hover { bac
 .samaya-leftover .samaya-mini { padding: 4px 12px; font-size: var(--font-ui-small); }
 .samaya-card-title .samaya-chip-ticket { margin-left: 6px; vertical-align: middle; cursor: pointer; white-space: nowrap; }
 code.samaya-btn-ref { font-size: 0.92em; padding: 0 5px; border-radius: var(--samaya-r-s); color: var(--text-normal); background: var(--background-modifier-hover); }
-.samaya-card-side { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: none; }
 .samaya-sub-row { align-items: flex-start; } .samaya-sub-row span { min-width: 0; overflow-wrap: anywhere; }
 .samaya-card-body > .samaya-subs { margin-top: 4px; }
 /* timeline: tasks and meetings see-through so the day lines show; the current time line is above everything */
@@ -1290,3 +1289,43 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
 :is(.samaya-focus-bbtn, .samaya-tc-focus).mod-cta, .samaya-focus-bar .samaya-rcheck.is-checked { background: var(--samaya-task); border-color: var(--samaya-task); color: var(--samaya-task-on); }
 :is(.samaya-focus-bbtn, .samaya-tc-focus).mod-cta:hover { background: color-mix(in srgb, var(--samaya-task) 85%, var(--text-normal)); color: var(--samaya-task-on); }
 .samaya-focus-bar .samaya-rcheck:hover { border-color: var(--samaya-task); color: var(--samaya-task); }
+
+/* ---- task card v4: eyebrow (time) · title line (check, title, duration pill) · context chips · subtasks · footer (add subtask + actions) ---- */
+.samaya-card { padding: 9px 10px 7px; }
+.samaya-card-body { gap: 3px; }
+/* eyebrow: aligned with the title text, so the checkbox column stays untouched */
+.samaya-card-eyebrow { display: flex; align-items: baseline; gap: 6px; padding-left: 18px; font-size: var(--font-ui-smaller); line-height: 1.2; font-variant-numeric: tabular-nums; }
+.samaya-card-eyebrow .samaya-card-time { font-weight: 600; letter-spacing: 0.02em; color: var(--text-muted); }
+.samaya-card-eyebrow .samaya-card-day + .samaya-card-time::before { content: "·"; margin-right: 6px; color: var(--text-faint); font-weight: 400; }
+/* title line: the title takes the width, the duration pill sits at its end */
+.samaya-card-line { align-items: flex-start; }
+.samaya-card-line .samaya-card-title { flex: 1 1 auto; min-width: 0; }
+.samaya-card .samaya-card-line .samaya-est, .samaya-card .samaya-card-line .samaya-est:hover { flex: none; align-self: flex-start; margin: 1px 0 0 8px; height: 18px; padding: 0 7px; border-radius: var(--samaya-r-pill); line-height: 18px; font-size: var(--font-ui-smaller); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-muted); cursor: pointer; border: none; box-shadow: none !important;
+  background-color: var(--background-modifier-hover) !important;
+  background-image: linear-gradient(to right, color-mix(in srgb, var(--samaya-task, var(--interactive-accent)) 38%, transparent) var(--p, 0%), transparent var(--p, 0%)) !important; }
+.samaya-card .samaya-card-line .samaya-est:hover { color: var(--text-normal); background-color: var(--background-modifier-border) !important; }
+.samaya-card .samaya-card-line .samaya-est.is-empty { background-image: none !important; background-color: transparent !important; color: var(--text-faint); box-shadow: inset 0 0 0 1px var(--background-modifier-border) !important; font-weight: 400; }
+.samaya-card .samaya-card-line .samaya-est.is-over { color: var(--text-error); background-image: linear-gradient(to right, color-mix(in srgb, var(--text-error) 22%, transparent) 100%, transparent 100%) !important; }
+.samaya-card .samaya-est-input { flex: none; width: 64px; height: 20px; margin: 0 0 0 8px; }
+/* context chips under the title */
+.samaya-card-meta { gap: 4px 5px; padding-left: 18px; margin-top: 1px; }
+.samaya-card-meta .samaya-chip { display: inline-flex; align-items: center; gap: 4px; line-height: 18px; padding: 0 7px; max-width: 100%; }
+.samaya-card-meta .samaya-chip > span:last-child:not(.samaya-chip-icon) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.samaya-card-meta .samaya-chip-ticket { margin: 0; letter-spacing: 0.01em; }
+.samaya-card-meta .samaya-chip-project { background: transparent; box-shadow: inset 0 0 0 1px var(--background-modifier-border); }
+.samaya-card-meta .samaya-chip-icon svg { width: 11px; height: 11px; }
+/* footer: add subtask left, actions right */
+.samaya-card-foot { display: flex; align-items: center; gap: 8px; margin: 3px 0 0 18px; min-height: 22px; cursor: default; }
+.samaya-card-foot .samaya-sub-add { flex: 1 1 0; width: auto; min-width: 0; margin: 0; }
+.samaya-card-actions { display: flex; align-items: center; gap: 4px; margin-left: auto; flex: none; }
+.samaya-card-actions .samaya-mini { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border-radius: var(--samaya-r-pill); }
+.samaya-card-actions .samaya-act { color: var(--text-muted); box-shadow: inset 0 0 0 1px var(--background-modifier-border); }
+.samaya-card-actions .samaya-act:hover { color: var(--text-normal); box-shadow: inset 0 0 0 1px var(--text-faint); }
+.samaya-act-icon { display: inline-flex; } .samaya-act-icon svg { width: 12px; height: 12px; }
+.samaya-card-actions .samaya-focus-go { margin-left: 0; color: var(--text-normal); background: color-mix(in srgb, var(--samaya-task, var(--interactive-accent)) 22%, transparent); box-shadow: none; border: none; font-weight: 600; }
+.samaya-card-actions .samaya-focus-go:hover { background: color-mix(in srgb, var(--samaya-task, var(--interactive-accent)) 38%, transparent); }
+.samaya-card-actions .samaya-focus-go.is-active { background: var(--samaya-task, var(--interactive-accent)); color: var(--samaya-task-on, var(--text-on-accent)); border: none; }
+.samaya-card-actions .samaya-focus-stop { background: transparent; color: var(--text-muted); box-shadow: inset 0 0 0 1px var(--background-modifier-border); margin-left: 0; }
+.samaya-card-actions .samaya-focus-stop:hover { color: var(--text-error); box-shadow: inset 0 0 0 1px var(--text-error); background: transparent; }
+.samaya-card-actions .samaya-split-btn { padding: 0 6px; }
+.samaya-card.is-compact .samaya-card-foot { margin-top: 4px; }

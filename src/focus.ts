@@ -103,7 +103,8 @@ export class FocusManager {
     const actual = t ? Math.max(0, t.actual - before + this.sessionMs() / 60000 - (st.loggedMin ?? 0)) : 0; // the logged part is already in t.actual
     const planned = day ? day.estimate : 0;
     document.querySelectorAll<HTMLElement>(".samaya-est[data-focus-base]").forEach(el => { // the focused task's cards count along with the banner
-      el.setText(`${fmtHm(+el.dataset.focusBase! + this.liveMin(st.path))}/${el.dataset.focusEst}`);
+      const now = +el.dataset.focusBase! + this.liveMin(st.path); const est = +(el.dataset.focusMin ?? 0);
+      el.setText(`${fmtHm(now)}/${el.dataset.focusEst}`); el.style.setProperty("--p", `${est ? Math.min(100, (now / est) * 100) : 0}%`); el.toggleClass("is-over", !!est && now > est);
     });
     document.querySelectorAll<HTMLElement>(".samaya-tc-act[data-tc-base]").forEach(el => el.setText(fmtHm(+el.dataset.tcBase! + this.liveMin(st.path))));
     document.querySelectorAll<HTMLElement>(".samaya-focus-bar").forEach(bar => {

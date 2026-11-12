@@ -144,23 +144,26 @@ export function renderBacklogBuckets(plugin: SamayaPlugin, host: HTMLElement, ta
   }
 }
 
-/** The right-click menu shared by task cards and timeline blocks. `seg`: the piece of a split day that was clicked (timeline blocks). */
-export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent, seg: number | null = null, canCut = false) {
-  const app: App = plugin.app; const tp = ticketPathOf(app, t); const st = plugin.settings;
-  e.preventDefault(); const m = new Menu();
+/** Ticket entries of the task menu: assign / change / remove. */
+export function addTicketItems(m: Menu, plugin: SamayaPlugin, t: Task) {
+  const app = plugin.app; const tp = ticketPathOf(app, t); const ticketsOn = plugin.settings.jiraOn || plugin.settings.gitlabOn;
+  if (ticketsOn || tp) m.addItem(i => i.setTitle(tp ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void assignTicket(app, t.file, tk); }).open()));
+  if (tp && ticketsOn) m.addItem(i => i.setTitle("Remove ticket").setIcon("unlink").onClick(() => { void assignTicket(app, t.file, null); }));
+}
+/** Project entries of the task menu: assign / change / remove. */
+export function addProjectItems(m: Menu, plugin: SamayaPlugin, t: Task) {
+  const app = plugin.app;
+  if (!plugin.settings.projectsOn) return;
+  const has = !!projectPathOf(app, t.file);
+  m.addItem(i => i.setTitle(has ? "Change project…" : "Assign project…").setIcon("folder-kanban").onClick(() => new ProjectSuggestModal(plugin, pr => { void assignProject(app, t.file, pr); }).open()));
+  if (has) m.addItem(i => i.setTitle("Remove project").setIcon("unlink").onClick(() => { void assignProject(app, t.file, null); }));
+}
+/** Planning entries of the task menu: split / move, plan for today or this week, back to the timeline's edge, backlog buckets. `seg`: the piece of a split day that was clicked (timeline blocks). */
+export function addPlanItems(m: Menu, plugin: SamayaPlugin, t: Task, seg: number | null = null, canCut = false) {
+  const app: App = plugin.app; const st = plugin.settings;
   const from: Source = { day: t.planned, seg };
   const part = !!t.part || t.segments.length > 1; // planned in parts: the buttons below act on this part
   const send = (dest: Parameters<typeof sendPiece>[4]) => { void sendPiece(app, st, t.file, from, dest); };
-  m.addItem(i => i.setTitle("Start focus").setIcon("timer").onClick(() => { void plugin.focus.start(t.file); }));
-  const ticketsOn = st.jiraOn || st.gitlabOn;
-  if (ticketsOn || tp) m.addItem(i => i.setTitle(tp ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void assignTicket(app, t.file, tk); }).open()));
-  if (tp && ticketsOn) m.addItem(i => i.setTitle("Remove ticket").setIcon("unlink").onClick(() => { void assignTicket(app, t.file, null); }));
-  if (plugin.settings.projectsOn) {
-    const has = !!projectPathOf(app, t.file);
-    m.addItem(i => i.setTitle(has ? "Change project…" : "Assign project…").setIcon("folder-kanban").onClick(() => new ProjectSuggestModal(plugin, pr => { void assignProject(app, t.file, pr); }).open()));
-    if (has) m.addItem(i => i.setTitle("Remove project").setIcon("unlink").onClick(() => { void assignProject(app, t.file, null); }));
-  }
-  m.addSeparator();
   if (canSplit(t)) {
     if (canCut) m.addItem(i => i.setTitle("Split task…").setIcon("scissors").onClick(() => new PartsModal(plugin, t, "split", seg).open()));
     m.addItem(i => i.setTitle(part ? "Move this part to another day…" : "Move to another day…").setIcon("calendar-days").onClick(() => new PartsModal(plugin, t, "move", seg).open()));
@@ -171,6 +174,16 @@ export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent, seg: 
   if (t.start) m.addItem(i => i.setTitle("Remove from timeline").setIcon("x").onClick(() => { void unscheduleDay(app, t.file, t.planned); }));
   if (t.planned || t.week) m.addItem(i => i.setTitle(part ? "Move this part to backlog" : "Move to backlog").setIcon("inbox").onClick(() => send({ backlog: "someday" })));
   HORIZONS.filter(([h]) => h !== "someday" && h !== "never").forEach(([h, label]) => m.addItem(i => i.setTitle(`Backlog: ${label.toLowerCase()}`).setIcon("calendar-clock").onClick(() => send({ backlog: h }))));
+}
+
+/** The right-click menu shared by task cards and timeline blocks. `seg`: the piece of a split day that was clicked (timeline blocks). */
+export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent, seg: number | null = null, canCut = false) {
+  const app: App = plugin.app;
+  e.preventDefault(); const m = new Menu();
+  m.addItem(i => i.setTitle("Start focus").setIcon("timer").onClick(() => { void plugin.focus.start(t.file); }));
+  addTicketItems(m, plugin, t); addProjectItems(m, plugin, t);
+  m.addSeparator();
+  addPlanItems(m, plugin, t, seg, canCut);
   m.addSeparator();
   m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { void app.workspace.getLeaf("tab").openFile(t.file); }));
   m.addItem(i => i.setTitle("Delete task").setIcon("trash").setWarning(true).onClick(() => { // asks first; then follows the vault's "deleted files" setting (system trash, .trash or permanent)

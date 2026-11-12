@@ -460,7 +460,8 @@ body {
 .samaya-tc-line > * { pointer-events: auto; }
 .samaya-tc-line.is-flow { position: static; margin: 0 0 8px; }
 .samaya-tc-spacer { flex: 1; pointer-events: none !important; }
-.samaya-tc-check { flex: none; width: 20px; height: 20px; margin: 0; cursor: pointer; }
+.samaya-tc-check { --checkbox-size: 28px; flex: none; width: 28px; height: 28px; margin: 0; cursor: pointer; }
+.samaya-tc-right { display: inline-flex; align-items: flex-end; gap: 16px; }
 .samaya-tc-clock { display: inline-flex; align-items: flex-end; gap: 8px; font-weight: var(--font-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
 .samaya-tc-num { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
 .samaya-tc-numlabel { font-size: var(--font-ui-smaller, 11px); font-weight: var(--font-normal); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); line-height: 1; }
@@ -482,6 +483,9 @@ button.samaya-tc-status { cursor: pointer; } button.samaya-tc-status:hover { bac
 .samaya-tc-act { font-weight: var(--font-semibold); } .samaya-tc-est { color: var(--text-muted); }
 .samaya-tc-time.is-over .samaya-tc-act { color: var(--text-error); }
 .samaya-tc-none { color: var(--text-faint); }
+.samaya-tc-value.is-edit { cursor: pointer; border-radius: var(--radius-s); margin: 0 -6px; padding: 0 6px; align-self: stretch; }
+.samaya-tc-value.is-edit:hover, .samaya-tc-value.is-edit:focus-visible { background: var(--background-modifier-hover); }
+.samaya-tc-session.is-backlog { background: transparent; border-color: var(--background-modifier-border); color: var(--text-muted); border-style: dashed; }
 .samaya-tc-link { cursor: pointer; }
 .samaya-tc-session { gap: 8px; }
 .samaya-tc-session.is-today { border-color: var(--interactive-accent); color: var(--interactive-accent); }

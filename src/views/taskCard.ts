@@ -1,9 +1,10 @@
-import { TFile, setIcon } from "obsidian";
+import { Menu, TFile, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { dayTask, patchTask, readTask, readTicket } from "../model";
 import { projectPathOf } from "../projects";
-import { addDays, fmtHm, minToHm, parseYmd, today } from "../util";
+import { HORIZONS, addDays, bucketOf, fmtHm, minToHm, parseYmd, startOfWeek, today } from "../util";
 import { trackedBefore } from "./place";
+import { addPlanItems, addProjectItems, addTicketItems } from "./common";
 
 const DAY_FMT = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short" });
 /** "Thu, 12 Nov" (Today / Tomorrow for those). */
@@ -60,17 +61,25 @@ export function renderTaskCard(plugin: SamayaPlugin, el: HTMLElement, file: TFil
     box.addEventListener("change", () => { void patchTask(plugin.app, file!, box.checked ? { status: "done", completed: today() } : { status: "todo", completed: null }); });
     if (!withHead) return h;
     h.createDiv("samaya-tc-spacer");
+    const right = h.createDiv("samaya-tc-right"); // clock and button, bottoms aligned
     const act = showToday ? todayAct : t.actual, est = showToday ? todayEst : t.estimate;
-    const clock = h.createDiv({ cls: "samaya-tc-clock" + (est && act > est ? " is-over" : "") });
+    const clock = right.createDiv({ cls: "samaya-tc-clock" + (est && act > est ? " is-over" : "") });
     const num = (label: string, text: string, cls = "") => {
       const c = clock.createDiv("samaya-tc-num");
       c.createSpan({ cls: "samaya-tc-numlabel", text: label }); c.createSpan({ cls: "samaya-tc-big " + cls, text });
     };
     num("actual", fmtHm(act)); clock.createSpan({ cls: "samaya-tc-bigsep", text: "/" }); num("planned", est ? fmtHm(est) : "--:--", "is-est");
-    const go = h.createEl("button", { cls: "samaya-tc-focus mod-cta", attr: { "aria-label": "Start focus on this task" } });
+    const go = right.createEl("button", { cls: "samaya-tc-focus mod-cta", attr: { "aria-label": "Start focus on this task" } });
     setIcon(go.createSpan({ cls: "samaya-tc-btn-icon" }), "timer"); go.createSpan({ text: "Focus" });
     go.addEventListener("click", () => { void plugin.focus.start(file!); });
     return h;
+  }
+
+  /** Where a task without a day waits. */
+  function waitingLabel(): string {
+    if (t.week) return t.week === startOfWeek(day) ? "This week" : `Week of ${dayLabel(t.week)}`;
+    const h = bucketOf(t.horizon, t.later, day);
+    return `Backlog: ${(HORIZONS.find(([k]) => k === h)?.[1] ?? "Someday").toLowerCase()}`;
   }
 
   function build(): HTMLElement {
@@ -82,6 +91,28 @@ export function renderTaskCard(plugin: SamayaPlugin, el: HTMLElement, file: TFil
       return r.createDiv("samaya-tc-value");
     };
 
+    const editable = (v: HTMLElement, label: string, menu: (m: Menu) => void) => {
+      v.addClass("is-edit"); v.setAttr("role", "button"); v.setAttr("tabindex", "0"); v.setAttr("aria-label", label);
+      const open = (e: MouseEvent | KeyboardEvent) => { const m = new Menu(); menu(m); if (e instanceof MouseEvent) m.showAtMouseEvent(e); else { const r = v.getBoundingClientRect(); m.showAtPosition({ x: r.left, y: r.bottom }); } };
+      v.addEventListener("click", open);
+      v.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(e); } });
+    };
+
+    // planned: the pieces, or where the task waits (this week / backlog); click to change
+    const pv = row("Planned", "calendar");
+    editable(pv, "Change the plan", m => addPlanItems(m, plugin, t));
+    for (const g of t.sessions) {
+      const chip = pv.createSpan({ cls: "samaya-tc-pill samaya-tc-session" + (g.date === day ? " is-today" : g.date < day ? " is-past" : "") });
+      chip.createSpan({ cls: "samaya-tc-day", text: dayLabel(g.date) });
+      const when = g.s !== null ? `${minToHm(g.s)}–${minToHm(g.s + g.dur)}` : g.dur ? fmtHm(g.dur) : "";
+      if (when) chip.createSpan({ cls: "samaya-tc-when", text: when });
+    }
+    if (t.status !== "done" && (!t.sessions.length || t.rest > 0)) {
+      const chip = pv.createSpan({ cls: "samaya-tc-pill samaya-tc-session is-backlog" });
+      if (t.sessions.length) chip.createSpan({ cls: "samaya-tc-when", text: `${fmtHm(t.rest)} still` });
+      chip.createSpan({ cls: "samaya-tc-day", text: waitingLabel() });
+    } else if (!t.sessions.length) pv.createSpan({ cls: "samaya-tc-none", text: "Not planned" });
+
     // time: tracked of estimated, the whole task
     if (t.estimate || t.actual) {
       const tv = row("Time", "clock");
@@ -90,28 +121,19 @@ export function renderTaskCard(plugin: SamayaPlugin, el: HTMLElement, file: TFil
       p.createSpan({ cls: "samaya-tc-est", text: ` of ${t.estimate ? fmtHm(t.estimate) : "--:--"}` });
     }
 
-    // planned pieces
-    if (t.sessions.length) {
-      const pv = row("Planned", "calendar");
-      for (const g of t.sessions) {
-        const chip = pv.createSpan({ cls: "samaya-tc-pill samaya-tc-session" + (g.date === day ? " is-today" : g.date < day ? " is-past" : "") });
-        chip.createSpan({ cls: "samaya-tc-day", text: dayLabel(g.date) });
-        const when = g.s !== null ? `${minToHm(g.s)}–${minToHm(g.s + g.dur)}` : g.dur ? fmtHm(g.dur) : "";
-        if (when) chip.createSpan({ cls: "samaya-tc-when", text: when });
-      }
-    } else {
-      row("Planned", "calendar").createSpan({ cls: "samaya-tc-none", text: "Not planned yet" });
-    }
-
-    // where it belongs
-    const link = (parent: HTMLElement, path: string, label?: (f: TFile) => string) => {
-      const target = plugin.app.vault.getAbstractFileByPath(path);
-      if (!(target instanceof TFile)) return;
-      const a = parent.createEl("a", { cls: "samaya-tc-link", text: label ? label(target) : target.basename });
-      a.addEventListener("click", e => { e.preventDefault(); void plugin.openNoteInMain(target); });
+    // where it belongs: click to open, change or remove
+    const target = (path: string) => { const x = plugin.app.vault.getAbstractFileByPath(path); return x instanceof TFile ? x : null; };
+    const relation = (label: string, icon: string, path: string, text: (f: TFile) => string, items: (m: Menu) => void) => {
+      const v = row(label, icon); const f = path ? target(path) : null;
+      editable(v, f ? `${label}: change or open` : `Assign ${label.toLowerCase()}`, m => {
+        if (f) m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { void plugin.openNoteInMain(f); }));
+        items(m);
+      });
+      if (f) v.createSpan({ cls: "samaya-tc-link", text: text(f) }); else v.createSpan({ cls: "samaya-tc-none", text: "None" });
     };
-    if (projectPath) link(row("Project", "folder-kanban"), projectPath);
-    if (t.ticket) { const tp = plugin.app.metadataCache.getFirstLinkpathDest(t.ticket, file!.path)?.path; if (tp) link(row("Ticket", "ticket"), tp, f => { const k = readTicket(plugin.app, f); return k.summary ? `${k.key} • ${k.summary}` : k.key; }); }
+    const ticketPath = t.ticket ? plugin.app.metadataCache.getFirstLinkpathDest(t.ticket, file!.path)?.path ?? "" : "";
+    if (plugin.settings.projectsOn || projectPath) relation("Project", "folder-kanban", projectPath, f => f.basename, m => addProjectItems(m, plugin, t));
+    if (plugin.settings.jiraOn || plugin.settings.gitlabOn || ticketPath) relation("Ticket", "ticket", ticketPath, f => { const k = readTicket(plugin.app, f); return k.summary ? `${k.key} • ${k.summary}` : k.key; }, m => addTicketItems(m, plugin, t));
     return card;
   }
 }

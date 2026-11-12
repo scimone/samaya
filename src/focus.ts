@@ -75,7 +75,7 @@ export class FocusManager {
       const b = bar.createEl("button", { cls: "samaya-focus-bbtn", attr: { "aria-label": label, title: label } });
       setIcon(b, icon); b.addEventListener("click", () => { void fn(); });
     };
-    if (st.startedAt) btn("pause", "Take a break", () => this.pause()); else btn("play", "Resume", () => this.resume());
+    if (st.startedAt) btn("pause", "Take a break", () => this.pause()); else { btn("play", "Resume", () => this.resume()); btn("square", "Stop and log the time (task stays open)", () => this.stop(false)); }
     btn("square-check", "Complete and log time", () => this.stop(true));
   }
   private tickBanners() {

@@ -1215,5 +1215,6 @@ input.is-invalid { border-color: var(--text-error); }
 
 /* focus on: everything but the focused task and the meeting that is on now fades */
 body.samaya-focusing .samaya-lane .samaya-block:not(.is-current):not(.is-dragging), body.samaya-focusing .samaya-lane .samaya-event:not(.is-current),
-body.samaya-focusing .samaya-daily .samaya-card:not(.is-current):not(.is-linked) { opacity: 0.4; }
+body.samaya-focusing .samaya-daily .samaya-card:not(.is-current):not(.is-linked) { opacity: 0.15; }
+body.samaya-focusing .samaya-donebar, body.samaya-focusing .samaya-add { opacity: 0.15; }
 body.samaya-focusing .samaya-hs-group.is-cap, body.samaya-focusing .samaya-hd-btn.is-end-day, body.samaya-focusing .samaya-hd-btn.is-review-week, body.samaya-focusing .samaya-hd-icon.is-worktime { display: none; }

@@ -3,7 +3,7 @@ import type SamayaPlugin from "../main";
 import { dayTask, patchTask, readTask, readTicket } from "../model";
 import { projectPathOf } from "../projects";
 import { HORIZONS, addDays, bucketOf, fmtHm, parseDuration, minToHm, parseYmd, startOfWeek, today } from "../util";
-import { focusButton, trackedBefore } from "./place";
+import { focusButton, roundCheck, trackedBefore } from "./place";
 import { addPlanItems, addProjectItems, addTicketItems } from "./common";
 
 const DAY_FMT = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short" });
@@ -57,9 +57,7 @@ export function renderTaskCard(plugin: SamayaPlugin, el: HTMLElement, file: TFil
   function titleLine(): HTMLElement {
     const h = createDiv({ cls: "samaya-tc-line" }); h.dataset.key = key;
     const done = t.status === "done";
-    const box = h.createEl("input", { cls: "samaya-tc-check", type: "checkbox", attr: { "aria-label": done ? "Done - click to reopen" : "Mark as done" } });
-    box.checked = done;
-    box.addEventListener("change", () => { void patchTask(plugin.app, file!, box.checked ? { status: "done", completed: today() } : { status: "todo", completed: null }); });
+    roundCheck(h, done, done ? "Done - click to reopen" : "Mark as done", v => { void patchTask(plugin.app, file!, v ? { status: "done", completed: today() } : { status: "todo", completed: null }); }, "samaya-tc-check");
     if (!withHead) return h;
     h.createDiv("samaya-tc-spacer");
     const right = h.createDiv("samaya-tc-right"); // clock and button, bottoms aligned

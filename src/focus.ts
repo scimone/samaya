@@ -1,7 +1,7 @@
 import { Notice, TFile, WorkspaceLeaf, setIcon } from "obsidian";
 import type SamayaPlugin from "./main";
 import { dayTask, patchTask, readTask } from "./model";
-import { trackedBefore } from "./views/place";
+import { roundCheck, trackedBefore } from "./views/place";
 import { today } from "./util";
 import { fmtDur, fmtHm } from "./util";
 
@@ -82,15 +82,16 @@ export class FocusManager {
     status.createSpan({ cls: "samaya-focus-state", text: st.startedAt ? (here ? "In focus" : "Focusing") : "Paused" });
     if (!here) {
       // somewhere else: say what is running, and a way back
+      roundCheck(bar, false, "Complete the task and log the time", () => { void this.stop(true); }); // replaces a Done button
       const link = bar.createEl("a", { cls: "samaya-focus-link", text: file?.basename ?? "", attr: { title: "Back to the task" } });
       link.addEventListener("click", e => { e.preventDefault(); this.openNote(); });
       bar.createSpan({ cls: "samaya-focus-prog" });
     }
     if (here) { bar.createDiv("samaya-focus-meter"); return; } // the task's own note: just the label and the progress line (clock, Pause and the checkbox are on the title line)
     const ctl = bar.createDiv("samaya-focus-ctl");
-    if (st.startedAt) btn(ctl, "pause", "Pause", () => this.pause());
+    if (st.startedAt) btn(ctl, "pause", "Pause", () => this.pause(), "mod-cta");
     else { btn(ctl, "play", "Resume", () => this.resume(), "mod-cta"); btn(ctl, "square", "Stop (log the time, task stays open)", () => this.stop(false)); }
-    btn(ctl, "square-check", "Done (complete and log time)", () => this.stop(true), st.startedAt ? "mod-cta" : "");
+    bar.createDiv("samaya-focus-meter");
   }
   private tickBanners() {
     const st = this.state; const f = this.file; if (!st) return;

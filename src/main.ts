@@ -404,7 +404,7 @@ export default class SamayaPlugin extends Plugin {
     ws.setActiveLeaf(leaf, { focus: true });
   }
   /** Redraw the open planner (its options changed). */
-  refreshPlanner() { this.app.workspace.getLeavesOfType(PLANNER_VIEW_TYPE).forEach(l => (l.view as PlannerView).onDataUpdated()); }
+  refreshPlanner() { this.app.workspace.getLeavesOfType(PLANNER_VIEW_TYPE).forEach(l => { if (l.view instanceof PlannerView) l.view.onDataUpdated(); }); } // a planner tab that is not loaded yet (right after start-up) has no view to redraw
   /** The work time dashboard lives in the Planner: it takes the place of the day / week there, with a button back. */
   async openDashboard() {
     await this.openPlanner();

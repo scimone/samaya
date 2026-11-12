@@ -73,6 +73,15 @@ export function focusButton(plugin: SamayaPlugin, parent: HTMLElement, t: Task, 
   }
   return b;
 }
+/** A round, themable checkbox (a div, so no theme's checkbox styling gets in the way). `onToggle` gets the new state. */
+export function roundCheck(parent: HTMLElement, checked: boolean, label: string, onToggle: (checked: boolean) => void, cls = ""): HTMLElement {
+  const b = parent.createDiv({ cls: `samaya-rcheck ${cls}`.trim() + (checked ? " is-checked" : ""), attr: { role: "checkbox", "aria-checked": String(checked), "aria-label": label, tabindex: "0" } });
+  setIcon(b.createSpan({ cls: "samaya-rcheck-icon" }), "check");
+  const toggle = () => { const v = !b.hasClass("is-checked"); b.toggleClass("is-checked", v); b.setAttr("aria-checked", String(v)); onToggle(v); };
+  b.addEventListener("click", e => { e.stopPropagation(); toggle(); });
+  b.addEventListener("keydown", e => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggle(); } });
+  return b;
+}
 /** Length of what is being dragged: the unplanned rest, one piece, a day's pieces or the whole task. */
 export function dragLen(plugin: SamayaPlugin, path: string, seg: number | null, fromDay: string | null, date?: string): number {
   const f = plugin.app.vault.getAbstractFileByPath(path); const dflt = plugin.settings.defaultEstimate;

@@ -664,7 +664,7 @@ export default class SamayaPlugin extends Plugin {
     this.noticeWithNote(`Day ended${s.journalOn ? " - saved to your journal" : ""}. See you tomorrow.`, note, "Open daily note");
   }
 
-  private quickAdd() {
+  quickAdd() {
     new TextPromptModal(this, "New task (append 30m / 1h for an estimate)", raw => {
       const p = parseTitleEstimateSafe(raw);
       void createTask(this.app, this.settings, p.title, { planned: today(), estimate: p.estimate ?? this.settings.defaultEstimate });

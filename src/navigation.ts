@@ -1,9 +1,12 @@
-import { Notice, TFile, WorkspaceLeaf, normalizePath, setIcon } from "obsidian";
+import { FileSystemAdapter, Menu, Notice, TFile, WorkspaceLeaf, normalizePath, setIcon } from "obsidian";
 import type SamayaPlugin from "./main";
 import { rootOf } from "./model";
 import { journalLocation } from "./journal";
+import { TextPromptModal } from "./modals";
+import { createProject } from "./projects";
 
-interface Item { id: string; name: string; icon: string; open: () => void | Promise<void>; /** folders hidden from the file explorer while this item shows */ folders: string[]; }
+interface Item { id: string; name: string; icon: string; open: () => void | Promise<void>; /** folders hidden from the file explorer while this item shows */ folders: string[];
+  /** the folder behind the item (for search, copy path, show in system explorer); none for the planner */ folder?: string; /** "New xx" entry of the context menu */ create?: { label: string; run: () => void }; }
 
 /** Shortcuts (Planner, Tasks, Journal, ...) at the top of the file explorer; the folders behind them are hidden. */
 export class NavShortcuts {
@@ -41,26 +44,48 @@ export class NavShortcuts {
     const join = (dir: string | null, file: string) => dir ? `${dir}/${file}` : file;
     const out: Item[] = [{ id: "planner", name: "Planner", icon: "calendar-clock", open: () => p.openPlanner(true), folders: [] }];
     const tasks = root(s.tasksPath);
-    out.push({ id: "tasks", name: "Tasks", icon: "check-square", open: this.base(join(tasks, "Tasks.base"), () => p.scaffold(false)), folders: tasks ? [tasks] : [] });
+    out.push({ id: "tasks", name: "Tasks", icon: "check-square", open: this.base(join(tasks, "Tasks.base"), () => p.scaffold(false)), folders: tasks ? [tasks] : [], folder: tasks ?? "/", create: { label: "New task", run: () => p.quickAdd() } });
     if (s.journalOn) {
       const loc = await journalLocation(p.app, s);
       const jr = loc.pattern ? root(loc.folder) : normalizePath(loc.folder || "/");
-      out.push({ id: "journal", name: "Journal", icon: "book-open", open: this.base("Journal/Journal.base", () => p.scaffoldJournal(false)), folders: ["Journal", ...(jr && jr !== "/" ? [jr] : [])] });
+      out.push({ id: "journal", name: "Journal", icon: "book-open", open: this.base("Journal/Journal.base", () => p.scaffoldJournal(false)), folders: ["Journal", ...(jr && jr !== "/" ? [jr] : [])], folder: jr && jr !== "/" ? jr : "Journal" });
     }
     if (s.calendarOn) {
       const dir = normalizePath(s.eventNotesFolder.trim() || "Meetings");
-      out.push({ id: "meetings", name: "Meetings", icon: "calendar-days", open: this.base(`${dir}/Meetings.base`), folders: [dir] });
+      out.push({ id: "meetings", name: "Meetings", icon: "calendar-days", open: this.base(`${dir}/Meetings.base`), folders: [dir], folder: dir });
     }
     if (s.projectsOn) {
       const dir = normalizePath(s.projectsPath.trim() || "Projects"); // a plain folder, not a path pattern
-      out.push({ id: "projects", name: "Projects", icon: "folder-kanban", open: this.base(s.projectsBase.trim() || `${dir}/Projects.base`, () => p.scaffoldProjects(false)), folders: [dir] });
+      out.push({ id: "projects", name: "Projects", icon: "folder-kanban", open: this.base(s.projectsBase.trim() || `${dir}/Projects.base`, () => p.scaffoldProjects(false)), folders: [dir], folder: dir, create: { label: "New project", run: () => new TextPromptModal(p, "New project name", n => { void createProject(p.app, s, n).then(() => p.bus.emit()); }).open() } });
     }
     const tdir = root(s.ticketsPath);
     if (s.jiraOn || s.gitlabOn || p.app.vault.getAbstractFileByPath(normalizePath(join(tdir, "Tickets.base")))) { // also while only the ticket notes exist
       const dir = tdir;
-      out.push({ id: "tickets", name: "Tickets", icon: "ticket", open: this.base(join(dir, "Tickets.base"), () => p.scaffoldTickets(false)), folders: dir ? [dir] : [] });
+      out.push({ id: "tickets", name: "Tickets", icon: "ticket", open: this.base(join(dir, "Tickets.base"), () => p.scaffoldTickets(false)), folders: dir ? [dir] : [], folder: dir ?? "/" });
     }
     return out;
+  }
+
+  /** Right-click menu of a shortcut, like the one of a folder in the file explorer. */
+  private menu(it: Item, e: MouseEvent) {
+    if (!it.folder) return;
+    const folder = it.folder, app = this.plugin.app, m = new Menu();
+    if (it.create) m.addItem(i => i.setTitle(it.create!.label).setIcon("edit").onClick(it.create!.run));
+    if (it.id !== "planner") m.addItem(i => i.setTitle(`Search in ${it.name.toLowerCase()}`).setIcon("search").onClick(() => {
+      const search = (app as unknown as { internalPlugins?: { getPluginById(id: string): { instance?: { openGlobalSearch?(q: string): void } } | undefined } }).internalPlugins?.getPluginById("global-search")?.instance;
+      if (folder === "/") search?.openGlobalSearch?.(""); else search?.openGlobalSearch?.(`path:"${folder}" `);
+    }));
+    m.addSeparator();
+    const copy = (text: string) => { void navigator.clipboard.writeText(text); new Notice("Path copied"); };
+    const ad = app.vault.adapter;
+    m.addItem(i => i.setTitle("Copy path from vault folder").setIcon("copy").onClick(() => copy(folder)));
+    if (ad instanceof FileSystemAdapter) {
+      const root = ad.getBasePath().replace(/[\\/]+$/, "");
+      m.addItem(i => i.setTitle("Copy path from system root").setIcon("copy").onClick(() => copy(folder === "/" ? root : `${root}/${folder}`)));
+      m.addSeparator();
+      m.addItem(i => i.setTitle("Show in system explorer").setIcon("arrow-up-right").onClick(() => { (app as unknown as { showInFolder(p: string): void }).showInFolder(folder === "/" ? "" : folder); }));
+    }
+    m.showAtMouseEvent(e);
   }
 
   private teardown() {
@@ -93,6 +118,7 @@ export class NavShortcuts {
           setIcon(row.createDiv("tree-item-icon samaya-nav-icon"), it.icon);
           row.createDiv({ cls: "tree-item-inner nav-file-title-content", text: it.name });
           row.addEventListener("click", () => { void it.open(); });
+          row.addEventListener("contextmenu", e => { e.preventDefault(); this.menu(it, e); });
         }
         list.prepend(box);
       };

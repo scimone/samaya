@@ -1394,3 +1394,13 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
 .samaya-tk-lanehead:hover .samaya-tk-laneacts, .samaya-tk-lanehead:focus-within .samaya-tk-laneacts { opacity: 1; }
 .samaya-tk-laneadd { width: 100%; max-width: 420px; box-sizing: border-box; margin: 0 0 var(--samaya-sp-2) var(--samaya-sp-1); }
 @media (prefers-reduced-motion: reduce) { .samaya-tk-cell, .samaya-tk-chevron, .samaya-tk-laneacts { transition: none; } }
+
+/* flat view: every column scrolls on its own, the page only scrolls sideways */
+.samaya-tk-scroll.is-flat { overflow-y: hidden; padding-bottom: var(--samaya-sp-4); }
+.samaya-tk-scroll.is-flat .samaya-tk-grid { height: 100%; min-height: 0; }
+.samaya-tk-scroll.is-flat .samaya-tk-lane.is-only { min-height: 0; }
+.samaya-tk-scroll.is-flat .samaya-tk-row { grid-template-rows: minmax(0, 1fr); min-height: 0; }
+.samaya-tk-scroll.is-flat .samaya-tk-cell { overflow-y: auto; scrollbar-width: thin; }
+.samaya-tk-scroll.is-flat .samaya-tk-cell > .samaya-add { position: sticky; top: calc(-1 * var(--samaya-sp-2)); z-index: 2; margin-top: calc(-1 * var(--samaya-sp-2)); padding-top: var(--samaya-sp-2); background: var(--background-secondary); border-radius: var(--samaya-r-m); }
+.samaya-tk-lanekey.is-project { display: inline-flex; align-items: center; gap: 6px; }
+.samaya-tk-lanekey .samaya-chip-icon svg { width: 13px; height: 13px; color: var(--text-muted); }

@@ -37,7 +37,8 @@ export function richText(el: HTMLElement, text: string) {
 /** Ticket id chip: click opens the ticket note, hover previews it (Page preview), otherwise shows the full ticket title. */
 function ticketChip(plugin: SamayaPlugin, host: HTMLElement, tf: TFile) {
   const app: App = plugin.app; const tk = readTicket(app, tf);
-  const chip = host.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}`, text: tk.key });
+  const chip = host.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}` });
+  setIcon(chip.createSpan({ cls: "samaya-chip-icon" }), "ticket"); chip.createSpan({ text: tk.key }); // the icon of the Tickets entry in the navigation
   const preview = !!(app as unknown as { internalPlugins?: { plugins?: Record<string, { enabled?: boolean }> } }).internalPlugins?.plugins?.["page-preview"]?.enabled;
   if (preview) {
     const parent = { hoverPopover: null };
@@ -103,7 +104,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   }
   if (plugin.settings.projectsOn) {
     const pp = projectPathOf(app, t.file);
-    if (pp) { const pc = meta.createSpan({ cls: "samaya-chip samaya-chip-project" }); setIcon(pc.createSpan({ cls: "samaya-chip-icon" }), "folder"); pc.createSpan({ text: pp.split("/").pop()!.replace(/\.md$/, "") }); }
+    if (pp) { const pc = meta.createSpan({ cls: "samaya-chip samaya-chip-project" }); setIcon(pc.createSpan({ cls: "samaya-chip-icon" }), "folder-kanban"); pc.createSpan({ text: pp.split("/").pop()!.replace(/\.md$/, "") }); }
   }
   if (t.channel) meta.createSpan({ cls: "samaya-chip samaya-chip-channel", text: t.channel });
   if (t.part) partChip(plugin, meta, t);

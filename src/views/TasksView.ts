@@ -56,6 +56,7 @@ export class TasksView extends Panel {
   private render() {
     const s = this.plugin.settings, app = this.app, td = today(), wk = startOfWeek(td);
     const sc = this.root.querySelector<HTMLElement>(".samaya-tk-scroll"); const keep = sc ? { x: sc.scrollLeft, y: sc.scrollTop } : null;
+    const cellY = new Map<string, number>(); this.root.querySelectorAll<HTMLElement>(".samaya-tk-cell[data-key]").forEach(c => cellY.set(c.dataset.key!, c.scrollTop));
     this.root.empty(); this.scope.clear();
 
     const tickets = new Map<string, Ticket>(allTickets(app, s).map(t => [t.file.path, t]));
@@ -76,7 +77,7 @@ export class TasksView extends Panel {
     if (q) { this.readTicketNotes([...tickets.values()]); items = items.filter(it => this.text(it.t, tickets, projects).includes(q)); }
 
     this.head(items, canTicket, canProject, tickets.size > 0 || s.jiraOn || s.gitlabOn);
-    const scroll = this.root.createDiv("samaya-tk-scroll"); const grid = scroll.createDiv("samaya-tk-grid"); grid.style.setProperty("--cols", String(cols.length));
+    const scroll = this.root.createDiv("samaya-tk-scroll" + (memory.group === "none" ? " is-flat" : "")); const grid = scroll.createDiv("samaya-tk-grid"); grid.style.setProperty("--cols", String(cols.length));
     const hooks = memory.mode === "board" ? this.boardHooks(td) : this.backlogHooks(td);
 
     const hd = grid.createDiv("samaya-tk-cols");
@@ -97,15 +98,16 @@ export class TasksView extends Panel {
       if (closed) continue;
       const row = box.createDiv("samaya-tk-row");
       for (const c of cols) {
-        const cell = row.createDiv({ cls: `samaya-tk-cell is-${hooks.tones[c.key] ?? "plain"}` });
+        const cell = row.createDiv({ cls: `samaya-tk-cell is-${hooks.tones[c.key] ?? "plain"}` }); cell.dataset.key = `${memory.mode}|${lane.key}|${c.key}`;
         const mine = lane.items.filter(it => it.col === c.key);
         bindZone(this.scope, cell, (path, i) => { void this.dropped(hooks, c.key, path, i, grouped ? lane.key : null, tickets, projects); });
         if (!grouped) { const p = hooks.add(c.key, mine.length); if (p) addTaskInput(this.plugin, cell, "+ Add task", () => p, () => this.schedule()); }
-        for (const it of mine) renderTaskCard(this.plugin, cell, it.t, { scope: this.scope, compact: true, dayLabel: hooks.dayLabel(it.t, c.key), actions: hooks.actions(it) });
+        for (const it of mine) renderTaskCard(this.plugin, cell, it.t, { scope: this.scope, compact: true, dayLabel: hooks.dayLabel(it.t, c.key), actions: hooks.actions(it), ...(memory.mode === "board" && c.key === "today" ? { focus: "today" as const } : {}) });
         if (!mine.length) cell.createDiv({ cls: "samaya-tk-empty", text: c.key === "overdue" ? "All caught up" : c.key === "done" ? "Nothing finished yet" : c.key === "progress" ? "Start a task with its focus timer" : "Drop a task here" });
       }
     }
     if (keep) { scroll.scrollLeft = keep.x; scroll.scrollTop = keep.y; }
+    scroll.querySelectorAll<HTMLElement>(".samaya-tk-cell[data-key]").forEach(c => { const y = cellY.get(c.dataset.key!); if (y) c.scrollTop = y; });
   }
 
   // ---- the board's pieces of work
@@ -235,8 +237,8 @@ export class TasksView extends Panel {
     setIcon(h.createSpan("samaya-tk-chevron"), "chevron-down");
     const name = h.createDiv("samaya-tk-lanename");
     if (!key) name.createSpan({ cls: "samaya-tk-lanekey is-none", text: memory.group === "ticket" ? "No ticket" : "No project" });
-    else if (tk) { name.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}`, text: tk.key }); name.createSpan({ cls: "samaya-tk-lanesum", text: tk.summary }); }
-    else name.createSpan({ cls: "samaya-tk-lanekey", text: pr?.name ?? key.split("/").pop()!.replace(/\.md$/, "") });
+    else if (tk) { const chip = name.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}` }); setIcon(chip.createSpan({ cls: "samaya-chip-icon" }), "ticket"); chip.createSpan({ text: tk.key }); name.createSpan({ cls: "samaya-tk-lanesum", text: tk.summary }); }
+    else { const k = name.createSpan({ cls: "samaya-tk-lanekey is-project" }); setIcon(k.createSpan({ cls: "samaya-chip-icon" }), "folder-kanban"); k.createSpan({ text: pr?.name ?? key.split("/").pop()!.replace(/\.md$/, "") }); }
     const open = items.filter(it => it.col !== "done"); const est = open.reduce((a, it) => a + it.t.estimate, 0);
     h.createSpan({ cls: "samaya-tk-lanecount", text: `${open.length} open${est ? " · " + fmtDur(est) : ""}` });
     h.onclick = () => { if (!memory.collapsed.delete(lkey)) memory.collapsed.add(lkey); this.render(); };

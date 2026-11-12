@@ -7,20 +7,21 @@ import { weekBuckets, weekCapacity } from "./weekColumn";
 import { renderWorkdayCard } from "./workdayCard";
 import { bufferShare } from "../weekplan";
 import { renderCapBar } from "./capBar";
+import { leftLabel } from "./loadBar";
 import { openPeriodNote } from "../journal";
 import { vacationDates, weekAverageWorked } from "../worktime";
 
 /** The planner heading's status and actions (day and week alike): `mid` gets the workday chip and a capacity meter, `actions` the buttons. */
 
-/** A compact capacity meter: LABEL planned / recommended over a thin bar with the buffer mark. */
+/** A compact capacity meter: LABEL time left to plan over a thin bar with the buffer mark. */
 export function renderCapMeter(plugin: SamayaPlugin, host: HTMLElement, o: { label: string; planned: number; meetings: number; free: number; what: string }): HTMLElement {
   const share = bufferShare(plugin.settings.bufferPercent); const pct = Math.round(share * 100);
   const rec = Math.round(o.free * share); const over = o.planned > o.free;
   const m = host.createDiv({ cls: "samaya-hs-cap" + (over ? " is-over" : "") });
   m.title = `${o.what}.\nAllocated: ${fmtDur(o.planned)} tasks + ${fmtDur(o.meetings)} meetings.\nRecommended: at most ${pct}% of the free time for tasks (${fmtDur(rec)}) + the meetings, the rest stays open for what comes up.`;
-  const top = m.createDiv("samaya-hs-cap-top"); // the label, then everything allocated (tasks + meetings) / everything recommended
+  const top = m.createDiv("samaya-hs-cap-top"); // the label, then the time left to plan (recommended - allocated)
   top.createSpan({ cls: "samaya-hs-cap-label", text: o.label });
-  top.createSpan({ cls: "samaya-hs-cap-fig", text: fmtDur(o.planned + o.meetings) }).createSpan({ cls: "samaya-hs-cap-rec", text: ` / ${fmtDur(o.meetings + rec)}` });
+  top.createSpan({ cls: "samaya-hs-cap-fig", text: leftLabel(rec - o.planned) });
   renderCapBar(m, { tasks: o.planned, meetings: o.meetings, free: o.free, share });
   return m;
 }

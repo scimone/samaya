@@ -6,7 +6,7 @@ import { TextPromptModal } from "./modals";
 import { createProject } from "./projects";
 
 interface Item { id: string; name: string; icon: string; open: () => void | Promise<void>; /** folders hidden from the file explorer while this item shows */ folders: string[];
-  /** the folder behind the item (for search, copy path, show in system explorer); none for the planner */ folder?: string; /** "New xx" entry of the context menu */ create?: { label: string; run: () => void }; }
+  /** the folder behind the item (for search, copy path, show in system explorer); none for the planner */ folder?: string; /** "New xx" entry of the context menu */ create?: { label: string; icon: string; run: () => void }; /** extra entries at the top of the context menu */ extra?: (m: Menu) => void; }
 
 /** Shortcuts (Planner, Tasks, Journal, ...) at the top of the file explorer; the folders behind them are hidden. */
 export class NavShortcuts {
@@ -42,9 +42,10 @@ export class NavShortcuts {
     const s = this.plugin.settings, p = this.plugin;
     const root = (path: string) => { const r = rootOf(path); return r === "/" ? null : r; };
     const join = (dir: string | null, file: string) => dir ? `${dir}/${file}` : file;
-    const out: Item[] = [{ id: "planner", name: "Planner", icon: "calendar-clock", open: () => p.openPlanner(true), folders: [] }];
+    const out: Item[] = [{ id: "planner", name: "Planner", icon: "calendar-clock", open: () => p.openPlanner(true), folders: [], extra: m => this.dayItems(m) }];
     const tasks = root(s.tasksPath);
-    out.push({ id: "tasks", name: "Tasks", icon: "check-square", open: this.base(join(tasks, "Tasks.base"), () => p.scaffold(false)), folders: tasks ? [tasks] : [], folder: tasks ?? "/", create: { label: "New task", run: () => p.quickAdd() } });
+    out[0].folder = tasks ?? "/"; // the planner is a view: its path actions use the tasks folder
+    out.push({ id: "tasks", name: "Tasks", icon: "check-square", open: this.base(join(tasks, "Tasks.base"), () => p.scaffold(false)), folders: tasks ? [tasks] : [], folder: tasks ?? "/", create: { label: "New task", icon: "check-square", run: () => p.quickAdd() } });
     if (s.journalOn) {
       const loc = await journalLocation(p.app, s);
       const jr = loc.pattern ? root(loc.folder) : normalizePath(loc.folder || "/");
@@ -56,7 +57,7 @@ export class NavShortcuts {
     }
     if (s.projectsOn) {
       const dir = normalizePath(s.projectsPath.trim() || "Projects"); // a plain folder, not a path pattern
-      out.push({ id: "projects", name: "Projects", icon: "folder-kanban", open: this.base(s.projectsBase.trim() || `${dir}/Projects.base`, () => p.scaffoldProjects(false)), folders: [dir], folder: dir, create: { label: "New project", run: () => new TextPromptModal(p, "New project name", n => { void createProject(p.app, s, n).then(() => p.bus.emit()); }).open() } });
+      out.push({ id: "projects", name: "Projects", icon: "folder-kanban", open: this.base(s.projectsBase.trim() || `${dir}/Projects.base`, () => p.scaffoldProjects(false)), folders: [dir], folder: dir, create: { label: "New project", icon: "folder-kanban", run: () => new TextPromptModal(p, "New project name", n => { void createProject(p.app, s, n).then(() => p.bus.emit()); }).open() } });
     }
     const tdir = root(s.ticketsPath);
     if (s.jiraOn || s.gitlabOn || p.app.vault.getAbstractFileByPath(normalizePath(join(tdir, "Tickets.base")))) { // also while only the ticket notes exist
@@ -66,11 +67,22 @@ export class NavShortcuts {
     return out;
   }
 
+  /** Planner menu: the workday step that fits the current state. */
+  private dayItems(m: Menu) {
+    const p = this.plugin, wd = p.workday;
+    if (!wd.started) {
+      m.addItem(i => i.setTitle("Plan day").setIcon("list-todo").onClick(() => { void p.startGuide(); }));
+      m.addItem(i => i.setTitle("Start day").setIcon("play").onClick(() => { void wd.startDay(); }));
+    } else m.addItem(i => i.setTitle("End day").setIcon("moon").onClick(() => { void p.startShutdown(); }));
+    m.addItem(i => i.setTitle("Open worktime dashboard").setIcon("bar-chart-3").onClick(() => { void p.openDashboard(); }));
+  }
+
   /** Right-click menu of a shortcut, like the one of a folder in the file explorer. */
   private menu(it: Item, e: MouseEvent) {
     if (!it.folder) return;
     const folder = it.folder, app = this.plugin.app, m = new Menu();
-    if (it.create) m.addItem(i => i.setTitle(it.create!.label).setIcon("edit").onClick(it.create!.run));
+    if (it.extra) { it.extra(m); m.addSeparator(); }
+    if (it.create) m.addItem(i => i.setTitle(it.create!.label).setIcon(it.create!.icon).onClick(it.create!.run));
     if (it.id !== "planner") m.addItem(i => i.setTitle(`Search in ${it.name.toLowerCase()}`).setIcon("search").onClick(() => {
       const search = (app as unknown as { internalPlugins?: { getPluginById(id: string): { instance?: { openGlobalSearch?(q: string): void } } | undefined } }).internalPlugins?.getPluginById("global-search")?.instance;
       if (folder === "/") search?.openGlobalSearch?.(""); else search?.openGlobalSearch?.(`path:"${folder}" `);
@@ -79,12 +91,12 @@ export class NavShortcuts {
     const copy = (text: string) => { void navigator.clipboard.writeText(text); new Notice("Path copied"); };
     const ad = app.vault.adapter;
     m.addItem(i => {
-      i.setTitle("Copy path").setIcon("clipboard");
+      i.setTitle("Copy path").setIcon("clipboard-paste");
       const sub = (i as unknown as { setSubmenu(): Menu }).setSubmenu();
       sub.addItem(j => j.setTitle("From vault folder").setIcon("vault").onClick(() => copy(folder)));
       if (ad instanceof FileSystemAdapter) {
         const root = ad.getBasePath().replace(/[\\/]+$/, "");
-        sub.addItem(j => j.setTitle("From system root").setIcon("monitor").onClick(() => copy(folder === "/" ? root : `${root}/${folder}`)));
+        sub.addItem(j => j.setTitle("From system root").setIcon("hard-drive").onClick(() => copy(folder === "/" ? root : `${root}/${folder}`)));
       }
     });
     if (ad instanceof FileSystemAdapter) {

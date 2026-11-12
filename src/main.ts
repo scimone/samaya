@@ -1,3 +1,4 @@
+import { leafPath } from "./openfile";
 import { Editor, MarkdownView, Notice, Plugin, TFile, normalizePath, setIcon } from "obsidian";
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FocusManager, FocusState } from "./focus";
@@ -328,7 +329,7 @@ export default class SamayaPlugin extends Plugin {
   async openNoteInMain(file: TFile) {
     let same: import("obsidian").WorkspaceLeaf | null = null, note: import("obsidian").WorkspaceLeaf | null = null;
     this.app.workspace.iterateRootLeaves(l => {
-      if ((l.view as { file?: TFile }).file?.path === file.path) same = l;
+      if (leafPath(l) === file.path) same = l;
       else if (!note && l.view.getViewType() === "markdown") note = l;
     });
     const leaf = same ?? note ?? this.app.workspace.getLeaf("tab");

@@ -115,6 +115,7 @@ export class MeetingsView extends Panel {
     if (!total) { page.createDiv({ cls: "samaya-mt-none", text: "No meeting notes yet." }); return; }
 
     const all = [...series.flatMap(s => s.instances), ...oneOffs].filter(i => this.matches(i));
+    if (memory.query.trim()) { this.results(page, all, td); return; }
     if (memory.mode === "agenda") { this.agenda(page, all, td); return; }
 
     const tomorrow = nextWorkday(td);
@@ -201,6 +202,20 @@ export class MeetingsView extends Panel {
     }
   }
 
+  // ---- search results: every meeting that matches, newest first, under its date (both tabs)
+  private results(page: HTMLElement, all: Instance[], td: string) {
+    if (!all.length) { page.createDiv({ cls: "samaya-mt-none", text: "No meetings match." }); return; }
+    const dates = [...new Set(all.map(i => i.date))].sort((a, b) => b.localeCompare(a));
+    for (const d of dates) this.dayGroup(page, d, all.filter(i => i.date === d).sort(byTime), td, true);
+  }
+  private dayGroup(page: HTMLElement, d: string, day: Instance[], td: string, withYear = false) {
+    const g = page.createDiv("samaya-mt-group");
+    const label = d === td ? "Today" : d === addDays(td, 1) ? "Tomorrow" : parseYmd(d).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short", ...(withYear ? { year: "numeric" } : {}) });
+    g.createDiv({ cls: "samaya-mt-gl is-sticky" + (d === td ? " is-today" : ""), text: label });
+    const col = g.createDiv("samaya-mt-list");
+    for (const i of day) { const r = this.rowEl(col, i); r.addClass("is-" + i.when); r.createSpan({ cls: "samaya-mt-time", text: time(i) }); r.createSpan({ cls: "samaya-mt-name", text: i.title.trim() }); this.mark(r, i); r.onclick = e => this.open(i.path, e); }
+  }
+
   // ---- agenda: one week at a time
   private agenda(page: HTMLElement, all: Instance[], td: string) {
     const w = addDays(startOfWeek(td), memory.week * 7); const end = addDays(w, 6);
@@ -208,10 +223,7 @@ export class MeetingsView extends Panel {
     if (!items.length) page.createDiv({ cls: "samaya-mt-none", text: "No meetings this week." });
     for (let n = 0; n < 7; n++) {
       const d = addDays(w, n); const day = items.filter(i => i.date === d); if (!day.length) continue;
-      const g = page.createDiv("samaya-mt-group");
-      g.createDiv({ cls: "samaya-mt-gl is-sticky" + (d === td ? " is-today" : ""), text: d === td ? "Today" : d === addDays(td, 1) ? "Tomorrow" : parseYmd(d).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" }) });
-      const col = g.createDiv("samaya-mt-list");
-      for (const i of day) { const r = this.rowEl(col, i); r.addClass("is-" + i.when); r.createSpan({ cls: "samaya-mt-time", text: time(i) }); r.createSpan({ cls: "samaya-mt-name", text: i.title.trim() }); this.mark(r, i); r.onclick = e => this.open(i.path, e); }
+      this.dayGroup(page, d, day, td);
     }
   }
 }

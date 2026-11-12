@@ -51,35 +51,49 @@ export class FocusManager {
     this.plugin.refreshPlanner(); // cards and timeline blocks follow the focus
   }
 
-  /** The banner on top of every page in the main area while a focus runs (or is on a break). */
+  /** The banner on top of the pane in front while a focus runs (or is on a break). Two looks: the full one on the focused task's own note, a slim reminder on every other page. */
   private ensureBanners() {
     const ws = this.plugin.app.workspace;
     if (!this.state) { document.querySelectorAll(".samaya-focus-bar").forEach(el => el.remove()); return; }
     // one banner, in the pane in front (it moves along when another pane is picked)
     const leaf = ws.getMostRecentLeaf(ws.rootSplit); const host = leaf?.view?.containerEl;
     if (!host) return;
-    if (host.querySelector(":scope > .samaya-focus-bar")) return;
+    const here = (leaf!.view as { file?: TFile }).file?.path === this.state.path;
+    const variant = here ? "current" : "elsewhere";
+    const have = host.querySelector<HTMLElement>(":scope > .samaya-focus-bar");
+    if (have && have.dataset.variant === variant) return;
     document.querySelectorAll(".samaya-focus-bar").forEach(el => el.remove());
-    const bar = createDiv("samaya-focus-bar");
+    const bar = createDiv("samaya-focus-bar"); bar.dataset.variant = variant; bar.toggleClass("is-current", here);
     const header = host.querySelector(":scope > .view-header");
     if (header) header.after(bar); else host.prepend(bar);
-    this.buildBanner(bar);
+    this.buildBanner(bar, here);
     this.tickBanners();
   }
-  private buildBanner(bar: HTMLElement) {
+  private buildBanner(bar: HTMLElement, here: boolean) {
     const st = this.state; const file = this.file; if (!st) return;
     bar.toggleClass("is-focus", !!st.startedAt); bar.toggleClass("is-break", !st.startedAt);
-    bar.createSpan({ cls: "samaya-focus-dot" });
-    bar.createSpan({ cls: "samaya-focus-state", text: st.startedAt ? "FOCUS" : "BREAK" });
-    const link = bar.createEl("a", { cls: "samaya-focus-link", text: file?.basename ?? "", attr: { title: "Open task note" } });
-    link.addEventListener("click", e => { e.preventDefault(); this.openNote(); });
-    bar.createSpan({ cls: "samaya-focus-prog" });
-    const btn = (icon: string, label: string, fn: () => Promise<void>) => {
-      const b = bar.createEl("button", { cls: "samaya-focus-bbtn", attr: { "aria-label": label, title: label } });
-      setIcon(b, icon); b.addEventListener("click", () => { void fn(); });
+    const btn = (parent: HTMLElement, icon: string, label: string, fn: () => Promise<void>, cls = "") => {
+      const b = parent.createEl("button", { cls: `samaya-focus-bbtn ${cls}`.trim(), attr: { "aria-label": label, title: label } });
+      setIcon(b.createSpan({ cls: "samaya-focus-bicon" }), icon); if (here) b.createSpan({ text: label.split(" ")[0] });
+      b.addEventListener("click", () => { void fn(); });
     };
-    if (st.startedAt) btn("pause", "Take a break", () => this.pause()); else { btn("play", "Resume", () => this.resume()); btn("square", "Stop and log the time (task stays open)", () => this.stop(false)); }
-    btn("square-check", "Complete and log time", () => this.stop(true));
+    const status = bar.createDiv("samaya-focus-status");
+    status.createSpan({ cls: "samaya-focus-dot" });
+    status.createSpan({ cls: "samaya-focus-state", text: st.startedAt ? (here ? "In focus" : "Focusing") : "On a break" });
+    if (here) {
+      // the task is right below: just the clock, its progress and the controls
+      bar.createSpan({ cls: "samaya-focus-prog" });
+    } else {
+      // somewhere else: say what is running, and a way back
+      const link = bar.createEl("a", { cls: "samaya-focus-link", text: file?.basename ?? "", attr: { title: "Back to the task" } });
+      link.addEventListener("click", e => { e.preventDefault(); this.openNote(); });
+      bar.createSpan({ cls: "samaya-focus-prog" });
+    }
+    const ctl = bar.createDiv("samaya-focus-ctl");
+    if (st.startedAt) btn(ctl, "pause", "Break", () => this.pause());
+    else { btn(ctl, "play", "Resume", () => this.resume(), "mod-cta"); btn(ctl, "square", "Stop (log the time, task stays open)", () => this.stop(false)); }
+    btn(ctl, "square-check", "Done (complete and log time)", () => this.stop(true), st.startedAt ? "mod-cta" : "");
+    bar.createDiv("samaya-focus-meter");
   }
   private tickBanners() {
     const st = this.state; const f = this.file; if (!st) return;
@@ -96,6 +110,7 @@ export class FocusManager {
     document.querySelectorAll<HTMLElement>(".samaya-focus-bar").forEach(bar => {
       const prog = bar.querySelector<HTMLElement>(".samaya-focus-prog");
       if (prog && t) { prog.setText(`${fmtHm(actual)} / ${planned ? fmtHm(planned) : "--:--"}`); prog.toggleClass("is-over", !!planned && actual > planned); }
+      bar.style.setProperty("--p", planned ? `${Math.min(100, (actual / planned) * 100)}%` : "0%");
     });
   }
   openNote() { const f = this.file; if (f) void this.plugin.app.workspace.getLeaf("tab").openFile(f); }

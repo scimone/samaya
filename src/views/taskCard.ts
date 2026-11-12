@@ -1,8 +1,9 @@
 import { TFile, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
-import { dayTask, readTask } from "../model";
+import { dayTask, patchTask, readTask } from "../model";
+import { projectPathOf } from "../projects";
 import { addDays, fmtHm, minToHm, parseYmd, today } from "../util";
-import { focusButton, trackedBefore } from "./place";
+import { trackedBefore } from "./place";
 
 const DAY_FMT = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short" });
 /** "Thu, 12 Nov" (Today / Tomorrow for those). */
@@ -13,49 +14,103 @@ function dayLabel(date: string): string {
   return DAY_FMT.format(parseYmd(date));
 }
 
-/** The card above a task note: status, planned sessions, tracked / estimated time (all days, and today when that differs) and a Focus button. Replaces the properties block. */
+/**
+ * The properties of a task note, as a quiet block under the note's title (in the readable column, like Obsidian's own properties):
+ * one row per property - Status (click to tick off), Time, Planned, Project, Ticket - and a Start focus button on the title line.
+ * While a focus is running (or on a break) the block is gone altogether: the focus bar on top takes over.
+ */
 export function renderTaskCard(plugin: SamayaPlugin, el: HTMLElement, file: TFile | null) {
-  const cards = () => Array.from(el.querySelectorAll<HTMLElement>(":scope > .samaya-task-card"));
-  if (!file) { cards().forEach(c => c.remove()); return; }
+  const cards = () => Array.from(el.querySelectorAll<HTMLElement>(".samaya-task-card"));
+  const f = plugin.focus.state;
+  if (!file || f) { cards().forEach(c => c.remove()); return; }
   const t = readTask(plugin.app, file);
   const day = today(); const dt = dayTask(t, day); const hasToday = t.sessions.some(g => g.date === day);
   const todayEst = hasToday ? dt.estimate : 0;
   const todayAct = Math.max(0, t.actual - trackedBefore(plugin, t, day));
-  const showToday = hasToday ? (todayEst !== t.estimate || todayAct !== t.actual) : false;
-  const f = plugin.focus.state;
-  const key = JSON.stringify([file.path, t.status, t.sessions, t.estimate, t.actual, todayEst, todayAct, showToday, f ? [f.path, !!f.startedAt] : null, day]);
+  const showToday = hasToday && (todayEst !== t.estimate || todayAct !== t.actual);
+  const projectPath = plugin.settings.projectsOn ? projectPathOf(plugin.app, file) : "";
+  const key = JSON.stringify([file.path, t.status, t.sessions, t.estimate, t.actual, todayEst, todayAct, showToday, t.ticket, projectPath, day]);
+
+  // where it goes: under the note title (inside the editor / reading column); without such a column, above the note
+  const sizers = Array.from(el.querySelectorAll<HTMLElement>(".cm-sizer, .markdown-preview-sizer"));
+  const content = el.querySelector(":scope > .view-content");
+  if (!sizers.length && !content) return;
+  const hosts = sizers.length ? sizers : [content as HTMLElement];
   const existing = cards();
-  if (existing.length === 1 && existing[0].dataset.key === key) return;
+  if (existing.length === hosts.length && existing.every(c => c.dataset.key === key && hosts.includes(c.parentElement as HTMLElement))) return;
   existing.forEach(c => c.remove());
-  const content = el.querySelector(":scope > .view-content"); if (!content) return;
-  const card = createDiv({ cls: "samaya-task-card" }); card.dataset.key = key;
+  for (const host of hosts) host.insertBefore(build(), anchorIn(host));
 
-  const head = card.createDiv("samaya-tc-head");
-  const done = t.status === "done";
-  const status = head.createSpan({ cls: "samaya-tc-status" + (done ? " is-done" : "") });
-  setIcon(status.createSpan({ cls: "samaya-tc-icon" }), done ? "circle-check" : "circle");
-  status.createSpan({ text: done ? "Done" : "To do" });
-  const time = head.createDiv("samaya-tc-times");
-  const stat = (label: string, base: number, est: number) => {
-    const s = time.createDiv("samaya-tc-stat"); s.createSpan({ cls: "samaya-tc-label", text: label });
-    const v = s.createSpan({ cls: "samaya-tc-val" });
-    const act = v.createSpan({ cls: "samaya-tc-act", text: fmtHm(base + (f?.path === file.path ? plugin.focus.liveMin(file.path) : 0)) });
-    if (f?.path === file.path) { act.dataset.tcBase = String(base); }
-    v.createSpan({ cls: "samaya-tc-sep", text: " / " });
-    v.createSpan({ cls: "samaya-tc-est", text: est ? fmtHm(est) : "--:--" });
-  };
-  stat("All days", t.actual, t.estimate);
-  if (showToday) stat("Today", todayAct, todayEst);
-  if (!done) { const b = focusButton(plugin, head, t, "samaya-tc-focus"); if (b) b.addClass("mod-cta"); }
+  function build(): HTMLElement {
+    const card = createDiv({ cls: "samaya-task-card" }); card.dataset.key = key;
+    const done = t.status === "done";
 
-  if (t.sessions.length) {
-    const list = card.createDiv("samaya-tc-sessions");
-    list.createSpan({ cls: "samaya-tc-label", text: "Planned" });
-    for (const g of t.sessions) {
-      const chip = list.createSpan({ cls: "samaya-tc-session" + (g.date === day ? " is-today" : g.date < day ? " is-past" : "") });
-      chip.createSpan({ cls: "samaya-tc-day", text: dayLabel(g.date) });
-      chip.createSpan({ cls: "samaya-tc-when", text: g.s !== null ? `${minToHm(g.s)}–${minToHm(g.s + g.dur)}` : g.dur ? fmtHm(g.dur) : "" });
+    // title line: the one primary action
+    const top = card.createDiv("samaya-tc-top");
+    if (!done) {
+      const go = top.createEl("button", { cls: "samaya-tc-focus mod-cta", attr: { "aria-label": "Start focus on this task" } });
+      setIcon(go.createSpan({ cls: "samaya-tc-btn-icon" }), "timer"); go.createSpan({ text: "Start focus" });
+      go.addEventListener("click", () => { void plugin.focus.start(file!); });
     }
+
+    const rows = card.createDiv("samaya-tc-rows");
+    const row = (label: string, icon: string) => {
+      const r = rows.createDiv("samaya-tc-row");
+      const l = r.createDiv("samaya-tc-key"); setIcon(l.createSpan({ cls: "samaya-tc-key-icon" }), icon); l.createSpan({ text: label });
+      return r.createDiv("samaya-tc-value");
+    };
+
+    // status: a button, tick the task off (or reopen it) right here
+    const sv = row("Status", "circle-dot");
+    const sb = sv.createEl("button", { cls: "samaya-tc-pill samaya-tc-status" + (done ? " is-done" : ""), attr: { "aria-label": done ? "Mark as to do" : "Mark as done" } });
+    setIcon(sb.createSpan({ cls: "samaya-tc-pill-icon" }), done ? "circle-check" : "circle"); sb.createSpan({ text: done ? "Done" : "To do" });
+    sb.addEventListener("click", () => {
+      void patchTask(plugin.app, file!, done ? { status: "todo", completed: null } : { status: "done", completed: today() });
+    });
+
+    // time: tracked of estimated, the whole task and (when that differs) today's piece
+    if (t.estimate || t.actual) {
+      const tv = row("Time", "clock");
+      const part = (parent: HTMLElement, act: number, est: number, label?: string) => {
+        const p = parent.createSpan({ cls: "samaya-tc-time" });
+        if (label) p.createSpan({ cls: "samaya-tc-sub", text: label });
+        p.createSpan({ cls: "samaya-tc-act", text: fmtHm(act) });
+        p.createSpan({ cls: "samaya-tc-est", text: ` of ${est ? fmtHm(est) : "--:--"}` });
+        if (est && act > est) p.addClass("is-over");
+      };
+      part(tv, t.actual, t.estimate);
+      if (showToday) part(tv, todayAct, todayEst, "today");
+    }
+
+    // planned pieces
+    if (t.sessions.length) {
+      const pv = row("Planned", "calendar");
+      for (const g of t.sessions) {
+        const chip = pv.createSpan({ cls: "samaya-tc-pill samaya-tc-session" + (g.date === day ? " is-today" : g.date < day ? " is-past" : "") });
+        chip.createSpan({ cls: "samaya-tc-day", text: dayLabel(g.date) });
+        const when = g.s !== null ? `${minToHm(g.s)}–${minToHm(g.s + g.dur)}` : g.dur ? fmtHm(g.dur) : "";
+        if (when) chip.createSpan({ cls: "samaya-tc-when", text: when });
+      }
+    } else {
+      row("Planned", "calendar").createSpan({ cls: "samaya-tc-none", text: "Not planned yet" });
+    }
+
+    // where it belongs
+    const link = (parent: HTMLElement, path: string) => {
+      const target = plugin.app.vault.getAbstractFileByPath(path);
+      if (!(target instanceof TFile)) return;
+      const a = parent.createEl("a", { cls: "samaya-tc-link", text: target.basename });
+      a.addEventListener("click", e => { e.preventDefault(); void plugin.openNoteInMain(target); });
+    };
+    if (projectPath) link(row("Project", "folder-kanban"), projectPath);
+    if (t.ticket) { const tp = plugin.app.metadataCache.getFirstLinkpathDest(t.ticket, file!.path)?.path; if (tp) link(row("Ticket", "ticket"), tp); }
+    return card;
   }
-  el.insertBefore(card, content);
+}
+
+/** Under the inline title if there is one, else before the note's own content. */
+function anchorIn(host: HTMLElement): Node | null {
+  const title = host.querySelector(":scope > .inline-title");
+  if (title) return title.nextSibling;
+  return host.querySelector(":scope > .metadata-container, :scope > .cm-contentContainer, :scope > .markdown-preview-view") ?? host.firstChild;
 }

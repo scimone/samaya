@@ -105,22 +105,21 @@ export class MeetingsView extends BasesView {
     if (memory.mode === "agenda") { this.agenda(page, all, td); return; }
 
     const tomorrow = addDays(td, 1);
-    page.createDiv({ cls: "samaya-mt-h", text: "Next" });
+    const next = this.section(page, "Next");
     const upcoming = all.filter(i => i.when !== "past" && i.date <= tomorrow).sort(byTime);
-    if (!upcoming.length) page.createDiv({ cls: "samaya-mt-none", text: "Nothing planned today or tomorrow." });
+    if (!upcoming.length) next.createDiv({ cls: "samaya-mt-none", text: "Nothing planned today or tomorrow." });
     for (const day of [td, tomorrow]) {
       const items = upcoming.filter(i => i.date === day); if (!items.length) continue;
-      const g = page.createDiv("samaya-mt-group");
+      const g = next.createDiv("samaya-mt-group");
       g.createDiv({ cls: "samaya-mt-gl", text: day === td ? "Today" : "Tomorrow" });
       this.meetingList(g, items, false);
     }
 
     const recent = all.filter(i => i.when === "past").sort((x, y) => byTime(y, x)).slice(0, 5);
-    if (recent.length) { page.createDiv({ cls: "samaya-mt-h", text: "Recent" }); this.meetingList(page, recent, true); }
+    if (recent.length) this.meetingList(this.section(page, "Recent"), recent, true);
 
     const list = series.filter(s => this.matches(s)).sort((a, b) => (a.next ? a.next.date + hm(a.next.start ?? 0) : "9999").localeCompare(b.next ? b.next.date + hm(b.next.start ?? 0) : "9999") || a.title.localeCompare(b.title));
-    page.createDiv({ cls: "samaya-mt-h", text: "Recurring" });
-    const col = page.createDiv("samaya-mt-list");
+    const col = this.section(page, "Recurring").createDiv("samaya-mt-list");
     if (!list.length) col.createDiv({ cls: "samaya-mt-none", text: "No recurring meetings match." });
     for (const s of list) {
       const r = this.rowEl(col, s); r.style.setProperty("--h", String(s.hue));
@@ -132,6 +131,10 @@ export class MeetingsView extends BasesView {
     }
   }
 
+  /** A heading with its content in one box: the sticky heading leaves with the last item instead of hanging over empty space. */
+  private section(parent: HTMLElement, title: string): HTMLElement {
+    const sec = parent.createDiv("samaya-mt-section"); sec.createDiv({ cls: "samaya-mt-h", text: title }); return sec;
+  }
   /** meetings as list rows: time (or date when `dated`), title, note marker */
   private meetingList(parent: HTMLElement, items: Instance[], dated: boolean) {
     const col = parent.createDiv("samaya-mt-list");
@@ -156,10 +159,10 @@ export class MeetingsView extends BasesView {
     const items = [...s.instances].reverse().filter(i => !memory.onlyNotes || i.hasNotes);
     if (!items.length) page.createDiv({ cls: "samaya-mt-none", text: "No meetings with notes yet." });
     let last = "";
-    let list = page.createDiv("samaya-mt-list");
+    let list = page;
     for (const i of items) {
       const g = i.when === "past" ? "Past" : "Upcoming";
-      if (g !== last) { page.createDiv({ cls: "samaya-mt-h", text: g }); list = page.createDiv("samaya-mt-list"); last = g; }
+      if (g !== last) { list = this.section(page, g).createDiv("samaya-mt-list"); last = g; }
       const r = list.createDiv({ cls: `samaya-mt-entry is-${i.when}` });
       r.createDiv({ cls: "samaya-mt-edate", text: short(i.date) + (i.date === td ? " · today" : "") });
       const body = r.createDiv("samaya-mt-ebody");

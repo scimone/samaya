@@ -1305,7 +1305,7 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
   background-image: linear-gradient(to right, color-mix(in srgb, var(--samaya-task, var(--interactive-accent)) 38%, transparent) var(--p, 0%), transparent var(--p, 0%)) !important; }
 .samaya-card .samaya-card-line .samaya-est:hover { color: var(--text-normal); background-color: var(--background-modifier-border) !important; }
 .samaya-card .samaya-card-line .samaya-est.is-empty { background-image: none !important; background-color: transparent !important; color: var(--text-faint); box-shadow: inset 0 0 0 1px var(--background-modifier-border) !important; font-weight: 400; }
-.samaya-card .samaya-card-line .samaya-est.is-over { color: var(--text-error); background-image: linear-gradient(to right, color-mix(in srgb, var(--text-error) 22%, transparent) 100%, transparent 100%) !important; }
+.samaya-card .samaya-card-line .samaya-est.is-over { color: var(--text-normal); background-image: linear-gradient(to right, color-mix(in srgb, var(--color-orange, #e0953a) 32%, transparent) 100%, transparent 100%) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-orange, #e0953a) 55%, transparent) !important; } /* over estimate: a soft amber, not an alarm */
 .samaya-card .samaya-est-input { flex: none; width: 64px; height: 20px; margin: 0 0 0 8px; }
 /* context chips under the title */
 .samaya-card-meta { gap: 4px 5px; padding-left: 18px; margin-top: 1px; }

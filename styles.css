@@ -449,6 +449,28 @@ body {
 .samaya-journal-note .metadata-properties-heading,
 .samaya-journal-note .metadata-properties { display: none !important; }
 
+/* task notes: properties hidden, a card with status, sessions and time above the note */
+.samaya-task-note .metadata-container,
+.samaya-task-note .metadata-properties-heading,
+.samaya-task-note .metadata-properties { display: none !important; }
+.samaya-task-card { margin: 8px var(--size-4-4, 16px) 0; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; background: var(--background-secondary); border: 1px solid var(--background-modifier-border); border-radius: var(--radius-m); }
+.samaya-tc-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 20px; }
+.samaya-tc-status { display: inline-flex; align-items: center; gap: 6px; font-weight: var(--font-semibold); color: var(--text-normal); }
+.samaya-tc-status.is-done { color: var(--color-green); }
+.samaya-tc-icon { display: inline-flex; } .samaya-tc-icon svg { width: 16px; height: 16px; }
+.samaya-tc-times { display: flex; flex-wrap: wrap; gap: 4px 20px; }
+.samaya-tc-stat { display: flex; align-items: baseline; gap: 6px; }
+.samaya-tc-label { font-size: var(--font-ui-smaller); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.samaya-tc-val { font-variant-numeric: tabular-nums; font-weight: var(--font-semibold); }
+.samaya-tc-sep, .samaya-tc-est { color: var(--text-muted); font-weight: normal; }
+.samaya-tc-focus { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+.samaya-tc-focus .samaya-focus-go-icon { display: inline-flex; } .samaya-tc-focus .samaya-focus-go-icon svg { width: 14px; height: 14px; }
+.samaya-tc-sessions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.samaya-tc-session { display: inline-flex; gap: 6px; padding: 2px 10px; font-size: var(--font-ui-small); background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 999px; }
+.samaya-tc-session.is-today { border-color: var(--interactive-accent); color: var(--interactive-accent); }
+.samaya-tc-session.is-past { color: var(--text-faint); }
+.samaya-tc-when { font-variant-numeric: tabular-nums; color: var(--text-muted); }
+
 /* settings tabs */
 .samaya-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; padding-bottom: 0; margin-bottom: 4px; border-bottom: 1px solid var(--background-modifier-border); }
 .samaya-tabs-sep { width: 1px; height: 18px; margin: 0 6px; background: var(--background-modifier-border); }

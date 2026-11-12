@@ -47,6 +47,7 @@ export class FocusManager {
     document.body.toggleClass("samaya-focusing", !!this.state?.startedAt); // while a focus runs (not on a break): dims the rest of the day and hides the planning buttons
     document.querySelectorAll(".samaya-focus-bar").forEach(el => el.remove());
     this.ensureBanners();
+    void this.plugin.markJournalNotes(); // the task note's card follows the focus
     this.plugin.refreshPlanner(); // cards and timeline blocks follow the focus
   }
 
@@ -91,6 +92,7 @@ export class FocusManager {
     document.querySelectorAll<HTMLElement>(".samaya-est[data-focus-base]").forEach(el => { // the focused task's cards count along with the banner
       el.setText(`${fmtHm(+el.dataset.focusBase! + this.liveMin(st.path))}/${el.dataset.focusEst}`);
     });
+    document.querySelectorAll<HTMLElement>(".samaya-tc-act[data-tc-base]").forEach(el => el.setText(fmtHm(+el.dataset.tcBase! + this.liveMin(st.path))));
     document.querySelectorAll<HTMLElement>(".samaya-focus-bar").forEach(bar => {
       const prog = bar.querySelector<HTMLElement>(".samaya-focus-prog");
       if (prog && t) { prog.setText(`${fmtHm(actual)} / ${planned ? fmtHm(planned) : "--:--"}`); prog.toggleClass("is-over", !!planned && actual > planned); }

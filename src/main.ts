@@ -14,6 +14,7 @@ import { assignProject, createProject } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { promoteParked, allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask, isOverdue, onDay } from "./model";
 import { ConfirmOverwriteModal } from "./modals";
+import { renderTaskCard } from "./views/taskCard";
 import { DayPlan, LEGACY_WEEK_HEADINGS, readSection, WEEK_MEETINGS, WEEK_ORDER, WEEK_OVERVIEW, WEEK_TASKS, removeSection, upsertSection, weekMeetings, weekOverview, bulletLines, journalPath, journalWants, meetingLines, readJournalSection, sortByStart, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
 import { ensureMeetingNote } from "./meetings";
 import { calendarEnabled, calendarEvents } from "./calendar";
@@ -143,6 +144,7 @@ export default class SamayaPlugin extends Plugin {
     const marks = () => { void this.markJournalNotes(); };
     this.registerEvent(this.app.workspace.on("file-open", marks)); this.registerEvent(this.app.workspace.on("layout-change", marks)); this.registerEvent(this.app.workspace.on("active-leaf-change", marks));
     this.register(this.bus.on(marks));
+    this.registerEvent(this.app.metadataCache.on("changed", f => { if (f.path.startsWith(prefixOf(this.settings.tasksPath))) marks(); }));
     this.registerEvent(this.app.metadataCache.on("changed", f => { if (this.indexLunch(f)) this.bus.emit(); void this.fileByPlanned(f); }));
     // Tasks sections of project / ticket notes follow task assignments (and their dates)
     const tl = (f: { path: string }) => { if (affectsTaskLists(this.settings, f.path)) this.scheduleTaskLists(); };
@@ -285,6 +287,9 @@ export default class SamayaPlugin extends Plugin {
           const file = (leaf.view as { file?: TFile }).file; const el = leaf.view.containerEl;
           const id = s.journalOn && !!file ? await identifyNote(this.app, s, file) : null;
           el.toggleClass("samaya-journal-note", s.journalHideProps && !!id);
+          const isTask = !!file && file.extension === "md" && file.path.startsWith(prefixOf(s.tasksPath));
+          el.toggleClass("samaya-task-note", isTask); // hides the properties; the task card shows them instead
+          renderTaskCard(this, el, isTask ? file! : null);
           await this.renderJournalBar(el, s.journalNavBar && file && id ? { file, ...id } : null);
         }
       } while (this.markAgain);

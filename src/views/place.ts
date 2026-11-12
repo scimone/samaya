@@ -65,6 +65,12 @@ export function focusButton(plugin: SamayaPlugin, parent: HTMLElement, t: Task, 
   setIcon(b.createSpan({ cls: "samaya-focus-go-icon" }), f ? (f.startedAt ? "pause" : "play") : "timer"); b.createSpan({ text: f ? (f.startedAt ? "Break" : "Resume") : "Focus" });
   b.addEventListener("pointerdown", e => e.stopPropagation()); // not a drag
   b.addEventListener("click", e => { e.stopPropagation(); void (f ? (f.startedAt ? plugin.focus.pause() : plugin.focus.resume()) : plugin.focus.start(t.file)); });
+  if (f && !f.startedAt) { // on a break: Stop next to Resume logs the time and leaves the task open
+    const st = parent.createEl("button", { cls: cls + " is-active samaya-focus-stop", attr: { "aria-label": "Stop focus and log the time" } });
+    setIcon(st.createSpan({ cls: "samaya-focus-go-icon" }), "square"); st.createSpan({ text: "Stop" });
+    st.addEventListener("pointerdown", e => e.stopPropagation());
+    st.addEventListener("click", e => { e.stopPropagation(); void plugin.focus.stop(false); });
+  }
   return b;
 }
 /** Length of what is being dragged: the unplanned rest, one piece, a day's pieces or the whole task. */
@@ -91,7 +97,7 @@ export function decorateSegment(b: HTMLElement, t: Task, k: number, n: number, s
   const mark = b.querySelector(".samaya-block-title")?.createSpan({ cls: "samaya-split-mark", attr: { title: splitTitle(t) } });
   if (mark) { setIcon(mark.createSpan({ cls: "samaya-split-icon" }), "scissors"); mark.createSpan({ text: `${nth}/${count}` }); }
   const all = () => Array.from(scope.querySelectorAll<HTMLElement>(".samaya-block.is-split")).filter(x => x.dataset.task === t.file.path);
-  b.addEventListener("mouseenter", () => all().forEach(x => x.addClass("is-linked")));
+  b.addEventListener("mouseenter", () => !document.body.hasClass("samaya-focusing") && all().forEach(x => x.addClass("is-linked")));
   b.addEventListener("mouseleave", () => all().forEach(x => x.removeClass("is-linked")));
 }
 /** "Also: Thu 12 · 1h, Fri 13 · 30m, 45m not planned yet" */

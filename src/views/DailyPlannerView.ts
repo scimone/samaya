@@ -45,7 +45,7 @@ export class DailyPlannerView extends PlannerPane {
     this.root = parentEl.createDiv("samaya-daily");
     const light = (e: MouseEvent, on: boolean) => { // hover a task card or a timeline block: the other one is highlighted too
       const el = (e.target as HTMLElement).closest<HTMLElement>("[data-link]"); if (!el) return;
-      this.root.querySelectorAll<HTMLElement>("[data-link]").forEach(x => { if (x !== el && x.dataset.link === el.dataset.link) x.toggleClass("is-linked", on); });
+      this.root.querySelectorAll<HTMLElement>("[data-link]").forEach(x => { if (x !== el && x.dataset.link === el.dataset.link) x.toggleClass("is-linked", on && !document.body.hasClass("samaya-focusing")); });
     };
     this.root.addEventListener("mouseover", e => { light(e, true); if ((e.target as HTMLElement).closest("[data-link]")) this.root.addClass("is-hovering-task"); });
     this.root.addEventListener("mouseout", e => { light(e, false); if (!(e.relatedTarget as HTMLElement | null)?.closest?.("[data-link]")) this.root.removeClass("is-hovering-task"); });

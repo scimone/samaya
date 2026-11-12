@@ -484,7 +484,7 @@ body {
 .samaya-list.is-timebox .samaya-card.is-timed { opacity: 0.45; }
 .samaya-list.is-timebox .samaya-card.is-timed:hover { opacity: 0.8; }
 .samaya-guide-hint { color: var(--text-muted); font-size: var(--font-ui-small); padding: 12px 4px; line-height: 1.5; }
-.samaya-dayline { position: absolute; left: 0; right: 0; height: 0; z-index: 3; pointer-events: none; border-top: 2px dashed var(--interactive-accent); }
+.samaya-dayline { position: absolute; left: 0; right: 0; height: 0; z-index: 7; pointer-events: none; border-top: 2px dashed var(--interactive-accent); }
 .samaya-dayline-label { position: absolute; right: 6px; z-index: 4; font-size: var(--samaya-fs-label); font-weight: 700; letter-spacing: 0.06em; color: var(--text-on-accent); background: var(--interactive-accent); padding: 0 6px; border-radius: var(--samaya-r-s); cursor: ns-resize; pointer-events: auto; touch-action: none; user-select: none; }
 .samaya-dayline.is-start .samaya-dayline-label { top: 1px; }
 .samaya-dayline.is-end .samaya-dayline-label { bottom: 1px; }
@@ -1216,5 +1216,11 @@ input.is-invalid { border-color: var(--text-error); }
 /* focus on: everything but the focused task and the meeting that is on now fades */
 body.samaya-focusing .samaya-lane .samaya-block:not(.is-current):not(.is-dragging), body.samaya-focusing .samaya-lane .samaya-event:not(.is-current),
 body.samaya-focusing .samaya-daily .samaya-card:not(.is-current):not(.is-linked) { opacity: 0.15; }
-body.samaya-focusing .samaya-donebar, body.samaya-focusing .samaya-add { opacity: 0.15; }
+body.samaya-focusing :is(.samaya-donebar, .samaya-add, .samaya-dayline, .samaya-hour-label, .samaya-tasks-count) { opacity: 0.15; }
+/* no hover highlight while focusing: hovered tasks keep their resting look */
+body.samaya-focusing .samaya-card:not(.is-current):hover { border-color: var(--background-modifier-border); }
+body.samaya-focusing .samaya-daily .samaya-card:not(.is-current):hover { background: var(--background-primary-alt); box-shadow: none; }
+body.samaya-focusing .samaya-block:not(.is-current):hover { background: color-mix(in srgb, var(--samaya-task) var(--samaya-tint), var(--background-primary)); }
+body.samaya-focusing .samaya-block.is-done:not(.is-current):hover { background: color-mix(in srgb, var(--text-muted) 12%, var(--background-primary)); }
+.samaya-focus-stop { margin-left: 4px; }
 body.samaya-focusing .samaya-hs-group.is-cap, body.samaya-focusing .samaya-hd-btn.is-end-day, body.samaya-focusing .samaya-hd-btn.is-review-week, body.samaya-focusing .samaya-hd-icon.is-worktime { display: none; }

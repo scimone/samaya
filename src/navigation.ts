@@ -35,7 +35,7 @@ export class NavShortcuts {
     if (s.journalOn) {
       const loc = await journalLocation(p.app, s);
       const jr = loc.pattern ? root(loc.folder) : normalizePath(loc.folder || "/");
-      out.push({ id: "journal", name: "Journal", icon: "book-open", open: () => { void p.openJournalDefault(); }, folders: ["Journal", ...(jr && jr !== "/" ? [jr] : [])], folder: jr && jr !== "/" ? jr : "Journal" });
+      out.push({ id: "journal", name: "Journal", icon: "book-open", open: () => p.openSection("journal"), folders: ["Journal", ...(jr && jr !== "/" ? [jr] : [])], folder: jr && jr !== "/" ? jr : "Journal" });
     }
     if (s.calendarOn) {
       const dir = normalizePath(s.eventNotesFolder.trim() || "Meetings");

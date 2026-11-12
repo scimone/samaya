@@ -130,7 +130,7 @@ export default class SamayaPlugin extends Plugin {
       if (!c) void this.scaffoldTickets(false).then(() => this.openSection("tickets"));
       return true;
     } });
-    this.addCommand({ id: "open-journal", name: "Open journal", checkCallback: c => { if (!this.settings.journalOn) return false; if (!c) void this.openJournalDefault(); return true; } });
+    this.addCommand({ id: "open-journal", name: "Open journal", checkCallback: c => { if (!this.settings.journalOn) return false; if (!c) void this.openSection("journal"); return true; } });
     this.addCommand({ id: "open-projects", name: "Open projects", checkCallback: c => { if (!this.settings.projectsOn) return false; if (!c) void this.openProjects(); return true; } });
     this.addCommand({ id: "assign-project", name: "Assign current task or ticket note to a project", checkCallback: c => {
       const f = this.app.workspace.getActiveFile();
@@ -330,15 +330,6 @@ export default class SamayaPlugin extends Plugin {
     const leaf = same ?? note ?? this.app.workspace.getLeaf("tab");
     if (!same) await (leaf as import("obsidian").WorkspaceLeaf).openFile(file);
     await this.app.workspace.revealLeaf(leaf as import("obsidian").WorkspaceLeaf);
-  }
-  /** When Journal is clicked: the latest daily, else weekly, monthly, quarterly or yearly note; with none, Obsidian's new tab. */
-  async openJournalDefault() {
-    const s = this.settings; if (!s.journalOn) return;
-    const daily = await periodNotePath(this.app, s, "daily", today());
-    let file: TFile | null = daily?.file ?? null;
-    for (const p of ["daily", "weekly", "monthly", "quarterly", "yearly"] as Period[]) { if (file) break; file = await findLatestPeriodNote(this.app, s, p); }
-    if (file) { await this.openNoteInMain(file); return; }
-    await this.app.workspace.getLeaf("tab").setViewState({ type: "empty", active: true });
   }
   async openProjects() { await this.scaffoldProjects(false); await this.openSection("projects"); }
   /** Open the planner (in the current tab when asked) showing a section: "planner" or a module shown on its side rail. */

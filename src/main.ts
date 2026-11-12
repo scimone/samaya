@@ -506,11 +506,11 @@ export default class SamayaPlugin extends Plugin {
   }
 
   /** Open (or focus) the planner in the MAIN area, even when called from a sidebar. */
-  async openPlanner() {
+  async openPlanner(inCurrentTab = false) {
     await this.scaffold(false);
     const ws = this.app.workspace;
     let leaf = ws.getLeavesOfType(PLANNER_VIEW_TYPE)[0];
-    if (!leaf) { leaf = ws.getLeaf("tab"); await leaf.setViewState({ type: PLANNER_VIEW_TYPE, active: true }); }
+    if (!leaf) { leaf = inCurrentTab ? ws.getLeaf(false) : ws.getLeaf("tab"); await leaf.setViewState({ type: PLANNER_VIEW_TYPE, active: true }); }
     await ws.revealLeaf(leaf);
     ws.rightSplit?.collapse(); // the planner and its guides need no sidebar
     ws.setActiveLeaf(leaf, { focus: true });

@@ -1,4 +1,4 @@
-import { Notice, TFile, normalizePath, setIcon } from "obsidian";
+import { Notice, TFile, WorkspaceLeaf, normalizePath, setIcon } from "obsidian";
 import type SamayaPlugin from "./main";
 import { rootOf } from "./model";
 import { journalLocation } from "./journal";
@@ -21,12 +21,17 @@ export class NavShortcuts {
     this.plugin.register(() => this.teardown());
   }
 
+  /** Open a base: focus the tab that already shows it, else show it in the current tab. */
   private base(path: string, create?: () => Promise<void>) {
     return async () => {
       if (create) await create();
-      const f = this.plugin.app.vault.getAbstractFileByPath(normalizePath(path));
-      if (f instanceof TFile) await this.plugin.app.workspace.getLeaf("tab").openFile(f);
-      else new Notice(`Samaya: ${path} does not exist.`);
+      const ws = this.plugin.app.workspace, p = normalizePath(path);
+      const f = this.plugin.app.vault.getAbstractFileByPath(p);
+      if (!(f instanceof TFile)) { new Notice(`Samaya: ${path} does not exist.`); return; }
+      let found: WorkspaceLeaf | null = null;
+      ws.iterateAllLeaves(l => { if (!found && l.getRoot() === ws.rootSplit && (l.getViewState().state as { file?: string } | undefined)?.file === p) found = l; });
+      if (found) { await ws.revealLeaf(found); ws.setActiveLeaf(found, { focus: true }); }
+      else await ws.getLeaf(false).openFile(f);
     };
   }
 
@@ -34,7 +39,7 @@ export class NavShortcuts {
     const s = this.plugin.settings, p = this.plugin;
     const root = (path: string) => { const r = rootOf(path); return r === "/" ? null : r; };
     const join = (dir: string | null, file: string) => dir ? `${dir}/${file}` : file;
-    const out: Item[] = [{ id: "planner", name: "Planner", icon: "calendar-clock", open: () => p.openPlanner(), folders: [] }];
+    const out: Item[] = [{ id: "planner", name: "Planner", icon: "calendar-clock", open: () => p.openPlanner(true), folders: [] }];
     const tasks = root(s.tasksPath);
     out.push({ id: "tasks", name: "Tasks", icon: "check-square", open: this.base(join(tasks, "Tasks.base"), () => p.scaffold(false)), folders: tasks ? [tasks] : [] });
     if (s.journalOn) {
@@ -44,14 +49,15 @@ export class NavShortcuts {
     }
     if (s.calendarOn) {
       const dir = normalizePath(s.eventNotesFolder.trim() || "Meetings");
-      out.push({ id: "meetings", name: "Meetings", icon: "users", open: this.base(`${dir}/Meetings.base`), folders: [dir] });
+      out.push({ id: "meetings", name: "Meetings", icon: "calendar-days", open: this.base(`${dir}/Meetings.base`), folders: [dir] });
     }
     if (s.projectsOn) {
-      const dir = root(s.projectsPath.trim() || "Projects");
-      out.push({ id: "projects", name: "Projects", icon: "folder-kanban", open: () => p.openProjects(), folders: dir ? [dir] : [] });
+      const dir = normalizePath(s.projectsPath.trim() || "Projects"); // a plain folder, not a path pattern
+      out.push({ id: "projects", name: "Projects", icon: "folder-kanban", open: this.base(s.projectsBase.trim() || `${dir}/Projects.base`, () => p.scaffoldProjects(false)), folders: [dir] });
     }
-    if (s.jiraOn || s.gitlabOn) {
-      const dir = root(s.ticketsPath);
+    const tdir = root(s.ticketsPath);
+    if (s.jiraOn || s.gitlabOn || p.app.vault.getAbstractFileByPath(normalizePath(join(tdir, "Tickets.base")))) { // also while only the ticket notes exist
+      const dir = tdir;
       out.push({ id: "tickets", name: "Tickets", icon: "ticket", open: this.base(join(dir, "Tickets.base"), () => p.scaffoldTickets(false)), folders: dir ? [dir] : [] });
     }
     return out;

@@ -1314,7 +1314,7 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
 .samaya-card-meta .samaya-chip { display: inline-flex; align-items: center; gap: 4px; line-height: 18px; padding: 0 7px; max-width: 100%; }
 .samaya-card-meta .samaya-chip > span:last-child:not(.samaya-chip-icon) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .samaya-card-meta .samaya-chip-ticket { margin: 0; letter-spacing: 0.01em; }
-.samaya-card-meta .samaya-chip-project { background: transparent; box-shadow: inset 0 0 0 1px var(--background-modifier-border); }
+.samaya-card-meta .samaya-chip-project { background: transparent; box-shadow: inset 0 0 0 1px currentColor; } /* the outline has the colour of the icon and text, also on a highlighted card */
 .samaya-card-meta .samaya-chip-icon svg { width: 11px; height: 11px; }
 /* footer: add subtask left, actions right */
 .samaya-card-foot { display: flex; align-items: center; gap: 8px; margin: 3px 0 0 18px; min-height: 22px; cursor: default; }

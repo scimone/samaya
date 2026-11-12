@@ -191,5 +191,5 @@ export class PlannerView extends ItemView {
   }
   private setDays() { this.rootEl.style.setProperty("--wk-days", this.plugin.settings.plannerWeekends ? "7" : "5"); } // the column lines run through the arrow bar
   /** Settings changed or tasks changed: redraw every pane. */
-  onDataUpdated(): void { this.setDays(); this.day.onDataUpdated(); this.week.onDataUpdated(); this.tl.onDataUpdated(); }
+  onDataUpdated(): void { this.setDays(); this.day.onDataUpdated(); this.week.onDataUpdated(); this.tl.onDataUpdated(); this.embedC?.onDataUpdated(); } // (the section shown in the embed too: a focus started moves its task to In Progress)
 }

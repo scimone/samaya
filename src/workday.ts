@@ -54,8 +54,11 @@ export class WorkdayManager {
   private async rollover() {
     const l = this.log; if (!l || l.date === today()) return;
     if (l.start && !l.end) {
-      if (l.open) { l.breaks.push({ ...l.open, end: l.seen ?? l.open.start }); l.open = null; }
-      l.end = l.seen && hmToMin(l.seen) > hmToMin(l.start) ? l.seen : l.start; l.endAuto = true;
+      // the last time we saw the day running; without one, the finish line of that day's timeline (never before the start)
+      const winEnd = this.plugin.workWindowFor(l.date)[1];
+      const end = l.seen && hmToMin(l.seen) > hmToMin(l.start) ? l.seen : winEnd > hmToMin(l.start) ? minToHm(winEnd) : l.start;
+      if (l.open) { l.breaks.push({ ...l.open, end: hmToMin(end) > hmToMin(l.open.start) ? end : l.open.start }); l.open = null; }
+      l.end = end; l.endAuto = true;
       const lunch = this.s.autoLunch ? autoLunch(l, this.plugin.lunchFor(l.date)) : null; if (lunch) l.breaks.push(lunch);
       await this.writeProps(l);
       try { await this.plugin.writeDayClose(l.date); } catch (e) { console.warn("Samaya: could not write the closed day to its note", e); } // the same sections as a manual shutdown

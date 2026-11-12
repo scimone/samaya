@@ -7,7 +7,6 @@ import { PLANNER_VIEW_TYPE, PlannerView } from "./views/PlannerView";
 import { syncTickets } from "./sync";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
 import { ConfirmCreateModal, ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "./modals";
-import { JOURNAL_CAL_TYPE, JournalCalendarView } from "./views/JournalCalendarView";
 import type { Period } from "./journal";
 import { PERIOD_UI, identifyNote, findLatestPeriodNote, listPeriodNotes, neighbours, journalLocation, openPeriodNote, periodNotePath } from "./journal";
 import { affectsTaskLists, syncTaskLists } from "./tasklinks";
@@ -82,7 +81,6 @@ export default class SamayaPlugin extends Plugin {
     this.registerView(PLANNER_VIEW_TYPE, leaf => new PlannerView(leaf, this));
     this.registerView(DASHBOARD_VIEW_TYPE, leaf => new DashboardView(leaf, this));
     this.registerView(TODAY_VIEW_TYPE, leaf => new TodayView(leaf));
-    this.registerView(JOURNAL_CAL_TYPE, leaf => new JournalCalendarView(leaf, this));
     this.addSettingTab(new SamayaSettingTab(this.app, this));
 
 
@@ -95,9 +93,6 @@ export default class SamayaPlugin extends Plugin {
       if (!leaf || leaf.getRoot() !== this.app.workspace.rootSplit) return;
       if (leaf.view.containerEl.querySelector(".samaya-planner, .samaya-daily")) this.app.workspace.rightSplit?.collapse();
     }));
-    const journalFollow = () => { void this.showJournalSidebarFor(this.app.workspace.getActiveFile()); }; // a journal page was opened or switched to: show the journal calendar
-    this.registerEvent(this.app.workspace.on("file-open", f => { void this.showJournalSidebarFor(f); }));
-    this.registerEvent(this.app.workspace.on("active-leaf-change", leaf => { const v = leaf?.view; if (v && v.getViewType() === "markdown" && leaf.getRoot() === this.app.workspace.rootSplit) journalFollow(); }));
     this.addCommand({ id: "plan-week", name: "Plan my week (guided)", callback: () => this.startWeekGuide() });
     this.addCommand({ id: "review-week", name: "Review my week", callback: () => this.reviewWeek() });
     this.addCommand({ id: "toggle-week-timeline", name: "Toggle week timeline (expand / collapse)", callback: () => { if (this.timelineWide) this.collapseTimeline(); else { void this.openPlanner().then(() => this.expandTimeline()); } } });
@@ -135,7 +130,7 @@ export default class SamayaPlugin extends Plugin {
       if (!c) void this.scaffoldTickets(false).then(() => this.openSection("tickets"));
       return true;
     } });
-    this.addCommand({ id: "open-journal", name: "Open journal calendar", checkCallback: c => { if (!this.settings.journalOn) return false; if (!c) void this.openJournalCalendar(); return true; } });
+    this.addCommand({ id: "open-journal", name: "Open journal", checkCallback: c => { if (!this.settings.journalOn) return false; if (!c) void this.openJournalDefault(); return true; } });
     this.addCommand({ id: "open-projects", name: "Open projects", checkCallback: c => { if (!this.settings.projectsOn) return false; if (!c) void this.openProjects(); return true; } });
     this.addCommand({ id: "assign-project", name: "Assign current task or ticket note to a project", checkCallback: c => {
       const f = this.app.workspace.getActiveFile();
@@ -164,7 +159,7 @@ export default class SamayaPlugin extends Plugin {
     this.app.workspace.onLayoutReady(async () => {
       leftState();
       void this.nav.apply();
-      this.syncJournalSidebar(); // a journal calendar left over from when the journal was on
+      this.app.workspace.detachLeavesOfType("samaya-journal-calendar"); // left over from older versions
       this.scanLunch();
       void this.markJournalNotes();
       await this.scaffold(false);
@@ -336,33 +331,14 @@ export default class SamayaPlugin extends Plugin {
     if (!same) await (leaf as import("obsidian").WorkspaceLeaf).openFile(file);
     await this.app.workspace.revealLeaf(leaf as import("obsidian").WorkspaceLeaf);
   }
-  /** When the Journal base opens: the calendar, plus today's daily note, else the latest daily, else the latest weekly note, else ask to create today's. */
+  /** When Journal is clicked: the latest daily, else weekly, monthly, quarterly or yearly note; with none, Obsidian's new tab. */
   async openJournalDefault() {
     const s = this.settings; if (!s.journalOn) return;
-    await this.openJournalCalendar();
-    const daily = await periodNotePath(this.app, s, "daily", today()); if (!daily) return;
-    const file = daily.file ?? await findLatestPeriodNote(this.app, s, "daily") ?? await findLatestPeriodNote(this.app, s, "weekly");
+    const daily = await periodNotePath(this.app, s, "daily", today());
+    let file: TFile | null = daily?.file ?? null;
+    for (const p of ["daily", "weekly", "monthly", "quarterly", "yearly"] as Period[]) { if (file) break; file = await findLatestPeriodNote(this.app, s, p); }
     if (file) { await this.openNoteInMain(file); return; }
-    new ConfirmCreateModal(this, daily.path, () => { void openPeriodNote(this.app, s, "daily", today()).then(f => { if (f) return this.openNoteInMain(f); }); }, "No daily or weekly notes exist yet.").open();
-  }
-  /** Opens the right sidebar with the journal calendar when `file` is a journal note (daily, weekly, ...) and it is not showing yet; focus stays on the note. */
-  async showJournalSidebarFor(file: TFile | null) {
-    const s = this.settings; const ws = this.app.workspace; const k = this.guide?.kind;
-    if (!file || !s.journalOn || k === "plan" || k === "week" || file.extension !== "md") return;
-    const cal = ws.getLeavesOfType(JOURNAL_CAL_TYPE)[0];
-    if (cal && !ws.rightSplit?.collapsed && cal.view.containerEl.offsetParent !== null) return; // already visible
-    if (!(await identifyNote(this.app, s, file))) return;
-    const prev = ws.getMostRecentLeaf();
-    await this.openJournalCalendar();
-    if (prev && ws.getMostRecentLeaf() !== prev) ws.setActiveLeaf(prev, { focus: true });
-  }
-  /** With the journal switched off its calendar has no place in the right sidebar: close it. */
-  syncJournalSidebar() { if (!this.settings.journalOn) this.app.workspace.getLeavesOfType(JOURNAL_CAL_TYPE).forEach(l => l.detach()); }
-  async openJournalCalendar() {
-    if (!this.settings.journalOn) return;
-    const ws = this.app.workspace; let leaf = ws.getLeavesOfType(JOURNAL_CAL_TYPE)[0];
-    if (!leaf) { leaf = ws.getRightLeaf(false) ?? ws.getLeaf("split", "vertical"); await leaf.setViewState({ type: JOURNAL_CAL_TYPE, active: true }); }
-    await ws.revealLeaf(leaf);
+    await this.app.workspace.getLeaf("tab").setViewState({ type: "empty", active: true });
   }
   async openProjects() { await this.scaffoldProjects(false); await this.openSection("projects"); }
   /** Open the planner (in the current tab when asked) showing a section: "planner" or a module shown on its side rail. */

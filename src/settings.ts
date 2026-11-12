@@ -376,7 +376,7 @@ export class SamayaSettingTab extends PluginSettingTab {
     tab("journal", "Journal", "book-open");
     {
       const b = card("Journal", "Write your day into your daily (periodic) note: plans, results and work times.", {
-        enabled: { get: () => s.journalOn, set: v => { s.journalOn = v; if (v) void this.plugin.scaffoldJournal(false); else this.plugin.syncJournalSidebar(); this.plugin.bus.emit(); } },
+        enabled: { get: () => s.journalOn, set: v => { s.journalOn = v; if (v) void this.plugin.scaffoldJournal(false); this.plugin.bus.emit(); } },
         status: () => { const n = JOURNAL_PARTS.filter(([k]) => s[k]).length; return n ? [`${n} of ${JOURNAL_PARTS.length} items`, "ok"] : ["Nothing selected", "warn"]; },
       });
       toggle(b, "Hide title and properties in journal notes", "Hides the note title and the properties block at the top of your daily, weekly, monthly, quarterly and yearly notes. The properties are still there (work times are stored in them); turn this off to see and edit them.", () => s.journalHideProps, v => { s.journalHideProps = v; this.plugin.bus.emit(); });

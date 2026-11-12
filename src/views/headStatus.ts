@@ -27,10 +27,9 @@ export function renderCapMeter(plugin: SamayaPlugin, host: HTMLElement, o: { lab
   return m;
 }
 
-/** Open the daily / weekly note in front, with the journal calendar in the right sidebar. */
+/** Open the daily / weekly note in front. */
 function openNote(plugin: SamayaPlugin, p: "daily" | "weekly", date: string) {
   void (async () => {
-    await plugin.openJournalCalendar();
     const f = await openPeriodNote(plugin.app, plugin.settings, p, date);
     if (f) await plugin.openNoteInMain(f); else new Notice("Samaya: no journal location found for this note.");
   })();

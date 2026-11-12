@@ -2,7 +2,7 @@ import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { openFileSmart } from "../openfile";
 import { DragMode, daysBetween, dragSpan, ganttRange, monthMarks } from "../gantt";
-import { Project, projectStats, readProject, createProject } from "../projects";
+import { Project, projectStats, readProject, createProject, projectsPrefix } from "../projects";
 import { patchNote, prefixOf } from "../model";
 import { TextPromptModal } from "../modals";
 import { addDays, parseYmd, today } from "../util";
@@ -16,7 +16,7 @@ export class GanttView extends Panel {
   private pending = false;
 
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
-    super(plugin, () => plugin.settings.projectsPath);
+    super(plugin, () => projectsPrefix(plugin.settings));
     this.root = parentEl.createDiv("samaya-gantt");
   }
   onunload() { window.clearTimeout(this.timer); }

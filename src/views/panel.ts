@@ -1,15 +1,14 @@
 import { Component, TFile } from "obsidian";
 import type SamayaPlugin from "../main";
-import { prefixOf } from "../model";
 
 /** A view shown inside the planner (tasks, tickets, projects, meetings, journal): feeds itself from the notes of a folder and redraws when they change. */
 export abstract class Panel extends Component {
   readonly app: SamayaPlugin["app"];
-  constructor(protected plugin: SamayaPlugin, private folder: () => string = () => "", protected opts: Record<string, unknown> = {}) { super(); this.app = plugin.app; }
+  constructor(protected plugin: SamayaPlugin, private prefix: () => string = () => "", protected opts: Record<string, unknown> = {}) { super(); this.app = plugin.app; }
   get config() { return { get: (k: string): unknown => this.opts[k] }; }
-  /** The notes of the panel's folder (every note when it has none). */
+  /** The notes of the panel's folder (every note when its prefix is empty). The prefix is a literal vault path prefix with trailing slash, never a pattern. */
   get data(): { data: { file: TFile }[] } {
-    const prefix = this.folder() ? prefixOf(this.folder()) : "";
+    const prefix = this.prefix();
     return { data: this.app.vault.getMarkdownFiles().filter(f => f.path.startsWith(prefix)).map(file => ({ file })) };
   }
   onload() {

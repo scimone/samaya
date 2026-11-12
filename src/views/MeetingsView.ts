@@ -1,4 +1,4 @@
-import { TFile } from "obsidian";
+import { TFile, normalizePath } from "obsidian";
 import { Panel } from "./panel";
 import { openFileSmart } from "../openfile";
 import type SamayaPlugin from "../main";
@@ -30,7 +30,7 @@ export class MeetingsView extends Panel {
 
   private tick = 0;
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
-    super(plugin, () => plugin.settings.eventNotesFolder.trim() || "Meetings"); this.root = parentEl.createDiv("samaya-mt");
+    super(plugin, () => normalizePath(plugin.settings.eventNotesFolder.trim() || "Meetings") + "/"); this.root = parentEl.createDiv("samaya-mt");
     this.tick = window.setInterval(() => { if (this.root.isShown() && !this.root.querySelector("input:focus")) this.rerender(); }, 60000); // a meeting that ends moves from next to recent
   }
   onunload() { window.clearTimeout(this.timer); window.clearInterval(this.tick); }

@@ -4,7 +4,7 @@ import { openFileSmart } from "../openfile";
 import { groupTickets } from "../kanban";
 import { DndScope } from "../dnd";
 import { bindZone } from "./common";
-import { patchNote, readTicket, relocateTicket, varsOfTicket } from "../model";
+import { patchNote, prefixOf, readTicket, relocateTicket, varsOfTicket } from "../model";
 import { TFile } from "obsidian";
 
 export const KANBAN_VIEW_TYPE = "samaya-kanban";
@@ -16,7 +16,7 @@ export class KanbanView extends Panel {
   private collapsed = new Set<string>();
   private scope = new DndScope();
   private pending = false;
-  constructor(parentEl: HTMLElement, plugin: SamayaPlugin) { super(plugin, () => plugin.settings.ticketsPath); this.root = parentEl.createDiv("samaya-kanban"); this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.render(); } }; }
+  constructor(parentEl: HTMLElement, plugin: SamayaPlugin) { super(plugin, () => prefixOf(plugin.settings.ticketsPath)); this.root = parentEl.createDiv("samaya-kanban"); this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.render(); } }; }
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); }
   private async setStatus(path: string, status: string) {
     const f = this.app.vault.getAbstractFileByPath(path); if (!(f instanceof TFile)) return;

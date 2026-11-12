@@ -3,7 +3,7 @@ import { Panel } from "./panel";
 import { openFileSmart } from "../openfile";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
-import { Task, Ticket, allTickets, assignTicket, createTask, readTask, sendPiece, sortTasks, ticketPathOf, unplanned } from "../model";
+import { prefixOf, Task, Ticket, allTickets, assignTicket, createTask, readTask, sendPiece, sortTasks, ticketPathOf, unplanned } from "../model";
 import { fmtDur, parseTitleEstimate, startOfWeek, today } from "../util";
 import { bindZone, renderTaskCard } from "./common";
 
@@ -20,7 +20,7 @@ export class BacklogView extends Panel {
   private collapsed = new Set<string>();
 
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
-    super(plugin, () => plugin.settings.tasksPath);
+    super(plugin, () => prefixOf(plugin.settings.tasksPath));
     this.root = parentEl.createDiv("samaya-backlog-view");
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
   }

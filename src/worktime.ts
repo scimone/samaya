@@ -27,6 +27,13 @@ export function workedMinutes(log: DayLog | null, nowMin: number): number {
   return Math.max(0, end - hmToMin(log.start) - breakMinutes(log, log.end ? undefined : nowMin));
 }
 
+/** Time worked since the start line: `now - from`, minus the breaks and the lunch window, where overlapping ones count once (a tracked break that coincides with lunch is not subtracted twice). All in minutes of the day. */
+export function workedSince(from: number, now: number, lunch: [number, number], breaks: Array<[number, number]>): number {
+  if (now <= from) return 0;
+  const clip = ([a, b]: [number, number]): [number, number] => [Math.max(a, from), Math.min(b, now)];
+  return Math.max(0, now - from - unionMinutes([clip(lunch), ...breaks.map(clip)]));
+}
+
 /** Target minutes for a date: weeklyHours spread over the first `workdays` days of the week (Mon..). */
 export function dailyTarget(weeklyHours: number, workdays: number, date: string): number {
   const dow = parseYmd(date).getDay() || 7; // Mon=1 .. Sun=7

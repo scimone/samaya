@@ -12,6 +12,13 @@ const { fmtEstimate, meetingLines, sortByStart, taskLines, bulletLines, upsertSe
 const { fetchJira, fetchGitlab, adfToText } = await import("./.tickets.mjs");
 const { renderTicketPath, renderTicketFileName, renderTicketNote, pathRoot: pathRoot2 } = await import("./.taskbody.mjs");
 
+// ---- workedSince: time since the start line minus breaks and lunch, overlaps once
+{ const { workedSince } = await import("./.worktime.mjs");
+  assert.equal(workedSince(480, 600, [720, 780], []), 120); // before lunch
+  assert.equal(workedSince(480, 840, [720, 780], []), 300); // lunch subtracted
+  assert.equal(workedSince(480, 840, [720, 780], [[720, 780]]), 300); // a tracked lunch break is not subtracted twice
+  assert.equal(workedSince(480, 840, [720, 780], [[700, 730], [600, 610]]), 270); // partial overlap counted once
+  assert.equal(workedSince(480, 400, [720, 780], []), 0); }
 // ---- util
 assert.deepEqual(parseTitleEstimate("Write report 1h"), { title: "Write report", estimate: 60 });
 assert.deepEqual(parseTitleEstimate("Call mom"), { title: "Call mom" });

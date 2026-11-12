@@ -1,7 +1,7 @@
 import type SamayaPlugin from "../main";
 import { fmtDur, hmToMin, minToHm, today } from "../util";
 import { nowMin } from "../workday";
-import { breakMinutes, fmtSigned, workedMinutes } from "../worktime";
+import { breakMinutes, fmtSigned, workedMinutes, workedSince } from "../worktime";
 
 /** Workday status with actions: a minimal one-liner, or (`panel`) a card with the time worked in large type. Repaints itself until removed from the DOM. */
 export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { compact?: boolean; panel?: boolean; /** heading pieces: just the status chip, or just the buttons */ part?: "status" | "actions"; /** status chip of a past week: the average work time per working day instead of a live status */ average?: { avg: number; days: number } | null; /** another day than today: a read-only summary from its log */ date?: string } = {}) {
@@ -41,7 +41,8 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
       state = "On break"; big = fmtDur(Math.max(0, nowMin() - hmToMin(l.open.start))); sub = `since ${l.open.start}`;
       buttons.push(["Back to work", () => { void wd.endBreak(); }, true]);
     } else {
-      const worked = workedMinutes(l, nowMin());
+      // since the start line, minus the breaks and the lunch (once where they overlap)
+      const worked = workedSince(winStart, nowMin(), [ls, le], [...l.breaks.map((b): [number, number] => [hmToMin(b.start), hmToMin(b.end)])]);
       state = "Working"; big = fmtDur(worked);
       sub = `Start time ${l.start} · Finish time ${minToHm(winEnd)}`; // the finish line of the timeline, which can be moved per day
       if (target) sub2 = worked < target ? `${fmtDur(target - worked)} left of ${fmtDur(target)}` : `Target of ${fmtDur(target)} reached (+${fmtDur(worked - target)})`;

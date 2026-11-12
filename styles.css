@@ -1226,3 +1226,4 @@ body.samaya-focusing .samaya-block.is-done:not(.is-current):hover { background: 
 .samaya-focus-stop { margin-left: 4px; }
 body.samaya-focusing .samaya-hs-group.is-cap, body.samaya-focusing .samaya-hd-btn.is-end-day, body.samaya-focusing .samaya-hd-btn.is-review-week, body.samaya-focusing .samaya-hd-icon.is-worktime { display: none; }
 body.samaya-focusing :is(.samaya-agenda-row:not(.is-current), .samaya-agenda-empty) { opacity: 0.15; }
+body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .samaya-col-head, .samaya-loadbar, .samaya-colhead-count) { opacity: 0.15; }

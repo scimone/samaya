@@ -3,7 +3,7 @@ import type SamayaPlugin from "../main";
 import { DndScope, DropInfo } from "../dnd";
 import { Source, Task, addSubtask, assignTicket, patchTask, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
 import { ConfirmDeleteModal, ProjectSuggestModal, TicketSuggestModal } from "../modals";
-import { focusButton, isCurrentTask, joinParts, splitTitle } from "./place";
+import { focusButton, isCurrentTask, trackedBefore, joinParts, splitTitle } from "./place";
 import { PartsModal } from "./partsModal";
 import { assignProject, projectPathOf } from "../projects";
 import { HORIZONS, Horizon, bucketOf, fmtDur, fmtHm, minToHm, parseDuration, parseYmd, startOfWeek, today } from "../util";
@@ -89,12 +89,13 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   if (!meta.childElementCount) meta.remove();
 
   // top right: [logged/]estimated as hh:mm
-  const live = plugin.focus.liveMin(t.file.path); const estTxt = t.estimate ? fmtHm(t.estimate) : "--:--"; // the focused task counts the running session too
-  const label = t.actual || live ? `${fmtHm(t.actual + live)}/${estTxt}` : estTxt;
+  const focused = plugin.focus.state?.path === t.file.path; const estTxt = t.estimate ? fmtHm(t.estimate) : "--:--";
+  const shown = focused ? Math.max(0, t.actual - trackedBefore(plugin, t, today())) + plugin.focus.liveMin(t.file.path) : t.actual; // the focused task: today's tracked time, the running session included
+  const label = shown ? `${fmtHm(shown)}/${estTxt}` : estTxt;
   if (o.dayLabel) row.createSpan({ cls: "samaya-card-day", text: o.dayLabel }); // left of the estimate; the title wraps instead of running under it
   const side = row.createDiv("samaya-card-side");
   const est = side.createEl("button", { cls: "samaya-est", text: label, attr: { title: "Estimated time (hh:mm). Click to edit" } });
-  if (plugin.focus.state?.path === t.file.path) { est.dataset.focusBase = String(t.actual); est.dataset.focusEst = estTxt; }
+  if (plugin.focus.state?.path === t.file.path) { est.dataset.focusBase = String(Math.max(0, t.actual - trackedBefore(plugin, t, today()))); est.dataset.focusEst = estTxt; }
   est.title = t.part ? (t.part.kind === "rest" ? `Not planned yet: ${fmtDur(t.estimate)} of ${fmtDur(t.part.total)}. Click to edit` : `This part: ${fmtDur(t.estimate)} of ${fmtDur(t.part.total)}. Click to edit`) : est.title;
   est.addEventListener("click", e => {
     e.stopPropagation();

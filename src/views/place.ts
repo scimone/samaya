@@ -6,7 +6,7 @@ import { Seg, mergeOffer, planInWindow, segsTotal } from "../segments";
 import { NO_REST, Piece, Session, addMinutes, sessionsTotal, dayMinutes, dayPieces, pieceLength, replaceDay, sortSessions, splitPiece, takePiece, withoutDay } from "../sessions";
 import { calendarEnabled, calendarEvents } from "../calendar";
 import { Horizon, addDays, fmtDur, hmToMin, horizonTarget, parseYmd, startOfWeek, today } from "../util";
-import { runMinutesBefore } from "../dayreview";
+import { runMinutesFrom } from "../dayreview";
 import { nowMin } from "../workday";
 import { Notice, TFile, setIcon } from "obsidian";
 
@@ -23,13 +23,23 @@ export function busyIntervals(plugin: SamayaPlugin, date: string, events: Calend
 export function taskBlocks(t: Task, dflt: number): Seg[] {
   return t.segments.length > 1 ? t.segments : [{ s: hmToMin(t.start), dur: t.estimate || dflt }];
 }
+/** Minutes tracked on the task before `date`: everything tracked, minus what the focus runs place on that day or later. */
+export function trackedBefore(plugin: SamayaPlugin, t: Task, date: string): number {
+  if (!t.actual) return 0;
+  const fm = (plugin.app.metadataCache.getFileCache(t.file)?.frontmatter ?? {}) as Record<string, unknown>;
+  const runs = Array.isArray(fm.focus_sessions) ? fm.focus_sessions : fm.focus_sessions ? [fm.focus_sessions] : [];
+  return Math.max(0, t.actual - runMinutesFrom(runs, date));
+}
+/** Time still to plan for a task on `date`: its estimate (or `dflt`) minus what was tracked on earlier days. Used by the capacity bars. */
+export function leftToDo(plugin: SamayaPlugin, t: Task, date: string, dflt: number): number {
+  if (t.status === "done") return t.estimate || dflt;
+  return Math.max(0, (t.estimate || dflt) - trackedBefore(plugin, t, date));
+}
 /** Timeline blocks of a task on `date`, minus the time already tracked on earlier days (cut from the last block, at least 15 min stay). `cut` = minutes trimmed. */
 export function remainingBlocks(plugin: SamayaPlugin, t: Task, date: string, dflt: number): { blocks: Seg[]; cut: number } {
   const blocks = taskBlocks(t, dflt).map(g => ({ ...g }));
   if (t.status === "done") return { blocks, cut: 0 };
-  const fm = (plugin.app.metadataCache.getFileCache(t.file)?.frontmatter ?? {}) as Record<string, unknown>;
-  const runs = Array.isArray(fm.focus_sessions) ? fm.focus_sessions : fm.focus_sessions ? [fm.focus_sessions] : [];
-  const prior = runMinutesBefore(runs, date); const last = blocks[blocks.length - 1];
+  const prior = trackedBefore(plugin, t, date); const last = blocks[blocks.length - 1];
   const cut = Math.max(0, Math.min(prior, last.dur - 15)); last.dur -= cut;
   return { blocks, cut };
 }

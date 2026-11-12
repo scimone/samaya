@@ -1,3 +1,4 @@
+import { leftToDo } from "./place";
 import { Notice, TFile, WorkspaceLeaf, setIcon } from "obsidian";
 import type { CalendarEvent } from "../eventnotes";
 import { PlannerPane } from "./plannerPane";
@@ -94,7 +95,7 @@ export class DailyPlannerView extends PlannerPane {
     const s = this.plugin.settings; const dayMs = parseYmd(this.date).getTime();
     const cap = capacityWindow(...this.plugin.workWindowFor(this.date), this.plugin.lunchFor(this.date),
       events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
-    const plannedAll = day.reduce((a, t) => a + (t.estimate || 0), 0);
+    const plannedAll = day.reduce((a, t) => a + leftToDo(this.plugin, t, this.date, 0), 0);
     const notes = new Map<CalendarEvent, TFile>(); // meeting notes for the timeline
     const tlEvents = !calendarEnabled(s) ? [] : this.showIcs ? events : await calendarEvents(this.plugin, parseYmd(this.date), parseYmd(addDays(this.date, 1)));
     for (const ev of tlEvents.filter(e => !e.allDay)) { try { notes.set(ev, await ensureMeetingNote(this.app, ev)); } catch { /* ignore */ } }

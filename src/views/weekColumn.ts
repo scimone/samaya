@@ -1,3 +1,4 @@
+import { leftToDo } from "./place";
 // The "This week" column of the week guide. It is the last column of the Weekly Board's guide.
 import { Notice, TFile } from "obsidian";
 import type { CalendarEvent } from "../eventnotes";
@@ -5,7 +6,7 @@ import type SamayaPlugin from "../main";
 import type { DndScope } from "../dnd";
 import { Task, createTask, onDay, sendPiece, sortTasks, unplanned } from "../model";
 import { calendarEnabled, calendarEvents } from "../calendar";
-import { addDays, fmtDur, parseTitleEstimate, parseYmd } from "../util";
+import { addDays, fmtDur, parseTitleEstimate, parseYmd, today } from "../util";
 import { Capacity, capacityWindow } from "../worktime";
 import { bufferShare, loadLevel } from "../weekplan";
 import { renderCapBar } from "./capBar";
@@ -58,7 +59,7 @@ export const SCHEDULE_STEP = 3;
 export function renderWeekColumn(plugin: SamayaPlugin, scope: DndScope, host: HTMLElement, o: WeekColumnOpts) {
   const { wk } = o; const s = plugin.settings; const schedule = o.step === SCHEDULE_STEP;
   const { weekTasks, noDay } = weekBuckets(o.all, wk);
-  const planned = weekTasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0);
+  const planned = weekTasks.reduce((a, t) => a + leftToDo(plugin, t, t.planned || today(), s.defaultEstimate), 0);
   // Schedule: only what still needs a day; the other steps list everything, the weekday written on cards that have one
   const shown = schedule ? noDay : [...noDay, ...sortTasks(weekTasks.filter(t => t.planned)).sort((a, b) => a.planned.localeCompare(b.planned))];
 

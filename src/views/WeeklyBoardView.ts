@@ -1,3 +1,4 @@
+import { leftToDo } from "./place";
 import type { PlannerHost } from "./plannerHost";
 import type { CalendarEvent } from "../eventnotes";
 import { Notice, TFile, setIcon } from "obsidian";
@@ -90,7 +91,7 @@ export class WeeklyBoardView extends PlannerPane {
       const h = top.createDiv("samaya-col-head");
       const ttl = h.createSpan({ cls: "samaya-col-title", text: title });
       if (this.host?.openDay) { ttl.addClass("is-link"); ttl.title = "Open this day in the planner"; ttl.onclick = () => this.host?.openDay?.(key); keyActivate(ttl, `Open ${key} in the planner`, () => this.host?.openDay?.(key)); }
-      const planned = tasks.reduce((a, t) => a + (t.estimate || 0), 0);
+      const planned = tasks.reduce((a, t) => a + leftToDo(this.plugin, t, key, 0), 0);
       const share = bufferShare(this.plugin.settings.bufferPercent); const lvl = loadLevel(planned, cap.free, share); // orange past the buffer, red over capacity, like the week guide
       renderCapBar(top, { tasks: planned, meetings: cap.meetings, free: cap.free, share, markTip: `${Math.round(share * 100)}% of the free time: keep the rest open for what comes up` });
       const sum = h.createSpan({ cls: "samaya-col-cap" + (lvl === "ok" ? "" : ` is-${lvl}`), text: `${fmtDur(planned)}/${fmtDur(cap.free)}` });
@@ -138,7 +139,7 @@ export class WeeklyBoardView extends PlannerPane {
     const leftovers = sortTasks(overdueParts(all, td, wk));
     const caps = new Map(days.map(d => [d, capacityOf(this.plugin, d, events)]));
     const freeTotal = [...caps.values()].reduce((a, c) => a + c.free, 0);
-    const plannedTotal = weekTasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0);
+    const plannedTotal = weekTasks.reduce((a, t) => a + leftToDo(this.plugin, t, t.planned || today(), s.defaultEstimate), 0);
 
     const grid = this.root.createDiv("samaya-wg");
     renderGuide(this.plugin, grid, { overdue: leftovers.length });
@@ -245,7 +246,7 @@ export class WeeklyBoardView extends PlannerPane {
   private guidedDay(parent: HTMLElement, date: string, cap: Capacity, events: CalendarEvent[], tasks: Task[], isToday: boolean, addBox: (col: HTMLElement, placeholder: string, props: () => Record<string, string | number>) => void) {
     const s = this.plugin.settings;
     const col = parent.createDiv({ cls: "samaya-col samaya-wg-day" + (isToday ? " is-today" : "") });
-    const share = bufferShare(s.bufferPercent); const planned = tasks.reduce((a, t) => a + (t.estimate || 0), 0); const lvl = loadLevel(planned, cap.free, share);
+    const share = bufferShare(s.bufferPercent); const planned = tasks.reduce((a, t) => a + leftToDo(this.plugin, t, date, 0), 0); const lvl = loadLevel(planned, cap.free, share);
     const h = col.createDiv("samaya-col-head");
     const left = h.createDiv("samaya-col-headl");
     left.createSpan({ cls: "samaya-col-title samaya-colhead-title", text: parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }) });
@@ -268,7 +269,7 @@ export class WeeklyBoardView extends PlannerPane {
     const s = this.plugin.settings; const td = today(); const g = this.plugin.guide; const share = bufferShare(s.bufferPercent);
     const rows = days.map(date => {
       const cap = caps.get(date)!; const ts = onDay(tasks, date);
-      const planned = ts.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0);
+      const planned = ts.reduce((a, t) => a + leftToDo(this.plugin, t, date, s.defaultEstimate), 0);
       return { date, cap, planned, count: ts.length, done: ts.filter(t => t.status === "done").length, level: loadLevel(planned, cap.free, share) };
     });
     const v = weekVerdict(rows.map(r => ({ planned: r.planned, free: r.cap.free })), share);

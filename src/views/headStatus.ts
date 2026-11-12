@@ -1,3 +1,4 @@
+import { leftToDo } from "./place";
 import { Notice, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { allTasks } from "../model";
@@ -79,7 +80,7 @@ export function renderWeekHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, rig
   const paint = async () => {
     if (!slot.isConnected) { off(); metaOff(); window.clearTimeout(timer); return; }
     const my = ++token;
-    const planned = weekBuckets(allTasks(plugin.app, s), weekStart).weekTasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0);
+    const planned = weekBuckets(allTasks(plugin.app, s), weekStart).weekTasks.reduce((a, t) => a + leftToDo(plugin, t, t.planned || today(), s.defaultEstimate), 0);
     const { free, meetings } = await weekCapacity(plugin, weekStart, s.workDays);
     if (my !== token || !slot.isConnected) return;
     slot.empty(); renderCapMeter(plugin, slot, { label: "Capacity", planned, meetings, free, what: "Free time of the week = work time - lunch - meetings" });

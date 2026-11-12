@@ -21,9 +21,10 @@ function dayLabel(date: string): string {
  * While a focus is running (or on a break) the block is gone altogether: the focus bar on top takes over.
  */
 export function renderTaskCard(plugin: SamayaPlugin, el: HTMLElement, file: TFile | null) {
-  const cards = () => Array.from(el.querySelectorAll<HTMLElement>(".samaya-task-card, .samaya-tc-head"));
+  const cards = () => Array.from(el.querySelectorAll<HTMLElement>(".samaya-task-card, .samaya-tc-line"));
+  const clear = () => { cards().forEach(c => c.remove()); el.querySelectorAll(".samaya-tc-host").forEach(h => { h.removeClass("samaya-tc-host"); (h as HTMLElement).style.removeProperty("--tc-pl"); (h as HTMLElement).style.removeProperty("--tc-pr"); }); };
   const f = plugin.focus.state;
-  if (!file || f) { cards().forEach(c => c.remove()); return; }
+  if (!file || f) { clear(); return; }
   const t = readTask(plugin.app, file);
   const day = today(); const dt = dayTask(t, day); const hasToday = t.sessions.some(g => g.date === day);
   const todayEst = hasToday ? dt.estimate : 0;
@@ -39,23 +40,33 @@ export function renderTaskCard(plugin: SamayaPlugin, el: HTMLElement, file: TFil
   if (!sizers.length && !content) return;
   const hosts = sizers.length ? sizers : [content as HTMLElement];
   const existing = cards();
-  if (existing.length === hosts.length * (withHead ? 2 : 1) && existing.every(c => c.dataset.key === key && hosts.includes(c.parentElement as HTMLElement))) return;
-  existing.forEach(c => c.remove());
+  if (existing.length === hosts.length * 2 && existing.every(c => c.dataset.key === key && hosts.includes(c.parentElement as HTMLElement))) return;
+  clear();
   for (const host of hosts) {
-    const title = host.querySelector(":scope > .inline-title");
+    const title = host.querySelector<HTMLElement>(":scope > .inline-title");
     const card = build();
     host.insertBefore(card, anchorIn(host));
-    if (withHead) host.insertBefore(head(), title ?? card); // before the title: floats right, on the title's line
+    const line = titleLine(); host.insertBefore(line, title ?? card);
+    host.addClass("samaya-tc-host");
+    if (title) pin(host, title, line); else line.addClass("is-flow");
   }
 
-  /** Clock and Focus button, on the title's line. */
-  function head(): HTMLElement {
-    const h = createDiv({ cls: "samaya-tc-head" }); h.dataset.key = key;
+  /** The checkbox (left) and, for a task planned today, the clock and Focus button (right): one layer on the title's first line. */
+  function titleLine(): HTMLElement {
+    const h = createDiv({ cls: "samaya-tc-line" }); h.dataset.key = key;
+    const done = t.status === "done";
+    const box = h.createEl("input", { cls: "samaya-tc-check", type: "checkbox", attr: { "aria-label": done ? "Done - click to reopen" : "Mark as done" } });
+    box.checked = done;
+    box.addEventListener("change", () => { void patchTask(plugin.app, file!, box.checked ? { status: "done", completed: today() } : { status: "todo", completed: null }); });
+    if (!withHead) return h;
+    h.createDiv("samaya-tc-spacer");
     const act = showToday ? todayAct : t.actual, est = showToday ? todayEst : t.estimate;
-    const clock = h.createDiv({ cls: "samaya-tc-clock" + (est && act > est ? " is-over" : ""), attr: { title: showToday ? "Today" : "Total" } });
-    clock.createSpan({ cls: "samaya-tc-big", text: fmtHm(act) });
-    clock.createSpan({ cls: "samaya-tc-bigsep", text: "/" });
-    clock.createSpan({ cls: "samaya-tc-big is-est", text: est ? fmtHm(est) : "--:--" });
+    const clock = h.createDiv({ cls: "samaya-tc-clock" + (est && act > est ? " is-over" : "") });
+    const num = (label: string, text: string, cls = "") => {
+      const c = clock.createDiv("samaya-tc-num");
+      c.createSpan({ cls: "samaya-tc-numlabel", text: label }); c.createSpan({ cls: "samaya-tc-big " + cls, text });
+    };
+    num("actual", fmtHm(act)); clock.createSpan({ cls: "samaya-tc-bigsep", text: "/" }); num("planned", est ? fmtHm(est) : "--:--", "is-est");
     const go = h.createEl("button", { cls: "samaya-tc-focus mod-cta", attr: { "aria-label": "Start focus on this task" } });
     setIcon(go.createSpan({ cls: "samaya-tc-btn-icon" }), "timer"); go.createSpan({ text: "Focus" });
     go.addEventListener("click", () => { void plugin.focus.start(file!); });
@@ -64,8 +75,6 @@ export function renderTaskCard(plugin: SamayaPlugin, el: HTMLElement, file: TFil
 
   function build(): HTMLElement {
     const card = createDiv({ cls: "samaya-task-card" }); card.dataset.key = key;
-    const done = t.status === "done";
-
     const rows = card.createDiv("samaya-tc-rows");
     const row = (label: string, icon: string) => {
       const r = rows.createDiv("samaya-tc-row");
@@ -73,15 +82,7 @@ export function renderTaskCard(plugin: SamayaPlugin, el: HTMLElement, file: TFil
       return r.createDiv("samaya-tc-value");
     };
 
-    // status: a button, tick the task off (or reopen it) right here
-    const sv = row("Status", "circle-dot");
-    const sb = sv.createEl("button", { cls: "samaya-tc-pill samaya-tc-status" + (done ? " is-done" : ""), attr: { "aria-label": done ? "Mark as to do" : "Mark as done" } });
-    setIcon(sb.createSpan({ cls: "samaya-tc-pill-icon" }), done ? "circle-check" : "circle"); sb.createSpan({ text: done ? "Done" : "To do" });
-    sb.addEventListener("click", () => {
-      void patchTask(plugin.app, file!, done ? { status: "todo", completed: null } : { status: "done", completed: today() });
-    });
-
-    // time: tracked of estimated, the whole task and (when that differs) today's piece
+    // time: tracked of estimated, the whole task
     if (t.estimate || t.actual) {
       const tv = row("Time", "clock");
       const p = tv.createSpan({ cls: "samaya-tc-time" + (t.estimate && t.actual > t.estimate ? " is-over" : "") });
@@ -120,4 +121,25 @@ function anchorIn(host: HTMLElement): Node | null {
   const title = host.querySelector(":scope > .inline-title");
   if (title) return title.nextSibling;
   return host.querySelector(":scope > .metadata-container, :scope > .cm-contentContainer, :scope > .markdown-preview-view") ?? host.firstChild;
+}
+
+/**
+ * Lay `line` over the first line of the note's title: same top, left and right, as high as one line of the title.
+ * The title gets padding so its text stays clear of the checkbox on the left and the clock and button on the right.
+ */
+function pin(host: HTMLElement, title: HTMLElement, line: HTMLElement) {
+  const place = () => {
+    if (!line.isConnected) { ro.disconnect(); return; }
+    const hr = host.getBoundingClientRect(), tr = title.getBoundingClientRect(), cs = getComputedStyle(title);
+    const fs = parseFloat(cs.fontSize) || 28; const lh = parseFloat(cs.lineHeight) || fs * 1.2;
+    const pt = parseFloat(cs.paddingTop) || 0;
+    const box = line.querySelector<HTMLElement>(".samaya-tc-check"), right = Array.from(line.children).filter(c => c !== box && !c.hasClass("samaya-tc-spacer"));
+    const left = box ? box.offsetWidth + 10 : 0;
+    const rw = right.reduce((a, c) => a + (c as HTMLElement).offsetWidth, 0) + Math.max(0, right.length - 1) * 16 + (right.length ? 16 : 0);
+    line.style.top = `${tr.top - hr.top + pt}px`; line.style.height = `${lh}px`;
+    line.style.left = `${tr.left - hr.left}px`; line.style.width = `${tr.width}px`;
+    host.style.setProperty("--tc-pl", `${left}px`); host.style.setProperty("--tc-pr", `${rw}px`);
+  };
+  const ro = new ResizeObserver(place); ro.observe(title); ro.observe(host);
+  requestAnimationFrame(place);
 }

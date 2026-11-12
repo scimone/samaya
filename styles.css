@@ -454,9 +454,18 @@ body {
 .samaya-task-note .metadata-properties-heading,
 .samaya-task-note .metadata-properties { display: none !important; }
 .samaya-task-card { position: relative; clear: both; margin: 4px 0 18px; padding: 0 0 14px; border-bottom: 1px solid var(--background-modifier-border); }
-.samaya-tc-head { float: right; display: flex; align-items: center; gap: 16px; height: calc(var(--inline-title-size, 1.8em) * var(--inline-title-line-height, 1.2)); margin-left: 16px; }
-.samaya-tc-clock { display: inline-flex; align-items: baseline; gap: 6px; font-size: var(--font-ui-large, 1.2em); font-weight: var(--font-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
-.samaya-tc-big { font-size: 1.5em; } .samaya-tc-big.is-est, .samaya-tc-bigsep { color: var(--text-muted); font-weight: var(--font-normal); }
+.samaya-tc-host { position: relative; }
+.samaya-tc-host > .inline-title { padding-left: var(--tc-pl, 0); padding-right: var(--tc-pr, 0); }
+.samaya-tc-line { position: absolute; display: flex; align-items: center; gap: 16px; pointer-events: none; z-index: 1; }
+.samaya-tc-line > * { pointer-events: auto; }
+.samaya-tc-line.is-flow { position: static; margin: 0 0 8px; }
+.samaya-tc-spacer { flex: 1; pointer-events: none !important; }
+.samaya-tc-check { flex: none; width: 20px; height: 20px; margin: 0; cursor: pointer; }
+.samaya-tc-clock { display: inline-flex; align-items: flex-end; gap: 8px; font-weight: var(--font-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
+.samaya-tc-num { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.samaya-tc-numlabel { font-size: var(--font-ui-smaller, 11px); font-weight: var(--font-normal); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); line-height: 1; }
+.samaya-tc-big { font-size: 1.5em; line-height: 1; } .samaya-tc-big.is-est, .samaya-tc-bigsep { color: var(--text-muted); font-weight: var(--font-normal); }
+.samaya-tc-bigsep { font-size: 1.5em; line-height: 1; }
 .samaya-tc-clock.is-over .samaya-tc-big:not(.is-est) { color: var(--text-error); }
 .samaya-tc-focus { display: inline-flex; align-items: center; gap: 6px; }
 .samaya-tc-btn-icon { display: inline-flex; } .samaya-tc-btn-icon svg { width: 14px; height: 14px; }

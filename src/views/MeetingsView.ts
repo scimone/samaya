@@ -157,7 +157,12 @@ export class MeetingsView extends Panel {
       r.createSpan({ cls: "samaya-mt-name", text: i.title.trim() }); this.mark(r, i); r.onclick = e => this.open(i.path, e);
     }
   }
-  private matches(i: { title: string }) { const q = memory.query.trim().toLowerCase(); return !q || i.title.toLowerCase().includes(q); }
+  /** the query matches a meeting's title or the text of its note (a series: any of its meetings) */
+  private matches(i: { title: string; body?: string; instances?: Instance[] }): boolean {
+    const q = memory.query.trim().toLowerCase(); if (!q) return true;
+    if (i.title.toLowerCase().includes(q) || (i.body ?? "").toLowerCase().includes(q)) return true;
+    return !!i.instances?.some(n => n.body.toLowerCase().includes(q));
+  }
   private rowEl(parent: HTMLElement, i: { title: string }) {
     const r = parent.createDiv("samaya-mt-item"); r.style.setProperty("--h", String(hue(i))); r.createSpan("samaya-mt-dot");
     if ("date" in i && this.isLive(i as Instance)) r.addClass("is-live");

@@ -441,3 +441,22 @@ await bundle("src/dayreview.ts", "test/.dayreview.mjs");
   const sp = daySplit(120, 100, 40, 15); assert.equal(sp.focus, 80); assert.equal(sp.other, 0); assert.equal(sp.total, 135);
   assert.equal(verdict(60, 62, 1, 1).title, "Right on plan"); assert.equal(verdict(60, 90, 1, 1).title, "More than planned");
 }
+
+// ---- meeting series
+await bundle("src/meetingseries.ts", "test/.meetingseries.mjs");
+{
+  const { buildSeries, cadenceOf, analyse, parseNote, seriesKey, stripFrontmatter } = await import("./.meetingseries.mjs");
+  assert.equal(seriesKey("  AI Next  Daily "), "ai next daily");
+  assert.deepEqual(cadenceOf(["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-09"]), { label: "Daily", days: "Mon–Fri" });
+  assert.deepEqual(cadenceOf(["2026-11-03", "2026-11-10", "2026-11-17"]), { label: "Weekly", days: "Tue" });
+  assert.deepEqual(cadenceOf(["2026-11-06", "2026-11-20"]), { label: "Every 2 weeks", days: "Fri" });
+  assert.deepEqual(cadenceOf(["2026-11-02", "2026-11-05", "2026-11-09", "2026-11-12"]), { label: "2× a week", days: "Mon, Thu" });
+  assert.deepEqual(analyse("# T\n\n## Meeting Summary\n\n"), { excerpt: [], open: 0, done: 0 });
+  assert.deepEqual(analyse("## S\n- Decided X\n- [ ] Send mail\n- [x] Book room\n- [ ]\n"), { excerpt: ["Decided X", "Send mail", "Book room"], open: 1, done: 1 });
+  assert.equal(stripFrontmatter("---\na: 1\n---\n# H\n"), "# H\n");
+  const mk = (title, date, rec, body = "") => parseNote("p/" + date + title, { title, date, start: "09:00", end: "09:30", ...(rec === undefined ? {} : { is_recurring: rec }) }, date + "_x", "---\n---\n" + body);
+  const { series, oneOffs } = buildSeries([mk("Daily ", "2026-11-10", true, "- done"), mk("Daily", "2026-11-12", true), mk("Daily", "2026-11-13", true), mk("Offsite", "2026-11-11", false), mk("Offsite", "2026-11-18", false)], "2026-11-12");
+  assert.equal(series.length, 1); assert.equal(oneOffs.length, 2);
+  assert.deepEqual([series[0].held, series[0].withNotes, series[0].next.date, series[0].next.when, series[0].time], [1, 1, "2026-11-12", "today", "09:00–09:30"]);
+  assert.equal(buildSeries([mk("A", "2026-11-01"), mk("A", "2026-11-08"), mk("B", "2026-11-02")], "2026-11-12").series.length, 1); // no property: repeats count as a series
+}

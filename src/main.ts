@@ -12,6 +12,7 @@ import { GANTT_VIEW_TYPE, GanttView } from "./views/GanttView";
 import { KANBAN_VIEW_TYPE, KanbanView } from "./views/KanbanView";
 import { JOURNAL_CAL_TYPE, JournalCalendarView } from "./views/JournalCalendarView";
 import { JOURNAL_BASE_VIEW_TYPE, JournalBaseView } from "./views/JournalBaseView";
+import { MEETINGS_VIEW_TYPE, MeetingsView } from "./views/MeetingsView";
 import type { Period } from "./journal";
 import { PERIOD_UI, identifyNote, findLatestPeriodNote, listPeriodNotes, neighbours, journalLocation, openPeriodNote, periodNotePath } from "./journal";
 import { affectsTaskLists, syncTaskLists } from "./tasklinks";
@@ -166,6 +167,9 @@ export default class SamayaPlugin extends Plugin {
     if (!bb) new Notice("Samaya: could not register the Backlog by date view.");
     const g = ok(JOURNAL_BASE_VIEW_TYPE, "Journal calendar", "lucide-calendar",
       (ct, el) => new JournalBaseView(ct, el, this), () => []);
+    const mt = ok(MEETINGS_VIEW_TYPE, "Meetings", "lucide-users",
+      (ct, el) => new MeetingsView(ct, el, this), () => []);
+    if (!mt) new Notice("Samaya: could not register the Meetings view.");
     if (!c || !e || !f || !g) new Notice("Samaya: could not register Bases views. Enable the core Bases plugin and use Obsidian 1.10+.");
 
     this.addRibbonIcon("calendar-clock", "Open Samaya planner", () => { void this.openPlanner(); });

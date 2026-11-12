@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
+import { Component, ItemView, MarkdownRenderer, Notice, TFile, WorkspaceLeaf, normalizePath, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { startOfWeek, today } from "../util";
 import { DailyPlannerView } from "./DailyPlannerView";
@@ -32,6 +32,11 @@ export class PlannerView extends ItemView {
   private shown: Mode = "day";
   private shownLayout: Layout = "split";
   private seenH = 0;
+  private embedEl!: HTMLElement; // a base (tasks, journal, ...) shown inside the planner, chosen on the side rail
+  private railEl!: HTMLElement;
+  private embedC: Component | null = null;
+  private section = "planner"; // "planner" or the id of the nav item showing in the embed
+  private railKey = "";
 
   constructor(leaf: WorkspaceLeaf, private plugin: SamayaPlugin) { super(leaf); }
   getViewType() { return PLANNER_VIEW_TYPE; }
@@ -40,7 +45,10 @@ export class PlannerView extends ItemView {
 
   async onOpen() {
     const plugin = this.plugin; const parentEl = this.contentEl; parentEl.empty();
-    const root = this.rootEl = parentEl.createDiv("samaya-planner");
+    const shell = parentEl.createDiv("samaya-shell"), main = shell.createDiv("samaya-shell-main");
+    this.railEl = shell.createDiv("samaya-rail");
+    this.embedEl = main.createDiv("samaya-embed is-hidden");
+    const root = this.rootEl = main.createDiv("samaya-planner");
     this.headEl = root.createDiv("samaya-week-head samaya-planner-head");
     this.dayPane = root.createDiv("samaya-planner-pane");
     this.tlPane = root.createDiv("samaya-planner-pane");
@@ -73,6 +81,9 @@ export class PlannerView extends ItemView {
     this.register(plugin.bus.on(() => { if (this.shown === "worktime") this.wt.schedule(); }));
     this.registerEvent(plugin.app.metadataCache.on("changed", () => { if (this.shown === "worktime") this.wt.schedule(); }));
     this.registerInterval(window.setInterval(() => { if (this.shown === "worktime") this.wt.render(); }, 30000));
+    this.register(plugin.bus.on(() => { void this.renderRail(); }));
+    this.register(() => this.embedC?.unload());
+    void this.renderRail();
     this.register(plugin.bus.on(() => {
       const m = this.mode(), l = plugin.weekLayout;
       if (m === this.shown && l === this.shownLayout) return;
@@ -91,6 +102,39 @@ export class PlannerView extends ItemView {
     this.onDataUpdated(); // the first draw (Bases used to trigger it)
   }
   async onClose() { this.plugin.workTimeOpen = false; if (this.plugin.timelineWide) this.plugin.collapseTimeline(); } // closing the tab must not leave the sidebars folded
+
+  /** The side rail (only with the file explorer shortcuts off): planner and the enabled modules, each shown in this view. */
+  private async renderRail() {
+    const plugin = this.plugin, on = !plugin.settings.navigationOn;
+    const items = on ? await plugin.nav.items() : [];
+    const key = items.map(i => `${i.id}:${i.base?.path ?? ""}`).join("|");
+    if (key === this.railKey && (this.section === "planner" || items.some(i => i.id === this.section))) return;
+    this.railKey = key;
+    this.railEl.toggleClass("is-hidden", !on);
+    this.railEl.empty();
+    if (!on) { if (this.section !== "planner") void this.showSection("planner", items); return; }
+    if (this.section !== "planner" && !items.some(i => i.id === this.section)) { void this.showSection("planner", items); return; }
+    for (const it of items) {
+      const b = this.railEl.createEl("button", { cls: "samaya-rail-btn", attr: { "aria-label": it.name, title: it.name, "data-id": it.id } });
+      setIcon(b, it.icon); b.toggleClass("is-active", it.id === this.section);
+      b.onclick = () => { void this.showSection(it.id, items); };
+    }
+  }
+
+  private async showSection(id: string, items: Awaited<ReturnType<SamayaPlugin["nav"]["items"]>>) {
+    const it = items.find(i => i.id === id);
+    this.section = it ? id : "planner";
+    this.railEl.querySelectorAll<HTMLElement>(".samaya-rail-btn").forEach(b => b.toggleClass("is-active", b.dataset.id === this.section));
+    this.embedC?.unload(); this.embedC = null; this.embedEl.empty();
+    const planner = this.section === "planner" || !it?.base;
+    this.rootEl.toggleClass("is-hidden", !planner); this.embedEl.toggleClass("is-hidden", planner);
+    if (planner) { this.plugin.modeBus.emit(); return; }
+    await it!.base!.prep?.();
+    const path = normalizePath(it!.base!.path);
+    if (!(this.plugin.app.vault.getAbstractFileByPath(path) instanceof TFile)) { new Notice(`Samaya: ${path} does not exist.`); return; }
+    const c = this.embedC = new Component(); c.load();
+    await MarkdownRenderer.render(this.plugin.app, `![[${path}]]`, this.embedEl.createDiv("samaya-embed-body markdown-rendered"), "", c);
+  }
 
   private mode(): Mode {
     if (this.plugin.guide) this.plugin.workTimeOpen = false; // a guide takes the planner over

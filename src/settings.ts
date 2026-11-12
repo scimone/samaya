@@ -473,7 +473,7 @@ export class SamayaSettingTab extends PluginSettingTab {
     tab("navigation", "Navigation", "compass");
     {
       card("Navigation", "Shows Planner, Tasks, Journal, Meetings, Projects and Tickets as shortcuts at the top of the file explorer (only the modules you switched on) and hides their folders. Planner opens the planner, the others open their base.", {
-        enabled: { get: () => s.navigationOn, set: v => { s.navigationOn = v; void this.plugin.nav.apply(); } },
+        enabled: { get: () => s.navigationOn, set: v => { s.navigationOn = v; void this.plugin.nav.apply(); this.plugin.bus.emit(); } },
       });
     }
 

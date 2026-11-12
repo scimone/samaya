@@ -1198,3 +1198,10 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-mt-eline { font-size: var(--font-ui-small); line-height: 1.55; }
 .samaya-mt-ebody .samaya-mt-none { padding: 0; }
 .samaya-mt-ebody .samaya-mt-count { text-align: left; margin-top: 4px; }
+
+/* file explorer shortcuts (Navigation setting) */
+.samaya-nav-shortcuts { margin-bottom: var(--size-4-3); }
+.samaya-nav-item { display: flex; align-items: center; gap: var(--size-4-2); }
+.samaya-nav-icon { display: flex; align-items: center; color: var(--text-muted); }
+.samaya-nav-icon svg { width: 15px; height: 15px; stroke-width: 1.6; }
+.samaya-nav-item:hover .samaya-nav-icon { color: var(--text-normal); }

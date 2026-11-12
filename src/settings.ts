@@ -35,6 +35,8 @@ export interface SamayaSettings {
   journalNavBar: boolean;
   /** projects module: folder of project notes and the base that shows them */
   projectsOn: boolean; projectsPath: string; projectsBase: string;
+  /** shortcuts (Planner, Tasks, ...) at the top of the file explorer; their folders are hidden */
+  navigationOn: boolean;
 }
 export const DEFAULT_SETTINGS: SamayaSettings = {
   tasksPath: "[Tasks]/YYYY/YYYY-MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", journalSource: "auto", journalFolder: "[Journal]/YYYY/YYYY-MM", journalFormat: "YYYY-MM-DD", taskTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
@@ -56,6 +58,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
     yearly: { on: false, source: "auto", folder: "[Journal]/YYYY", format: PERIOD_DEFAULT_FORMAT.yearly },
   },
   projectsOn: false, projectsPath: "Projects", projectsBase: "Projects/Projects.base",
+  navigationOn: false,
 };
 
 /** Settings saved by older versions used plain folders; turn them into equivalent path patterns. */
@@ -468,6 +471,11 @@ export class SamayaSettingTab extends PluginSettingTab {
       toggle(b, "Sync on startup", "Import tickets from the enabled integrations when Obsidian starts.", () => s.syncOnStartup, v => (s.syncOnStartup = v));
     }
     tab("navigation", "Navigation", "compass");
+    {
+      card("Navigation", "Shows Planner, Tasks, Journal, Meetings, Projects and Tickets as shortcuts at the top of the file explorer (only the modules you switched on) and hides their folders. Planner opens the planner, the others open their base.", {
+        enabled: { get: () => s.navigationOn, set: v => { s.navigationOn = v; void this.plugin.nav.apply(); } },
+      });
+    }
 
     select(tabs.some(t => t.id === this.activeTab) ? this.activeTab : tabs[0].id);
   }

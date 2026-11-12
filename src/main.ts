@@ -25,6 +25,7 @@ import { ensureMeetingNote } from "./meetings";
 import { calendarEnabled, calendarEvents } from "./calendar";
 import { Emitter, addDays, hmToMin, minToHm, parseTitleEstimate as parseTitleEstimateSafe, parseYmd, today } from "./util";
 import { WorkdayManager } from "./workday";
+import { NavShortcuts } from "./navigation";
 import { applyColors, clearColors } from "./colors";
 import { BUFFER_SHARE, isLeftover, weekSteps, weekToPlan } from "./weekplan";
 import { capacityOf, weekBuckets } from "./views/weekColumn";
@@ -103,6 +104,7 @@ export default class SamayaPlugin extends Plugin {
   data: PluginData = {};
   focus = new FocusManager(this);
   workday = new WorkdayManager(this);
+  nav = new NavShortcuts(this);
   /** fires when workday / guide state changes so views can refresh */
   bus = new Emitter();
   /** fires when the sidebar should re-evaluate which mode to show (planner open or not) */
@@ -245,8 +247,10 @@ export default class SamayaPlugin extends Plugin {
     const leftState = () => document.body.toggleClass("samaya-left-collapsed", !!this.app.workspace.leftSplit?.collapsed);
     this.register(() => document.body.removeClass("samaya-left-collapsed"));
     for (const ev of ["layout-change", "resize", "active-leaf-change"] as const) this.registerEvent(this.app.workspace.on(ev as "resize", leftState));
+    this.nav.init();
     this.app.workspace.onLayoutReady(async () => {
       leftState();
+      void this.nav.apply();
       this.syncJournalSidebar(); // a journal calendar left over from when the journal was on
       this.scanLunch();
       void this.markJournalNotes();

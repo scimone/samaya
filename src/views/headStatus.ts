@@ -89,7 +89,7 @@ export function renderWeekHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, rig
   const off = plugin.bus.on(later);
   const ref = plugin.app.metadataCache.on("changed", later); const metaOff = () => plugin.app.metadataCache.offref(ref);
   void paint();
-  if (cur && !plugin.guide) btn(group, "Plan week", () => { void plugin.startWeekGuide(); });
+  if (cur && !plugin.guide && !plugin.focus.state) btn(group, "Plan week", () => { void plugin.startWeekGuide(); });
   const varSlot = right.createDiv("samaya-head-var"); // this week: Review week; another week: the "This week" pill
   const actions = varSlot.createDiv("samaya-head-actions");
   if (cur) btn(actions, "Review week", () => { void plugin.reviewWeek(); }, "Open this week's review: the weekly note, or the work time dashboard").addClass("is-review-week");

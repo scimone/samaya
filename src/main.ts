@@ -430,6 +430,7 @@ export default class SamayaPlugin extends Plugin {
   }
   /** Interactive week plan: Review, Tickets, Backlog, Schedule, Check (see views/guide.ts and WeeklyBoardView). The left sidebar makes room; This week is the last column. */
   async startWeekGuide() {
+    if (this.focus.state) { new Notice("Samaya: stop or finish the running focus before planning the week."); return; }
     if (this.collapseTimeline(true)) this.leftCollapsedByGuide = true;
     const ws = this.app.workspace; const now = new Date(); const wk = weekToPlan(today(), now.getDay());
     const leftover = allTasks(this.app, this.settings).some(t => isLeftover(t, today(), wk));

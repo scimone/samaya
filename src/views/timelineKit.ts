@@ -8,7 +8,7 @@ import { minToHm, parseYmd, today } from "../util";
 import { PartsModal } from "./partsModal";
 import { canSplit, keyActivate, showTaskMenu } from "./common";
 import { renderDayLines } from "./dayLines";
-import { decorateSegment, dragLen, dropOnTimeline, resizeBlock, segLabel, taskBlocks } from "./place";
+import { decorateSegment, dragLen, dropOnTimeline, remainingBlocks, resizeBlock, segLabel } from "./place";
 import { addBands } from "./bands";
 
 const MIN_HOUR_H = 28;
@@ -62,13 +62,13 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
 
     }
 
-    interface Item { s: number; dur: number; task?: Task; ev?: CalendarEvent; seg?: number; n?: number; }
+    interface Item { s: number; dur: number; task?: Task; ev?: CalendarEvent; seg?: number; n?: number; cut?: number; }
     const items: Item[] = [];
     events.filter(e => !e.allDay).forEach(e => {
       const sm = Math.max(0, (e.start.getTime() - dayStartMs) / 60000), em = Math.min(1440, (e.end.getTime() - dayStartMs) / 60000);
       if (em > startH * 60 && sm < endH * 60) items.push({ s: sm, dur: Math.max(15, em - sm), ev: e });
     });
-    day.filter(t => t.start).forEach(t => { const bl = taskBlocks(t, s.defaultEstimate); bl.forEach((g, k) => items.push({ s: g.s, dur: g.dur, task: t, seg: k, n: bl.length })); });
+    day.filter(t => t.start).forEach(t => { const { blocks: bl, cut } = remainingBlocks(plugin, t, date, s.defaultEstimate); bl.forEach((g, k) => items.push({ s: g.s, dur: g.dur, task: t, seg: k, n: bl.length, cut: k === bl.length - 1 ? cut : 0 })); });
     items.sort((a, b) => a.s - b.s || b.dur - a.dur);
     const slots = layoutItems(items);
     const open = (f: TFile) => { void plugin.app.workspace.getLeaf("tab").openFile(f); };
@@ -116,7 +116,7 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
         };
         const up = () => {
           window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
-          if (nd !== dur0) void resizeBlock(plugin, t, it.seg!, nd);
+          if (nd !== dur0) void resizeBlock(plugin, t, it.seg!, nd + (it.cut ?? 0));
         };
         window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
       });

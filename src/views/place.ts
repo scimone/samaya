@@ -6,6 +6,7 @@ import { Seg, mergeOffer, planInWindow, segsTotal } from "../segments";
 import { NO_REST, Piece, Session, addMinutes, sessionsTotal, dayMinutes, dayPieces, pieceLength, replaceDay, sortSessions, splitPiece, takePiece, withoutDay } from "../sessions";
 import { calendarEnabled, calendarEvents } from "../calendar";
 import { Horizon, addDays, fmtDur, hmToMin, horizonTarget, parseYmd, startOfWeek, today } from "../util";
+import { runMinutesBefore } from "../dayreview";
 import { nowMin } from "../workday";
 import { Notice, TFile, setIcon } from "obsidian";
 
@@ -21,6 +22,16 @@ export function busyIntervals(plugin: SamayaPlugin, date: string, events: Calend
 /** The blocks a task occupies on the timeline: its segments, or one block from `start` with the estimate. */
 export function taskBlocks(t: Task, dflt: number): Seg[] {
   return t.segments.length > 1 ? t.segments : [{ s: hmToMin(t.start), dur: t.estimate || dflt }];
+}
+/** Timeline blocks of a task on `date`, minus the time already tracked on earlier days (cut from the last block, at least 15 min stay). `cut` = minutes trimmed. */
+export function remainingBlocks(plugin: SamayaPlugin, t: Task, date: string, dflt: number): { blocks: Seg[]; cut: number } {
+  const blocks = taskBlocks(t, dflt).map(g => ({ ...g }));
+  if (t.status === "done") return { blocks, cut: 0 };
+  const fm = (plugin.app.metadataCache.getFileCache(t.file)?.frontmatter ?? {}) as Record<string, unknown>;
+  const runs = Array.isArray(fm.focus_sessions) ? fm.focus_sessions : fm.focus_sessions ? [fm.focus_sessions] : [];
+  const prior = runMinutesBefore(runs, date); const last = blocks[blocks.length - 1];
+  const cut = Math.max(0, Math.min(prior, last.dur - 15)); last.dur -= cut;
+  return { blocks, cut };
 }
 /** Is this task being worked on right now: planned today, not done, and one of its blocks covers the current time? */
 export function isOngoing(t: Task, dflt: number): boolean {

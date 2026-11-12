@@ -11,7 +11,7 @@ import { layoutItems } from "../timeline";
 import { bindZone, keyActivate, showTaskMenu } from "./common";
 import { addBands } from "./bands";
 import { renderWeekHead } from "./plannerHead";
-import { decorateSegment, dragLen, dropOnTimeline, segLabel, splitTitle, taskBlocks } from "./place";
+import { decorateSegment, dragLen, dropOnTimeline, remainingBlocks, segLabel, splitTitle } from "./place";
 
 const MIN_HOUR_H = 40;
 
@@ -148,7 +148,7 @@ export class WeeklyTimelineView extends PlannerPane {
         const sm = Math.max(0, (e.start.getTime() - dayMs) / 60000), em = Math.min(1440, (e.end.getTime() - dayMs) / 60000);
         if (em > startH * 60 && sm < endH * 60) items.push({ s: sm, dur: Math.max(15, em - sm), ev: e });
       });
-      dayTasks.filter(t => t.start).forEach(t => { const bl = taskBlocks(t, s.defaultEstimate); bl.forEach((g, k) => items.push({ s: g.s, dur: g.dur, task: t, seg: k, n: bl.length })); });
+      dayTasks.filter(t => t.start).forEach(t => { const bl = remainingBlocks(this.plugin, t, date, s.defaultEstimate).blocks; bl.forEach((g, k) => items.push({ s: g.s, dur: g.dur, task: t, seg: k, n: bl.length })); });
       items.sort((a, b) => a.s - b.s || b.dur - a.dur);
       const slots = layoutItems(items);
       items.forEach(it => {

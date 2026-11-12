@@ -13,6 +13,14 @@ export function runMinutesOn(runs: unknown[], date: string): number {
   return total;
 }
 
+/** Minutes worked on the days before `date` (same run format as above). */
+export function runMinutesBefore(runs: unknown[], date: string): number {
+  const days = new Set<string>();
+  for (const r of runs) { const m = String(r).match(/^\s*(\d{4}-\d{2}-\d{2})/); if (m && m[1] < date) days.add(m[1]); }
+  let total = 0; for (const d of days) total += runMinutesOn(runs, d);
+  return total;
+}
+
 export interface ReviewItem {
   title: string; /** it was on the day's plan this morning */ wasPlanned: boolean; /** minutes planned for this day (0 = not planned for the day) */ planned: number; /** minutes actually worked on this day */ actual: number; done: boolean;
   /** ticket key or project name, "" = none */ ticket: string; project: string;

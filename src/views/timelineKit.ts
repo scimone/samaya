@@ -46,7 +46,7 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
     // target = the visible scroll box (the lane itself extends beyond it when scrolled)
     dnd.target(scroll, {
       over: i => {
-        const dur = dragLen(plugin, i.path, i.seg, i.day); const m = startFor(i, dur);
+        const dur = dragLen(plugin, i.path, i.seg, i.day, date); const m = startFor(i, dur);
         if (!preview) preview = lane.createDiv("samaya-preview");
         preview.style.top = `${px(m)}px`; preview.style.height = `${Math.max(20, (dur / 60) * HOUR_H - 2)}px`;
         preview.setText(`${minToHm(m)} – ${minToHm(m + dur)}`);
@@ -55,7 +55,7 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
       drop: i => {
         preview?.remove(); preview = null;
         const f = plugin.app.vault.getAbstractFileByPath(i.path); if (!(f instanceof TFile)) return;
-        const dur = dragLen(plugin, i.path, i.seg, i.day);
+        const dur = dragLen(plugin, i.path, i.seg, i.day, date);
         void dropOnTimeline(plugin, f, date, startFor(i, dur), i.seg, i.day, events, endH * 60, slot);
       },
     });

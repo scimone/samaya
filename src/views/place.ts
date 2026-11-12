@@ -62,10 +62,19 @@ export function focusButton(plugin: SamayaPlugin, parent: HTMLElement, t: Task, 
   return b;
 }
 /** Length of what is being dragged: the unplanned rest, one piece, a day's pieces or the whole task. */
-export function dragLen(plugin: SamayaPlugin, path: string, seg: number | null, fromDay: string | null): number {
+export function dragLen(plugin: SamayaPlugin, path: string, seg: number | null, fromDay: string | null, date?: string): number {
   const f = plugin.app.vault.getAbstractFileByPath(path); const dflt = plugin.settings.defaultEstimate;
   if (!(f instanceof TFile)) return dflt;
-  const t = readTask(plugin.app, f); return pieceLength(t.sessions, t.rest, t.estimate, fromDay, seg, dflt);
+  const t = readTask(plugin.app, f); const len = pieceLength(t.sessions, t.rest, t.estimate, fromDay, seg, dflt);
+  return date ? len - cutLanding(plugin, t, date, fromDay, seg, len) : len; // `date` = where it is about to land: the time already tracked is not shown
+}
+/** The tracked time that is cut off a piece of `len` minutes dropped on `date` (only when it becomes the task's first piece from today on). */
+function cutLanding(plugin: SamayaPlugin, t: Task, date: string, from: string | null, seg: number | null, len: number): number {
+  if (t.status === "done" || date < today()) return 0;
+  const fromGone = !!from && (seg === null || dayPieces(t.sessions, from).length <= 1);
+  const days = t.sessions.map(g => g.date).filter(d => d >= today() && d !== date && !(fromGone && d === from));
+  if (days.some(d => d < date)) return 0;
+  return Math.max(0, Math.min(trackedBefore(plugin, t, date), len - 15));
 }
 
 /** Marks the pieces of a split task (on one day or on several) and lights up all of them while one is hovered. `n` = pieces on this day. */
@@ -114,9 +123,11 @@ export async function dropOnTimeline(plugin: SamayaPlugin, file: TFile, date: st
   else { const r = takePiece(ss, from, seg); ss = r.left; mins = r.mins || t.estimate || dflt; }
   if (from !== date) { mins += dayMinutes(ss, date); ss = withoutDay(ss, date); } // the task's pieces already on this day are planned again together with the newcomer
   const [wFrom, wTo] = plugin.workWindowFor(date); const earliest = date === today() ? nowMin() : 0; // today: nothing before the current time
-  const plan = planInWindow(startMin, mins, busyIntervals(plugin, date, events), wFrom, wTo, earliest, limit, slot);
-  const placed: Seg[] = plan && plan.length > 1 ? plan : [{ s: plan ? plan[0].s : startMin, dur: mins }];
-  await write(pieces(ss, placed), rest, placed);
+  // the time already tracked is not planned again: it is planned (and shown) shorter, but stored with the full length
+  const cut = cutLanding(plugin, t, date, from, seg, mins);
+  const plan = planInWindow(startMin, mins - cut, busyIntervals(plugin, date, events), wFrom, wTo, earliest, limit, slot);
+  const placed: Seg[] = plan && plan.length > 1 ? plan : [{ s: plan ? plan[0].s : startMin, dur: mins - cut }];
+  await write(pieces(ss, placed.map((g, i) => i === 0 ? { ...g, dur: g.dur + cut } : g)), rest, placed);
 }
 
 /**
@@ -132,13 +143,13 @@ async function makeRoom(plugin: SamayaPlugin, dropped: TFile, date: string, plac
   const others = onDay(allTasks(app, plugin.settings).filter(o => o.file.path !== dropped.path), date).filter(o => o.start)
     .sort((a, b) => hmToMin(a.start) - hmToMin(b.start));
   for (const o of others) {
-    const blocks = taskBlocks(o, dflt);
+    const { blocks, cut } = remainingBlocks(plugin, o, date, dflt);
     if (o.status === "done" || !hit(blocks)) { blocks.forEach(g => occupied.push([g.s, g.s + g.dur])); continue; }
     const total = segsTotal(blocks);
     const plan = planInWindow(Math.min(...blocks.map(g => g.s)), total, [...meet, ...occupied], from, to, earliest, limit, slot);
     if (!plan) { blocks.forEach(g => occupied.push([g.s, g.s + g.dur])); continue; }
     plan.forEach(g => occupied.push([g.s, g.s + g.dur]));
-    await writeDayPlan(app, o.file, date, plan);
+    await writeDayPlan(app, o.file, date, plan.map((g, i) => i === 0 ? { ...g, dur: g.dur + cut } : g));
   }
 }
 

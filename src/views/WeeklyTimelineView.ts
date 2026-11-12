@@ -128,7 +128,7 @@ export class WeeklyTimelineView extends PlannerPane {
       let preview: HTMLElement | null = null;
       this.scope.target(lane, {
         over: i2 => {
-          const dur = dragLen(this.plugin, i2.path, i2.seg, i2.day); const m = startFor(i2, dur);
+          const dur = dragLen(this.plugin, i2.path, i2.seg, i2.day, date); const m = startFor(i2, dur);
           if (!preview) preview = lane.createDiv("samaya-preview");
           preview.style.top = px(m); preview.style.height = `max(18px, calc(${L(dur / 60)} - 2px))`;
           preview.setText(`${minToHm(m)} – ${minToHm(m + dur)}`);
@@ -137,7 +137,7 @@ export class WeeklyTimelineView extends PlannerPane {
         drop: i2 => {
           preview?.remove(); preview = null;
           const f = this.app.vault.getAbstractFileByPath(i2.path); if (!(f instanceof TFile)) return;
-          const dur = dragLen(this.plugin, i2.path, i2.seg, i2.day);
+          const dur = dragLen(this.plugin, i2.path, i2.seg, i2.day, date);
           void dropOnTimeline(this.plugin, f, date, startFor(i2, dur), i2.seg, i2.day, dayEvents, endH * 60, slot);
         },
       });

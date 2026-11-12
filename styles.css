@@ -1212,3 +1212,7 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-focus-prog { font-variant-numeric: tabular-nums; flex: none; }
 .samaya-focus-prog { color: var(--text-muted); } .samaya-focus-prog.is-over { color: var(--text-error); }
 .samaya-focus-bbtn { padding: 2px 6px; height: auto; box-shadow: none; flex: none; } .samaya-focus-bbtn svg { width: 16px; height: 16px; }
+
+/* focus on: everything but the focused task and the meeting that is on now fades */
+body.samaya-focusing .samaya-lane .samaya-block:not(.is-current):not(.is-dragging), body.samaya-focusing .samaya-lane .samaya-event:not(.is-current),
+body.samaya-focusing .samaya-daily .samaya-card:not(.is-current):not(.is-linked) { opacity: 0.4; }

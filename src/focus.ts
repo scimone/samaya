@@ -17,23 +17,15 @@ const fmtRun = ([a, b]: [number, number]): string => {
   const hm = (x: Date) => `${String(x.getHours()).padStart(2, "0")}:${String(x.getMinutes()).padStart(2, "0")}`;
   const A = new Date(a), B = new Date(b); return `${d(A)} ${hm(A)}–${d(A) === d(B) ? "" : d(B) + " "}${hm(B)}`;
 };
-const clock = (ms: number): string => {
-  const sec = Math.floor(ms / 1000); const f = (n: number) => String(n).padStart(2, "0");
-  return `${f(Math.floor(sec / 3600))}:${f(Math.floor(sec / 60) % 60)}:${f(sec % 60)}`;
-};
-
 export class FocusManager {
   state: FocusState | null = null;
-  private statusEl: HTMLElement | null = null;
   private stopping = false;
   constructor(private plugin: SamayaPlugin) {}
 
-  init(statusEl: HTMLElement, saved: FocusState | null) {
-    this.statusEl = statusEl; this.state = saved;
-    statusEl.addClass("samaya-status");
-    statusEl.addEventListener("click", () => { this.openNote(); });
+  init(saved: FocusState | null) {
+    this.state = saved;
     const app = this.plugin.app;
-    this.plugin.registerInterval(window.setInterval(() => { this.renderStatus(); this.tickBanners(); }, 1000));
+    this.plugin.registerInterval(window.setInterval(() => this.tickBanners(), 1000));
     const ensure = () => this.ensureBanners();
     this.plugin.registerEvent(app.workspace.on("layout-change", ensure));
     this.plugin.registerEvent(app.workspace.on("active-leaf-change", ensure));
@@ -43,20 +35,14 @@ export class FocusManager {
       if (this.state && !this.stopping && f.path === this.state.path && app.metadataCache.getFileCache(f)?.frontmatter?.status === "done") void this.stop(false);
     }));
     app.workspace.onLayoutReady(() => { app.workspace.detachLeavesOfType(FOCUS_VIEW_TYPE); this.refreshViews(); });
-    this.renderStatus();
   }
   /** Session time of the running / paused focus. */
   sessionMs(): number { const s = this.state; return s ? s.accumulatedMs + (s.startedAt ? Date.now() - s.startedAt : 0) : 0; }
   get file(): TFile | null { const f = this.state && this.plugin.app.vault.getAbstractFileByPath(this.state.path); return f instanceof TFile ? f : null; }
 
   private async persist() { this.plugin.data.focus = this.state; await this.plugin.saveData(this.plugin.data); }
-  private renderStatus() {
-    const el = this.statusEl; if (!el) return;
-    if (!this.state) { el.setText(""); el.hide(); return; }
-    el.show(); el.toggleClass("is-break", !this.state.startedAt); el.setText(`${this.state.startedAt ? "Focus" : "Paused"} · ${this.file?.basename ?? ""} · ${clock(this.sessionMs())}`);
-  }
   private refreshViews() {
-    this.renderStatus();
+    document.body.toggleClass("samaya-focusing", !!this.state); // dims the rest of the day while a focus runs
     document.querySelectorAll(".samaya-focus-bar").forEach(el => el.remove());
     this.ensureBanners();
     this.plugin.refreshPlanner(); // cards and timeline blocks follow the focus

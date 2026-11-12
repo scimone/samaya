@@ -83,8 +83,8 @@ export default class SamayaPlugin extends Plugin {
 
 
     this.addRibbonIcon("calendar-clock", "Open Samaya planner", () => { void this.openPlanner(); });
-    this.focus.init(this.addStatusBarItem(), this.data.focus ?? null);
-    this.workday.init(this.addStatusBarItem(), this.data.workday ?? null);
+    this.focus.init(this.data.focus ?? null);
+    this.workday.init(this.data.workday ?? null);
 
     this.registerEvent(this.app.workspace.on("active-leaf-change", leaf => { // switching to the planner tab folds the right sidebar away
       if (!leaf || leaf.getRoot() !== this.app.workspace.rootSplit) return;

@@ -23,7 +23,6 @@ export function readLogs(app: App): DayLog[] {
 
 export class WorkdayManager {
   log: DayLog | null = null;
-  private statusEl: HTMLElement | null = null;
   constructor(private plugin: SamayaPlugin) {}
   private get s() { return this.plugin.settings; }
 
@@ -37,15 +36,11 @@ export class WorkdayManager {
   get onBreak(): boolean { return !!this.log?.open; }
   worked(): number { return workedMinutes(this.log, nowMin()); }
 
-  init(statusEl: HTMLElement, saved: DayLog | null) {
-    this.statusEl = statusEl; statusEl.addClass("samaya-status");
-    statusEl.addEventListener("click", e => this.menu(e));
+  init(saved: DayLog | null) {
     this.log = saved;
     void this.rollover();
     const plugin = this.plugin;
     plugin.registerInterval(window.setInterval(() => this.tick(), 30000));
-    this.paintStatus();
-    plugin.registerInterval(window.setInterval(() => this.paintStatus(), 15000));
   }
 
   /** Remember the last time we saw the day running, so a forgotten day can be closed sensibly. */
@@ -82,7 +77,7 @@ export class WorkdayManager {
     if (!Object.keys(patch).length) return;
     await setJournalProps(this.plugin.app, s, l.date, { date: l.date, ...patch });
   }
-  private async commit() { if (this.log) await this.writeProps(this.log); await this.persist(); this.paintStatus(); this.plugin.bus.emit(); }
+  private async commit() { if (this.log) await this.writeProps(this.log); await this.persist(); this.plugin.bus.emit(); }
 
   async reopenDay() { const l = this.log; if (!l || !l.end) return; l.end = null; l.endAuto = false; await this.commit(); }
   async startDay(at = nowHm()) {
@@ -112,29 +107,5 @@ export class WorkdayManager {
     if (lunch) { l.breaks.push(lunch); new Notice(`No lunch logged - subtracted the default ${lunch.start}-${lunch.end}`); }
     await this.commit();
     new Notice(`Workday ended at ${at} - worked ${fmtDur(workedMinutes(l, nowMin()))}`);
-  }
-
-  private paintStatus() {
-    const el = this.statusEl; if (!el) return;
-    const l = this.log;
-    el.toggleClass("is-break", !!l?.open);
-    if (!l || !l.start) el.setText("Start day");
-    else if (l.end) el.setText(`Done · ${fmtDur(workedMinutes(l, nowMin()))}`);
-    else if (l.open) el.setText(`Break · ${fmtDur(nowMin() - hmToMin(l.open.start))}`);
-    else el.setText(`Working · ${fmtDur(this.worked())}`);
-  }
-  private menu(e: MouseEvent) {
-    const m = new Menu(); const p = this.plugin;
-    if (!this.started) {
-      m.addItem(i => i.setTitle("Plan my day (guided)").onClick(() => p.startGuide()));
-      m.addItem(i => i.setTitle("Start workday now").onClick(() => { void this.startDay(); }));
-    } else {
-      m.addItem(i => i.setTitle("Plan my day (guided)").onClick(() => p.startGuide()));
-      if (this.onBreak) m.addItem(i => i.setTitle("Back to work").onClick(() => { void this.endBreak(); }));
-      else m.addItem(i => i.setTitle("Start break").onClick(() => { void this.startBreak(); }));
-      m.addItem(i => i.setTitle("End workday (shutdown)").onClick(() => p.startShutdown()));
-    }
-    m.addSeparator(); m.addItem(i => i.setTitle("Work time dashboard").onClick(() => { void p.openDashboard(); }));
-    m.showAtMouseEvent(e);
   }
 }

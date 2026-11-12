@@ -46,7 +46,7 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
       sub = `Start time ${l.start} · Finish time ${minToHm(winEnd)}`; // the finish line of the timeline, which can be moved per day
       if (target) sub2 = worked < target ? `${fmtDur(target - worked)} left of ${fmtDur(target)}` : `Target of ${fmtDur(target)} reached (+${fmtDur(worked - target)})`;
       if (target) progress = Math.min(1, worked / target);
-      buttons.push(["Break", () => { void wd.startBreak(); }], ["End day", () => plugin.startShutdown()]);
+      buttons.push(["Break", () => { void wd.startBreak(); }]);
     }
 
     if (o.part === "status") { // the heading's chip: a dot, the state and the time worked

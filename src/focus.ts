@@ -115,6 +115,7 @@ export class FocusManager {
   openNote() { const f = this.file; if (f) void openFileSmart(this.plugin.app, f, "tab"); }
 
   async start(file: TFile) {
+    if (!this.plugin.workday.started) { new Notice("Samaya: start your day before starting a focus."); return; }
     if (this.state && this.state.path !== file.path) await this.stop(false);
     if (!this.state) this.state = { path: file.path, accumulatedMs: 0, startedAt: Date.now() };
     else if (!this.state.startedAt) this.state.startedAt = Date.now();

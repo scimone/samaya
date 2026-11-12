@@ -61,6 +61,7 @@ export function isCurrentTask(plugin: SamayaPlugin, t: Task): boolean {
 export function focusButton(plugin: SamayaPlugin, parent: HTMLElement, t: Task, cls = "samaya-mini samaya-focus-go"): HTMLElement | null {
   const f = plugin.focus.state;
   if (f && f.path !== t.file.path) return null;
+  if (!f && !plugin.workday.started) return null; // no focus before the day has started
   const b = parent.createEl("button", { cls: cls + (f ? " is-active" : ""), attr: { "aria-label": f ? (f.startedAt ? "Pause focus" : "Resume focus") : "Start focus on this task" } });
   setIcon(b.createSpan({ cls: "samaya-focus-go-icon" }), f ? (f.startedAt ? "pause" : "play") : "timer"); b.createSpan({ text: f ? (f.startedAt ? "Pause" : "Resume") : "Focus" });
   b.addEventListener("pointerdown", e => e.stopPropagation()); // not a drag

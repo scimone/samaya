@@ -16,6 +16,8 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
     const [ls, le] = plugin.lunchFor(o.date ?? today()); const lunch = Math.max(0, Math.min(le, winEnd) - Math.max(ls, winStart));
     const others = l ? l.breaks.filter(b => b.kind !== "lunch").reduce((a, b) => a + Math.max(0, hmToMin(b.end) - hmToMin(b.start)), 0) + (l.open && l.open.kind !== "lunch" && !other ? Math.max(0, nowMin() - hmToMin(l.open.start)) : 0) : 0;
     const target = Math.max(0, winEnd - winStart - lunch - others);
+    // worked time = from the start line to `end`, minus the breaks and the lunch (once where they overlap)
+    const workedTo = (end: number) => workedSince(winStart, end, [ls, le], (l?.breaks ?? []).map((b): [number, number] => [hmToMin(b.start), hmToMin(b.end)]));
     const strip = host.createDiv({ cls: "samaya-wd" + (o.panel ? " samaya-wd-panel" : "") + (o.average !== undefined ? "" : l?.open ? " is-break" : l?.start && !l.end ? " is-work" : "") });
     // what to show: a state label, the main figure, a detail line and the actions
     let state = "", big = "", sub = "", sub2 = ""; let progress = -1;
@@ -25,7 +27,7 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
     } else if (other) { // a past or future day: just what was logged
       if (!l || !l.start) { state = "Workday"; sub = o.date! > today() ? "Not started yet." : "No work time logged."; }
       else {
-        const end = l.end ?? l.seen ?? null; const worked = workedMinutes({ ...l, end, open: null }, 1440);
+        const end = l.end ?? l.seen ?? null; const worked = end ? workedTo(hmToMin(end)) : 0;
         state = "Worked"; big = fmtDur(worked);
         sub = `${l.start}–${l.end ?? (end ? end + "?" : "…")}` + (breakMinutes(l) ? ` · ${fmtDur(breakMinutes(l))} break` : "") + (target ? ` · ${fmtSigned(worked - target)}` : "");
       }
@@ -34,7 +36,7 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
       if (o.panel || o.part) { sub = "Start the clock when you begin working."; buttons.push(["Start day", () => { void wd.startDay(); }, true]); }
       else { sub = "Plan your day, or just start the clock."; buttons.push(["Plan my day", () => plugin.startGuide(), true], ["Just start", () => { void wd.startDay(); }]); }
     } else if (l.end) {
-      const worked = workedMinutes(l, 1440);
+      const worked = workedTo(hmToMin(l.end));
       state = "Day finished"; big = fmtDur(worked); sub = `${l.start}–${l.end}${target ? ` · ${fmtSigned(worked - target)}` : ""}`;
       buttons.push(["Reopen", () => { void wd.reopenDay(); }]); if (!o.part) buttons.push(["Dashboard", () => { void plugin.openDashboard(); }]);
     } else if (l.open) {
@@ -42,7 +44,7 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
       buttons.push(["Back to work", () => { void wd.endBreak(); }, true]);
     } else {
       // since the start line, minus the breaks and the lunch (once where they overlap)
-      const worked = workedSince(winStart, nowMin(), [ls, le], [...l.breaks.map((b): [number, number] => [hmToMin(b.start), hmToMin(b.end)])]);
+      const worked = workedTo(nowMin());
       state = "Working"; big = fmtDur(worked);
       sub = `Start time ${l.start} · Finish time ${minToHm(winEnd)}`; // the finish line of the timeline, which can be moved per day
       if (target) sub2 = worked < target ? `${fmtDur(target - worked)} left of ${fmtDur(target)}` : `Target of ${fmtDur(target)} reached (+${fmtDur(worked - target)})`;

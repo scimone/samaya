@@ -89,13 +89,14 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   if (!meta.childElementCount) meta.remove();
 
   // top right: [logged/]estimated as hh:mm
-  const focused = plugin.focus.state?.path === t.file.path; const estTxt = t.estimate ? fmtHm(t.estimate) : "--:--";
-  const shown = focused ? Math.max(0, t.actual - trackedBefore(plugin, t, today())) + plugin.focus.liveMin(t.file.path) : t.actual; // the focused task: today's tracked time, the running session included
+  const estTxt = t.estimate ? fmtHm(t.estimate) : "--:--"; const focused = plugin.focus.state?.path === t.file.path;
+  const dayActual = Math.max(0, t.actual - trackedBefore(plugin, t, t.planned || today())); // this day's tracked time only
+  const shown = dayActual + plugin.focus.liveMin(t.file.path); // the focused task also counts its running session
   const label = shown ? `${fmtHm(shown)}/${estTxt}` : estTxt;
   if (o.dayLabel) row.createSpan({ cls: "samaya-card-day", text: o.dayLabel }); // left of the estimate; the title wraps instead of running under it
   const side = row.createDiv("samaya-card-side");
   const est = side.createEl("button", { cls: "samaya-est", text: label, attr: { title: "Estimated time (hh:mm). Click to edit" } });
-  if (plugin.focus.state?.path === t.file.path) { est.dataset.focusBase = String(Math.max(0, t.actual - trackedBefore(plugin, t, today()))); est.dataset.focusEst = estTxt; }
+  if (plugin.focus.state?.path === t.file.path) { est.dataset.focusBase = String(dayActual); est.dataset.focusEst = estTxt; }
   est.title = t.part ? (t.part.kind === "rest" ? `Not planned yet: ${fmtDur(t.estimate)} of ${fmtDur(t.part.total)}. Click to edit` : `This part: ${fmtDur(t.estimate)} of ${fmtDur(t.part.total)}. Click to edit`) : est.title;
   est.addEventListener("click", e => {
     e.stopPropagation();

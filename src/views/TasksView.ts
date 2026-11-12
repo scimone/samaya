@@ -3,12 +3,12 @@ import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { openFileSmart } from "../openfile";
-import { Task, Ticket, allTasks, allTickets, assignTicket, dayTask, prefixOf, readTask, restTask, sendPiece, setDone, sortTasks, ticketPathOf, unplanned } from "../model";
+import { Task, Ticket, allTasks, allTickets, assignTicket, dayTask, prefixOf, readTask, restTask, sendPiece, setDone, sortTasks, ticketPathOf } from "../model";
 import { PROJECT_PROP, Project, allProjects, assignProject, projectPathOf } from "../projects";
 import { sessionDays } from "../sessions";
 import { readProp } from "../taskprops";
-import { BOARD_COLS, Col, columnOf, doneThisWeek, lanes } from "../tasksboard";
-import { HORIZONS, addDays, bucketOf, fmtDur, horizonTarget, parseYmd, startOfWeek, today } from "../util";
+import { BACKLOG_COLS, BOARD_COLS, BacklogCol, Col, backlogOf, columnOf, doneThisWeek, lanes } from "../tasksboard";
+import { Horizon, fmtDur, horizonTarget, parseYmd, startOfWeek, today } from "../util";
 import { bindZone, renderTaskCard } from "./common";
 import { renderHeadTitle, renderSwitch } from "./plannerHead";
 import { addTaskInput } from "./weekColumn";
@@ -43,6 +43,7 @@ export class TasksView extends Panel {
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
     super(plugin, () => prefixOf(plugin.settings.tasksPath));
     this.root = parentEl.createDiv("samaya-tk");
+    this.register(plugin.bus.on(() => this.schedule())); // a focus started or stopped: the task moves to In Progress
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
   }
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); }
@@ -67,19 +68,16 @@ export class TasksView extends Panel {
 
     // ---- the work, each piece in its column
     const all = allTasks(app, s);
-    let items: Item[]; let cols: ColDef[];
-    if (memory.mode === "board") {
-      items = this.collect(all, td, wk); cols = BOARD_COLS.map(([key, label]) => ({ key, label }));
-    } else {
-      const bl = sortTasks(unplanned(all.filter(t => t.status !== "done")).filter(t => !t.week)); // a task with a week is on the board
-      items = bl.map(t => ({ t, col: bucketOf(t.horizon, t.later, td) })); cols = HORIZONS.map(([key, label]) => ({ key, label }));
-    }
+    const everything = this.collect(all, td, wk);
+    const backlog = (c: string) => c !== "overdue" && c !== "today" && c !== "progress" && c !== "done";
+    let items = everything.filter(it => memory.mode === "board" ? !backlog(it.col) : backlog(it.col));
+    const cols: ColDef[] = (memory.mode === "board" ? BOARD_COLS : BACKLOG_COLS).map(([key, label]) => ({ key, label }));
     const q = memory.query.trim().toLowerCase();
-    if (q) items = items.filter(it => this.text(it.t, tickets, projects).includes(q));
+    if (q) { this.readTicketNotes([...tickets.values()]); items = items.filter(it => this.text(it.t, tickets, projects).includes(q)); }
 
     this.head(items, canTicket, canProject, tickets.size > 0 || s.jiraOn || s.gitlabOn);
     const scroll = this.root.createDiv("samaya-tk-scroll"); const grid = scroll.createDiv("samaya-tk-grid"); grid.style.setProperty("--cols", String(cols.length));
-    const hooks = memory.mode === "board" ? this.boardHooks(td, wk, tickets, projects) : this.backlogHooks(td, tickets, projects);
+    const hooks = memory.mode === "board" ? this.boardHooks(td) : this.backlogHooks(td);
 
     const hd = grid.createDiv("samaya-tk-cols");
     for (const c of cols) {
@@ -91,7 +89,7 @@ export class TasksView extends Panel {
 
     const grouped = memory.group !== "none";
     const ls = grouped ? lanes(items, it => laneOf(it.t), laneLabel) : [{ key: "", items }];
-    if (!items.length) grid.createDiv({ cls: "samaya-tk-none", text: q ? "No tasks match." : memory.mode === "board" ? "Nothing on your plate. Add a task to a column." : "The backlog is empty." });
+    if (!items.length) grid.createDiv({ cls: "samaya-tk-none", text: q ? "No tasks match." : memory.mode === "board" ? "Nothing going on. Plan a task for today from the backlog." : "The backlog is empty." });
     for (const lane of ls) {
       const box = grid.createDiv({ cls: "samaya-tk-lane" + (grouped ? "" : " is-only") });
       const lkey = `${memory.group}|${lane.key}`; const closed = grouped && memory.collapsed.has(lkey);
@@ -104,7 +102,7 @@ export class TasksView extends Panel {
         bindZone(this.scope, cell, (path, i) => { void this.dropped(hooks, c.key, path, i, grouped ? lane.key : null, tickets, projects); });
         if (!grouped) { const p = hooks.add(c.key, mine.length); if (p) addTaskInput(this.plugin, cell, "+ Add task", () => p, () => this.schedule()); }
         for (const it of mine) renderTaskCard(this.plugin, cell, it.t, { scope: this.scope, compact: true, dayLabel: hooks.dayLabel(it.t, c.key), actions: hooks.actions(it) });
-        if (!mine.length) cell.createDiv({ cls: "samaya-tk-empty", text: c.key === "overdue" ? "All caught up" : c.key === "done" ? "Nothing finished yet" : "Drop a task here" });
+        if (!mine.length) cell.createDiv({ cls: "samaya-tk-empty", text: c.key === "overdue" ? "All caught up" : c.key === "done" ? "Nothing finished yet" : c.key === "progress" ? "Start a task with its focus timer" : "Drop a task here" });
       }
     }
     if (keep) { scroll.scrollLeft = keep.x; scroll.scrollTop = keep.y; }
@@ -112,66 +110,80 @@ export class TasksView extends Panel {
 
   // ---- the board's pieces of work
 
-  /** Open work, one card per piece (a task spread over several days shows once per day; its unplanned rest by its week); this week's finished tasks. */
+  /** Every piece of work in its column. Board: overdue, today, in progress (the focus timer ran at least once), done this week. Backlog: the rest, by when it is due. */
   private collect(all: Task[], td: string, wk: string): Item[] {
-    const out: Item[] = [];
+    const out: Item[] = []; const focused = this.plugin.focus.state?.path;
     for (const t of sortTasks(all)) {
+      const fm = (this.app.metadataCache.getFileCache(t.file)?.frontmatter ?? {}) as Record<string, unknown>;
       if (t.status === "done") {
-        const fm = (this.app.metadataCache.getFileCache(t.file)?.frontmatter ?? {}) as Record<string, unknown>;
-        const done = String(readProp(fm, "completed") ?? "").slice(0, 10);
-        if (doneThisWeek(done, t.planned, wk)) out.push({ t, col: "done" });
+        if (doneThisWeek(String(readProp(fm, "completed") ?? "").slice(0, 10), t.planned, wk)) out.push({ t, col: "done" });
         continue;
       }
+      if (t.actual > 0 || focused === t.file.path || (Array.isArray(fm.focus_sessions) && fm.focus_sessions.length)) { out.push({ t, col: "progress" }); continue; }
       const days = sessionDays(t.sessions);
-      for (const d of days) { const c = columnOf(d, "", td, wk); if (c) out.push({ t: dayTask(t, d), col: c }); }
-      if (!days.length || t.rest > 0) { const c = columnOf("", t.week, td, wk); if (c) out.push({ t: days.length ? restTask(t) : t, col: c }); }
+      const put = (x: Task, day: string, week: string) => out.push({ t: x, col: columnOf(day, week, td, wk) ?? backlogOf(day, week, t.horizon, t.later, td, wk) });
+      for (const d of days) put(dayTask(t, d), d, "");
+      if (!days.length) put(t, "", t.week); else if (t.rest > 0) put(restTask(t), "", t.week);
     }
     return out;
   }
+  /** Ticket notes are searched by their text too: read in the background (once per change), then the search runs again. */
+  private bodies = new Map<string, { mtime: number; body: string }>(); private inflight = new Set<string>();
+  private readTicketNotes(tickets: Ticket[]) {
+    const todo = tickets.map(t => t.file).filter(f => this.bodies.get(f.path)?.mtime !== f.stat.mtime && !this.inflight.has(f.path)); if (!todo.length) return;
+    for (const f of todo) this.inflight.add(f.path);
+    void Promise.all(todo.map(async f => {
+      try { this.bodies.set(f.path, { mtime: f.stat.mtime, body: (await this.app.vault.cachedRead(f)).toLowerCase() }); } catch { this.bodies.set(f.path, { mtime: f.stat.mtime, body: "" }); }
+      this.inflight.delete(f.path);
+    })).then(() => { if (this.root.isConnected && memory.query.trim()) this.refilter(); });
+  }
+  private refilter() { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { const had = !!this.root.querySelector("input.samaya-mt-search:focus"); this.render(); const el = this.root.querySelector<HTMLInputElement>(".samaya-mt-search"); if (had) { el?.focus(); el?.setSelectionRange(el.value.length, el.value.length); } }, 30); }
   private text(t: Task, tickets: Map<string, Ticket>, projects: Map<string, Project>): string {
     const tk = tickets.get(ticketPathOf(this.app, t)); const pr = projects.get(projectPathOf(this.app, t.file));
-    return [t.title, t.channel, tk?.key, tk?.summary, pr?.name].filter(Boolean).join(" ").toLowerCase();
+    return [t.title, t.channel, tk?.key, tk?.summary, pr?.name, tk ? this.bodies.get(tk.file.path)?.body : ""].filter(Boolean).join(" ").toLowerCase();
   }
   /** Where a card comes from, for sendPiece (a rest is "", a task on a day is that day). */
   private from = (t: Task) => ({ day: t.part?.kind === "rest" ? "" : t.planned || null, seg: null as number | null });
 
-  private boardHooks(td: string, wk: string, tickets: Map<string, Ticket>, projects: Map<string, Project>): Hooks {
-    const s = this.plugin.settings, app = this.app; void tickets; void projects;
-    const go = (t: Task, dest: Parameters<typeof sendPiece>[4]) => { void sendPiece(app, s, t.file, this.from(t), dest); };
-    const day = (d: string) => parseYmd(d).toLocaleDateString(undefined, { weekday: "short", day: "numeric" });
+  private boardHooks(td: string): Hooks {
+    const s = this.plugin.settings, app = this.app;
+    const go = (t: Task) => { void sendPiece(app, s, t.file, this.from(t), { day: td }); };
+    const day = (d: string) => parseYmd(d).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
     return {
       tones: { overdue: "warn", today: "accent", done: "done" },
       drop: async (col, path, i) => {
-        const f = app.vault.getAbstractFileByPath(path); if (!(f instanceof TFile) || col === "overdue") return;
-        const t = readTask(app, f); const d = i.day ?? t.planned;
-        const here: Col | null = t.status === "done" ? "done" : columnOf(d, d ? "" : t.week, td, wk);
-        if (here === col) return; // already there: a card of "this week" planned on a day must not lose its day
-        if (col === "done") { await setDone(app, t, true); return; }
+        const f = app.vault.getAbstractFileByPath(path); if (!(f instanceof TFile)) return;
+        const t = readTask(app, f);
+        if (col === "done") { if (t.status !== "done") await setDone(app, t, true); return; }
+        if (col !== "today") return; // overdue and in progress are not places to put work: they follow from the dates and the timer
+        const d = i.day ?? t.planned;
+        if (t.status !== "done" && d === td) return; // already there
         if (t.status === "done") await setDone(app, t, false);
-        await sendPiece(app, s, f, i, col === "today" ? { day: td } : col === "week" ? { week: wk } : { day: addDays(wk, 7) });
+        await sendPiece(app, s, f, i, { day: td });
       },
-      actions: it => it.col === "overdue" ? [["Today", () => go(it.t, { day: td })], ["This week", () => go(it.t, { week: wk })]]
-        : it.col === "week" ? [["Today", () => go(it.t, { day: td })]] : it.col === "later" ? [["This week", () => go(it.t, { week: wk })]] : [],
-      add: (col, n): Record<string, string | number> | null => col === "today" ? { planned: td, order: n } : col === "week" ? { week: wk } : null,
-      addLane: () => ({ week: wk }),
-      dayLabel: (t, col) => t.planned && t.part?.kind !== "rest" && col !== "today" && col !== "done" ? day(t.planned) : undefined,
+      actions: it => it.col === "overdue" ? [["Today", () => go(it.t)]] : [],
+      add: (col, n): Record<string, string | number> | null => col === "today" ? { planned: td, order: n } : null,
+      addLane: () => ({ planned: td }),
+      dayLabel: (t, col) => t.planned && t.part?.kind !== "rest" && col === "overdue" ? day(t.planned) : undefined,
     };
   }
-  private backlogHooks(td: string, tickets: Map<string, Ticket>, projects: Map<string, Project>): Hooks {
-    const s = this.plugin.settings, app = this.app, wk = startOfWeek(td); void tickets; void projects;
+  private backlogHooks(td: string): Hooks {
+    const s = this.plugin.settings, app = this.app, wk = startOfWeek(td);
     const go = (t: Task, dest: Parameters<typeof sendPiece>[4]) => { void sendPiece(app, s, t.file, this.from(t), dest); };
+    const day = (d: string) => parseYmd(d).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
     return {
       tones: {},
       drop: async (col, path, i) => {
         const f = app.vault.getAbstractFileByPath(path); if (!(f instanceof TFile)) return;
-        const t = readTask(app, f); const h = HORIZONS.find(([k]) => k === col)?.[0]; if (!h) return;
-        if (!t.planned && !t.week && t.rest === 0 && bucketOf(t.horizon, t.later, td) === h) return; // parked there already: re-parking would only reset its date
-        await sendPiece(app, s, f, i, { backlog: h });
+        const t = readTask(app, f); if (t.status === "done") await setDone(app, t, false);
+        const d = i.day ?? t.planned; const here = backlogOf(d, d ? "" : t.week, t.horizon, t.later, td, wk);
+        if (t.status !== "done" && here === col && (d || t.week || t.rest === 0)) return; // there already: re-parking would only reset its date
+        await sendPiece(app, s, f, i, col === "thisweek" ? { week: wk } : { backlog: col as Horizon });
       },
-      actions: it => [["Today", () => go(it.t, { day: td })], ["This week", () => go(it.t, { week: wk })]],
-      add: col => ({ horizon: col, ...(horizonTarget(col as never, td) ? { later: horizonTarget(col as never, td) } : {}) }),
+      actions: it => [["Today", () => go(it.t, { day: td })], ...(it.col !== "thisweek" ? [["This week", () => go(it.t, { week: wk })] as [string, () => void]] : [])],
+      add: (col): Record<string, string | number> => col === "thisweek" ? { week: wk } : { horizon: col, ...(horizonTarget(col as Horizon, td) ? { later: horizonTarget(col as Horizon, td) } : {}) },
       addLane: () => ({ horizon: "someday" }),
-      dayLabel: () => undefined,
+      dayLabel: (t, col) => t.planned && t.part?.kind !== "rest" && col !== "someday" ? day(t.planned) : undefined,
     };
   }
 
@@ -193,7 +205,7 @@ export class TasksView extends Panel {
     const open = items.filter(it => it.col !== "done"); const late = items.filter(it => it.col === "overdue").length;
     const sub = memory.mode === "board"
       ? [`${open.length} open`, late ? `${late} overdue` : "", items.some(it => it.col === "today") ? `${fmtDur(items.filter(it => it.col === "today").reduce((a, it) => a + it.t.estimate, 0))} today` : ""]
-      : [`${items.length} parked`, items.length ? fmtDur(items.reduce((a, it) => a + it.t.estimate, 0)) : ""];
+      : [`${items.length} in the backlog`, items.length ? fmtDur(items.reduce((a, it) => a + it.t.estimate, 0)) : ""];
     renderHeadTitle(head, "Tasks", sub.filter(Boolean).join(" · ") || " ");
     const right = head.createDiv("samaya-planner-right");
 
@@ -213,7 +225,7 @@ export class TasksView extends Panel {
       if (canTicket) sides.push(["ticket", "Ticket", "One lane per ticket"]);
       renderSwitch<Group>(g, sides, memory.group, v => { memory.group = v; memory.adding = null; this.render(); }, "Group tasks by");
     }
-    renderSwitch<Mode>(right, [["board", "Board", "What is on your plate: overdue, today, this week"], ["backlog", "Backlog", "What is parked for later"]], memory.mode, m => { memory.mode = m; memory.adding = null; this.render(); }, "Tasks view");
+    renderSwitch<Mode>(right, [["board", "Board", "What is going on: overdue, today, in progress, done"], ["backlog", "Backlog", "What is parked for later"]], memory.mode, m => { memory.mode = m; memory.adding = null; this.render(); }, "Tasks view");
   }
 
   /** The header of a swimlane: ▾ name, what it holds, open / add. Click folds it. */
@@ -241,7 +253,7 @@ export class TasksView extends Panel {
       plus.onclick = e => { e.stopPropagation(); memory.adding = memory.adding === lkey ? null : lkey; this.render(); };
     }
     if (memory.adding === lkey && !closed) {
-      const where = memory.mode === "board" ? "this week" : "Someday";
+      const where = memory.mode === "board" ? "today" : "Someday";
       const props = () => ({ ...hooks.addLane(), ...(tk ? { ticket: `[[${tk.file.basename}]]` } : {}), ...(pr ? { [PROJECT_PROP]: `[[${pr.file.basename}]]` } : {}) });
       const inp = addTaskInput(this.plugin, box, `+ Add to ${where}${tk ? ` for ${tk.key}` : pr ? ` in ${pr.name}` : ""}`, props, () => this.schedule());
       inp.addClass("samaya-tk-laneadd");

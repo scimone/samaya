@@ -1,17 +1,24 @@
 // Pure logic of the Tasks board (no Obsidian imports, unit-tested): which status column a task lands in, and how swimlanes are ordered.
-import { addDays } from "./util";
+import { Horizon, addDays, bucketOf, horizonOf } from "./util";
 
-export type Col = "overdue" | "today" | "week" | "later" | "done";
-export const BOARD_COLS: Array<[Col, string]> = [["overdue", "Overdue"], ["today", "Today"], ["week", "This week"], ["later", "Later"], ["done", "Done"]];
+/** The board: what is going on now. The backlog: everything else, by when it is due. */
+export type Col = "overdue" | "today" | "progress" | "done";
+export const BOARD_COLS: Array<[Col, string]> = [["overdue", "Overdue"], ["today", "Today"], ["progress", "In Progress"], ["done", "Done"]];
+/** Backlog columns: this week (planned on a later day, or given to the week only), then the parking buckets. */
+export type BacklogCol = "thisweek" | Horizon;
+export const BACKLOG_COLS: Array<[BacklogCol, string]> = [["thisweek", "This week"], ["week", "Next week"], ["month", "Next month"], ["quarter", "Next quarter"], ["year", "Next year"], ["someday", "Someday"], ["never", "Never"]];
 
-/**
- * Column of a piece of open work: the `day` it is planned on or, without a day, the `week` (its monday) it was given.
- * null = neither: the work is in the backlog.
- */
-export function columnOf(day: string, week: string, td: string, wk: string): Exclude<Col, "done"> | null {
-  if (day) return day < td ? "overdue" : day === td ? "today" : day < addDays(wk, 7) ? "week" : "later";
-  if (week) return week < wk ? "overdue" : week === wk ? "week" : "later";
-  return null;
+/** Board column of a piece of open work (not started yet): late, or planned for today. null = not on the board: it belongs in the backlog. */
+export function columnOf(day: string, week: string, td: string, wk: string): "overdue" | "today" | null {
+  if (day) return day < td ? "overdue" : day === td ? "today" : null;
+  return week && week < wk ? "overdue" : null;
+}
+
+/** Backlog column of a piece of open work: a later day / week gives "This week" or, further out, the bucket its date falls in; parked tasks sit in their bucket. */
+export function backlogOf(day: string, week: string, horizon: Horizon | "", later: string, td: string, wk: string): BacklogCol {
+  const due = day || week;
+  if (due) return due < addDays(wk, 7) ? "thisweek" : horizonOf(due, td);
+  return bucketOf(horizon, later, td);
 }
 
 /** A finished task stays on the board for the week it was finished in (tasks finished before the completion date was recorded: by their day). */

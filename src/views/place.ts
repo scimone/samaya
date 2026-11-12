@@ -32,15 +32,19 @@ export function trackedBefore(plugin: SamayaPlugin, t: Task, date: string): numb
 }
 /** Time still to plan for a task on `date`: its estimate (or `dflt`) minus what was tracked on earlier days. Used by the capacity bars. */
 export function leftToDo(plugin: SamayaPlugin, t: Task, date: string, dflt: number): number {
-  if (t.status === "done") return t.estimate || dflt;
-  return Math.max(0, (t.estimate || dflt) - trackedBefore(plugin, t, date));
+  return Math.max(0, (t.estimate || dflt) - cutOn(plugin, t, date));
 }
-/** Timeline blocks of a task on `date`, minus the time already tracked on earlier days (cut from the last block, at least 15 min stay). `cut` = minutes trimmed. */
+/** The tracked time is taken off once: from the task's first piece from today on (not from its later parts, not from past days). */
+export function cutOn(plugin: SamayaPlugin, t: Task, date: string): number {
+  if (t.status === "done" || date < today()) return 0;
+  const days = t.sessions.map(g => g.date).filter(d => d >= today()).sort();
+  if (days.length && days[0] !== date) return 0;
+  return trackedBefore(plugin, t, date);
+}
+/** Timeline blocks of a task on `date`, minus the time already tracked on earlier days (cut from the first block, at least 15 min stay). `cut` = minutes trimmed. */
 export function remainingBlocks(plugin: SamayaPlugin, t: Task, date: string, dflt: number): { blocks: Seg[]; cut: number } {
   const blocks = taskBlocks(t, dflt).map(g => ({ ...g }));
-  if (t.status === "done") return { blocks, cut: 0 };
-  const prior = trackedBefore(plugin, t, date); const last = blocks[blocks.length - 1];
-  const cut = Math.max(0, Math.min(prior, last.dur - 15)); last.dur -= cut;
+  const first = blocks[0]; const cut = Math.max(0, Math.min(cutOn(plugin, t, date), first.dur - 15)); first.dur -= cut;
   return { blocks, cut };
 }
 /** Is this task being worked on right now: planned today, not done, and one of its blocks covers the current time? */

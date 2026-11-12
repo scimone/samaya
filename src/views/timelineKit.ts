@@ -68,7 +68,7 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
       const sm = Math.max(0, (e.start.getTime() - dayStartMs) / 60000), em = Math.min(1440, (e.end.getTime() - dayStartMs) / 60000);
       if (em > startH * 60 && sm < endH * 60) items.push({ s: sm, dur: Math.max(15, em - sm), ev: e });
     });
-    day.filter(t => t.start).forEach(t => { const { blocks: bl, cut } = remainingBlocks(plugin, t, date, s.defaultEstimate); bl.forEach((g, k) => items.push({ s: g.s, dur: g.dur, task: t, seg: k, n: bl.length, cut: k === bl.length - 1 ? cut : 0 })); });
+    day.filter(t => t.start).forEach(t => { const { blocks: bl, cut } = remainingBlocks(plugin, t, date, s.defaultEstimate); bl.forEach((g, k) => items.push({ s: g.s, dur: g.dur, task: t, seg: k, n: bl.length, cut: k === 0 ? cut : 0 })); });
     items.sort((a, b) => a.s - b.s || b.dur - a.dur);
     const slots = layoutItems(items);
     const open = (f: TFile) => { void plugin.app.workspace.getLeaf("tab").openFile(f); };

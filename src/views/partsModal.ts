@@ -1,7 +1,7 @@
 import { Modal, Notice, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { Dest, Task, allTasks, onDay, sendPiece } from "../model";
-import { SplitTo, splitTask } from "./place";
+import { SplitTo, remainingBlocks, splitTask } from "./place";
 import { addDays, fmtDur, parseYmd, startOfWeek, today } from "../util";
 
 type Choice = { key: string; label: string; sub?: string; icon?: string; split: SplitTo; dest: Dest; said: string };
@@ -12,7 +12,7 @@ type Choice = { key: string; label: string; sub?: string; icon?: string; split: 
  */
 export class PartsModal extends Modal {
   private choice: Choice | null = null;
-  private first = 0;
+  private first = 0; private cut = 0;
   constructor(private plugin: SamayaPlugin, private task: Task, private mode: "split" | "move", private seg: number | null = null) { super(plugin.app); }
 
   /** The piece in hand: the block that was used, else the longest block of a split day, else the day's only piece. */
@@ -25,7 +25,9 @@ export class PartsModal extends Modal {
 
   onOpen() {
     const s = this.plugin.settings; const t = this.task; const day = t.planned; const k = this.pieceIndex();
-    const dur = k !== null ? t.segments[k].dur : t.estimate;
+    // time already tracked is cut off the day's first block: split what is shown, and keep the cut on the first part
+    this.cut = k === null || k === 0 ? remainingBlocks(this.plugin, t, day, s.defaultEstimate).cut : 0;
+    const dur = (k !== null ? t.segments[k].dur : t.estimate) - this.cut;
     const step = Math.max(5, s.slotMinutes); const timed = k !== null || !!t.start; const split = this.mode === "split";
     this.modalEl.addClass("samaya-parts-modal");
     this.titleEl.setText(split ? "Split task" : "Move to another day");
@@ -97,7 +99,7 @@ export class PartsModal extends Modal {
     this.close();
     const t = this.task;
     if (this.mode === "split") {
-      if (await splitTask(this.plugin, t.file, day, k, this.first, c.split)) new Notice(`Split “${t.title}”: ${fmtDur(this.first)} stays, the rest goes to ${c.said}.`);
+      if (await splitTask(this.plugin, t.file, day, k, this.first + this.cut, c.split)) new Notice(`Split “${t.title}”: ${fmtDur(this.first)} stays, the rest goes to ${c.said}.`);
     } else {
       await sendPiece(this.app, this.plugin.settings, t.file, { day, seg: k }, c.dest);
       new Notice(`Moved to ${c.said}.`);

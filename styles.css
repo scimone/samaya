@@ -453,8 +453,11 @@ body {
 .samaya-task-note .metadata-container,
 .samaya-task-note .metadata-properties-heading,
 .samaya-task-note .metadata-properties { display: none !important; }
-.samaya-task-card { position: relative; margin: 4px 0 18px; padding: 0 0 14px; border-bottom: 1px solid var(--background-modifier-border); }
-.samaya-tc-top { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+.samaya-task-card { position: relative; clear: both; margin: 4px 0 18px; padding: 0 0 14px; border-bottom: 1px solid var(--background-modifier-border); }
+.samaya-tc-head { float: right; display: flex; align-items: center; gap: 16px; height: calc(var(--inline-title-size, 1.8em) * var(--inline-title-line-height, 1.2)); margin-left: 16px; }
+.samaya-tc-clock { display: inline-flex; align-items: baseline; gap: 6px; font-size: var(--font-ui-large, 1.2em); font-weight: var(--font-semibold); font-variant-numeric: tabular-nums; line-height: 1; }
+.samaya-tc-big { font-size: 1.5em; } .samaya-tc-big.is-est, .samaya-tc-bigsep { color: var(--text-muted); font-weight: var(--font-normal); }
+.samaya-tc-clock.is-over .samaya-tc-big:not(.is-est) { color: var(--text-error); }
 .samaya-tc-focus { display: inline-flex; align-items: center; gap: 6px; }
 .samaya-tc-btn-icon { display: inline-flex; } .samaya-tc-btn-icon svg { width: 14px; height: 14px; }
 .samaya-tc-rows { display: flex; flex-direction: column; }
@@ -467,8 +470,7 @@ button.samaya-tc-status { cursor: pointer; } button.samaya-tc-status:hover { bac
 .samaya-tc-pill-icon { display: inline-flex; } .samaya-tc-pill-icon svg { width: 14px; height: 14px; }
 .samaya-tc-status.is-done { color: var(--color-green); background: color-mix(in srgb, var(--color-green) 14%, var(--background-primary)); }
 .samaya-tc-time { display: inline-flex; align-items: baseline; gap: 4px; font-variant-numeric: tabular-nums; }
-.samaya-tc-act { font-weight: var(--font-semibold); } .samaya-tc-est, .samaya-tc-sub { color: var(--text-muted); }
-.samaya-tc-sub { font-size: var(--font-ui-smaller); margin-right: 2px; }
+.samaya-tc-act { font-weight: var(--font-semibold); } .samaya-tc-est { color: var(--text-muted); }
 .samaya-tc-time.is-over .samaya-tc-act { color: var(--text-error); }
 .samaya-tc-none { color: var(--text-faint); }
 .samaya-tc-link { cursor: pointer; }

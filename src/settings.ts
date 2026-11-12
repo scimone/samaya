@@ -35,8 +35,6 @@ export interface SamayaSettings {
   journalNavBar: boolean;
   /** projects module: folder of project notes and the base that shows them */
   projectsOn: boolean; projectsPath: string; projectsBase: string;
-  /** home page: a base file with the Home view, at the vault root by default */
-  homeOn: boolean; homePath: string; homeOnStartup: boolean;
 }
 export const DEFAULT_SETTINGS: SamayaSettings = {
   tasksPath: "[Tasks]/YYYY/YYYY-MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", journalSource: "auto", journalFolder: "[Journal]/YYYY/YYYY-MM", journalFormat: "YYYY-MM-DD", taskTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
@@ -58,7 +56,6 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
     yearly: { on: false, source: "auto", folder: "[Journal]/YYYY", format: PERIOD_DEFAULT_FORMAT.yearly },
   },
   projectsOn: false, projectsPath: "Projects", projectsBase: "Projects/Projects.base",
-  homeOn: false, homePath: "Home.base", homeOnStartup: false,
 };
 
 /** Settings saved by older versions used plain folders; turn them into equivalent path patterns. */
@@ -304,30 +301,6 @@ export class SamayaSettingTab extends PluginSettingTab {
       text(el, name, desc + " Leave empty for the built-in template.", () => s[key], v => (s[key] = v), { placeholder: "Templates/…", suggest: mdFiles });
 
     // ======================================================================== core modules
-    tab("home", "Home", "home");
-    {
-      const b = card("Home", "A calm start page: where you are in the day and the week, and the next step (plan or start the day, plan or review the week, shut down).", {
-        enabled: { get: () => s.homeOn, set: async v => { s.homeOn = v; await save(); if (v) await this.plugin.scaffoldHome(true); } },
-        status: () => s.homePath.trim() ? ["On", "ok"] : ["Needs a path", "warn"],
-      });
-      const st = new Setting(b).setName("Home page file").setDesc("Where the page lives, relative to the vault root. A “.base” extension is added if missing. Changing it moves the existing page.");
-      st.addText(t => {
-        t.setValue(s.homePath).setPlaceholder("Home.base");
-        new PathSuggest(this.app, t.inputEl, () => this.app.vault.getFiles().filter(f => f.extension === "base").map(f => f.path).sort());
-        const commit = async () => {
-          const next = t.inputEl.value.trim() || DEFAULT_SETTINGS.homePath;
-          if (next === s.homePath) return;
-          const prev = s.homePath; s.homePath = next; t.inputEl.value = next;
-          await changed(); if (s.homeOn) await this.plugin.moveHome(prev, next);
-        };
-        t.inputEl.addEventListener("blur", () => { void commit(); });
-        t.inputEl.addEventListener("keydown", e => { if (e.key === "Enter") t.inputEl.blur(); });
-      });
-      new Setting(b).setName("Open").setDesc("Create the page if it is missing, then open it.")
-        .addButton(bt => bt.setButtonText("Open home").onClick(async () => { await this.plugin.openHome(); }));
-      toggle(b, "Open home on startup", "Show the home page whenever Obsidian starts.", () => s.homeOnStartup, v => (s.homeOnStartup = v));
-    }
-
     tab("planner", "Planner", "layout-dashboard");
 
     {
@@ -493,6 +466,8 @@ export class SamayaSettingTab extends PluginSettingTab {
       label(b, "Sync");
       toggle(b, "Sync on startup", "Import tickets from the enabled integrations when Obsidian starts.", () => s.syncOnStartup, v => (s.syncOnStartup = v));
     }
+    tab("navigation", "Navigation", "compass");
+
     select(tabs.some(t => t.id === this.activeTab) ? this.activeTab : tabs[0].id);
   }
 }

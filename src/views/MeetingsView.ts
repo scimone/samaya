@@ -23,11 +23,15 @@ export class MeetingsView extends BasesView {
   private selected: string | null = null;
   private query = "";
   private onlyNotes = false;
-  private scrolled = false;
   private cache = new Map<string, { mtime: number; body: string }>();
 
-  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) { super(controller); this.root = parentEl.createDiv("samaya-mt"); }
-  onunload() { window.clearTimeout(this.timer); }
+  private week = 0; // agenda: weeks from the current one
+  private tick = 0;
+  constructor(controller: QueryController, parentEl: HTMLElement, private plugin: SamayaPlugin) {
+    super(controller); this.root = parentEl.createDiv("samaya-mt");
+    this.tick = window.setInterval(() => { if (this.root.isShown() && !this.root.querySelector("input:focus")) this.rerender(); }, 60000); // a meeting that ends moves from next to recent
+  }
+  onunload() { window.clearTimeout(this.timer); window.clearInterval(this.tick); }
   onDataUpdated(): void { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { void this.render(); }, 30); }
 
   private async readNotes(): Promise<MeetingNote[]> {
@@ -52,15 +56,15 @@ export class MeetingsView extends BasesView {
     const token = ++this.token;
     const notes = await this.readNotes();
     if (token !== this.token) return;
-    const td = todayYmd();
-    const { series, oneOffs } = buildSeries(notes, td);
-    const prev = this.root.querySelector<HTMLElement>(".samaya-mt-page"); const y = prev?.scrollTop ?? 0;
+    const td = todayYmd(); const now = new Date();
+    const { series, oneOffs } = buildSeries(notes, td, now.getHours() * 60 + now.getMinutes());
+    const y = this.root.querySelector<HTMLElement>(".samaya-mt-page")?.scrollTop ?? 0;
     this.root.empty();
-    const page = this.root.createDiv("samaya-mt-page");
+    const scroller = this.root.createDiv("samaya-mt-page"); const page = scroller.createDiv("samaya-mt-col");
     const sel = this.selected ? series.find(s => s.key === this.selected) : undefined;
     if (this.selected && !sel) this.selected = null;
     if (sel) this.detail(page, sel, td); else this.overview(page, series, oneOffs, td, notes.length);
-    if (y) page.scrollTop = y;
+    if (y) scroller.scrollTop = y;
   }
 
   // ---- overview
@@ -68,8 +72,8 @@ export class MeetingsView extends BasesView {
     const head = page.createDiv("samaya-mt-head");
     head.createEl("h2", { text: "Meetings" });
     const nav = head.createDiv("samaya-mt-nav");
-    this.link(nav, "Series", this.mode === "series", () => { this.mode = "series"; this.rerender(); });
-    this.link(nav, "Agenda", this.mode === "agenda", () => { this.mode = "agenda"; this.scrolled = false; this.rerender(); });
+    this.link(nav, "Overview", this.mode === "series", () => { this.mode = "series"; this.rerender(); });
+    this.link(nav, "Agenda", this.mode === "agenda", () => { this.mode = "agenda"; this.week = 0; this.rerender(); });
     const search = nav.createEl("input", { cls: "samaya-mt-search", type: "search", placeholder: "Search" }); search.value = this.query;
     search.oninput = () => { this.query = search.value; window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { void this.render().then(() => { const el = this.root.querySelector<HTMLInputElement>(".samaya-mt-search"); el?.focus(); el?.setSelectionRange(el.value.length, el.value.length); }); }, 150); };
     if (!total) { page.createDiv({ cls: "samaya-mt-none", text: "No meeting notes yet." }); return; }
@@ -77,17 +81,19 @@ export class MeetingsView extends BasesView {
     const all = [...series.flatMap(s => s.instances), ...oneOffs].filter(i => this.matches(i));
     if (this.mode === "agenda") { this.agenda(page, all, td); return; }
 
-    const now = new Date(); const nowMin = now.getHours() * 60 + now.getMinutes(); const tomorrow = addDays(td, 1);
-    page.createDiv({ cls: "samaya-mt-h", text: "Next two days" });
-    const upcoming = all.filter(i => (i.date === td && (i.end ?? i.start ?? 0) > nowMin) || i.date === tomorrow).sort(byTime);
+    const tomorrow = addDays(td, 1);
+    page.createDiv({ cls: "samaya-mt-h", text: "Next" });
+    const upcoming = all.filter(i => i.when !== "past" && i.date <= tomorrow).sort(byTime);
     if (!upcoming.length) page.createDiv({ cls: "samaya-mt-none", text: "Nothing planned today or tomorrow." });
     for (const day of [td, tomorrow]) {
       const items = upcoming.filter(i => i.date === day); if (!items.length) continue;
       const g = page.createDiv("samaya-mt-group");
       g.createDiv({ cls: "samaya-mt-gl", text: day === td ? "Today" : "Tomorrow" });
-      const col = g.createDiv("samaya-mt-list");
-      for (const i of items) { const r = this.rowEl(col, i); r.createSpan({ cls: "samaya-mt-time", text: time(i) }); r.createSpan({ cls: "samaya-mt-name", text: i.title.trim() }); this.mark(r, i); r.onclick = e => this.open(i.path, e); }
+      this.meetingList(g, items, false);
     }
+
+    const recent = all.filter(i => i.when === "past").sort((x, y) => byTime(y, x)).slice(0, 5);
+    if (recent.length) { page.createDiv({ cls: "samaya-mt-h", text: "Recent" }); this.meetingList(page, recent, true); }
 
     const list = series.filter(s => this.matches(s)).sort((a, b) => (a.next ? a.next.date + hm(a.next.start ?? 0) : "9999").localeCompare(b.next ? b.next.date + hm(b.next.start ?? 0) : "9999") || a.title.localeCompare(b.title));
     page.createDiv({ cls: "samaya-mt-h", text: "Recurring" });
@@ -101,14 +107,17 @@ export class MeetingsView extends BasesView {
       r.createSpan({ cls: "samaya-mt-count", text: s.held ? `${s.withNotes}/${s.held}` : "", attr: { title: "past meetings with notes" } });
       r.onclick = () => { this.selected = s.key; this.onlyNotes = false; this.rerender(); };
     }
-    const singles = oneOffs.filter(o => this.matches(o));
-    if (singles.length) {
-      page.createDiv({ cls: "samaya-mt-h", text: "One-off" });
-      const c2 = page.createDiv("samaya-mt-list");
-      for (const o of singles) { const r = this.rowEl(c2, o); r.createSpan({ cls: "samaya-mt-name", text: o.title.trim() }); r.createSpan({ cls: "samaya-mt-cad", text: short(o.date) }); this.mark(r, o); r.onclick = e => this.open(o.path, e); }
-    }
   }
 
+  /** meetings as list rows: time (or date when `dated`), title, note marker */
+  private meetingList(parent: HTMLElement, items: Instance[], dated: boolean) {
+    const col = parent.createDiv("samaya-mt-list");
+    for (const i of items) {
+      const r = this.rowEl(col, i);
+      r.createSpan({ cls: dated ? "samaya-mt-day" : "samaya-mt-time", text: dated ? short(i.date) : time(i) });
+      r.createSpan({ cls: "samaya-mt-name", text: i.title.trim() }); this.mark(r, i); r.onclick = e => this.open(i.path, e);
+    }
+  }
   private matches(i: { title: string }) { const q = this.query.trim().toLowerCase(); return !q || i.title.toLowerCase().includes(q); }
   private rowEl(parent: HTMLElement, i: { title: string }) { const r = parent.createDiv("samaya-mt-item"); r.style.setProperty("--h", String(hue(i))); r.createSpan("samaya-mt-dot"); return r; }
   /** a small note marker: a dot for notes, the open action count */
@@ -141,26 +150,24 @@ export class MeetingsView extends BasesView {
     }
   }
 
-  // ---- agenda
+  // ---- agenda: one week at a time
   private agenda(page: HTMLElement, all: Instance[], td: string) {
-    const weeks = new Map<string, Map<string, Instance[]>>();
-    for (const i of [...all].sort(byTime)) { const w = startOfWeek(i.date); const days = weeks.get(w) ?? new Map(); const l = days.get(i.date) ?? []; l.push(i); days.set(i.date, l); weeks.set(w, days); }
-    const cur = startOfWeek(td);
-    for (const [w, days] of weeks) {
-      const fmt = (d: string) => parseYmd(d).toLocaleDateString(undefined, { day: "numeric", month: "short" });
-      const h = page.createDiv({ cls: "samaya-mt-h samaya-mt-week" + (w === cur ? " is-current" : ""), text: `${w === cur ? "This week  ·  " : ""}${fmt(w)} – ${fmt(addDays(w, 6))}` });
-      void h;
-      const list = page.createDiv("samaya-mt-list");
-      for (const [d, items] of days) {
-        items.forEach((i, n) => {
-          const r = this.rowEl(list, i); r.addClass("is-" + i.when);
-          r.createSpan({ cls: "samaya-mt-day" + (d === td ? " is-today" : ""), text: n === 0 ? short(d) : "" });
-          r.createSpan({ cls: "samaya-mt-time", text: time(i) });
-          r.createSpan({ cls: "samaya-mt-name", text: i.title.trim() });
-          this.mark(r, i); r.onclick = e => this.open(i.path, e);
-        });
-      }
+    const cur = startOfWeek(td); const w = addDays(cur, this.week * 7); const end = addDays(w, 6);
+    const fmt = (d: string) => parseYmd(d).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+    const bar = page.createDiv("samaya-mt-weeknav");
+    const prev = bar.createSpan({ cls: "samaya-mt-arrow", text: "‹", attr: { title: "Previous week" } }); prev.onclick = () => { this.week--; this.rerender(); };
+    const label = bar.createSpan({ cls: "samaya-mt-weeklabel", text: `${this.week === 0 ? "This week" : this.week === 1 ? "Next week" : this.week === -1 ? "Last week" : "Week of " + fmt(w)}  ·  ${fmt(w)} – ${fmt(end)}` });
+    const next = bar.createSpan({ cls: "samaya-mt-arrow", text: "›", attr: { title: "Next week" } }); next.onclick = () => { this.week++; this.rerender(); };
+    if (this.week !== 0) { label.title = "Back to this week"; label.onclick = () => { this.week = 0; this.rerender(); }; }
+
+    const items = all.filter(i => i.date >= w && i.date <= end).sort(byTime);
+    if (!items.length) page.createDiv({ cls: "samaya-mt-none", text: "No meetings this week." });
+    for (let n = 0; n < 7; n++) {
+      const d = addDays(w, n); const day = items.filter(i => i.date === d); if (!day.length) continue;
+      const g = page.createDiv("samaya-mt-group");
+      g.createDiv({ cls: "samaya-mt-gl" + (d === td ? " is-today" : ""), text: d === td ? "Today" : d === addDays(td, 1) ? "Tomorrow" : parseYmd(d).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" }) });
+      const col = g.createDiv("samaya-mt-list");
+      for (const i of day) { const r = this.rowEl(col, i); r.addClass("is-" + i.when); r.createSpan({ cls: "samaya-mt-time", text: time(i) }); r.createSpan({ cls: "samaya-mt-name", text: i.title.trim() }); this.mark(r, i); r.onclick = e => this.open(i.path, e); }
     }
-    if (!this.scrolled) { this.scrolled = true; window.setTimeout(() => page.querySelector(".samaya-mt-week.is-current")?.scrollIntoView({ block: "start" }), 0); }
   }
 }

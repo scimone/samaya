@@ -64,21 +64,29 @@ export function usualTime(list: Array<Pick<MeetingNote, "start" | "end">>): stri
   return best;
 }
 
-export function toInstance(n: MeetingNote, today: string): Instance {
+/** A meeting today whose time frame is over counts as past; `nowMin` = minutes after midnight (-1: ignore the time of day). */
+export function whenOf(n: Pick<MeetingNote, "date" | "start" | "end">, today: string, nowMin = -1): When {
+  if (n.date < today) return "past";
+  if (n.date > today) return "upcoming";
+  const over = n.end ?? n.start;
+  return over != null && over <= nowMin ? "past" : "today";
+}
+
+export function toInstance(n: MeetingNote, today: string, nowMin = -1): Instance {
   const a = analyse(n.body);
-  return { ...n, when: n.date < today ? "past" : n.date === today ? "today" : "upcoming", excerpt: a.excerpt, hasNotes: a.excerpt.length > 0, open: a.open, done: a.done };
+  return { ...n, when: whenOf(n, today, nowMin), excerpt: a.excerpt, hasNotes: a.excerpt.length > 0, open: a.open, done: a.done };
 }
 
 /** Recurring notes (`is_recurring: true`) form a series per title; one-offs stay single. Without the property, a title that occurs more than once counts as recurring. */
-export function buildSeries(notes: MeetingNote[], today: string): { series: Series[]; oneOffs: Instance[] } {
+export function buildSeries(notes: MeetingNote[], today: string, nowMin = -1): { series: Series[]; oneOffs: Instance[] } {
   const byKey = new Map<string, MeetingNote[]>();
   for (const n of notes) { const k = seriesKey(n.title); const l = byKey.get(k); if (l) l.push(n); else byKey.set(k, [n]); }
   const series: Series[] = []; const oneOffs: Instance[] = [];
   for (const [key, list] of byKey) {
     const flagged = list.some(n => n.recurring === true);
     const unflagged = list.every(n => n.recurring === undefined) && list.length > 1;
-    if (!flagged && !unflagged) { for (const n of list) oneOffs.push(toInstance(n, today)); continue; }
-    const inst = list.map(n => toInstance(n, today)).sort((a, b) => a.date.localeCompare(b.date) || (a.start ?? 0) - (b.start ?? 0));
+    if (!flagged && !unflagged) { for (const n of list) oneOffs.push(toInstance(n, today, nowMin)); continue; }
+    const inst = list.map(n => toInstance(n, today, nowMin)).sort((a, b) => a.date.localeCompare(b.date) || (a.start ?? 0) - (b.start ?? 0));
     const past = inst.filter(i => i.when !== "upcoming");
     const cad = cadenceOf(inst.map(i => i.date));
     series.push({

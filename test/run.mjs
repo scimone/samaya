@@ -458,5 +458,7 @@ await bundle("src/meetingseries.ts", "test/.meetingseries.mjs");
   const { series, oneOffs } = buildSeries([mk("Daily ", "2026-11-10", true, "- done"), mk("Daily", "2026-11-12", true), mk("Daily", "2026-11-13", true), mk("Offsite", "2026-11-11", false), mk("Offsite", "2026-11-18", false)], "2026-11-12");
   assert.equal(series.length, 1); assert.equal(oneOffs.length, 2);
   assert.deepEqual([series[0].held, series[0].withNotes, series[0].next.date, series[0].next.when, series[0].time], [1, 1, "2026-11-12", "today", "09:00–09:30"]);
+  { const r = buildSeries([mk("Daily", "2026-11-12", true)], "2026-11-12", 9 * 60 + 30).series[0]; assert.deepEqual([r.instances[0].when, r.held, r.next], ["past", 1, undefined]); } // today, time frame over
+  { const r = buildSeries([mk("Daily", "2026-11-12", true)], "2026-11-12", 9 * 60 + 29).series[0]; assert.deepEqual([r.instances[0].when, r.held], ["today", 0]); }
   assert.equal(buildSeries([mk("A", "2026-11-01"), mk("A", "2026-11-08"), mk("B", "2026-11-02")], "2026-11-12").series.length, 1); // no property: repeats count as a series
 }

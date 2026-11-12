@@ -1157,7 +1157,8 @@ input.is-invalid { border-color: var(--text-error); }
 
 /* ---------- meetings base: zen list ---------- */
 .samaya-mt { height: 100%; }
-.samaya-mt-page { --c: hsl(var(--h, 210) 45% 62%); height: 100%; overflow-y: auto; box-sizing: border-box; max-width: 640px; margin: 0 auto; padding: 48px var(--samaya-sp-5) 96px; }
+.samaya-mt-page { height: 100%; overflow-y: auto; }
+.samaya-mt-col { --c: hsl(var(--h, 210) 45% 62%); box-sizing: border-box; max-width: 640px; margin: 0 auto; padding: 48px var(--samaya-sp-5) 96px; }
 .samaya-mt-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--samaya-sp-4); flex-wrap: wrap; margin-bottom: 40px; }
 .samaya-mt-head h2, .samaya-mt-dtitle { margin: 0; font-weight: 300; font-size: 1.9em; letter-spacing: -.01em; }
 .samaya-mt-nav { display: flex; align-items: baseline; gap: var(--samaya-sp-4); }
@@ -1201,3 +1202,10 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-mt-eline { font-size: var(--font-ui-small); line-height: 1.55; }
 .samaya-mt-ebody .samaya-mt-none { padding: 0; }
 .samaya-mt-ebody .samaya-mt-count { text-align: left; margin-top: 4px; }
+.samaya-mt-gl.is-today { color: var(--text-accent); }
+.samaya-mt-weeknav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--background-modifier-border); }
+.samaya-mt-weeklabel { color: var(--text-muted); font-size: var(--font-ui-small); letter-spacing: .02em; }
+.samaya-mt-weeklabel[title] { cursor: pointer; }
+.samaya-mt-weeklabel[title]:hover { color: var(--text-normal); }
+.samaya-mt-arrow { color: var(--text-faint); font-size: 1.5em; line-height: 1; padding: 0 var(--samaya-sp-3); cursor: pointer; user-select: none; }
+.samaya-mt-arrow:hover { color: var(--text-normal); }

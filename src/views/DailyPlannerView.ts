@@ -57,7 +57,7 @@ export class DailyPlannerView extends PlannerPane {
     plugin.app.workspace.onLayoutReady(() => window.setTimeout(() => { this.plugin.app.workspace.rightSplit?.collapse(); }, 0)); // everything lives in this view: the right sidebar is not needed
   }
 
-  private get showIcs() { return this.config.get("showIcs") !== false; }
+  private get showEvents() { return this.config.get("showEvents") !== false; }
   /** While planning my day, read the vault directly: a task just added must show up at once, not when the base has refreshed. */
   private entryTasks(): Task[] { return allTasks(this.app, this.plugin.settings); }
 
@@ -79,7 +79,7 @@ export class DailyPlannerView extends PlannerPane {
     const token = ++this.token;
     const guide = this.plugin.guide?.kind === "week" ? null : this.plugin.guide; // the week guide lives in the Weekly Board
     if (guide?.fresh) { guide.fresh = false; this.date = today(); }
-    const events = this.showIcs && calendarEnabled(this.plugin.settings)
+    const events = this.showEvents && calendarEnabled(this.plugin.settings)
       ? await calendarEvents(this.plugin, parseYmd(this.date), parseYmd(addDays(this.date, 1))) : [];
     if (token !== this.token || this.scope.active) { if (this.scope.active) this.pending = true; return; }
 
@@ -97,7 +97,7 @@ export class DailyPlannerView extends PlannerPane {
       events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
     const plannedAll = day.reduce((a, t) => a + leftToDo(this.plugin, t, this.date, 0), 0);
     const notes = new Map<CalendarEvent, TFile>(); // meeting notes for the timeline
-    const tlEvents = !calendarEnabled(s) ? [] : this.showIcs ? events : await calendarEvents(this.plugin, parseYmd(this.date), parseYmd(addDays(this.date, 1)));
+    const tlEvents = !calendarEnabled(s) ? [] : this.showEvents ? events : await calendarEvents(this.plugin, parseYmd(this.date), parseYmd(addDays(this.date, 1)));
     for (const ev of tlEvents.filter(e => !e.allDay)) { try { notes.set(ev, await ensureMeetingNote(this.app, ev)); } catch { /* ignore */ } }
     if (token !== this.token || this.scope.active) { if (this.scope.active) this.pending = true; return; }
 

@@ -8,7 +8,7 @@ export abstract class PlannerPane extends Component {
   /** The planner options: same keys the Bases view used to have. */
   protected get config() {
     const s = this.plugin.settings;
-    return { get: (k: string): unknown => k === "showWeekends" ? s.plannerWeekends : k === "showIcs" ? s.plannerShowIcs : undefined };
+    return { get: (k: string): unknown => k === "showWeekends" ? s.plannerWeekends : k === "showEvents" ? s.plannerShowEvents : undefined };
   }
   abstract onDataUpdated(): void;
 }

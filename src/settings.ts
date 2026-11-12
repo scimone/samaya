@@ -12,7 +12,7 @@ export interface SamayaSettings {
   taskTemplate: string; ticketTemplate: string; ticketFileName: string;
   eventNotesFolder: string; eventNotePattern: string;
   /** Planner: plan Saturday and Sunday too; count calendar events as busy time */
-  plannerWeekends: boolean; plannerShowIcs: boolean;
+  plannerWeekends: boolean; plannerShowEvents: boolean;
   dayStartHour: number; dayEndHour: number; slotMinutes: number;
   defaultEstimate: number; shutdownTime: string; dayStartTime: string; openOnStartup: boolean;
   jiraFlavor: "cloud" | "server"; jiraUrl: string; jiraEmail: string; jiraToken: string; jiraJql: string;
@@ -39,7 +39,7 @@ export interface SamayaSettings {
 export const DEFAULT_SETTINGS: SamayaSettings = {
   tasksPath: "[Tasks]/YYYY/YYYY-MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", journalSource: "auto", journalFolder: "[Journal]/YYYY/YYYY-MM", journalFormat: "YYYY-MM-DD", taskTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
   eventNotesFolder: "Meetings", eventNotePattern: "{{date}}_{{title}}",
-  plannerWeekends: false, plannerShowIcs: true,
+  plannerWeekends: false, plannerShowEvents: true,
   dayStartHour: 7, dayEndHour: 20, slotMinutes: 5, defaultEstimate: 30, shutdownTime: "17:00", dayStartTime: "08:00", openOnStartup: false,
   jiraFlavor: "cloud", jiraUrl: "", jiraEmail: "", jiraToken: "",
   jiraJql: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
@@ -64,6 +64,7 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<SamayaS
   const lit = (v: unknown) => `[${String(v).replace(/[[\]]/g, "")}]`;
   if (o.tasksFolder != null && o.tasksPath == null) o.tasksPath = lit(o.tasksFolder) + "/YYYY/MM";
   if (o.ticketsFolder != null && o.ticketsPath == null) o.ticketsPath = lit(o.ticketsFolder);
+  if (o.plannerShowIcs != null) { if (o.plannerShowEvents == null) o.plannerShowEvents = o.plannerShowIcs; delete o.plannerShowIcs; } // renamed
   // optional modules were implicit before: keep the ones that were already set up
   if (o.calendarOn == null) o.calendarOn = !!o.eventNotesFolder;
   if (o.jiraOn == null) o.jiraOn = !!(o.jiraUrl && o.jiraToken);
@@ -342,7 +343,7 @@ export class SamayaSettingTab extends PluginSettingTab {
       label(b, "Startup & files");
       toggle(b, "Open planner on startup", "Open today's planner whenever Obsidian starts.", () => s.openOnStartup, v => (s.openOnStartup = v));
       toggle(b, "Show weekends", "Plan Saturday and Sunday in the week views too.", () => s.plannerWeekends, v => { s.plannerWeekends = v; this.plugin.bus.emit(); this.plugin.refreshPlanner(); });
-      toggle(b, "Count calendar events as busy", "Meetings from your calendar take up time in the planner.", () => s.plannerShowIcs, v => { s.plannerShowIcs = v; this.plugin.bus.emit(); this.plugin.refreshPlanner(); });
+      toggle(b, "Count calendar events as busy", "Meetings from your calendar take up time in the planner.", () => s.plannerShowEvents, v => { s.plannerShowEvents = v; this.plugin.bus.emit(); this.plugin.refreshPlanner(); });
     }
 
     tab("tasks", "Tasks", "check-square");

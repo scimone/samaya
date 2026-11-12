@@ -59,7 +59,7 @@ export class WeeklyTimelineView extends PlannerPane {
     const token = ++this.token; const s = this.plugin.settings;
     const startH = this.opt("dayStart", s.dayStartHour), endH = Math.max(startH + 1, this.opt("dayEnd", s.dayEndHour)), slot = s.slotMinutes;
     const days = this.config.get("showWeekends") === true ? 7 : 5;
-    const events = this.config.get("showIcs") !== false && calendarEnabled(s)
+    const events = this.config.get("showEvents") !== false && calendarEnabled(s)
       ? (await calendarEvents(this.plugin, parseYmd(this.weekStart), parseYmd(addDays(this.weekStart, 7))).catch(() => [] as CalendarEvent[])) : [];
     if (token !== this.token) return;
     if (this.scope.active) { this.pending = true; return; }

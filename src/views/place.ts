@@ -52,13 +52,19 @@ export function isOngoing(t: Task, dflt: number): boolean {
   if (t.status === "done" || t.planned !== today() || !t.start) return false;
   const n = nowMin(); return taskBlocks(t, dflt).some(g => n >= g.s && n < g.s + g.dur);
 }
-/** Small Focus button: starts focus mode on the task (not shown while it is already being focused). */
+/** Is this the task being worked on: the focused task while a focus runs (or is on a break), otherwise the one whose timeline block covers the current time. */
+export function isCurrentTask(plugin: SamayaPlugin, t: Task): boolean {
+  const f = plugin.focus.state;
+  return f ? f.path === t.file.path : isOngoing(t, plugin.settings.defaultEstimate);
+}
+/** Small Focus button: starts focus on the task. While a focus runs, other tasks get none and the focused one gets a Break / Resume button instead. */
 export function focusButton(plugin: SamayaPlugin, parent: HTMLElement, t: Task, cls = "samaya-mini samaya-focus-go"): HTMLElement | null {
-  if (plugin.focus.state?.path === t.file.path && plugin.focus.state.startedAt) return null;
-  const b = parent.createEl("button", { cls, attr: { "aria-label": "Start focus on this task" } });
-  setIcon(b.createSpan({ cls: "samaya-focus-go-icon" }), "timer"); b.createSpan({ text: "Focus" });
+  const f = plugin.focus.state;
+  if (f && f.path !== t.file.path) return null;
+  const b = parent.createEl("button", { cls: cls + (f ? " is-active" : ""), attr: { "aria-label": f ? (f.startedAt ? "Take a focus break" : "Resume focus") : "Start focus on this task" } });
+  setIcon(b.createSpan({ cls: "samaya-focus-go-icon" }), f ? (f.startedAt ? "pause" : "play") : "timer"); b.createSpan({ text: f ? (f.startedAt ? "Break" : "Resume") : "Focus" });
   b.addEventListener("pointerdown", e => e.stopPropagation()); // not a drag
-  b.addEventListener("click", e => { e.stopPropagation(); void plugin.focus.start(t.file); });
+  b.addEventListener("click", e => { e.stopPropagation(); void (f ? (f.startedAt ? plugin.focus.pause() : plugin.focus.resume()) : plugin.focus.start(t.file)); });
   return b;
 }
 /** Length of what is being dragged: the unplanned rest, one piece, a day's pieces or the whole task. */

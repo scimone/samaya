@@ -8,7 +8,7 @@ import { minToHm, parseYmd, today } from "../util";
 import { PartsModal } from "./partsModal";
 import { canSplit, keyActivate, showTaskMenu } from "./common";
 import { renderDayLines } from "./dayLines";
-import { decorateSegment, dragLen, dropOnTimeline, remainingBlocks, resizeBlock, segLabel } from "./place";
+import { isCurrentTask, decorateSegment, dragLen, dropOnTimeline, remainingBlocks, resizeBlock, segLabel } from "./place";
 import { addBands } from "./bands";
 
 const MIN_HOUR_H = 28;
@@ -80,7 +80,10 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
       const b = lane.createDiv({ cls: it.ev ? "samaya-event" : "samaya-block" + (it.task!.status === "done" ? " is-done" : "") });
       if (it.task) { b.dataset.link = it.task.file.path; b.dataset.day = date; }
       b.style.top = `${top}px`; b.style.height = `${height}px`; b.style.left = `${(pl.col * 100) / pl.n}%`; b.style.width = `calc(${100 / pl.n}% - 3px)`;
-      if (isToday && !o.noCurrent && nowMin >= it.s && nowMin < it.s + it.dur && it.task?.status !== "done") b.addClass("is-current");
+      if (!o.noCurrent) { // the focused task (else the one running by the clock) and the meeting on now are lit
+        if (it.task) { if (isCurrentTask(plugin, it.task) && (plugin.focus.state || (isToday && nowMin >= it.s && nowMin < it.s + it.dur)) && it.task.status !== "done") b.addClass("is-current"); }
+        else if (isToday && nowMin >= it.s && nowMin < it.s + it.dur) b.addClass("is-current");
+      }
       if (it.ev && (date < today() || (isToday && nowMin >= it.s + it.dur))) b.addClass("is-past"); // a meeting that is over
       const bt = b.createDiv({ cls: it.ev ? "samaya-event-title" : "samaya-block-title" });
       if (!it.ev) {

@@ -212,7 +212,7 @@ export class DailyPlannerView extends PlannerPane {
 
   private finishRender(left: HTMLElement) {
     left.scrollTop = this.leftScroll;
-    if (!this.plugin.guide) { const cur = new Set<string>(); // the task being worked on right now (its timeline block is current): its card stays lit
+    if (!this.plugin.guide) { const cur = new Set<string>(); const fp = this.plugin.focus.state?.path; if (fp) cur.add(fp); // the task being worked on right now (its timeline block is current): its card stays lit
     this.root.querySelectorAll<HTMLElement>(".samaya-block.is-current[data-link]").forEach(b => cur.add(b.dataset.link!));
     this.root.querySelectorAll<HTMLElement>(".samaya-card[data-link]").forEach(c => c.toggleClass("is-current", cur.has(c.dataset.link!))); }
 

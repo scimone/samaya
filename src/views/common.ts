@@ -3,7 +3,7 @@ import type SamayaPlugin from "../main";
 import { DndScope, DropInfo } from "../dnd";
 import { Source, Task, addSubtask, assignTicket, patchTask, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
 import { ConfirmDeleteModal, ProjectSuggestModal, TicketSuggestModal } from "../modals";
-import { focusButton, isOngoing, joinParts, splitTitle } from "./place";
+import { focusButton, isCurrentTask, joinParts, splitTitle } from "./place";
 import { PartsModal } from "./partsModal";
 import { assignProject, projectPathOf } from "../projects";
 import { HORIZONS, Horizon, bucketOf, fmtDur, fmtHm, minToHm, parseDuration, parseYmd, startOfWeek, today } from "../util";
@@ -112,7 +112,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   }
 
   if (o.focus) {
-    const on = isOngoing(t, plugin.settings.defaultEstimate); if (on) el.addClass("is-current");
+    const on = isCurrentTask(plugin, t); if (on) el.addClass("is-current");
     if (on || (o.focus === "today" && t.planned === today() && t.status !== "done")) focusButton(plugin, side, t);
   }
 

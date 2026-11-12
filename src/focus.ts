@@ -45,6 +45,7 @@ export class FocusManager {
   private refreshViews() {
     this.renderStatus();
     this.plugin.app.workspace.getLeavesOfType(FOCUS_VIEW_TYPE).forEach(l => { if (l.view instanceof FocusView) l.view.render(); });
+    this.plugin.refreshPlanner(); // cards and timeline blocks follow the focus
   }
 
   async start(file: TFile) {
@@ -97,7 +98,7 @@ export class FocusManager {
     const minutes = s.loggedMin ?? 0; const file = this.file;
     this.state = null; await this.persist();
     this.plugin.app.workspace.detachLeavesOfType(FOCUS_VIEW_TYPE);
-    this.renderStatus();
+    this.refreshViews();
     if (file) {
       if (markDone) await patchTask(this.plugin.app, file, { status: "done", completed: new Date().toISOString().slice(0, 10) });
       new Notice(`Logged ${fmtDur(minutes)} on "${file.basename}"${markDone ? " - done" : ""}`);

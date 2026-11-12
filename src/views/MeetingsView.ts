@@ -3,7 +3,7 @@ import type SamayaPlugin from "../main";
 import { Instance, MeetingNote, Series, buildSeries, hueOf, parseNote, seriesKey } from "../meetingseries";
 import { addDays, parseYmd, startOfWeek, today as todayYmd } from "../util";
 import { renderDateNav, renderResetPill } from "./dateNav";
-import { dayHeadSub, isoWeek, renderHeadTitle, renderSwitch, weekRangeLabel } from "./plannerHead";
+import { isoWeek, renderHeadTitle, renderSwitch, weekRangeLabel } from "./plannerHead";
 
 export const MEETINGS_VIEW_TYPE = "samaya-meetings";
 type Mode = "series" | "agenda";
@@ -68,7 +68,7 @@ export class MeetingsView extends BasesView {
     if (y) scroller.scrollTop = y;
   }
 
-  /** The top bar, built like the planner's heading: title over a muted line, then search, week navigation and the Overview | Agenda switch on the right. */
+  /** The top bar, built like the planner's heading: title over a muted line, then (agenda only) week navigation, search and the Overview | Agenda switch on the right: search and switch keep their place in both tabs. */
   private head(td: string, sel?: Series) {
     const head = this.root.createDiv("samaya-week-head samaya-day-head samaya-mt-head");
     const cur = startOfWeek(td); const w = addDays(cur, memory.week * 7);
@@ -79,13 +79,8 @@ export class MeetingsView extends BasesView {
       return;
     }
     if (memory.mode === "agenda") renderHeadTitle(head, `Week ${isoWeek(parseYmd(w))}`, weekRangeLabel(w) + (memory.week === 0 ? " · This week" : ""));
-    else renderHeadTitle(head, "Meetings", dayHeadSub(td));
+    else renderHeadTitle(head, "Meetings", "\u00a0"); // empty line: the bar keeps the height it has in the agenda
     const right = head.createDiv("samaya-planner-right");
-    const search = right.createEl("input", { cls: "samaya-mt-search", type: "search", placeholder: "Search meetings" }); search.value = memory.query;
-    search.oninput = () => {
-      memory.query = search.value; window.clearTimeout(this.timer);
-      this.timer = window.setTimeout(() => { void this.render().then(() => { const el = this.root.querySelector<HTMLInputElement>(".samaya-mt-search"); el?.focus(); el?.setSelectionRange(el.value.length, el.value.length); }); }, 150);
-    };
     if (memory.mode === "agenda") {
       if (memory.week !== 0) renderResetPill(right, "This week", "Back to the current week", memory.week < 0 ? "right" : "left", () => { memory.week = 0; this.rerender(); });
       renderDateNav(right, {
@@ -94,6 +89,11 @@ export class MeetingsView extends BasesView {
         pick: { value: w, label: "Pick a week", run: d => { memory.week = Math.round((parseYmd(startOfWeek(d)).getTime() - parseYmd(cur).getTime()) / (7 * 864e5)); this.rerender(); } }, icon: "calendar",
       });
     }
+    const search = right.createEl("input", { cls: "samaya-mt-search", type: "search", placeholder: "Search meetings" }); search.value = memory.query;
+    search.oninput = () => {
+      memory.query = search.value; window.clearTimeout(this.timer);
+      this.timer = window.setTimeout(() => { void this.render().then(() => { const el = this.root.querySelector<HTMLInputElement>(".samaya-mt-search"); el?.focus(); el?.setSelectionRange(el.value.length, el.value.length); }); }, 150);
+    };
     renderSwitch<Mode>(right, [["series", "Overview", "Today, recent and recurring meetings"], ["agenda", "Agenda", "One week at a time"]], memory.mode, m => { memory.mode = m; memory.week = 0; this.rerender(); }, "Meetings view");
   }
 
@@ -178,7 +178,7 @@ export class MeetingsView extends BasesView {
     for (let n = 0; n < 7; n++) {
       const d = addDays(w, n); const day = items.filter(i => i.date === d); if (!day.length) continue;
       const g = page.createDiv("samaya-mt-group");
-      g.createDiv({ cls: "samaya-mt-gl" + (d === td ? " is-today" : ""), text: d === td ? "Today" : d === addDays(td, 1) ? "Tomorrow" : parseYmd(d).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" }) });
+      g.createDiv({ cls: "samaya-mt-gl is-sticky" + (d === td ? " is-today" : ""), text: d === td ? "Today" : d === addDays(td, 1) ? "Tomorrow" : parseYmd(d).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" }) });
       const col = g.createDiv("samaya-mt-list");
       for (const i of day) { const r = this.rowEl(col, i); r.addClass("is-" + i.when); r.createSpan({ cls: "samaya-mt-time", text: time(i) }); r.createSpan({ cls: "samaya-mt-name", text: i.title.trim() }); this.mark(r, i); r.onclick = e => this.open(i.path, e); }
     }

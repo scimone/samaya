@@ -1165,9 +1165,10 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-mt-col > .samaya-mt-h:first-child { margin-top: 0; }
 .samaya-mt-link { color: var(--text-faint); cursor: pointer; font-size: var(--font-ui-small); }
 .samaya-mt-link:hover { color: var(--text-normal); }
-.samaya-mt-h { margin: 44px 0 6px; color: var(--text-faint); font-size: var(--samaya-fs-label); letter-spacing: .14em; text-transform: uppercase; }
+.samaya-mt-h { position: sticky; top: 0; z-index: 2; background: var(--background-primary); padding: 8px 0 6px; margin: 36px 0 0; color: var(--text-faint); font-size: var(--samaya-fs-label); letter-spacing: .14em; text-transform: uppercase; }
 .samaya-mt-group { margin-top: 14px; }
-.samaya-mt-gl { color: var(--text-muted); font-size: var(--font-ui-small); margin-bottom: 2px; }
+.samaya-mt-gl { color: var(--text-muted); font-size: var(--font-ui-small); padding: 4px 0; }
+.samaya-mt-gl.is-sticky { position: sticky; top: 0; z-index: 2; background: var(--background-primary); }
 .samaya-mt-gl.is-today { color: var(--text-accent); }
 .samaya-mt-none { color: var(--text-faint); font-size: var(--font-ui-small); padding: 8px 0; }
 

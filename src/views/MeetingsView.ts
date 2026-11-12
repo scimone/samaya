@@ -158,7 +158,17 @@ export class MeetingsView extends Panel {
     }
   }
   private matches(i: { title: string }) { const q = memory.query.trim().toLowerCase(); return !q || i.title.toLowerCase().includes(q); }
-  private rowEl(parent: HTMLElement, i: { title: string }) { const r = parent.createDiv("samaya-mt-item"); r.style.setProperty("--h", String(hue(i))); r.createSpan("samaya-mt-dot"); return r; }
+  private rowEl(parent: HTMLElement, i: { title: string }) {
+    const r = parent.createDiv("samaya-mt-item"); r.style.setProperty("--h", String(hue(i))); r.createSpan("samaya-mt-dot");
+    if ("date" in i && this.isLive(i as Instance)) r.addClass("is-live");
+    return r;
+  }
+  /** a meeting happening right now: today, started, not yet over */
+  private isLive(i: Pick<Instance, "date" | "start" | "end">): boolean {
+    if (i.date !== todayYmd() || i.start == null) return false;
+    const now = new Date(); const m = now.getHours() * 60 + now.getMinutes();
+    return i.start <= m && m < (i.end ?? i.start + 60);
+  }
   /** a small note marker: a dot for notes, the open action count */
   private mark(r: HTMLElement, i: Instance) { if (this.loading) return; if (i.open) r.createSpan({ cls: "samaya-mt-count", text: `${i.open} open` }); else if (i.hasNotes) r.createSpan({ cls: "samaya-mt-count", text: "notes" }); }
 

@@ -1204,6 +1204,9 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-mt-item:last-child { border-bottom: 0; }
 .samaya-mt-item:hover .samaya-mt-name { color: var(--text-accent); }
 .samaya-mt-item.is-past { opacity: .55; }
+.samaya-mt-item.is-live { --c: hsl(var(--h, 210) 45% 62%); background: color-mix(in srgb, var(--c) 16%, transparent); box-shadow: inset 3px 0 0 var(--c); padding-left: var(--samaya-sp-3); border-radius: 4px; }
+.samaya-mt-item.is-live .samaya-mt-name, .samaya-mt-item.is-live .samaya-mt-time { color: var(--c); font-weight: 600; }
+.samaya-mt-item.is-live .samaya-mt-dot { width: 8px; height: 8px; opacity: 1; }
 .samaya-mt-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--c); align-self: center; opacity: .85; }
 .samaya-mt-time, .samaya-mt-day { flex: none; color: var(--text-muted); font-size: var(--font-ui-small); font-variant-numeric: tabular-nums; }
 .samaya-mt-time { width: 40px; }

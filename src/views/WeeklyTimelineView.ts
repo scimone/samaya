@@ -1,5 +1,6 @@
 import { TFile, setIcon } from "obsidian";
 import type { CalendarEvent } from "../eventnotes";
+import { openFileSmart } from "../openfile";
 import { PlannerPane } from "./plannerPane";
 import type { PlannerHost } from "./plannerHost";
 import type SamayaPlugin from "../main";
@@ -92,7 +93,7 @@ export class WeeklyTimelineView extends PlannerPane {
     const axis = body.createDiv("samaya-wtl-axis"); axis.style.height = L(endH - startH);
     for (let h = startH; h < endH; h++) axis.createSpan({ cls: "samaya-wtl-hour-label", text: minToHm(h * 60) }).style.top = L(h - startH);
     const px = (m: number) => T(m);
-    const open = (f: TFile) => { void this.app.workspace.getLeaf("tab").openFile(f); };
+    const open = (f: TFile) => { void openFileSmart(this.app, f, "tab"); };
 
     for (let i = 0; i < days; i++) {
       const date = addDays(this.weekStart, i); const dayMs = parseYmd(date).getTime(); const isToday = date === today();

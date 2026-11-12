@@ -1,5 +1,6 @@
 import { TFile } from "obsidian";
 import { Panel } from "./panel";
+import { openFileSmart } from "../openfile";
 import type SamayaPlugin from "../main";
 import { Instance, MeetingNote, Series, buildSeries, hueOf, nextWorkday, parseNote, seriesKey } from "../meetingseries";
 import { addDays, parseYmd, startOfWeek, today as todayYmd } from "../util";
@@ -57,7 +58,7 @@ export class MeetingsView extends Panel {
   }
   private open(path: string, e: MouseEvent) {
     const f = this.app.vault.getAbstractFileByPath(path);
-    if (f instanceof TFile) void this.app.workspace.getLeaf(e.ctrlKey || e.metaKey ? "tab" : false).openFile(f);
+    if (f instanceof TFile) void openFileSmart(this.app, f, e.ctrlKey || e.metaKey ? "tab" : false);
   }
   private link(parent: HTMLElement, text: string, active: boolean, on: () => void) {
     const a = parent.createSpan({ cls: "samaya-mt-link" + (active ? " is-active" : ""), text }); a.onclick = on; return a;

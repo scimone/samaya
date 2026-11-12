@@ -1,5 +1,6 @@
 import { Menu, TFile } from "obsidian";
 import { Panel } from "./panel";
+import { openFileSmart } from "../openfile";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, Ticket, allTickets, assignTicket, createTask, readTask, sendPiece, sortTasks, ticketPathOf, unplanned } from "../model";
@@ -90,7 +91,7 @@ export class BacklogView extends Panel {
       more.addEventListener("click", e => {
         e.stopPropagation(); const m = new Menu();
         if (tk.url) m.addItem(i => i.setTitle("Open in browser").setIcon("external-link").onClick(() => window.open(tk.url)));
-        m.addItem(i => i.setTitle("Open ticket note").setIcon("file").onClick(() => { void app.workspace.getLeaf("tab").openFile(tk.file); }));
+        m.addItem(i => i.setTitle("Open ticket note").setIcon("file").onClick(() => { void openFileSmart(app, tk.file, "tab"); }));
         m.showAtMouseEvent(e);
       });
     }

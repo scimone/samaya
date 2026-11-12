@@ -1,5 +1,6 @@
 import { App, Menu, TFile, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
+import { openFileSmart } from "../openfile";
 import { DndScope, DropInfo } from "../dnd";
 import { Source, Task, addSubtask, assignTicket, patchTask, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
 import { ConfirmDeleteModal, ProjectSuggestModal, TicketSuggestModal } from "../modals";
@@ -42,7 +43,7 @@ function ticketChip(plugin: SamayaPlugin, host: HTMLElement, tf: TFile) {
     const parent = { hoverPopover: null };
     chip.addEventListener("mouseover", e => { app.workspace.trigger("hover-link", { event: e, source: "preview", hoverParent: parent, targetEl: chip, linktext: tf.path }); });
   } else chip.title = tk.summary ? `${tk.key}: ${tk.summary}` : tk.key;
-  chip.addEventListener("click", e => { e.stopPropagation(); void app.workspace.getLeaf(e.ctrlKey || e.metaKey ? "tab" : false).openFile(tf); });
+  chip.addEventListener("click", e => { e.stopPropagation(); void openFileSmart(app, tf, e.ctrlKey || e.metaKey ? "tab" : false); });
   chip.addEventListener("pointerdown", e => e.stopPropagation());
 }
 
@@ -71,8 +72,8 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   const cb = line.createEl("input", { type: "checkbox", cls: "samaya-check" }); cb.checked = t.status === "done";
   cb.addEventListener("change", () => { void setDone(app, t, cb.checked); });
   const title = line.createDiv({ cls: "samaya-card-title", text: t.title });
-  title.addEventListener("click", e => { void app.workspace.getLeaf(e.ctrlKey || e.metaKey ? "tab" : false).openFile(t.file); });
-  keyActivate(title, `Open task: ${t.title}`, () => { void app.workspace.getLeaf(false).openFile(t.file); }, "link");
+  title.addEventListener("click", e => { void openFileSmart(app, t.file, e.ctrlKey || e.metaKey ? "tab" : false); });
+  keyActivate(title, `Open task: ${t.title}`, () => { void openFileSmart(app, t.file, false); }, "link");
   const meta = body.createDiv("samaya-card-meta");
   const tp = ticketPathOf(app, t);
   if (tp) {
@@ -185,7 +186,7 @@ export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent, seg: 
   m.addSeparator();
   addPlanItems(m, plugin, t, seg, canCut);
   m.addSeparator();
-  m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { void app.workspace.getLeaf("tab").openFile(t.file); }));
+  m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { void openFileSmart(app, t.file, "tab"); }));
   m.addItem(i => i.setTitle("Delete task").setIcon("trash").setWarning(true).onClick(() => { // asks first; then follows the vault's "deleted files" setting (system trash, .trash or permanent)
     new ConfirmDeleteModal(plugin, t.title, () => { void app.fileManager.trashFile(t.file).then(() => { window.setTimeout(() => plugin.bus.emit(), 150); }); }).open();
   }));

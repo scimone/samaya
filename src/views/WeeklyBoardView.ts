@@ -1,5 +1,6 @@
 import { leftToDo } from "./place";
 import type { PlannerHost } from "./plannerHost";
+import { openFileSmart } from "../openfile";
 import type { CalendarEvent } from "../eventnotes";
 import { Notice, TFile, setIcon } from "obsidian";
 import { PlannerPane } from "./plannerPane";
@@ -239,7 +240,7 @@ export class WeeklyBoardView extends PlannerPane {
           .catch((err: unknown) => { new Notice(`Samaya: could not create the task (${err instanceof Error ? err.message : String(err)})`); });
       }).open();
     });
-    card.addEventListener("click", e => { if (e.target instanceof HTMLElement && e.target.closest("button")) return; void this.app.workspace.getLeaf(e.ctrlKey || e.metaKey ? "tab" : false).openFile(tk.file); });
+    card.addEventListener("click", e => { if (e.target instanceof HTMLElement && e.target.closest("button")) return; void openFileSmart(this.app, tk.file, e.ctrlKey || e.metaKey ? "tab" : false); });
   }
 
   /** One day of the Schedule step: its meetings as a compact agenda on top, then the load bar and the day's tasks. */

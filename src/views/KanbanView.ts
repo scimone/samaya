@@ -1,5 +1,6 @@
 import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
+import { openFileSmart } from "../openfile";
 import { groupTickets } from "../kanban";
 import { DndScope } from "../dnd";
 import { bindZone } from "./common";
@@ -54,7 +55,7 @@ export class KanbanView extends Panel {
           card.createDiv({ cls: "samaya-kb-title", text: t.summary || t.file.basename });
           const meta = [t.issueType, t.assignee].filter(Boolean).join(" · "); if (meta) card.createDiv({ cls: "samaya-kb-meta", text: meta });
           this.scope.draggable(card, t.file.path);
-          card.onclick = e => { void this.app.workspace.getLeaf(e.ctrlKey || e.metaKey ? "tab" : false).openFile(t.file); };
+          card.onclick = e => { void openFileSmart(this.app, t.file, e.ctrlKey || e.metaKey ? "tab" : false); };
         }
       }
     }

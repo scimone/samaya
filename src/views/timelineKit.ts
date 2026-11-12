@@ -1,5 +1,6 @@
 import { TFile, setIcon } from "obsidian";
 import type { CalendarEvent } from "../eventnotes";
+import { openFileSmart } from "../openfile";
 import type SamayaPlugin from "../main";
 import type { DndScope } from "../dnd";
 import { Task, setDone } from "../model";
@@ -71,7 +72,7 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
     day.filter(t => t.start).forEach(t => { const { blocks: bl, cut } = remainingBlocks(plugin, t, date, s.defaultEstimate); bl.forEach((g, k) => items.push({ s: g.s, dur: g.dur, task: t, seg: k, n: bl.length, cut: k === 0 ? cut : 0 })); });
     items.sort((a, b) => a.s - b.s || b.dur - a.dur);
     const slots = layoutItems(items);
-    const open = (f: TFile) => { void plugin.app.workspace.getLeaf("tab").openFile(f); };
+    const open = (f: TFile) => { void openFileSmart(plugin.app, f, "tab"); };
     const nowD = new Date(); const nowMin = nowD.getHours() * 60 + nowD.getMinutes();
     items.forEach(it => {
       if (it.s + it.dur <= startH * 60 || it.s >= endH * 60) return;

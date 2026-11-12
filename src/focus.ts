@@ -1,5 +1,6 @@
 import { Notice, TFile, WorkspaceLeaf, setIcon } from "obsidian";
 import type SamayaPlugin from "./main";
+import { openFileSmart } from "./openfile";
 import { dayTask, patchTask, readTask } from "./model";
 import { roundCheck, trackedBefore } from "./views/place";
 import { today } from "./util";
@@ -111,7 +112,7 @@ export class FocusManager {
       bar.style.setProperty("--p", planned ? `${Math.min(100, (actual / planned) * 100)}%` : "0%");
     });
   }
-  openNote() { const f = this.file; if (f) void this.plugin.app.workspace.getLeaf("tab").openFile(f); }
+  openNote() { const f = this.file; if (f) void openFileSmart(this.plugin.app, f, "tab"); }
 
   async start(file: TFile) {
     if (this.state && this.state.path !== file.path) await this.stop(false);

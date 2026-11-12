@@ -1,5 +1,6 @@
 import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
+import { openFileSmart } from "../openfile";
 import { DragMode, daysBetween, dragSpan, ganttRange, monthMarks } from "../gantt";
 import { Project, projectStats, readProject, createProject } from "../projects";
 import { patchNote, prefixOf } from "../model";
@@ -61,7 +62,7 @@ export class GanttView extends Panel {
       const row = chart.createDiv("samaya-gantt-row");
       const name = row.createDiv("samaya-gantt-name");
       const link = name.createSpan({ cls: "samaya-gantt-link", text: p.name }); link.title = p.file.path;
-      link.onclick = e => { void this.app.workspace.getLeaf(e.ctrlKey || e.metaKey ? "tab" : false).openFile(p.file); };
+      link.onclick = e => { void openFileSmart(this.app, p.file, e.ctrlKey || e.metaKey ? "tab" : false); };
       const st = stats.get(p.file.path);
       if (st) name.createSpan({ cls: "samaya-gantt-count", text: `${st.done}/${st.tasks}`, attr: { title: `${st.done} of ${st.tasks} tasks done${st.tickets ? `, ${st.tickets} ticket${st.tickets > 1 ? "s" : ""}` : ""}` } });
       const track = row.createDiv("samaya-gantt-track"); track.style.width = `${width}px`;

@@ -9,7 +9,7 @@ import { renderHeadTitle } from "./plannerHead";
 import { renderResetPill } from "./dateNav";
 import { NoteText, matches, renderSearch } from "./search";
 
-const memory = { query: "", back: 0 }; // back: extra weeks added before the first date, grown by scrolling left
+const memory = { query: "", back: 0, fwd: 0 }; // extra weeks before / after the dates, grown by scrolling to either edge
 import { addDays, parseYmd, today } from "../util";
 
 export const GANTT_VIEW_TYPE = "samaya-gantt";
@@ -23,6 +23,7 @@ export class GanttView extends Panel {
   private shownGran: Granularity | null = null;
   private lastW = 0;
   private shiftWeeks = 0;
+  private growing = false;
 
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
     super(plugin, () => projectsPrefix(plugin.settings)); this.texts = new NoteText(this.app);
@@ -50,7 +51,7 @@ export class GanttView extends Panel {
     const projects = (q ? every.filter(p => matches(p.name.toLowerCase() + " " + p.file.basename.toLowerCase() + " " + this.texts.get(p.file), q)) : every).sort((a, b) => (a.span?.start ?? "9").localeCompare(b.span?.start ?? "9") || a.name.localeCompare(b.name));
     const stats = projectStats(this.app, prefixOf(s.tasksPath), prefixOf(s.ticketsPath));
     const prev = this.root.querySelector<HTMLElement>(".samaya-gantt-scroll");
-    const keep = prev && !changed ? { x: prev.scrollLeft + this.shiftWeeks * 7 * dayW, y: prev.scrollTop } : null; this.shiftWeeks = 0;
+    const keep = prev && !changed ? { x: prev.scrollLeft + this.shiftWeeks * 7 * dayW, y: prev.scrollTop } : null; this.shiftWeeks = 0; this.growing = false;
     this.root.empty();
 
     const head = this.root.createDiv("samaya-week-head samaya-day-head samaya-gantt-head");
@@ -67,7 +68,7 @@ export class GanttView extends Panel {
     }).open();
 
     const td = today();
-    const { from, days } = ganttRange(projects.flatMap(p => (p.span ? [p.span] : [])), td, memory.back);
+    const { from, days } = ganttRange(projects.flatMap(p => (p.span ? [p.span] : [])), td, memory.back, memory.fwd);
     const width = days * dayW; const todayX = daysBetween(from, td) * dayW + dayW / 2;
     const chart = scroll.createDiv("samaya-gantt-chart"); chart.style.setProperty("--day", `${dayW}px`); chart.style.width = `${200 + width}px`; chart.style.setProperty("--grid", `${(gran === "month" ? 1 : 7) * dayW}px`);
 
@@ -110,6 +111,7 @@ export class GanttView extends Panel {
     // "Today" shows only while the today line is out of sight; the arrow points the way back.
     const sync = () => {
       if (scroll.scrollLeft < 400 && !this.dragging && !this.shiftWeeks) { memory.back += 26; this.shiftWeeks = 26; this.onDataUpdated(); return; } // endless history
+      if (scroll.scrollLeft + scroll.clientWidth > scroll.scrollWidth - 400 && !this.dragging && !this.growing) { this.growing = true; memory.fwd += 26; this.onDataUpdated(); return; }
       const lo = scroll.scrollLeft, hi = scroll.scrollLeft + scroll.clientWidth - 200;
       const out = todayX < lo ? "left" : todayX > hi ? "right" : null;
       if (out === pillSlot.dataset.out) return; pillSlot.dataset.out = out ?? ""; pillSlot.empty();

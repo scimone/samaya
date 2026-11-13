@@ -14,10 +14,10 @@ export function parseSpan(start: unknown, end: unknown): Span | null {
 }
 
 /** The chart's first day (a Monday) and number of days (whole weeks): everything plus a margin, always including today. */
-export function ganttRange(spans: Span[], today: string, extraBackWeeks = 0): { from: string; days: number } {
+export function ganttRange(spans: Span[], today: string, extraBackWeeks = 0, extraFwdWeeks = 0): { from: string; days: number } {
   const all = [today, ...spans.flatMap(s => [s.start, s.end])].sort();
   const from = startOfWeek(addDays(all[0], -7 - extraBackWeeks * 7));
-  const weeks = Math.ceil((daysBetween(from, addDays(all[all.length - 1], 21)) + 1) / 7);
+  const weeks = Math.ceil((daysBetween(from, addDays(all[all.length - 1], 21 + extraFwdWeeks * 7)) + 1) / 7);
   return { from, days: weeks * 7 };
 }
 

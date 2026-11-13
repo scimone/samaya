@@ -439,6 +439,10 @@ console.log("all tests passed");
   assert.ok(weekOverview([{ ...mon, note: "2026-11-09" }], 0).includes("| [[2026-11-09\\|Monday]] |"));
 }
 
+// ---- styles.css: unbalanced braces break every rule after them (the plugin looks empty)
+{ const { readFileSync } = await import("node:fs"); const css = readFileSync("styles.css", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.equal(css.split("{").length, css.split("}").length, "styles.css: braces are not balanced"); }
+
 // ---- day review
 await bundle("src/dayreview.ts", "test/.dayreview.mjs");
 {

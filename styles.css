@@ -1214,7 +1214,7 @@ input.is-invalid { border-color: var(--text-error); }
 @media (max-width: 1000px) { .samaya-rv { grid-template-columns: 1fr; gap: 28px; padding: 16px 20px 28px; } }
 @media (max-width: 1400px) { .samaya-rv-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .samaya-rv-stats { grid-template-columns: repeat(2, 1fr); } .samaya-rv-r { grid-template-columns: 16px minmax(0, 1fr) 60px; } .samaya-rv-r > .samaya-rv-c { display: none; } }
-@media (prefers-reduced-motion: reduce) { 
+@media (prefers-reduced-motion: reduce) { .samaya-rv-stack-seg, .samaya-rv-seg, .samaya-rv-blk { transition: none; } }
 /* hovering another task: the running task's timeline block gives up its highlight, like its card does */
 .samaya-daily.is-hovering-task .samaya-lane .samaya-block.is-current:not(:hover):not(.is-linked) { background: color-mix(in srgb, var(--samaya-task) var(--samaya-tint), var(--background-primary)); color: var(--text-normal); }
 .samaya-daily.is-hovering-task .samaya-lane .samaya-block.is-current:not(:hover):not(.is-linked) .samaya-block-time { color: var(--text-muted); opacity: 1; }

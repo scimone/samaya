@@ -1489,7 +1489,12 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 .workspace-split.mod-root > .samaya-bars { position: absolute; height: auto; flex: none; z-index: 5; display: flex; flex-direction: column; background: var(--background-primary); }
 .samaya-bar-gap { flex: none; pointer-events: none; }
 /* the bar of a note in the side pane: its title (its own heading is hidden below) and two icon buttons */
-.samaya-side-bar { flex: none; display: flex; align-items: center; gap: var(--samaya-sp-2); min-height: 36px; box-sizing: border-box; padding: var(--samaya-sp-1) var(--samaya-sp-3) var(--samaya-sp-1) var(--samaya-sp-6); border-bottom: 1px solid var(--background-modifier-border); background: var(--background-primary); }
+.samaya-side-bar { flex: none; display: flex; align-items: center; gap: var(--samaya-sp-2); min-height: 36px; box-sizing: border-box; padding: var(--samaya-sp-1) var(--samaya-sp-3); border-bottom: 1px solid var(--background-modifier-border); background: var(--background-primary); }
 .samaya-side-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-ui-large); font-weight: var(--font-semibold); color: var(--text-normal); }
-.samaya-side-btns { display: flex; align-items: center; gap: 2px; margin-left: auto; flex: none; }
+.samaya-side-btns { display: flex; align-items: center; gap: 2px; flex: none; }
+.samaya-side-btns button.samaya-side-btn { all: unset; box-sizing: border-box; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--samaya-r-m); cursor: pointer; color: var(--text-muted); background: transparent !important; border: 0 !important; box-shadow: none !important; }
+.samaya-side-btns button.samaya-side-btn:hover, .samaya-side-btns button.samaya-side-btn:focus-visible { background: var(--background-modifier-hover) !important; color: var(--text-normal); }
+.samaya-side-btns button.samaya-side-btn svg { width: 17px; height: 17px; }
+.samaya-journal-bar > .samaya-side-btns { margin-right: var(--samaya-sp-1); }
+.samaya-side-wait .view-content { visibility: hidden; }
 .samaya-side-note:not(.samaya-task-note) .inline-title { display: none !important; }

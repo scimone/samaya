@@ -8,6 +8,7 @@ export function leafPath(l: WorkspaceLeaf): string | undefined {
 
 /** The pane Samaya opens notes in (beside the view the click came from), for as long as it is there. */
 let side: WorkspaceLeaf | null = null;
+let waitPath = "";
 
 /**
  * Open a note in the side view: a split beside the Samaya page you are on. Once that pane exists every note opens in it, replacing what it showed
@@ -23,7 +24,12 @@ export async function openNote(app: App, file: TFile): Promise<void> {
     const active = ws.getActiveViewOfType(ItemView)?.leaf; const base = active && active.getRoot() === ws.rootSplit ? active : ws.getMostRecentLeaf(ws.rootSplit);
     leaf = base ? ws.createLeafBySplit(base, "vertical") : ws.getLeaf("tab"); side = leaf;
   }
-  if (leafPath(leaf) !== file.path) await leaf.openFile(file);
+  if (leafPath(leaf) !== file.path) {
+    // hide the note until its bars and hidden headings are in place (see renderSideBars), so it does not show half dressed first
+    const pane = leaf.view.containerEl.closest<HTMLElement>(".workspace-leaf"); pane?.addClass("samaya-side-wait"); waitPath = file.path;
+    window.setTimeout(() => pane?.removeClass("samaya-side-wait"), 2000); // never stay hidden
+    await leaf.openFile(file);
+  }
   void ws.revealLeaf(leaf); ws.setActiveLeaf(leaf, { focus: true });
 }
 
@@ -44,4 +50,10 @@ export async function expandSide(app: App): Promise<void> {
   const leaf: WorkspaceLeaf = found ?? app.workspace.getLeaf("tab");
   if (!found) await leaf.openFile(file);
   void app.workspace.revealLeaf(leaf); app.workspace.setActiveLeaf(leaf, { focus: true });
+}
+
+/** The side pane shows its note now (called once the note is dressed), if it is the one that was waited for. */
+export function sideWaitDone(leaf: WorkspaceLeaf | null): void {
+  if (!leaf || !waitPath || leafPath(leaf) !== waitPath) return;
+  waitPath = ""; leaf.view.containerEl.closest(".workspace-leaf")?.removeClass("samaya-side-wait");
 }

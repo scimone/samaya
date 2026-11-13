@@ -87,8 +87,8 @@ export class JournalView extends Panel {
     const page = this.root.createDiv("samaya-mt-page").createDiv("samaya-mt-col");
     if (!this.on.length) { page.createDiv({ cls: "samaya-mt-none", text: "The journal is switched off. Turn it on in the settings." }); return; }
     if (memory.month < 0) { const t = parseYmd(todayYmd()); memory.year = t.getFullYear(); memory.month = t.getMonth(); }
-    this.calendar(page.createDiv("samaya-jn-main")); // the calendar on the left, the quick jumps and latest entries beside it
-    const side = page.createDiv("samaya-jn-side"); this.jump(side); this.recent(side);
+    this.jump(page); // the quick jumps on top, the calendar below with the latest entries beside it
+    const body = page.createDiv("samaya-jn-body"); this.calendar(body.createDiv("samaya-jn-main")); this.recent(body.createDiv("samaya-jn-side"));
     if (y) this.root.querySelector<HTMLElement>(".samaya-mt-page")!.scrollTop = y;
   }
 

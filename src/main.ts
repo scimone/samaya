@@ -21,6 +21,7 @@ import { DayPlan, LEGACY_WEEK_HEADINGS, readSection, WEEK_MEETINGS, WEEK_ORDER, 
 import { ensureMeetingNote } from "./meetings";
 import { MeetingBanner } from "./meetingbanner";
 import { calendarEnabled, calendarEvents } from "./calendar";
+import { dayPieces } from "./sessions";
 import { Emitter, addDays, hmToMin, minToHm, parseTitleEstimate as parseTitleEstimateSafe, parseYmd, today } from "./util";
 import { WorkdayManager } from "./workday";
 import { NavShortcuts } from "./navigation";
@@ -29,7 +30,7 @@ import { BUFFER_SHARE, isLeftover, weekSteps, weekToPlan } from "./weekplan";
 import { capacityOf, weekBuckets } from "./views/weekColumn";
 import type { DayLog, RulesFor } from "./worktime";
 
-interface PluginData { settings?: Partial<SamayaSettings>; focus?: FocusState | null; workday?: DayLog | null; /** per-day workday start/end set with the timeline lines */ dayWindows?: Record<string, [string, string]>; /** the plan as it was when the day was first planned (date -> task path and estimate), the baseline of the end-of-day review */ dayPlans?: Record<string, Array<{ path: string; est: number }>>; }
+interface PluginData { settings?: Partial<SamayaSettings>; focus?: FocusState | null; workday?: DayLog | null; /** per-day workday start/end set with the timeline lines */ dayWindows?: Record<string, [string, string]>; /** the plan as it was when the day was first planned (date -> task path and estimate), the baseline of the end-of-day review */ dayPlans?: Record<string, Array<{ path: string; est: number; /** its time slots that day: [start minute, length] */ slots?: Array<[number, number]> }>>; }
 export interface GuideState { step: number; /** the Review step exists (there were unfinished overdue tasks) */ review: boolean; fresh: boolean; /** "shutdown": the one-step end-of-day guide; "week": the guided week plan */ kind: "plan" | "shutdown" | "week"; /** week guide: the monday (ymd) being planned */ week?: string; /** week guide: the Tickets step exists (there are open tickets) */ tickets?: boolean; /** week guide: days shown by the board (5 or 7), for the sidebar */ days?: number; }
 
 
@@ -492,7 +493,7 @@ export default class SamayaPlugin extends Plugin {
     if (write && journalWants(s, "journalPlanned")) await writeSection(this.app, s, td, "Planned tasks", taskLines(await toJournalTasks(this.app, sortByStart(day), false, true)));
     const plans = (this.data.dayPlans ??= {}); // the first plan of the day stays as the baseline; planning again does not replace it
     if (!plans[td]) {
-      plans[td] = day.map(t => ({ path: t.file.path, est: t.estimate }));
+      plans[td] = day.map(t => ({ path: t.file.path, est: t.estimate, slots: dayPieces(t.sessions, td).filter(g => g.s !== null).map((g): [number, number] => [g.s!, g.dur]) }));
       for (const d of Object.keys(plans)) if (d < addDays(td, -60)) delete plans[d];
       await this.saveData(this.data);
     }

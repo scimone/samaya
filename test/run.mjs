@@ -442,18 +442,30 @@ console.log("all tests passed");
 // ---- day review
 await bundle("src/dayreview.ts", "test/.dayreview.mjs");
 {
-  const { runMinutesOn, taskRows, groupRows, daySplit, verdict } = await import("./.dayreview.mjs");
-  assert.equal(runMinutesOn(["2026-11-11 09:05–09:40", "2026-11-11 10:00-10:30", "2026-11-10 09:00–10:00", "2026-11-11 23:30–2026-11-12 00:20", "junk"], "2026-11-11"), 35 + 30 + 30);
+  const { runMinutesOn, runSpansOn, taskRows, changesOf, groupRows, daySplit, verdict, hourRange, signed } = await import("./.dayreview.mjs");
+  const runs = ["2026-11-11 09:05–09:40", "2026-11-11 10:00-10:30", "2026-11-10 09:00–10:00", "2026-11-11 23:30–2026-11-12 00:20", "junk"];
+  assert.equal(runMinutesOn(runs, "2026-11-11"), 35 + 30 + 30);
+  assert.deepEqual(runSpansOn(runs, "2026-11-11"), [{ s: 545, e: 580 }, { s: 600, e: 630 }, { s: 1410, e: 1440 }]);
+  const it = (o) => ({ key: o.title, wasPlanned: true, planned: 0, actual: 0, done: false, slots: [], spans: [], ticket: "", project: "", ...o });
+  const sp = (s, e) => ({ s, e });
   const items = [
-    { title: "A", wasPlanned: true, planned: 60, actual: 90, done: true, ticket: "T-1", project: "" },
-    { title: "B", wasPlanned: true, planned: 30, actual: 0, done: false, ticket: "", project: "" },
-    { title: "C", wasPlanned: false, planned: 0, actual: 20, done: false, ticket: "T-1", project: "" },
+    it({ title: "A", planned: 60, actual: 90, done: true, ticket: "T-1", slots: [sp(540, 600)], spans: [sp(545, 635)] }), // over, on time
+    it({ title: "B", planned: 30 }), // never touched
+    it({ title: "C", wasPlanned: false, actual: 20, ticket: "T-1", spans: [sp(700, 720)] }), // unplanned
+    it({ title: "E", planned: 60, actual: 60, done: true, slots: [sp(600, 660)], spans: [sp(840, 900)] }), // moved 4h
+    it({ title: "F", planned: 60, actual: 30, done: false, slots: [sp(660, 720)], spans: [sp(660, 690)] }), // under, not finished
+    it({ title: "G", planned: 30, actual: 0, done: true }), // checked off without timing: as planned
   ];
-  assert.deepEqual(taskRows(items).map(r => [r.label, r.unplanned]), [["A", false], ["B", false], ["C", true]]);
-  assert.deepEqual(groupRows(items, "ticket").map(g => [g.label, g.planned, g.actual]), [["T-1", 60, 110], ["No ticket", 30, 0]]);
-  assert.deepEqual(taskRows([...items, { title: "D", wasPlanned: false, planned: 0, actual: 0, done: true, ticket: "", project: "" }]).map(r => r.label).includes("D"), true);
-  const sp = daySplit(120, 100, 40, 15); assert.equal(sp.focus, 80); assert.equal(sp.other, 0); assert.equal(sp.total, 135);
+  const by = Object.fromEntries(taskRows(items).map(r => [r.label, r.changes]));
+  assert.deepEqual(by, { A: ["over"], B: ["skipped"], C: ["added"], E: ["moved"], F: ["under", "open"], G: [] });
+  assert.deepEqual(taskRows(items).map(r => r.label), ["A", "E", "F", "C", "B", "G"]); // differences first, by time (untimed last); as planned at the end
+  assert.deepEqual(changesOf(it({ planned: 60, actual: 63, done: true })), []); // within the margin
+  assert.deepEqual(groupRows(items, "ticket").map(g => [g.label, g.planned, g.actual, g.tasks, g.done, g.added]), [["T-1", 60, 110, 2, 1, 1], ["No ticket", 180, 90, 4, 2, 0]]);
+  assert.equal(taskRows([...items, it({ title: "D", wasPlanned: false, done: true })]).some(r => r.label === "D"), true);
+  const d = daySplit(120, 100, 40, 15); assert.equal(d.focus, 80); assert.equal(d.other, 0); assert.equal(d.total, 135);
   assert.equal(verdict(60, 62, 1, 1).title, "Right on plan"); assert.equal(verdict(60, 90, 1, 1).title, "More than planned");
+  assert.deepEqual(hourRange([545, 1050]), [9, 18]); assert.deepEqual(hourRange([600, 630]), [7, 13]); assert.deepEqual(hourRange([]), [8, 14]);
+  assert.equal(signed(65, m => m + "m"), "+65m"); assert.equal(signed(-20, m => m + "m"), "−20m"); assert.equal(signed(0, m => m + "m"), "");
 }
 
 // ---- meeting series

@@ -1110,6 +1110,7 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-rv { --rv-focus: var(--samaya-task); --rv-meet: var(--samaya-meeting); --rv-over: var(--color-orange); --rv-add: var(--interactive-accent); --rv-miss: var(--color-red); --rv-ok: var(--samaya-green);
   --rv-other: color-mix(in srgb, var(--text-muted) 45%, var(--background-primary)); --rv-break: color-mix(in srgb, var(--text-faint) 25%, var(--background-primary));
   display: grid; grid-template-columns: minmax(340px, 4fr) minmax(0, 5fr); gap: 48px; align-items: start; padding: 20px 36px 36px; width: 100%; box-sizing: border-box; }
+.samaya-rv { min-height: 100%; }
 .samaya-rv-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .samaya-rv-h { font-size: var(--samaya-fs-label); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-top: 6px; }
 .samaya-rv-h-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

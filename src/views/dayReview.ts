@@ -56,7 +56,7 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   // ---- left: the two days side by side on one time axis
   const rows = taskRows(items);
   left.createDiv({ cls: "samaya-rv-h", text: "Plan vs. reality" });
-  drawTimeline(left, { items, events: o.events, window: [winFrom, winTo], lunch, start: startAt, end: endAt, breaks: (log?.breaks ?? []).map((b): [number, number] => [hmToMin(b.start), hmToMin(b.end)]), hasPlan, linkRoot: grid });
+  drawTimeline(left, { items, events: o.events, window: [winFrom, winTo], lunch, start: startAt, end: endAt, breaks: (log?.breaks ?? []).map((b): [number, number] => [hmToMin(b.start), hmToMin(b.end)]), hasPlan, linkRoot: grid, room: host.clientHeight });
   const untimed = hasPlan ? plannedItems.filter(i => !i.slots.length).length : 0;
   if (untimed) left.createDiv({ cls: "samaya-rv-note", text: `${untimed} planned ${untimed === 1 ? "task" : "tasks"} had no time slot, so ${untimed === 1 ? "it is" : "they are"} not on the planned timeline.` });
   if (!hasPlan) left.createDiv({ cls: "samaya-rv-note", text: "No plan was saved when this day was planned, so today's list is used as the plan." });
@@ -136,12 +136,13 @@ function linkHover(el: HTMLElement, root: HTMLElement, key: string) {
   el.addEventListener("mouseleave", () => { root.removeClass("is-linking"); root.querySelectorAll(".is-linked").forEach(x => x.removeClass("is-linked")); });
 }
 
-interface TimelineIn { items: ReviewItem[]; events: ReviewEvent[]; window: [number, number]; lunch: [number, number]; start: number | null; end: number | null; breaks: Array<[number, number]>; hasPlan: boolean; linkRoot: HTMLElement; }
-const HOUR_PX = 46;
+interface TimelineIn { items: ReviewItem[]; events: ReviewEvent[]; window: [number, number]; lunch: [number, number]; start: number | null; end: number | null; breaks: Array<[number, number]>; hasPlan: boolean; linkRoot: HTMLElement; /** height of the pane: the hours stretch to fill it */ room: number; }
+const MIN_HOUR_PX = 46, MAX_HOUR_PX = 160, CHROME_PX = 190; // CHROME_PX: padding, headings, column titles and legend around the lanes
 /** Two lanes on one time axis: the plan as dashed outlines, the day as filled blocks. What was never worked is a faded outline, what nobody planned wears the accent colour. */
 function drawTimeline(host: HTMLElement, t: TimelineIn) {
   const spans = t.items.flatMap(i => [...i.slots, ...i.spans]);
   const [h0, h1] = hourRange([t.window[0], t.window[1], ...spans.flatMap(g => [g.s, g.e]), ...t.events.flatMap(e => [e.s, e.e]), ...(t.start !== null ? [t.start] : []), ...(t.end !== null ? [t.end] : [])]);
+  const HOUR_PX = Math.max(MIN_HOUR_PX, Math.min(MAX_HOUR_PX, Math.floor((t.room - CHROME_PX) / (h1 - h0))));
   const px = (m: number) => ((Math.min(h1 * 60, Math.max(h0 * 60, m)) - h0 * 60) / 60) * HOUR_PX; const height = (h1 - h0) * HOUR_PX;
   const box = host.createDiv("samaya-rv-tl");
   const head = box.createDiv("samaya-rv-tl-head"); head.createSpan(); head.createSpan({ text: "Planned" }); head.createSpan({ text: "Actual" });

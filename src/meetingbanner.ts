@@ -2,6 +2,7 @@ import type SamayaPlugin from "./main";
 import { calendarEnabled, calendarEvents } from "./calendar";
 import type { CalendarEvent } from "./eventnotes";
 import { fmtDur } from "./util";
+import { bannerSlots, removeBarStacks } from "./bars";
 
 const hm = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 
@@ -14,6 +15,7 @@ export class MeetingBanner {
   init() {
     const p = this.plugin, ws = p.app.workspace;
     const ensure = () => this.ensure();
+    p.register(removeBarStacks);
     p.registerInterval(window.setInterval(() => { void this.poll(); }, 15000));
     p.registerInterval(window.setInterval(() => this.tick(), 1000));
     p.registerEvent(ws.on("layout-change", ensure));
@@ -37,22 +39,24 @@ export class MeetingBanner {
     } finally { this.busy = false; }
   }
 
+  /** One banner under the header of the pane that is showing, or across all of them when the editor is split (see bars.ts). */
   private ensure() {
     const ev = this.ev;
     if (!ev) { document.querySelectorAll(".samaya-meet-bar").forEach(el => el.remove()); return; }
-    const ws = this.plugin.app.workspace;
-    const host = ws.getMostRecentLeaf(ws.rootSplit)?.view?.containerEl; if (!host) return;
-    if (host.querySelector(":scope > .samaya-meet-bar")) return;
-    document.querySelectorAll(".samaya-meet-bar").forEach(el => el.remove());
-    const bar = createDiv("samaya-meet-bar");
-    const status = bar.createDiv("samaya-meet-status");
-    status.createSpan({ cls: "samaya-meet-dot" }); status.createSpan({ cls: "samaya-meet-state", text: "In meeting" });
-    bar.createSpan({ cls: "samaya-meet-title", text: ev.title });
-    bar.createSpan({ cls: "samaya-meet-prog" });
-    bar.createDiv("samaya-meet-meter");
-    const header = host.querySelector(":scope > .view-header");
-    if (header) header.after(bar); else host.prepend(bar); // always first: the focus banner goes underneath
-    this.tick();
+    let added = false;
+    for (const { host, span } of bannerSlots(this.plugin.app)) {
+      if (host.querySelector(":scope > .samaya-meet-bar")) return;
+      const bar = createDiv("samaya-meet-bar");
+      const status = bar.createDiv("samaya-meet-status");
+      status.createSpan({ cls: "samaya-meet-dot" }); status.createSpan({ cls: "samaya-meet-state", text: "In meeting" });
+      bar.createSpan({ cls: "samaya-meet-title", text: ev.title });
+      bar.createSpan({ cls: "samaya-meet-prog" });
+      bar.createDiv("samaya-meet-meter");
+      const header = host.querySelector(":scope > .view-header");
+      if (header && !span) header.after(bar); else host.prepend(bar); // always first: the focus banner goes underneath
+      added = true;
+    }
+    if (added) this.tick();
   }
 
   private tick() {

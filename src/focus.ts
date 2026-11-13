@@ -1,4 +1,5 @@
 import { Notice, TFile, WorkspaceLeaf, setIcon } from "obsidian";
+import { bannerSlots } from "./bars";
 import type SamayaPlugin from "./main";
 import { openFileSmart } from "./openfile";
 import { dayTask, patchTask, readTask } from "./model";
@@ -52,24 +53,23 @@ export class FocusManager {
     this.plugin.refreshPlanner(); // cards and timeline blocks follow the focus
   }
 
-  /** The banner on top of the pane in front while a focus runs (or is paused). Two looks: the minimal one (label and progress line) on the focused task's own note, a slim reminder on every other page. */
+  /** The banner under the header of the pane that is showing (across all panes when the editor is split, see bars.ts), while a focus runs (or is paused). Two looks: the minimal one (label and progress line) on the focused task's own note, a slim reminder on every other page. */
   private ensureBanners() {
-    const ws = this.plugin.app.workspace;
     if (!this.state) { document.querySelectorAll(".samaya-focus-bar").forEach(el => el.remove()); return; }
-    // one banner, in the pane in front (it moves along when another pane is picked)
-    const leaf = ws.getMostRecentLeaf(ws.rootSplit); const host = leaf?.view?.containerEl;
-    if (!host) return;
-    const here = (leaf!.view as { file?: TFile }).file?.path === this.state.path;
-    const variant = here ? "current" : "elsewhere";
-    const have = host.querySelector<HTMLElement>(":scope > .samaya-focus-bar");
-    if (have && have.dataset.variant === variant) return;
-    document.querySelectorAll(".samaya-focus-bar").forEach(el => el.remove());
-    const bar = createDiv("samaya-focus-bar"); bar.dataset.variant = variant; bar.toggleClass("is-current", here);
-    const header = host.querySelector(":scope > .view-header");
-    const meet = host.querySelector(":scope > .samaya-meet-bar"); // a meeting banner stays on top
-    if (meet) meet.after(bar); else if (header) header.after(bar); else host.prepend(bar);
-    this.buildBanner(bar, here);
-    this.tickBanners();
+    let added = false;
+    for (const { host, leaf, span } of bannerSlots(this.plugin.app)) {
+      const here = (leaf?.view as { file?: TFile } | undefined)?.file?.path === this.state.path;
+      const variant = here ? "current" : "elsewhere";
+      const have = host.querySelector<HTMLElement>(":scope > .samaya-focus-bar");
+      if (have && have.dataset.variant === variant) return;
+      have?.remove();
+      const bar = createDiv("samaya-focus-bar"); bar.dataset.variant = variant; bar.toggleClass("is-current", here);
+      const header = host.querySelector(":scope > .view-header");
+      const meet = host.querySelector(":scope > .samaya-meet-bar"); // a meeting banner stays on top
+      if (meet) meet.after(bar); else if (header && !span) header.after(bar); else host.prepend(bar);
+      this.buildBanner(bar, here); added = true;
+    }
+    if (added) this.tickBanners();
   }
   private buildBanner(bar: HTMLElement, here: boolean) {
     const st = this.state; const file = this.file; if (!st) return;

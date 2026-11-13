@@ -40,3 +40,11 @@ export function dragSpan(span: Span, mode: DragMode, delta: number): Span {
   if (mode === "start") { const s = addDays(span.start, delta); return { start: s > span.end ? span.end : s, end: span.end }; }
   const e = addDays(span.end, delta); return { start: span.start, end: e < span.start ? span.start : e };
 }
+
+export type Granularity = "month" | "quarter" | "year";
+export const GRANULARITIES: Granularity[] = ["month", "quarter", "year"];
+/** Pixels per day. Month and quarter fit ~30 / ~91 days into `avail` px; year uses a fixed narrow width (scrolls). */
+export function granularityDayWidth(g: Granularity, avail: number): number {
+  const fit = (n: number, min: number) => Math.max(min, Math.floor((avail > 0 ? avail : 900) / n * 10) / 10);
+  return g === "month" ? fit(30.5, 14) : g === "quarter" ? fit(91.5, 5) : 4;
+}

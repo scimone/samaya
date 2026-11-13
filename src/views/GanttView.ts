@@ -1,7 +1,7 @@
 import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { openFileBeside } from "../openfile";
-import { DragMode, daysBetween, dragSpan, ganttRange, monthMarks } from "../gantt";
+import { DragMode, GRANULARITIES, Granularity, daysBetween, dragSpan, ganttRange, granularityDayWidth, monthMarks } from "../gantt";
 import { Project, projectStats, readProject, createProject, projectsPrefix } from "../projects";
 import { patchNote, prefixOf } from "../model";
 import { TextPromptModal } from "../modals";
@@ -9,7 +9,7 @@ import { renderHeadTitle } from "./plannerHead";
 import { renderResetPill } from "./dateNav";
 import { NoteText, matches, renderSearch } from "./search";
 
-const memory = { query: "" };
+const memory: { query: string; gran: Granularity } = { query: "", gran: "quarter" };
 import { addDays, parseYmd, today } from "../util";
 
 export const GANTT_VIEW_TYPE = "samaya-gantt";
@@ -20,26 +20,36 @@ export class GanttView extends Panel {
   private dragging = false;
   private pending = false;
   private texts: NoteText;
+  private shownGran: Granularity | null = null;
+  private lastW = 0;
 
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
     super(plugin, () => projectsPrefix(plugin.settings)); this.texts = new NoteText(this.app);
     this.root = parentEl.createDiv("samaya-gantt");
+    this.ro = new ResizeObserver(() => {
+      const w = this.root.querySelector<HTMLElement>(".samaya-gantt-scroll")?.clientWidth ?? 0;
+      if (memory.gran !== "year" && w && Math.abs(w - this.lastW) > 40) this.onDataUpdated();
+    });
+    this.ro.observe(this.root);
   }
-  onunload() { window.clearTimeout(this.timer); }
+  private ro?: ResizeObserver;
+  onunload() { this.ro?.disconnect(); window.clearTimeout(this.timer); }
   onDataUpdated(): void {
     if (this.dragging) { this.pending = true; return; }
     window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.render(), 30);
   }
 
   private render() {
-    const s = this.plugin.settings; const dayW = Number(this.config.get("dayWidth")) || 22;
+    const s = this.plugin.settings; const gran = memory.gran;
+    const dayW = granularityDayWidth(gran, (this.root.querySelector<HTMLElement>(".samaya-gantt-scroll")?.clientWidth ?? this.root.clientWidth) - 200);
+    const changed = gran !== this.shownGran; this.shownGran = gran;
     const every: Project[] = this.data.data.filter(e => e.file.extension === "md").map(e => readProject(this.app, e.file));
     const q = memory.query.trim();
     if (q) this.texts.load(every.map(p => p.file), () => { if (this.root.isConnected && memory.query.trim()) this.onDataUpdated(); });
     const projects = (q ? every.filter(p => matches(p.name.toLowerCase() + " " + p.file.basename.toLowerCase() + " " + this.texts.get(p.file), q)) : every).sort((a, b) => (a.span?.start ?? "9").localeCompare(b.span?.start ?? "9") || a.name.localeCompare(b.name));
     const stats = projectStats(this.app, prefixOf(s.tasksPath), prefixOf(s.ticketsPath));
     const prev = this.root.querySelector<HTMLElement>(".samaya-gantt-scroll");
-    const keep = prev ? { x: prev.scrollLeft, y: prev.scrollTop } : null;
+    const keep = prev && !changed ? { x: prev.scrollLeft, y: prev.scrollTop } : null;
     this.root.empty();
 
     const head = this.root.createDiv("samaya-week-head samaya-day-head samaya-gantt-head");
@@ -47,6 +57,9 @@ export class GanttView extends Panel {
     const right = head.createDiv("samaya-planner-right");
     const scroll = this.root.createDiv("samaya-gantt-scroll");
     renderSearch(right, "Search projects", memory.query, v => { memory.query = v; }, () => this.render(), id => { this.timer = id; });
+    const sel = right.createEl("select", { cls: "dropdown samaya-gantt-gran", attr: { "aria-label": "Time scale" } });
+    for (const g of GRANULARITIES) sel.createEl("option", { text: g[0].toUpperCase() + g.slice(1), value: g });
+    sel.value = gran; sel.onchange = () => { memory.gran = sel.value as Granularity; this.render(); };
     const pillSlot = right.createDiv("samaya-gantt-pill");
     right.createEl("button", { text: "Add project", cls: "mod-cta" }).onclick = () => new TextPromptModal(this.plugin, "New project name", name => {
       void createProject(this.app, s, name).then(() => this.plugin.bus.emit());
@@ -55,7 +68,7 @@ export class GanttView extends Panel {
     const td = today();
     const { from, days } = ganttRange(projects.flatMap(p => (p.span ? [p.span] : [])), td);
     const width = days * dayW; const todayX = daysBetween(from, td) * dayW + dayW / 2;
-    const chart = scroll.createDiv("samaya-gantt-chart"); chart.style.setProperty("--day", `${dayW}px`); chart.style.width = `${200 + width}px`;
+    const chart = scroll.createDiv("samaya-gantt-chart"); chart.style.setProperty("--day", `${dayW}px`); chart.style.width = `${200 + width}px`; chart.style.setProperty("--grid", `${(gran === "month" ? 1 : 7) * dayW}px`);
 
     const hdr = chart.createDiv("samaya-gantt-row samaya-gantt-hrow");
     hdr.createDiv("samaya-gantt-name");
@@ -64,9 +77,10 @@ export class GanttView extends Panel {
       const el = hTrack.createDiv({ cls: "samaya-gantt-month", text: m.span * dayW > 60 ? m.date.toLocaleDateString(undefined, { month: "short", year: "numeric" }) : "" });
       el.style.left = `${m.offset * dayW}px`; el.style.width = `${m.span * dayW}px`;
     }
-    for (let w = 0; w < days / 7; w++) {
-      const el = hTrack.createDiv({ cls: "samaya-gantt-week", text: String(parseYmd(addDays(from, w * 7)).getDate()) });
-      el.style.left = `${w * 7 * dayW}px`; el.style.width = `${7 * dayW}px`;
+    const step = gran === "month" ? 1 : 7; // month: label every day; otherwise only Mondays
+    for (let w = 0; w < days / step; w++) {
+      const el = hTrack.createDiv({ cls: "samaya-gantt-week", text: String(parseYmd(addDays(from, w * step)).getDate()) });
+      el.style.left = `${w * step * dayW}px`; el.style.width = `${step * dayW}px`;
     }
 
     if (!projects.length) chart.createDiv({ cls: "samaya-empty", text: q ? "No projects match." : "No projects yet. Use “Add project”." });
@@ -88,7 +102,10 @@ export class GanttView extends Panel {
       this.drag(bar, p, dayW, place);
     }
     const line = chart.createDiv("samaya-gantt-today"); line.style.left = `${200 + todayX}px`;
-    if (keep) { scroll.scrollLeft = keep.x; scroll.scrollTop = keep.y; } else scroll.scrollLeft = Math.max(0, todayX - 120);
+    if (keep) { scroll.scrollLeft = keep.x; scroll.scrollTop = keep.y; }
+    else if (gran === "year") scroll.scrollLeft = Math.max(0, todayX - 120);
+    else { scroll.scrollLeft = Math.max(0, daysBetween(from, `${td.slice(0, 8)}01`) * dayW); }
+    this.lastW = scroll.clientWidth;
     // "Today" shows only while the today line is out of sight; the arrow points the way back.
     const sync = () => {
       const lo = scroll.scrollLeft, hi = scroll.scrollLeft + scroll.clientWidth - 200;

@@ -154,7 +154,9 @@ assert.equal(W.fmtSigned(-18), "-0:18"); assert.equal(W.fmtSigned(75), "+1:15");
 
 // ---- gantt
 {
-  const { parseSpan, ganttRange, dragSpan, monthMarks, daysBetween } = await import("./.gantt.mjs");
+  const { parseSpan, ganttRange, dragSpan, monthMarks, daysBetween, granularityDayWidth } = await import("./.gantt.mjs");
+  assert.ok(granularityDayWidth("month", 1000) > granularityDayWidth("quarter", 1000) && granularityDayWidth("quarter", 1000) > granularityDayWidth("year", 1000));
+  assert.equal(granularityDayWidth("year", 1000), 4);
   assert.deepEqual(parseSpan("2026-11-02", "2026-11-09"), { start: "2026-11-02", end: "2026-11-09" });
   assert.deepEqual(parseSpan("2026-11-02", undefined), { start: "2026-11-02", end: "2026-11-02" });
   assert.deepEqual(parseSpan("2026-11-02", "2026-10-01"), { start: "2026-11-02", end: "2026-11-02" });

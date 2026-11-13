@@ -381,11 +381,11 @@ body {
 .samaya-gantt-link { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .samaya-gantt-link:hover { color: var(--text-accent); }
 .samaya-gantt-count { margin-left: auto; font-size: var(--font-ui-smaller); color: var(--text-muted); }
-.samaya-gantt-track { position: relative; flex: none; background-image: linear-gradient(to right, var(--background-modifier-border) 1px, transparent 1px); background-size: calc(var(--day) * 7) 100%; }
+.samaya-gantt-track { position: relative; flex: none; background-image: linear-gradient(to right, var(--background-modifier-border) 1px, transparent 1px); background-size: var(--grid, calc(var(--day) * 7)) 100%; }
 .samaya-gantt-hrow .samaya-gantt-track { background-image: none; }
 .samaya-gantt-month, .samaya-gantt-week { position: absolute; font-size: var(--font-ui-smaller); color: var(--text-muted); white-space: nowrap; overflow: hidden; padding-left: 4px; }
 .samaya-gantt-month { top: 4px; font-weight: 600; color: var(--text-normal); }
-.samaya-gantt-week { top: 24px; border-left: 1px solid var(--background-modifier-border); }
+.samaya-gantt-week { top: 24px; padding-left: 2px; box-sizing: border-box; border-left: 1px solid var(--background-modifier-border); }
 .samaya-gantt-bar { position: absolute; top: 6px; height: 22px; border-radius: 5px; background: color-mix(in srgb, var(--interactive-accent) 35%, var(--background-primary)); border: 1px solid var(--interactive-accent); cursor: grab; overflow: hidden; touch-action: none; user-select: none; }
 .samaya-gantt-bar.is-done { opacity: 0.5; filter: grayscale(0.6); }
 .samaya-gantt-bar.is-dragging { cursor: grabbing; }

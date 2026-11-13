@@ -1,7 +1,9 @@
-import { TFile, normalizePath, setIcon } from "obsidian";
+import { Notice, TFile, normalizePath, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { closeSide, expandSide, sideLeaf, sideWaitDone } from "../openfile";
-import { prefixOf, readTask, readTicket } from "../model";
+import { patchNote, prefixOf, readTask, readTicket } from "../model";
+import { projectsPrefix } from "../projects";
+import { safeFileName } from "../util";
 import { taskLine } from "./taskCard";
 
 /** The two icon buttons, left of the title (no border, no fill until hovered). The tooltip is Obsidian's (aria-label): never add a `title` as well, that shows a second one. */
@@ -25,6 +27,34 @@ function titleOf(plugin: SamayaPlugin, file: TFile): string {
   }
   if (file.path.startsWith(prefixOf(s.tasksPath))) return readTask(plugin.app, file).title;
   return file.basename;
+}
+
+/** How the title of this note can be changed from the bar: meetings write their `title` property, tasks and projects rename the note. Tickets, journal notes and others: not at all. */
+function renamerOf(plugin: SamayaPlugin, file: TFile): ((name: string) => Promise<void>) | null {
+  const s = plugin.settings;
+  if (file.path.startsWith(normalizePath(s.eventNotesFolder.trim() || "Meetings") + "/")) return name => patchNote(plugin.app, file, { title: name });
+  if (file.path.startsWith(prefixOf(s.tasksPath)) || file.path.startsWith(projectsPrefix(s))) return async name => {
+    const base = safeFileName(name); if (!base || base === file.basename) return;
+    const dir = file.parent && !file.parent.isRoot() ? file.parent.path + "/" : ""; const path = `${dir}${base}.${file.extension}`;
+    if (plugin.app.vault.getAbstractFileByPath(path)) { new Notice(`"${base}" already exists`); return; }
+    await plugin.app.fileManager.renameFile(file, path);
+  };
+  return null;
+}
+/** Click the title to edit it in place: Enter or leaving the field saves, Escape cancels. */
+function makeEditable(el: HTMLElement, current: string, rename: (name: string) => Promise<void>) {
+  el.addClass("is-editable"); el.setAttr("aria-label", "Click to rename");
+  el.onclick = () => {
+    const input = createEl("input", { cls: "samaya-side-title-input", type: "text", value: current });
+    el.replaceWith(input); input.focus(); input.select();
+    let done = false;
+    const finish = (save: boolean) => {
+      if (done) return; done = true; input.replaceWith(el);
+      const v = input.value.trim(); if (save && v && v !== current) void rename(v);
+    };
+    input.onkeydown = e => { if (e.key === "Enter") finish(true); else if (e.key === "Escape") finish(false); e.stopPropagation(); };
+    input.onblur = () => finish(true);
+  };
 }
 
 /**
@@ -55,6 +85,8 @@ export function renderSideBars(plugin: SamayaPlugin) {
     const bar = createDiv("samaya-side-bar"); bar.dataset.key = key;
     addButtons(bar, plugin);
     if (line) bar.append(line); else bar.createDiv({ cls: "samaya-side-title", text: title, attr: { "aria-label": file.path } });
+    const rename = renamerOf(plugin, file); const tEl = bar.querySelector<HTMLElement>(".samaya-side-title");
+    if (rename && tEl) makeEditable(tEl, title, rename);
     el.insertBefore(bar, content);
   });
   sideWaitDone(side); // bars, hidden headings and the journal bar are all in place: show the note

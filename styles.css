@@ -1515,6 +1515,8 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 .samaya-bar-gap { flex: none; pointer-events: none; }
 /* the bar of a note in the side pane: its title (its own heading is hidden below) and two icon buttons */
 .samaya-side-bar { flex: none; display: flex; align-items: center; gap: var(--samaya-sp-2); min-height: 36px; box-sizing: border-box; padding: var(--samaya-sp-1) var(--samaya-sp-3); border-bottom: 1px solid var(--background-modifier-border); background: var(--background-primary); }
+.samaya-side-title.is-editable { cursor: text; border-radius: var(--radius-s); } .samaya-side-title.is-editable:hover { background: var(--background-modifier-hover); }
+.samaya-side-title-input { flex: 1; min-width: 0; font-size: var(--font-ui-large); font-weight: var(--font-semibold); }
 .samaya-side-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-ui-large); font-weight: var(--font-semibold); color: var(--text-normal); }
 .samaya-side-btns { display: flex; align-items: center; gap: 2px; flex: none; }
 .samaya-side-btns button.samaya-side-btn { all: unset; box-sizing: border-box; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--samaya-r-m); cursor: pointer; color: var(--text-muted); background: transparent !important; border: 0 !important; box-shadow: none !important; }

@@ -411,6 +411,8 @@ body {
 .samaya-gantt-add { flex: 1 1 0; min-width: 0; }
 .samaya-gantt-track.is-placeable { cursor: copy; }
 .samaya-gantt-bar.is-ghost { opacity: 0.5; border-style: dashed; cursor: copy; pointer-events: none; }
+.samaya-gantt-namebg { position: sticky; left: 0; width: var(--name); height: 0; z-index: 3; }
+.samaya-gantt-namebg-fill { position: absolute; top: 0; left: 0; width: 100%; box-sizing: border-box; background: var(--background-primary); border-right: 1px solid var(--background-modifier-border); pointer-events: none; }
 .samaya-gantt-nodates { padding: 0 12px; line-height: 42px; color: var(--text-faint); font-size: var(--font-ui-smaller); }
 .samaya-gantt-today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text-error); opacity: 0.6; pointer-events: none; z-index: 2; }
 

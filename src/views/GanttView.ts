@@ -79,6 +79,9 @@ export class GanttView extends Panel {
     // month: no gridlines, weekends shaded like the sidebars; quarter and year: only a line between months (below)
     chart.style.setProperty("--weekend", gran === "month" ? "linear-gradient(to right, transparent calc(var(--day) * 5), var(--background-secondary) calc(var(--day) * 5))" : "none");
 
+    // a full-height backdrop behind the name column, so the today line and gridlines vanish under it from top to bottom (also in the row borders and below the last row)
+    const backdrop = chart.createDiv("samaya-gantt-namebg").createDiv("samaya-gantt-namebg-fill");
+    const fitBackdrop = () => { backdrop.style.height = `${chart.offsetHeight}px`; };
     const hdr = chart.createDiv("samaya-gantt-row samaya-gantt-hrow");
     const hName = hdr.createDiv("samaya-gantt-name");
     const toggle = hName.createEl("button", { cls: "clickable-icon samaya-gantt-toggle", attr: { "aria-label": hidden ? "Show table" : "Hide table" } });
@@ -143,6 +146,7 @@ export class GanttView extends Panel {
       addRow.createDiv("samaya-gantt-track").style.width = `${width}px`;
     }
     if (!hidden) for (const cell of Array.from(chart.querySelectorAll<HTMLElement>(".samaya-gantt-name"))) this.resizer(cell, chart, width, nw);
+    fitBackdrop();
     const line = chart.createDiv("samaya-gantt-today"); line.style.left = `calc(var(--name) + ${todayX}px)`;
     if (keep) { scroll.scrollLeft = keep.x; scroll.scrollTop = keep.y; }
     else if (gran === "year") scroll.scrollLeft = Math.max(0, todayX - 120);
@@ -189,7 +193,7 @@ export class GanttView extends Panel {
       if (out === pillSlot.dataset.out) return; pillSlot.dataset.out = out ?? ""; pillSlot.empty();
       if (out) renderResetPill(pillSlot, "Today", "Scroll back to today", out, () => { scroll.scrollLeft = Math.max(0, todayX - scroll.clientWidth / 3); });
     };
-    scroll.addEventListener("scroll", sync, { passive: true }); this.syncEdges = sync; sync();
+    scroll.addEventListener("scroll", sync, { passive: true }); this.syncEdges = () => { fitBackdrop(); sync(); }; sync();
   }
 
   /** The drag handle on a name cell's right border: resizes the whole column live, saves on release. */

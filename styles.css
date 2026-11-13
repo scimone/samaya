@@ -1209,12 +1209,14 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-embed { height: 100%; overflow: auto; display: flex; flex-direction: column; }
 .samaya-embed-tabs { display: flex; justify-content: center; padding: var(--size-4-2) var(--size-4-3) 0; }
 .samaya-embed-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0; } /* no side padding: every panel's heading sits at the same left edge as the planner's */
-.samaya-rail { flex: 0 0 auto; width: 44px; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: var(--size-4-3) 0; }
+.samaya-rail { flex: 0 0 auto; width: 44px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: var(--size-4-4) 0; }
 .samaya-rail.is-hidden { display: none; }
-.samaya-rail-btn { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; background: none !important; box-shadow: none !important; border: 0 !important; color: var(--text-faint); cursor: pointer; }
-.samaya-rail-btn svg { width: 22px; height: 22px; stroke-width: 1.6; }
-.samaya-rail-btn:hover { color: var(--text-normal); }
-.samaya-rail-btn.is-active { color: var(--interactive-accent); }
+/* zen: hairline strokes, small icons, quiet by default; the current section is the only one with colour, marked by a tiny dot */
+.samaya-rail-btn { position: relative; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; background: none !important; box-shadow: none !important; border: 0 !important; border-radius: var(--radius-m); color: var(--text-faint); opacity: 0.7; cursor: pointer; transition: color 0.2s ease, opacity 0.2s ease; }
+.samaya-rail-btn svg { width: 18px; height: 18px; stroke-width: 1.1; }
+.samaya-rail-btn:hover { color: var(--text-muted); opacity: 1; }
+.samaya-rail-btn.is-active { color: var(--interactive-accent); opacity: 1; }
+.samaya-rail-btn.is-active::after { content: ""; position: absolute; right: -2px; top: 50%; width: 3px; height: 3px; margin-top: -1.5px; border-radius: 50%; background: currentColor; }
 
 /* focus banner: on top of every page in the main area while a focus runs */
 /* focus bar on top of the pane in front. Slim reminder on other pages; taller, with the clock and a progress line, on the focused task's own note */

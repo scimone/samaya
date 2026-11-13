@@ -1599,3 +1599,8 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 .samaya-side-bar .samaya-tc-big { font-size: var(--font-ui-medium); } .samaya-side-bar .samaya-tc-bigsep { font-size: var(--font-ui-medium); }
 .samaya-side-bar .samaya-tc-clock { align-items: flex-end; }
 .samaya-focus-bar[data-variant="elsewhere"] { cursor: pointer; }
+
+.samaya-kb-addproject { margin-left: auto; display: inline-flex; opacity: 0; color: var(--text-muted); cursor: pointer; }
+.samaya-kb-addproject svg { width: 14px; height: 14px; }
+.samaya-kb-lanehead:hover .samaya-kb-addproject { opacity: 1; }
+.samaya-kb-addproject:hover { color: var(--text-normal); }

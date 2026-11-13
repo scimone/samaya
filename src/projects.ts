@@ -58,3 +58,10 @@ export async function createProject(app: App, s: SamayaSettings, name: string): 
   await patchNote(app, f, { status: "active" }); // no dates yet: the chart places it when the user clicks its row
   return f;
 }
+
+/** New project that is linked to the given ticket notes (each gets `assigned_project`, so the project lists them). */
+export async function createProjectFor(app: App, s: SamayaSettings, name: string, tickets: TFile[]): Promise<TFile> {
+  const f = await createProject(app, s, name);
+  for (const t of tickets) await patchNote(app, t, { [PROJECT_PROP]: `[[${f.basename}]]`, [LEGACY_PROJECT_PROP]: null });
+  return f;
+}

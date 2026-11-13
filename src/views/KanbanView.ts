@@ -1,11 +1,13 @@
 import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { openFileSmart } from "../openfile";
-import { groupTickets } from "../kanban";
+import { NO_PROJECT, groupTickets } from "../kanban";
 import { DndScope } from "../dnd";
 import { bindZone } from "./common";
 import { patchNote, prefixOf, readTicket, relocateTicket, varsOfTicket } from "../model";
-import { TFile, setIcon } from "obsidian";
+import { Menu, TFile, setIcon } from "obsidian";
+import { TextPromptModal } from "../modals";
+import { createProjectFor } from "../projects";
 import { renderHeadTitle } from "./plannerHead";
 import { NoteText, matches, renderSearch } from "./search";
 
@@ -28,6 +30,10 @@ export class KanbanView extends Panel {
     const t = readTicket(this.app, f); if (t.state === status || status === "No status") return;
     await patchNote(this.app, f, { status });
     if (this.plugin.settings.ticketsPath.includes("TICKET_STATUS")) await relocateTicket(this.app, this.plugin.settings, t, { ...varsOfTicket(t), status });
+  }
+  /** Ask for a name (pre-filled), create a project and link the given tickets to it. */
+  private newProject(initial: string, tickets: TFile[]) {
+    new TextPromptModal(this.plugin, "New project name", n => { void createProjectFor(this.app, this.plugin.settings, n, tickets).then(() => this.plugin.bus.emit()); }, initial).open();
   }
   onDataUpdated(): void {
     if (this.scope.active) { this.pending = true; return; }
@@ -61,6 +67,10 @@ export class KanbanView extends Panel {
       const box = grid.createDiv("samaya-kb-lane");
       const title = box.createDiv({ cls: "samaya-kb-lanehead" + (this.collapsed.has(lane.project) ? " is-collapsed" : "") });
       title.createSpan({ cls: "samaya-kb-chevron", text: "▾" }); title.createSpan({ text: lane.project }); title.createSpan({ cls: "samaya-kb-count", text: String(lane.count) });
+      if (s.projectsOn && lane.project !== NO_PROJECT) {
+        const add = title.createSpan({ cls: "samaya-kb-addproject", attr: { "aria-label": `Create a project from ${lane.project}` } }); setIcon(add, "folder-plus");
+        add.onclick = e => { e.stopPropagation(); this.newProject(lane.project, all.filter(t => t.project === lane.project).map(t => t.file)); };
+      }
       title.onclick = () => { if (!this.collapsed.delete(lane.project)) this.collapsed.add(lane.project); this.render(); };
       if (this.collapsed.has(lane.project)) continue;
       const row = box.createDiv("samaya-kb-row");
@@ -73,6 +83,11 @@ export class KanbanView extends Panel {
           card.createDiv({ cls: "samaya-kb-title", text: t.summary || t.file.basename });
           const meta = [t.issueType, t.assignee].filter(Boolean).join(" · "); if (meta) card.createDiv({ cls: "samaya-kb-meta", text: meta });
           this.scope.draggable(card, t.file.path);
+          if (s.projectsOn) card.addEventListener("contextmenu", e => {
+            e.preventDefault(); const m = new Menu();
+            m.addItem(i => i.setTitle("Create project from ticket…").setIcon("folder-plus").onClick(() => this.newProject(t.summary || t.key, [t.file])));
+            m.showAtMouseEvent(e);
+          });
           card.onclick = e => { void openFileSmart(this.app, t.file, e.ctrlKey || e.metaKey ? "tab" : false); };
         }
       }

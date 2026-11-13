@@ -487,17 +487,9 @@ button.samaya-tc-status { cursor: pointer; } button.samaya-tc-status:hover { bac
 .samaya-panel > .samaya-mod:first-child { margin-top: 16px; }
 @media (max-width: 600px) { .samaya-tab-name { display: none; } .samaya-tab.is-active .samaya-tab-name { display: inline; } }
 
-/* journal notes: navigation bar above the note */
-.samaya-journal-bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; padding: 6px var(--size-4-4, 16px); background: var(--background-primary); border-bottom: 1px solid var(--background-modifier-border); }
-.samaya-jb-nav { grid-column: 2; display: flex; align-items: center; gap: 4px; min-width: 0; }
-.samaya-jb-title { font-size: var(--font-ui-medium); font-weight: var(--font-semibold, 600); color: var(--text-normal); padding: 0 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
-.samaya-jb-arrow { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: var(--samaya-r-m); background: transparent; box-shadow: none; color: var(--text-muted); cursor: pointer; }
-.samaya-jb-arrow .svg-icon { width: 18px; height: 18px; }
-.samaya-jb-arrow:hover:not(:disabled) { background: var(--background-modifier-hover); color: var(--text-normal); }
-.samaya-jb-arrow:disabled { opacity: 0.3; cursor: default; }
-.samaya-jb-now { grid-column: 3; justify-self: end; height: 28px; padding: 0 12px; border-radius: var(--samaya-r-m); font-size: var(--font-ui-small); font-weight: var(--font-medium, 500); background: transparent; border: 1px solid var(--background-modifier-border); box-shadow: none; color: var(--text-normal); cursor: pointer; white-space: nowrap; }
-.samaya-jb-now:hover:not(:disabled) { background: var(--background-modifier-hover); border-color: var(--background-modifier-border-hover); }
-.samaya-jb-now:disabled { opacity: 0.45; cursor: default; border-color: transparent; background: var(--background-secondary); }
+/* journal notes: navigation bar above the note (the planner's heading: .samaya-day-head with titles, pill and date navigation) */
+.samaya-journal-bar { border-bottom: 1px solid var(--background-modifier-border); }
+.samaya-journal-bar .samaya-weeknav button.samaya-weeknav-step:disabled { opacity: .3; cursor: default; background: transparent; }
 
 /* ---- plan my day: load bar, timebox emphasis, day start/finish lines */
 .samaya-loadbar { margin: 4px 0 10px; }
@@ -1406,7 +1398,6 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
 .samaya-jn-card-sub { font-size: var(--font-ui-smaller); color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .samaya-jn-card-foot { margin-top: var(--samaya-sp-3); min-height: 18px; }
 .samaya-jn-card.is-loading .samaya-jn-card-act { visibility: hidden; }
-.samaya-jn-step.is-month { margin: 0 -2px; }
 .samaya-jn-card-act { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-ui-smaller); font-weight: 500; color: var(--text-faint); transition: color .15s; }
 .samaya-jn-card-act .svg-icon { width: 14px; height: 14px; }
 .samaya-jn-card:not(.is-missing) .samaya-jn-card-act { color: var(--text-muted); }
@@ -1428,11 +1419,8 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
 .samaya-jn-cal-q.samaya-jn-hit:hover { border-color: var(--interactive-accent); color: var(--text-accent); }
 /* a written month / quarter / year carries the accent dot */
 .samaya-jn-cal-month.has-note::after, .samaya-jn-cal-year.has-note::after, .samaya-jn-cal-q.has-note::after { content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 0 3px 6px; border-radius: 50%; background: var(--interactive-accent); vertical-align: middle; }
-.samaya-jn-cal-nav { display: flex; align-items: center; gap: 2px; flex: none; }
-.samaya-jn-step { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; background: transparent; border: 0; color: var(--text-muted); border-radius: var(--samaya-r-m); cursor: pointer; }
-.samaya-jn-step:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
-.samaya-jn-pill { height: 26px; padding: 0 var(--samaya-sp-3); margin-right: var(--samaya-sp-1); font-size: var(--font-ui-smaller); border-radius: var(--samaya-r-pill); background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); color: var(--text-accent); border: 0; cursor: pointer; }
-.samaya-jn-pill:hover { background: color-mix(in srgb, var(--interactive-accent) 24%, transparent); }
+.samaya-jn-cal-nav { display: flex; align-items: center; gap: var(--samaya-sp-2); flex: none; }
+.samaya-jn-cal-nav .samaya-weeknav-label:not(.is-icon) { min-width: 0; padding: 0 var(--samaya-sp-3); }
 
 .samaya-jn-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 38px repeat(7, minmax(0, 1fr)); grid-template-rows: auto repeat(6, minmax(34px, 1fr)); gap: 3px; }
 .samaya-jn-dow { padding: 0 0 var(--samaya-sp-1); text-align: center; font-size: var(--samaya-fs-label); letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); }

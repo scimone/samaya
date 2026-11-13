@@ -8,6 +8,7 @@ import { syncTickets } from "./sync";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
 import { ConfirmCreateModal, ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "./modals";
 import type { Period } from "./journal";
+import { renderJournalBar } from "./views/journalBar";
 import { PERIOD_UI, identifyNote, findLatestPeriodNote, listPeriodNotes, neighbours, journalLocation, openPeriodNote, periodNotePath } from "./journal";
 import { affectsTaskLists, syncTaskLists } from "./tasklinks";
 import { assignProject, createProject } from "./projects";
@@ -297,7 +298,7 @@ export default class SamayaPlugin extends Plugin {
   private async renderJournalBar(leaf: import("obsidian").WorkspaceLeaf, el: HTMLElement, cur: { file: TFile; p: Period; date: string } | null) {
     const bars = () => Array.from(el.querySelectorAll<HTMLElement>(":scope > .samaya-journal-bar"));
     if (!cur) { bars().forEach(b => b.remove()); return; }
-    const s = this.settings; const ui = PERIOD_UI[cur.p];
+    const s = this.settings;
     const { prev, next } = neighbours(await listPeriodNotes(this.app, s, cur.p), cur.date);
     const nowNote = await periodNotePath(this.app, s, cur.p, today());
     const isNow = nowNote?.path === cur.file.path;
@@ -306,18 +307,8 @@ export default class SamayaPlugin extends Plugin {
     if (existing.length === 1 && existing[0].dataset.key === key) return;
     existing.forEach(b => b.remove());
     const content = el.querySelector(":scope > .view-content"); if (!content) return;
-    const bar = createDiv({ cls: "samaya-journal-bar" }); bar.dataset.key = key;
-    const open = (f: TFile | null) => { if (f) void leaf.openFile(f); }; // stepping through notes stays in this tab
-    const nav = bar.createDiv({ cls: "samaya-jb-nav" });
-    const arrow = (icon: string, dir: string, target: { file: TFile } | null) => {
-      const b = nav.createEl("button", { cls: "samaya-jb-arrow", attr: { "aria-label": target ? `${dir} ${ui.noun}: ${target.file.basename}` : `No ${dir} ${ui.noun}` } });
-      setIcon(b, icon); if (target) b.addEventListener("click", () => open(target.file)); else b.disabled = true;
-    };
-    arrow("chevron-left", "Previous", prev);
-    nav.createSpan({ cls: "samaya-jb-title", text: momentFmt(new Date(cur.date + "T12:00:00"), ui.title) });
-    arrow("chevron-right", "Next", next);
-    const now = bar.createEl("button", { cls: "samaya-jb-now", text: ui.now, attr: { "aria-label": `Go to ${ui.now.toLowerCase()}` } });
-    if (isNow) now.disabled = true; else now.addEventListener("click", () => { void openPeriodNote(this.app, s, cur.p, today()).then(open); });
+    const bar = createDiv({ cls: "samaya-journal-bar samaya-day-head" }); bar.dataset.key = key;
+    renderJournalBar(this, leaf, bar, cur, prev?.file ?? null, next?.file ?? null, isNow);
     el.insertBefore(bar, content);
   }
   /** Open a note in the main area: reuse a tab already showing it, else the first note tab, else a new tab. */

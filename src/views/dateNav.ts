@@ -4,6 +4,8 @@ export interface DateNavOpts {
   label: string;
   prevLabel: string; nextLabel: string;
   onPrev(): void; onNext(): void;
+  /** an arrow with nowhere to go is dimmed and does nothing */
+  prevDisabled?: boolean; nextDisabled?: boolean;
   /** the label opens a date picker preset to `value` (the native input sits invisibly over it); `label` names it for assistive tech */
   pick?: { value: string; label?: string; run(value: string): void };
   /** show this icon as the (picker) button instead of the date text: the heading already says which date it is */
@@ -13,8 +15,8 @@ export interface DateNavOpts {
 /** ‹ date › in one bordered control: the date navigation of the day and week headings and of the Today sidebar. */
 export function renderDateNav(parent: HTMLElement, o: DateNavOpts): HTMLElement {
   const nav = parent.createDiv("samaya-weeknav");
-  const step = (icon: string, label: string, run: () => void) => { const b = nav.createEl("button", { cls: "samaya-weeknav-step", attr: { "aria-label": label, title: label } }); setIcon(b, icon); b.onclick = run; };
-  step("chevron-left", o.prevLabel, o.onPrev);
+  const step = (icon: string, label: string, run: () => void, off = false) => { const b = nav.createEl("button", { cls: "samaya-weeknav-step", attr: { "aria-label": label, title: label } }); setIcon(b, icon); if (off) b.disabled = true; else b.onclick = run; };
+  step("chevron-left", o.prevLabel, o.onPrev, o.prevDisabled);
   const asIcon = !!(o.icon && o.pick);
   const lab = nav.createSpan({ cls: "samaya-weeknav-label", text: asIcon ? "" : o.label });
   if (asIcon) { lab.addClass("is-icon"); setIcon(lab, o.icon!); }
@@ -27,7 +29,7 @@ export function renderDateNav(parent: HTMLElement, o: DateNavOpts): HTMLElement 
     lab.onclick = e => { if (e.target !== picker) open(); };
     lab.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
   }
-  step("chevron-right", o.nextLabel, o.onNext);
+  step("chevron-right", o.nextLabel, o.onNext, o.nextDisabled);
   return nav;
 }
 

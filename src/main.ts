@@ -553,6 +553,15 @@ export default class SamayaPlugin extends Plugin {
     }, t.summary).open();
   }
 
+  /** New task assigned to a project (and to its only ticket, if it has exactly one); left unplanned so it lands in the backlog. */
+  newTaskForProject(project: TFile) {
+    new TextPromptModal(this, `New task for ${project.basename} (append 30m / 1h for an estimate)`, raw => {
+      const p = parseTitleEstimateSafe(raw);
+      const tickets = allTickets(this.app, this.settings).filter(t => projectPathOf(this.app, t.file) === project.path);
+      void createTask(this.app, this.settings, p.title, { estimate: p.estimate ?? this.settings.defaultEstimate, samaya_project: `[[${project.basename}]]`, ...(tickets.length === 1 ? { ticket: `[[${tickets[0].file.basename}]]` } : {}) }).then(() => this.bus.emit());
+    }).open();
+  }
+
   private async convertCheckbox(ed: Editor, view: MarkdownView) {
     const line = ed.getCursor().line; const text = ed.getLine(line);
     const m = text.match(/^(\s*)[-*]\s+\[( |x)\]\s+(.+)$/i);

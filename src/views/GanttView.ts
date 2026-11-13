@@ -122,6 +122,8 @@ export class GanttView extends Panel {
       for (const t of linked) if (!tp || t.project !== tp) pill(t.key, t.source, t.summary || t.key).onclick = e => { e.stopPropagation(); openFileSmart(this.app, t.file); };
       const st = stats.get(p.file.path) ?? { tasks: 0, done: 0, tickets: 0 };
       name.createSpan({ cls: "samaya-gantt-count", text: `${st.done}/${st.tasks}`, attr: { title: `${st.done} of ${st.tasks} tasks done${st.tickets ? `, ${st.tickets} ticket${st.tickets > 1 ? "s" : ""}` : ""}` } });
+      const nt = name.createSpan({ cls: "samaya-gantt-del", attr: { "aria-label": "Create a task for this project" } }); setIcon(nt, "circle-check");
+      nt.onclick = e => { e.stopPropagation(); this.plugin.newTaskForProject(p.file); };
       if (s.jiraOn || s.gitlabOn || byProject.size || allTk) {
         const lk = name.createSpan({ cls: "samaya-gantt-del samaya-gantt-linkbtn", attr: { "aria-label": "Link to a ticket or ticket project" } }); setIcon(lk, "ticket");
         lk.onclick = e => { e.stopPropagation(); new TicketTargetSuggestModal(this.plugin, p.file.path, t => {

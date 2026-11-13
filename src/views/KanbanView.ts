@@ -99,7 +99,7 @@ export class KanbanView extends Panel {
           const meta = [t.issueType, t.assignee].filter(Boolean).join(" · "); if (meta) card.createDiv({ cls: "samaya-kb-meta", text: meta });
           this.scope.draggable(card, t.file.path);
           const acts = card.createDiv("samaya-kb-cardactions");
-          const addTask = acts.createSpan({ cls: "samaya-kb-cardbtn", attr: { "aria-label": "Create a task from this ticket" } }); setIcon(addTask, "list-plus");
+          const addTask = acts.createSpan({ cls: "samaya-kb-cardbtn", attr: { "aria-label": "Create a task from this ticket" } }); setIcon(addTask, "circle-check");
           addTask.onclick = e => { e.stopPropagation(); this.plugin.newTaskForTicket(t); };
           if (s.projectsOn && !linked(t)) {
             const add = acts.createSpan({ cls: "samaya-kb-cardbtn", attr: { "aria-label": "Create a project from this ticket" } }); setIcon(add, "folder-plus");

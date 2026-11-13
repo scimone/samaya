@@ -1484,3 +1484,4 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 /* journal note bar: the dates sit next to the title */
 .samaya-journal-bar > .samaya-planner-titles.is-inline { flex: 1; width: auto; flex-direction: row; align-items: baseline; gap: var(--samaya-sp-3); }
 .samaya-journal-bar > .samaya-planner-titles.is-inline .samaya-planner-title, .samaya-journal-bar > .samaya-planner-titles.is-inline .samaya-planner-sub { margin: 0; }
+.samaya-gantt-pill { display: contents; }

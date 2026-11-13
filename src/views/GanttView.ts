@@ -6,6 +6,10 @@ import { Project, projectStats, readProject, createProject, projectsPrefix } fro
 import { patchNote, prefixOf } from "../model";
 import { TextPromptModal } from "../modals";
 import { renderHeadTitle } from "./plannerHead";
+import { renderResetPill } from "./dateNav";
+import { NoteText, matches, renderSearch } from "./search";
+
+const memory = { query: "" };
 import { addDays, parseYmd, today } from "../util";
 
 export const GANTT_VIEW_TYPE = "samaya-gantt";
@@ -15,9 +19,10 @@ export class GanttView extends Panel {
   private timer = 0;
   private dragging = false;
   private pending = false;
+  private texts: NoteText;
 
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
-    super(plugin, () => projectsPrefix(plugin.settings));
+    super(plugin, () => projectsPrefix(plugin.settings)); this.texts = new NoteText(this.app);
     this.root = parentEl.createDiv("samaya-gantt");
   }
   onunload() { window.clearTimeout(this.timer); }
@@ -28,7 +33,10 @@ export class GanttView extends Panel {
 
   private render() {
     const s = this.plugin.settings; const dayW = Number(this.config.get("dayWidth")) || 22;
-    const projects: Project[] = this.data.data.filter(e => e.file.extension === "md").map(e => readProject(this.app, e.file)).sort((a, b) => (a.span?.start ?? "9").localeCompare(b.span?.start ?? "9") || a.name.localeCompare(b.name));
+    const every: Project[] = this.data.data.filter(e => e.file.extension === "md").map(e => readProject(this.app, e.file));
+    const q = memory.query.trim();
+    if (q) this.texts.load(every.map(p => p.file), () => { if (this.root.isConnected && memory.query.trim()) this.onDataUpdated(); });
+    const projects = (q ? every.filter(p => matches(p.name.toLowerCase() + " " + p.file.basename.toLowerCase() + " " + this.texts.get(p.file), q)) : every).sort((a, b) => (a.span?.start ?? "9").localeCompare(b.span?.start ?? "9") || a.name.localeCompare(b.name));
     const stats = projectStats(this.app, prefixOf(s.tasksPath), prefixOf(s.ticketsPath));
     const prev = this.root.querySelector<HTMLElement>(".samaya-gantt-scroll");
     const keep = prev ? { x: prev.scrollLeft, y: prev.scrollTop } : null;
@@ -38,7 +46,8 @@ export class GanttView extends Panel {
     renderHeadTitle(head, "Projects", `${projects.length} ${projects.length === 1 ? "project" : "projects"}`);
     const right = head.createDiv("samaya-planner-right");
     const scroll = this.root.createDiv("samaya-gantt-scroll");
-    right.createEl("button", { text: "Today" }).onclick = () => { scroll.scrollLeft = Math.max(0, todayX - scroll.clientWidth / 3); };
+    renderSearch(right, "Search projects", memory.query, v => { memory.query = v; }, () => this.render(), id => { this.timer = id; });
+    const pillSlot = right.createDiv("samaya-gantt-pill");
     right.createEl("button", { text: "Add project", cls: "mod-cta" }).onclick = () => new TextPromptModal(this.plugin, "New project name", name => {
       void createProject(this.app, s, name).then(() => this.plugin.bus.emit());
     }).open();
@@ -60,7 +69,7 @@ export class GanttView extends Panel {
       el.style.left = `${w * 7 * dayW}px`; el.style.width = `${7 * dayW}px`;
     }
 
-    if (!projects.length) chart.createDiv({ cls: "samaya-empty", text: "No projects yet. Use “Add project”." });
+    if (!projects.length) chart.createDiv({ cls: "samaya-empty", text: q ? "No projects match." : "No projects yet. Use “Add project”." });
     for (const p of projects) {
       const row = chart.createDiv("samaya-gantt-row");
       const name = row.createDiv("samaya-gantt-name");
@@ -80,6 +89,14 @@ export class GanttView extends Panel {
     }
     const line = chart.createDiv("samaya-gantt-today"); line.style.left = `${200 + todayX}px`;
     if (keep) { scroll.scrollLeft = keep.x; scroll.scrollTop = keep.y; } else scroll.scrollLeft = Math.max(0, todayX - 120);
+    // "Today" shows only while the today line is out of sight; the arrow points the way back.
+    const sync = () => {
+      const lo = scroll.scrollLeft, hi = scroll.scrollLeft + scroll.clientWidth - 200;
+      const out = todayX < lo ? "left" : todayX > hi ? "right" : null;
+      if (out === pillSlot.dataset.out) return; pillSlot.dataset.out = out ?? ""; pillSlot.empty();
+      if (out) renderResetPill(pillSlot, "Today", "Scroll back to today", out, () => { scroll.scrollLeft = Math.max(0, todayX - scroll.clientWidth / 3); });
+    };
+    scroll.addEventListener("scroll", sync, { passive: true }); sync();
   }
 
   private drag(bar: HTMLElement, p: Project, dayW: number, place: (s: { start: string; end: string }) => void) {

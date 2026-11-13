@@ -7,6 +7,9 @@ import { bindZone } from "./common";
 import { patchNote, prefixOf, readTicket, relocateTicket, varsOfTicket } from "../model";
 import { TFile, setIcon } from "obsidian";
 import { renderHeadTitle } from "./plannerHead";
+import { NoteText, matches, renderSearch } from "./search";
+
+const memory = { query: "" };
 
 export const KANBAN_VIEW_TYPE = "samaya-kanban";
 
@@ -17,7 +20,8 @@ export class KanbanView extends Panel {
   private collapsed = new Set<string>();
   private scope = new DndScope();
   private pending = false;
-  constructor(parentEl: HTMLElement, plugin: SamayaPlugin) { super(plugin, () => prefixOf(plugin.settings.ticketsPath)); this.root = parentEl.createDiv("samaya-kanban"); this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.render(); } }; }
+  private texts: NoteText;
+  constructor(parentEl: HTMLElement, plugin: SamayaPlugin) { super(plugin, () => prefixOf(plugin.settings.ticketsPath)); this.texts = new NoteText(this.app); this.root = parentEl.createDiv("samaya-kanban"); this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.render(); } }; }
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); }
   private async setStatus(path: string, status: string) {
     const f = this.app.vault.getAbstractFileByPath(path); if (!(f instanceof TFile)) return;
@@ -30,18 +34,23 @@ export class KanbanView extends Panel {
     window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.render(), 30); }
 
   private render() {
-    const tickets = this.data.data.filter(e => e.file.extension === "md").map(e => readTicket(this.app, e.file))
+    const all = this.data.data.filter(e => e.file.extension === "md").map(e => readTicket(this.app, e.file))
       .filter(t => this.config.get("hideDone") !== true || !/(done|closed|resolved)/i.test(t.state));
+    const q = memory.query.trim();
+    if (q) this.texts.load(all.map(t => t.file), () => { if (this.root.isConnected && memory.query.trim()) this.onDataUpdated(); });
+    const tickets = q ? all.filter(t => matches([t.key, t.summary, t.file.basename, t.project, t.assignee, t.issueType, t.state].filter(Boolean).join(" ").toLowerCase() + " " + this.texts.get(t.file), q)) : all;
     const prev = this.root.querySelector<HTMLElement>(".samaya-kb-scroll"); const keep = prev ? { x: prev.scrollLeft, y: prev.scrollTop } : null;
     this.root.empty(); this.scope.clear();
     const head0 = this.root.createDiv("samaya-week-head samaya-day-head samaya-kb-head");
     renderHeadTitle(head0, "Tickets", `${tickets.length} ${tickets.length === 1 ? "ticket" : "tickets"}`);
     const s = this.plugin.settings;
-    if (s.jiraOn || s.gitlabOn || tickets.length) {
-      const b = head0.createDiv("samaya-planner-right").createEl("button", { cls: "samaya-hd-icon", attr: { "aria-label": "Sync tickets", title: "Sync Jira / GitLab tickets" } });
+    const right = head0.createDiv("samaya-planner-right");
+    if (all.length) renderSearch(right, "Search tickets", memory.query, v => { memory.query = v; }, () => this.render(), id => { this.timer = id; });
+    if (s.jiraOn || s.gitlabOn || all.length) {
+      const b = right.createEl("button", { cls: "samaya-hd-icon", attr: { "aria-label": "Sync tickets", title: "Sync Jira / GitLab tickets" } });
       setIcon(b, "refresh-cw"); b.onclick = () => { void this.plugin.syncTickets(); };
     }
-    if (!tickets.length) { this.root.createDiv({ cls: "samaya-empty", text: "No tickets yet. Import them from Jira or GitLab (Sync tickets)." }); return; }
+    if (!tickets.length) { this.root.createDiv({ cls: "samaya-empty", text: q ? "No tickets match." : "No tickets yet. Import them from Jira or GitLab (Sync tickets)." }); return; }
     const { columns, lanes } = groupTickets(tickets);
     const scroll = this.root.createDiv("samaya-kb-scroll");
     const grid = scroll.createDiv("samaya-kb-grid"); grid.style.setProperty("--cols", String(columns.length));

@@ -8,6 +8,7 @@ import { anchor, rowLabel, spanKey, spanStart } from "../journaldigest";
 import { monthGrid } from "../monthgrid";
 import { addDays, parseYmd, today as todayYmd, ymd } from "../util";
 import { renderResetPill, renderStepNav } from "./dateNav";
+import { NoteText, matches, renderSearch } from "./search";
 import { isoWeek, renderHeadTitle, weekRangeLabel } from "./plannerHead";
 
 interface Note { file: TFile; date: string }
@@ -16,7 +17,7 @@ const KIND: Record<Period, string> = { daily: "Day", weekly: "Week", monthly: "M
 const RECENT = 5;
 
 /** The month the calendar shows, kept for the session so coming back lands where you were. */
-const memory = { year: 0, month: -1 };
+const memory = { year: 0, month: -1, query: "" };
 
 /**
  * The journal as a dashboard: a row of "jump to" cards (today, this week, month, quarter, year: the kinds switched on in the settings),
@@ -28,9 +29,10 @@ export class JournalView extends Panel {
   private timer = 0; private seq = 0;
   private lists = new Map<Period, Note[]>(); private has = new Map<Period, Set<string>>(); // which spans have a note
   private on: Period[] = [];
+  private texts: NoteText;
   private ready = false; private loaded = false; private sig = ""; // ready: first draw done; loaded: the notes have been listed; sig: what the last drawing was built from
 
-  constructor(parentEl: HTMLElement, plugin: SamayaPlugin) { super(plugin); this.root = parentEl.createDiv("samaya-mt samaya-jn"); }
+  constructor(parentEl: HTMLElement, plugin: SamayaPlugin) { super(plugin); this.texts = new NoteText(this.app); this.root = parentEl.createDiv("samaya-mt samaya-jn"); }
   onload() {
     super.onload();
     this.register(this.plugin.bus.on(() => this.onDataUpdated())); // the settings decide which kinds of notes exist
@@ -91,12 +93,30 @@ export class JournalView extends Panel {
     this.root.empty();
     const head = this.root.createDiv("samaya-week-head samaya-day-head samaya-mt-head");
     renderHeadTitle(head, "Journal", "\u00a0"); // no subheading; the blank line keeps the bar as tall as the planner's
+    if (this.on.length) renderSearch(head.createDiv("samaya-planner-right"), "Search journal", memory.query, v => { memory.query = v; }, () => this.render(), id => { this.timer = id; });
     const page = this.root.createDiv("samaya-mt-page").createDiv("samaya-mt-col");
     if (!this.on.length) { page.createDiv({ cls: "samaya-mt-none", text: "The journal is switched off. Turn it on in the settings." }); return; }
+    if (memory.query.trim()) { this.results(page); if (y) this.root.querySelector<HTMLElement>(".samaya-mt-page")!.scrollTop = y; return; }
     if (memory.month < 0) { const t = parseYmd(todayYmd()); memory.year = t.getFullYear(); memory.month = t.getMonth(); }
     this.jump(page); // the quick jumps on top, the calendar below with the latest entries beside it
     const body = page.createDiv("samaya-jn-body"); this.calendar(body.createDiv("samaya-jn-main")); this.recent(body.createDiv("samaya-jn-side"));
     if (y) this.root.querySelector<HTMLElement>(".samaya-mt-page")!.scrollTop = y;
+  }
+
+  // ---- search: every note whose name or text matches, newest first
+  private results(page: HTMLElement) {
+    const q = memory.query.trim(); const notes = this.on.flatMap(p => (this.lists.get(p) ?? []).map(n => ({ p, n, key: anchor(p, n.date) })));
+    this.texts.load(notes.map(i => i.n.file), () => { if (this.root.isConnected && memory.query.trim()) this.render(); });
+    const hits = notes.filter(i => matches(`${i.n.file.basename} ${this.spanName(i.p, i.key)}`.toLowerCase() + " " + this.texts.get(i.n.file), q))
+      .sort((a, b) => b.key.localeCompare(a.key) || this.on.indexOf(b.p) - this.on.indexOf(a.p));
+    const sec = page.createDiv("samaya-mt-section"); sec.createDiv({ cls: "samaya-mt-h", text: `${hits.length} ${hits.length === 1 ? "note" : "notes"}` });
+    if (!hits.length) { sec.createDiv({ cls: "samaya-mt-none", text: "No journal notes match." }); return; }
+    const list = sec.createDiv("samaya-jn-recent");
+    for (const { p, n, key } of hits.slice(0, 200)) {
+      const r = list.createEl("button", { cls: "samaya-jn-rrow" }); r.onclick = () => { openFileSmart(this.app, n.file, "tab"); };
+      r.createSpan({ cls: `samaya-jn-badge is-${p}`, text: KIND[p] });
+      r.createSpan({ cls: "samaya-jn-rname", text: this.spanName(p, key) });
+    }
   }
 
   // ---- jump to: one card per kind of note, for the current day / week / month / quarter / year

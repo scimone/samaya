@@ -7,7 +7,7 @@ export interface DateNavOpts {
   /** an arrow with nowhere to go is dimmed and does nothing */
   prevDisabled?: boolean; nextDisabled?: boolean;
   /** the label opens a date picker preset to `value` (the native input sits invisibly over it); `label` names it for assistive tech */
-  pick?: { value: string; label?: string; run(value: string): void };
+  pick?: { value: string; label?: string; run(value: string): void; /** native input type (default "date") */ type?: "date" | "week"; /** instead of a native input: open this picker next to the label */ open?(anchor: HTMLElement): void };
   /** show this icon as the (picker) button instead of the date text: the heading already says which date it is */
   icon?: string;
 }
@@ -23,11 +23,15 @@ export function renderDateNav(parent: HTMLElement, o: DateNavOpts): HTMLElement 
   if (o.pick) {
     const pick = o.pick; const name = pick.label ?? "Pick a date";
     lab.addClass("is-pickable"); lab.setAttr("role", "button"); lab.setAttr("tabindex", "0"); lab.setAttr("aria-label", `${name} (${o.label})`); lab.setAttr("title", asIcon ? `${name} (${o.label})` : name);
-    const picker = lab.createEl("input", { type: "date", cls: "samaya-weeknav-datepick", attr: { tabindex: "-1", "aria-hidden": "true" } }); picker.value = pick.value;
-    picker.addEventListener("change", () => { if (picker.value) pick.run(picker.value); });
-    const open = () => { try { picker.showPicker(); } catch { picker.focus(); picker.click(); } };
-    lab.onclick = e => { if (e.target !== picker) open(); };
-    lab.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
+    let run: () => void;
+    if (pick.open) { const open = pick.open; run = () => open(lab); lab.onclick = run; }
+    else {
+      const picker = lab.createEl("input", { type: pick.type ?? "date", cls: "samaya-weeknav-datepick", attr: { tabindex: "-1", "aria-hidden": "true" } }); picker.value = pick.value;
+      picker.addEventListener("change", () => { if (picker.value) pick.run(picker.value); });
+      run = () => { try { picker.showPicker(); } catch { picker.focus(); picker.click(); } };
+      lab.onclick = e => { if (e.target !== picker) run(); };
+    }
+    lab.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); run(); } });
   }
   step("chevron-right", o.nextLabel, o.onNext, o.nextDisabled);
   return nav;
@@ -39,4 +43,11 @@ export function renderResetPill(parent: HTMLElement, text: string, hint: string,
   setIcon(r.createSpan("samaya-datereset-icon"), dir === "right" ? "arrow-right" : "arrow-left");
   r.createSpan({ text }); r.onclick = run;
   return r;
+}
+
+/** « ‹ › » in one bordered control: plain steps without a label (the journal calendar: months and years). */
+export function renderStepNav(parent: HTMLElement, steps: Array<[icon: string, label: string, run: () => void]>): HTMLElement {
+  const nav = parent.createDiv("samaya-weeknav is-steps");
+  for (const [icon, label, run] of steps) { const b = nav.createEl("button", { cls: "samaya-weeknav-step", attr: { "aria-label": label, title: label } }); setIcon(b, icon); b.onclick = run; }
+  return nav;
 }

@@ -502,7 +502,7 @@ await bundle("src/tasksboard.ts", "test/.tasksboard.mjs");
 }
 
 // ---- journal dashboard: spans and labels
-{ const { sameSpan, anchor, spanKey, spanStart, rowLabel } = await import("./.journaldigest.mjs");
+{ const { sameSpan, anchor, spanKey, spanStart, rowLabel, weekValue, weekValueDate, retarget } = await import("./.journaldigest.mjs");
   assert.equal(sameSpan("daily", "2026-11-13", "2026-11-13"), true);
   assert.equal(sameSpan("weekly", "2026-11-09", "2026-11-15"), true);
   assert.equal(sameSpan("weekly", "2026-11-08", "2026-11-15"), true); // a week parsed to its Sunday still is the week that follows
@@ -515,4 +515,9 @@ await bundle("src/tasksboard.ts", "test/.tasksboard.mjs");
   assert.equal(spanStart("quarterly", "2026-11-13"), "2026-10-01"); assert.equal(spanStart("monthly", "2026-11-13"), "2026-11-01");
   assert.equal(spanStart("yearly", "2026-11-13"), "2026-01-01"); assert.equal(spanStart("weekly", "2026-11-15"), "2026-11-09");
   assert.deepEqual(rowLabel("weekly", "2026-11-09", () => 46, () => "Nov 9 – 15"), { main: "Week 46", sub: "Nov 9 – 15" });
-  assert.equal(rowLabel("quarterly", "2026-11-01", () => 0, () => "").main, "Q4"); }
+  assert.equal(rowLabel("quarterly", "2026-11-01", () => 0, () => "").main, "Q4");
+  assert.equal(weekValue("2026-11-13"), "2026-W46"); assert.equal(weekValue("2027-01-01"), "2026-W53"); assert.equal(weekValueDate("2026-W46"), "2026-11-09"); assert.equal(weekValueDate("2026-W53"), "2026-12-28");
+  assert.equal(retarget("weekly", "2026-11-09", "daily", "2026-11-13"), "2026-11-13"); // today is inside that week
+  assert.equal(retarget("weekly", "2026-11-02", "daily", "2026-11-13"), "2026-11-02"); // else its first day
+  assert.equal(retarget("daily", "2026-11-04", "weekly", "2026-11-13"), "2026-11-04"); // coarser: the same date
+  assert.equal(retarget("yearly", "2025-01-01", "monthly", "2026-11-13"), "2025-01-01"); }

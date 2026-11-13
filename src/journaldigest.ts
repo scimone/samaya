@@ -1,6 +1,7 @@
 // Pure helpers of the journal dashboard: which span of time a note stands for, and how spans are labelled and keyed.
 import type { Period } from "./journal";
-import { addDays, parseYmd, startOfWeek } from "./util";
+import { isoWeek } from "./monthgrid";
+import { addDays, pad, parseYmd, startOfWeek } from "./util";
 
 /** The date a note stands for: a weekly note parsed to a Sunday belongs to the week that starts the next day. Pure. */
 export const anchor = (p: Period, date: string): string => (p === "weekly" && parseYmd(date).getDay() === 0 ? addDays(date, 1) : date);
@@ -43,4 +44,19 @@ export function rowLabel(p: Period, date: string, weekNo: (d: string) => number,
     case "quarterly": return { main: `Q${quarter(a)}`, sub: String(d.getFullYear()) };
     case "yearly": return { main: String(d.getFullYear()), sub: "" };
   }
+}
+
+/** The value of an <input type="week"> ("2026-W46") for a date; the year is the ISO week-year (the one of the week's Thursday). Pure. */
+export const weekValue = (date: string): string => `${addDays(startOfWeek(date), 3).slice(0, 4)}-W${pad(isoWeek(date))}`;
+/** The Monday of the week an <input type="week"> value names. Pure. */
+export function weekValueDate(v: string): string {
+  const [y, w] = v.split("-W").map(Number);
+  return addDays(startOfWeek(`${y}-01-04`), (w - 1) * 7); // the 4th of January is always in week 1
+}
+const ORDER: Period[] = ["daily", "weekly", "monthly", "quarterly", "yearly"];
+/** The date to look at when a note of kind `from` (standing for `date`) is switched to kind `to`. Going to a finer kind (week -> day) lands on today when today is inside the span, else on its first day; going to a coarser one keeps the date. Pure. */
+export function retarget(from: Period, date: string, to: Period, today: string): string {
+  const a = anchor(from, date);
+  if (ORDER.indexOf(to) >= ORDER.indexOf(from)) return a;
+  return sameSpan(from, a, today) ? today : spanStart(from, a);
 }

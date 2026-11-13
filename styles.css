@@ -1420,7 +1420,6 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
 /* a written month / quarter / year carries the accent dot */
 .samaya-jn-cal-month.has-note::after, .samaya-jn-cal-year.has-note::after, .samaya-jn-cal-q.has-note::after { content: ""; display: inline-block; width: 6px; height: 6px; margin: 0 0 3px 6px; border-radius: 50%; background: var(--interactive-accent); vertical-align: middle; }
 .samaya-jn-cal-nav { display: flex; align-items: center; gap: var(--samaya-sp-2); flex: none; }
-.samaya-jn-cal-nav .samaya-weeknav-label:not(.is-icon) { min-width: 0; padding: 0 var(--samaya-sp-3); }
 
 .samaya-jn-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 38px repeat(7, minmax(0, 1fr)); grid-template-rows: auto repeat(6, minmax(34px, 1fr)); gap: 3px; }
 .samaya-jn-dow { padding: 0 0 var(--samaya-sp-1); text-align: center; font-size: var(--samaya-fs-label); letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); }
@@ -1454,3 +1453,32 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
 .samaya-jn-badge.is-daily { color: var(--text-accent); background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); }
 .samaya-jn-rname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .samaya-jn-card, .samaya-jn-hit, .samaya-jn-card-act { transition: none; } .samaya-jn-card:hover { transform: none; } }
+
+/* arrows only: a bordered row of steps, divided by hairlines */
+.samaya-weeknav.is-steps button.samaya-weeknav-step + button.samaya-weeknav-step { border-left: 1px solid var(--background-modifier-border); }
+/* the kind-of-note pill in a journal note's bar */
+button.samaya-jb-kind { all: unset; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 var(--samaya-sp-2) 0 10px; border-radius: var(--samaya-r-pill); font-size: var(--font-ui-smaller); font-weight: 600; color: var(--text-muted); background: var(--background-modifier-hover); cursor: pointer; }
+button.samaya-jb-kind.is-daily { color: var(--text-accent); background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); }
+button.samaya-jb-kind:hover { background: var(--background-modifier-border); }
+button.samaya-jb-kind.is-daily:hover { background: color-mix(in srgb, var(--interactive-accent) 24%, transparent); }
+button.samaya-jb-kind:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+.samaya-jb-kind-caret { display: inline-flex; }
+.samaya-jb-kind-caret svg { width: 14px; height: 14px; }
+button.samaya-jb-kind:not(:has(.samaya-jb-kind-caret)) { padding-right: 10px; cursor: default; }
+/* month / quarter / year picker popover */
+.samaya-pp { position: fixed; z-index: var(--layer-popover, 40); box-sizing: border-box; width: 244px; padding: var(--samaya-sp-2); border: 1px solid var(--background-modifier-border); border-radius: var(--samaya-r-l); background: var(--background-primary); box-shadow: var(--shadow-s); }
+.samaya-pp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--samaya-sp-2); }
+.samaya-pp-title { font-weight: 600; font-variant-numeric: tabular-nums; }
+button.samaya-pp-step { all: unset; box-sizing: border-box; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--samaya-r-m); color: var(--text-muted); cursor: pointer; }
+button.samaya-pp-step:hover, button.samaya-pp-step:focus-visible { background: var(--background-modifier-hover); color: var(--text-normal); }
+.samaya-pp-step svg { width: 16px; height: 16px; }
+.samaya-pp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.samaya-pp-grid.is-quarterly { grid-template-columns: repeat(2, 1fr); }
+button.samaya-pp-cell { all: unset; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 38px; border-radius: var(--samaya-r-m); font-size: var(--font-ui-small); font-variant-numeric: tabular-nums; cursor: pointer; }
+.samaya-pp-grid.is-quarterly button.samaya-pp-cell { height: 52px; }
+.samaya-pp-sub { font-size: var(--samaya-fs-label); color: var(--text-faint); }
+button.samaya-pp-cell:hover, button.samaya-pp-cell:focus-visible { background: var(--background-modifier-hover); }
+button.samaya-pp-cell:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
+button.samaya-pp-cell.is-now { color: var(--text-accent); font-weight: 600; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--interactive-accent) 45%, transparent); }
+button.samaya-pp-cell.is-selected { background: var(--interactive-accent); color: var(--text-on-accent, #fff); font-weight: 600; box-shadow: none; }
+button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; }

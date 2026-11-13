@@ -7,7 +7,7 @@ import { PERIODIC_KINDS, PERIOD_UI, Period, listPeriodNotes, openPeriodNote, per
 import { anchor, rowLabel, spanKey, spanStart } from "../journaldigest";
 import { monthGrid } from "../monthgrid";
 import { addDays, parseYmd, today as todayYmd, ymd } from "../util";
-import { renderDateNav, renderResetPill } from "./dateNav";
+import { renderResetPill, renderStepNav } from "./dateNav";
 import { isoWeek, renderHeadTitle, weekRangeLabel } from "./plannerHead";
 
 interface Note { file: TFile; date: string }
@@ -150,8 +150,7 @@ export class JournalView extends Panel {
     const nav = head.createDiv("samaya-jn-cal-nav");
     const show = (d: Date) => { memory.year = d.getFullYear(); memory.month = d.getMonth(); this.render(); };
     if (!isNow) renderResetPill(nav, "Today", "Back to the current month", first < spanStart("monthly", td) ? "right" : "left", () => show(parseYmd(td)));
-    renderDateNav(nav, { label: "Month", prevLabel: "Previous month", nextLabel: "Next month", onPrev: () => step(-1), onNext: () => step(1), pick: { value: first, label: "Pick a month", run: d => show(parseYmd(d)) }, icon: "calendar" });
-    renderDateNav(nav, { label: String(memory.year), prevLabel: "Previous year", nextLabel: "Next year", onPrev: () => step(-12), onNext: () => step(12) });
+    renderStepNav(nav, [["chevrons-left", "Previous year", () => step(-12)], ["chevron-left", "Previous month", () => step(-1)], ["chevron-right", "Next month", () => step(1)], ["chevrons-right", "Next year", () => step(12)]]);
 
     const grid = box.createDiv("samaya-jn-grid"); const weekly = this.on.includes("weekly");
     grid.createDiv({ cls: "samaya-jn-dow is-wk", text: "Wk" });

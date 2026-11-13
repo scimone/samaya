@@ -9,7 +9,7 @@ import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
 import { ConfirmCreateModal, ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "./modals";
 import type { Period } from "./journal";
 import { renderJournalBar } from "./views/journalBar";
-import { PERIOD_UI, identifyNote, findLatestPeriodNote, listPeriodNotes, neighbours, journalLocation, openPeriodNote, periodNotePath } from "./journal";
+import { PERIODIC_KINDS, PERIOD_UI, identifyNote, findLatestPeriodNote, listPeriodNotes, neighbours, journalLocation, openPeriodNote, periodNotePath } from "./journal";
 import { affectsTaskLists, syncTaskLists } from "./tasklinks";
 import { assignProject, createProject } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
@@ -302,7 +302,7 @@ export default class SamayaPlugin extends Plugin {
     const { prev, next } = neighbours(await listPeriodNotes(this.app, s, cur.p), cur.date);
     const nowNote = await periodNotePath(this.app, s, cur.p, today());
     const isNow = nowNote?.path === cur.file.path;
-    const key = JSON.stringify([cur.file.path, cur.p, cur.date, prev?.file.path, next?.file.path, isNow]);
+    const key = JSON.stringify([cur.file.path, cur.p, cur.date, prev?.file.path, next?.file.path, isNow, PERIODIC_KINDS.filter(k => s.journalNotes[k].on)]);
     const existing = bars(); // no await below: check, clean up and insert in one go
     if (existing.length === 1 && existing[0].dataset.key === key) return;
     existing.forEach(b => b.remove());

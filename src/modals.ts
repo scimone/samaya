@@ -129,3 +129,18 @@ export class TicketTaskModal extends Modal {
     name.focus();
   }
 }
+
+/** "There is no quarterly note for Q4 2026 yet - create it?" (switching a note to another kind found nothing to open) */
+export class ConfirmCreatePeriodModal extends Modal {
+  constructor(plugin: SamayaPlugin, private noun: string, private name: string, private onCreate: () => void) { super(plugin.app); }
+  onOpen() {
+    this.titleEl.setText(`No ${this.noun} note yet`);
+    this.contentEl.createEl("p", { text: `There is no ${this.noun} note for ${this.name} yet.` });
+    this.contentEl.createEl("p", { text: `Do you want to create one?` });
+    const nav = this.contentEl.createDiv("samaya-ritual-nav");
+    nav.createEl("button", { text: "Cancel" }).onclick = () => this.close();
+    const ok = nav.createEl("button", { text: "Create", cls: "mod-cta" });
+    ok.onclick = () => { this.close(); this.onCreate(); };
+    ok.focus();
+  }
+}

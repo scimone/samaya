@@ -50,8 +50,9 @@ export class KanbanView extends Panel {
       const b = right.createEl("button", { cls: "samaya-hd-icon", attr: { "aria-label": "Sync tickets", title: "Sync Jira / GitLab tickets" } });
       setIcon(b, "refresh-cw"); b.onclick = () => { void this.plugin.syncTickets(); };
     }
-    if (!tickets.length) { this.root.createDiv({ cls: "samaya-empty", text: q ? "No tickets match." : "No tickets yet. Import them from Jira or GitLab (Sync tickets)." }); return; }
-    const { columns, lanes } = groupTickets(tickets);
+    if (!all.length) { this.root.createDiv({ cls: "samaya-empty", text: "No tickets yet. Import them from Jira or GitLab (Sync tickets)." }); return; }
+    const { columns } = groupTickets(all); const { lanes } = groupTickets(tickets); // the columns stay whatever the search finds
+    if (!tickets.length) this.root.createDiv({ cls: "samaya-empty", text: "No tickets match." });
     const scroll = this.root.createDiv("samaya-kb-scroll");
     const grid = scroll.createDiv("samaya-kb-grid"); grid.style.setProperty("--cols", String(columns.length));
     const head = grid.createDiv("samaya-kb-cols");

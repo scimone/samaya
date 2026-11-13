@@ -1,6 +1,6 @@
 import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
-import { openFileSmart } from "../openfile";
+import { openFileBeside } from "../openfile";
 import { DragMode, daysBetween, dragSpan, ganttRange, monthMarks } from "../gantt";
 import { Project, projectStats, readProject, createProject, projectsPrefix } from "../projects";
 import { patchNote, prefixOf } from "../model";
@@ -74,7 +74,7 @@ export class GanttView extends Panel {
       const row = chart.createDiv("samaya-gantt-row");
       const name = row.createDiv("samaya-gantt-name");
       const link = name.createSpan({ cls: "samaya-gantt-link", text: p.name }); link.title = p.file.path;
-      link.onclick = e => { void openFileSmart(this.app, p.file, e.ctrlKey || e.metaKey ? "tab" : false); };
+      link.onclick = () => { openFileBeside(this.app, p.file); };
       const st = stats.get(p.file.path);
       if (st) name.createSpan({ cls: "samaya-gantt-count", text: `${st.done}/${st.tasks}`, attr: { title: `${st.done} of ${st.tasks} tasks done${st.tickets ? `, ${st.tickets} ticket${st.tickets > 1 ? "s" : ""}` : ""}` } });
       const track = row.createDiv("samaya-gantt-track"); track.style.width = `${width}px`;
@@ -115,6 +115,7 @@ export class GanttView extends Panel {
         const next = dragSpan(base, mode, delta);
         if (moved && (next.start !== base.start || next.end !== base.end)) void patchNote(this.app, p.file, { start: next.start, end: next.end });
         else if (moved) place(base);
+        else if (mode === "move") openFileBeside(this.app, p.file);
         if (this.pending) { this.pending = false; this.onDataUpdated(); }
       };
       bar.addEventListener("pointermove", onMove); bar.addEventListener("pointerup", onUp); bar.addEventListener("pointercancel", onUp);

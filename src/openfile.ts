@@ -19,3 +19,11 @@ export function openFileSmart(app: App, file: TFile, where: PaneType | boolean =
   if (found) { void app.workspace.revealLeaf(found); app.workspace.setActiveLeaf(found, { focus: true }); return; }
   void app.workspace.getLeaf(where).openFile(file);
 }
+
+/** Open a note in a split beside the current view; one that is already open in a tab is brought to the front instead. */
+export function openFileBeside(app: App, file: TFile): void {
+  let found: WorkspaceLeaf | null = null;
+  app.workspace.iterateAllLeaves(l => { if (!found && l.getRoot() !== app.workspace.leftSplit && l.getRoot() !== app.workspace.rightSplit && leafPath(l) === file.path) found = l; });
+  if (found) { void app.workspace.revealLeaf(found); app.workspace.setActiveLeaf(found, { focus: true }); return; }
+  void app.workspace.getLeaf("split", "vertical").openFile(file);
+}

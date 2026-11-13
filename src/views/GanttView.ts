@@ -153,19 +153,19 @@ export class GanttView extends Panel {
       if (scroll.scrollLeft + scroll.clientWidth > scroll.scrollWidth - 400 && !this.dragging && !this.growing) { this.growing = true; memory.fwd += 26; this.onDataUpdated(); return; }
       // A project scrolled out of view (fully or partly) gets an arrow button at the edge it lies beyond; clicking it scrolls back to the project and flashes it.
       const vis = scroll.clientWidth - nw;
+      // where a jump scrolls to: the project centred, or its start when it is wider than the view
+      const target = (n: { x0: number; x1: number }) => { const w = n.x1 - n.x0; return Math.max(0, w >= vis ? n.x0 - 24 : n.x0 + w / 2 - vis / 2); };
       for (const n of navs) {
-        const lo = scroll.scrollLeft, hi = lo + vis, wide = n.x1 - n.x0 >= vis;
-        // Fully or partly cut off at one edge: offer the jump (a project wider than the view only when it is entirely out of sight).
-        const side = n.x1 <= lo ? "left" : n.x0 >= hi ? "right" : wide || (n.x0 < lo && n.x1 > hi) ? null : n.x0 < lo ? "left" : n.x1 > hi ? "right" : null;
+        const lo = scroll.scrollLeft, hi = lo + vis;
+        // Any project cut off at an edge gets a jump button on that side (the left one when it is cut at both), unless the jump would not move the view.
+        const side = n.x0 >= lo && n.x1 <= hi ? null : Math.abs(target(n) - lo) < 2 ? null : n.x0 < lo ? "left" : "right";
         if (!side) { n.btn?.addClass("is-hidden"); continue; }
         if (!n.btn) {
           const btn = n.btn = n.track.createEl("button", { cls: "samaya-gantt-nav" });
-          // where a click scrolls to: the project centred, or its start when it is wider than the view
-          const target = () => { const w = n.x1 - n.x0; return Math.max(0, w >= vis ? n.x0 - 24 : n.x0 + w / 2 - vis / 2); };
           let tip: HTMLElement | null = null;
           // the tooltip (a custom one, to sit beside the button in its row) names the time frame the click scrolls to
           btn.onmouseenter = () => {
-            const t = target(), first = Math.floor(t / dayW), last = Math.max(first, Math.ceil((t + vis) / dayW) - 1);
+            const t = target(n), first = Math.floor(t / dayW), last = Math.max(first, Math.ceil((t + scroll.clientWidth - nw) / dayW) - 1);
             const fmt = (i: number) => parseYmd(addDays(from, i)).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
             tip?.remove(); tip = n.track.createDiv({ cls: "samaya-gantt-nav-tip", text: `${fmt(first)} -> ${fmt(last)}` });
             // beside the button, on the side that stays in view (the left edge has the name column on its left)
@@ -174,7 +174,7 @@ export class GanttView extends Panel {
           btn.onmouseleave = () => { tip?.remove(); tip = null; };
           btn.onclick = () => {
             tip?.remove(); tip = null;
-            scroll.scrollTo({ left: target(), behavior: "smooth" });
+            scroll.scrollTo({ left: target(n), behavior: "smooth" });
             n.bar.removeClass("is-flash"); void n.bar.offsetWidth; n.bar.addClass("is-flash");
           };
         }

@@ -1387,21 +1387,20 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
   .samaya-jn-main > .samaya-mt-section { min-height: 420px; }
 }
 .samaya-jn-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(136px, 1fr)); gap: var(--samaya-sp-4); }
-.samaya-jn-card { --tone: var(--text-muted); position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%; height: auto; padding: var(--samaya-sp-4) var(--samaya-sp-5) calc(var(--samaya-sp-4) + 6px); text-align: left; border: 0; border-radius: var(--samaya-r-l); background: color-mix(in srgb, var(--text-muted) 6%, transparent); color: var(--text-normal); cursor: pointer; overflow: hidden; transition: background .25s ease; }
-.samaya-jn-card:hover { background: color-mix(in srgb, var(--text-muted) 11%, transparent); }
+.samaya-jn-card { --tone: var(--text-muted); position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%; height: auto; padding: var(--samaya-sp-4) var(--samaya-sp-5) calc(var(--samaya-sp-4) + 6px); text-align: left; border: 1px solid transparent; border-radius: var(--samaya-r-l); background: var(--background-secondary); color: var(--text-normal); cursor: pointer; overflow: hidden; transition: background .25s ease, border-color .25s ease; }
+.samaya-jn-card:hover { background: var(--background-modifier-hover); }
+/* not written yet: an outline, no fill */
+.samaya-jn-card.is-missing { background: transparent; border-color: var(--background-modifier-border); }
+.samaya-jn-card.is-missing:hover { background: transparent; border-color: var(--text-faint); }
 .samaya-jn-card:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
-.samaya-jn-card.is-daily { --tone: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 9%, transparent); }
-.samaya-jn-card.is-daily:hover { background: color-mix(in srgb, var(--interactive-accent) 15%, transparent); }
-.samaya-jn-card.is-missing .samaya-jn-card-title { color: var(--text-muted); }
 .samaya-jn-card-kicker { font-size: var(--samaya-fs-label); letter-spacing: .14em; text-transform: uppercase; color: var(--text-faint); }
-.samaya-jn-card.is-daily .samaya-jn-card-kicker { color: var(--text-accent); opacity: .85; }
 .samaya-jn-card-title { margin-top: var(--samaya-sp-1); font-size: var(--font-ui-large); font-weight: 500; letter-spacing: -.01em; line-height: 1.25; }
 .samaya-jn-card-sub { font-size: var(--font-ui-smaller); color: var(--text-faint); font-variant-numeric: tabular-nums; }
-.samaya-jn-card-foot { margin-top: var(--samaya-sp-3); min-height: 18px; }
+.samaya-jn-card-foot { position: absolute; top: var(--samaya-sp-4); right: var(--samaya-sp-4); }
 .samaya-jn-card.is-loading .samaya-jn-card-act { visibility: hidden; }
-.samaya-jn-card-act { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-ui-smaller); color: var(--text-faint); opacity: .8; transition: color .25s, opacity .25s; }
+.samaya-jn-card-act { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-ui-smaller); color: var(--text-muted); opacity: 0; transition: opacity .25s; } /* "Open" / "Create" appear on hover only */
 .samaya-jn-card-act .svg-icon { width: 13px; height: 13px; }
-.samaya-jn-card:hover .samaya-jn-card-act { color: var(--text-accent); opacity: 1; }
+.samaya-jn-card:hover .samaya-jn-card-act, .samaya-jn-card:focus-visible .samaya-jn-card-act { opacity: 1; }
 .samaya-jn-card-bar { position: absolute; left: var(--samaya-sp-5); right: var(--samaya-sp-5); bottom: var(--samaya-sp-3); height: 2px; border-radius: 2px; background: color-mix(in srgb, var(--text-muted) 15%, transparent); overflow: hidden; }
 .samaya-jn-card-fill { height: 100%; border-radius: 2px; background: var(--tone); opacity: .55; }
 
@@ -1443,11 +1442,11 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
 .samaya-jn-key.is-empty::before { background: transparent; border: 1px solid var(--text-faint); box-sizing: border-box; opacity: 1; }
 
 .samaya-jn-recent { display: flex; flex-direction: column; overflow: hidden; gap: 2px; }
-.samaya-jn-rrow { display: flex; align-items: center; gap: var(--samaya-sp-3); width: 100%; height: auto; flex: none; padding: 8px var(--samaya-sp-3); text-align: left; background: transparent; border: 0; border-radius: var(--samaya-r-m); color: var(--text-muted); cursor: pointer; transition: background .2s, color .2s; }
-.samaya-jn-rrow:hover { background: var(--background-modifier-hover); color: var(--text-normal); }
+.samaya-jn-rrow { display: flex; align-items: center; gap: var(--samaya-sp-3); width: 100%; height: auto; flex: none; padding: 6px 0; text-align: left; background: transparent; border: 0; border-radius: 0; color: var(--text-muted); cursor: pointer; transition: color .2s; }
+.samaya-jn-rrow:hover { background: transparent; color: var(--text-normal); }
+.samaya-jn-rrow:hover .samaya-jn-rname { text-decoration: underline; text-decoration-color: var(--text-faint); text-underline-offset: 3px; }
 .samaya-jn-rrow:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
-.samaya-jn-badge { flex: none; min-width: 64px; text-align: center; padding: 1px 8px; border-radius: var(--samaya-r-pill); font-size: var(--samaya-fs-label); letter-spacing: .04em; color: var(--text-faint); background: color-mix(in srgb, var(--text-muted) 9%, transparent); }
-.samaya-jn-badge.is-daily { color: var(--text-accent); background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); }
+.samaya-jn-badge { flex: none; min-width: 56px; text-align: left; padding: 0; font-size: var(--samaya-fs-label); letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); background: none; }
 .samaya-jn-rname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .samaya-jn-card, .samaya-jn-hit, .samaya-jn-card-act, .samaya-jn-rrow { transition: none; } }
 

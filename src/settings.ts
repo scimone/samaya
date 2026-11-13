@@ -34,7 +34,7 @@ export interface SamayaSettings {
   /** navigation bar above journal notes */
   journalNavBar: boolean;
   /** projects module: folder of project notes and the base that shows them */
-  projectsOn: boolean; projectsPath: string;
+  projectsOn: boolean; projectsPath: string; projectsScale: "month" | "quarter" | "year";
   /** shortcuts (Planner, Tasks, ...) at the top of the file explorer; their folders are hidden */
   navigationOn: boolean;
 }
@@ -57,7 +57,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
     quarterly: { on: false, source: "auto", folder: "[Journal]/YYYY/[Quarterly]", format: PERIOD_DEFAULT_FORMAT.quarterly },
     yearly: { on: false, source: "auto", folder: "[Journal]/YYYY", format: PERIOD_DEFAULT_FORMAT.yearly },
   },
-  projectsOn: false, projectsPath: "Projects",
+  projectsOn: false, projectsPath: "Projects", projectsScale: "quarter",
   navigationOn: false,
 };
 

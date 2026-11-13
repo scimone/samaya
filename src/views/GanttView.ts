@@ -9,7 +9,7 @@ import { renderHeadTitle } from "./plannerHead";
 import { renderResetPill } from "./dateNav";
 import { NoteText, matches, renderSearch } from "./search";
 
-const memory: { query: string; gran: Granularity } = { query: "", gran: "quarter" };
+const memory = { query: "", back: 0 }; // back: extra weeks added before the first date, grown by scrolling left
 import { addDays, parseYmd, today } from "../util";
 
 export const GANTT_VIEW_TYPE = "samaya-gantt";
@@ -22,13 +22,14 @@ export class GanttView extends Panel {
   private texts: NoteText;
   private shownGran: Granularity | null = null;
   private lastW = 0;
+  private shiftWeeks = 0;
 
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
     super(plugin, () => projectsPrefix(plugin.settings)); this.texts = new NoteText(this.app);
     this.root = parentEl.createDiv("samaya-gantt");
     this.ro = new ResizeObserver(() => {
       const w = this.root.querySelector<HTMLElement>(".samaya-gantt-scroll")?.clientWidth ?? 0;
-      if (memory.gran !== "year" && w && Math.abs(w - this.lastW) > 40) this.onDataUpdated();
+      if (this.plugin.settings.projectsScale !== "year" && w && Math.abs(w - this.lastW) > 40) this.onDataUpdated();
     });
     this.ro.observe(this.root);
   }
@@ -40,7 +41,7 @@ export class GanttView extends Panel {
   }
 
   private render() {
-    const s = this.plugin.settings; const gran = memory.gran;
+    const s = this.plugin.settings; const gran = s.projectsScale;
     const dayW = granularityDayWidth(gran, (this.root.querySelector<HTMLElement>(".samaya-gantt-scroll")?.clientWidth ?? this.root.clientWidth) - 200);
     const changed = gran !== this.shownGran; this.shownGran = gran;
     const every: Project[] = this.data.data.filter(e => e.file.extension === "md").map(e => readProject(this.app, e.file));
@@ -49,7 +50,7 @@ export class GanttView extends Panel {
     const projects = (q ? every.filter(p => matches(p.name.toLowerCase() + " " + p.file.basename.toLowerCase() + " " + this.texts.get(p.file), q)) : every).sort((a, b) => (a.span?.start ?? "9").localeCompare(b.span?.start ?? "9") || a.name.localeCompare(b.name));
     const stats = projectStats(this.app, prefixOf(s.tasksPath), prefixOf(s.ticketsPath));
     const prev = this.root.querySelector<HTMLElement>(".samaya-gantt-scroll");
-    const keep = prev && !changed ? { x: prev.scrollLeft, y: prev.scrollTop } : null;
+    const keep = prev && !changed ? { x: prev.scrollLeft + this.shiftWeeks * 7 * dayW, y: prev.scrollTop } : null; this.shiftWeeks = 0;
     this.root.empty();
 
     const head = this.root.createDiv("samaya-week-head samaya-day-head samaya-gantt-head");
@@ -59,14 +60,14 @@ export class GanttView extends Panel {
     renderSearch(right, "Search projects", memory.query, v => { memory.query = v; }, () => this.render(), id => { this.timer = id; });
     const sel = right.createEl("select", { cls: "dropdown samaya-gantt-gran", attr: { "aria-label": "Time scale" } });
     for (const g of GRANULARITIES) sel.createEl("option", { text: g[0].toUpperCase() + g.slice(1), value: g });
-    sel.value = gran; sel.onchange = () => { memory.gran = sel.value as Granularity; this.render(); };
+    sel.value = gran; sel.onchange = () => { s.projectsScale = sel.value as Granularity; void this.plugin.saveSettings(); this.render(); };
     const pillSlot = right.createDiv("samaya-gantt-pill");
     right.createEl("button", { text: "Add project", cls: "mod-cta" }).onclick = () => new TextPromptModal(this.plugin, "New project name", name => {
       void createProject(this.app, s, name).then(() => this.plugin.bus.emit());
     }).open();
 
     const td = today();
-    const { from, days } = ganttRange(projects.flatMap(p => (p.span ? [p.span] : [])), td);
+    const { from, days } = ganttRange(projects.flatMap(p => (p.span ? [p.span] : [])), td, memory.back);
     const width = days * dayW; const todayX = daysBetween(from, td) * dayW + dayW / 2;
     const chart = scroll.createDiv("samaya-gantt-chart"); chart.style.setProperty("--day", `${dayW}px`); chart.style.width = `${200 + width}px`; chart.style.setProperty("--grid", `${(gran === "month" ? 1 : 7) * dayW}px`);
 
@@ -108,6 +109,7 @@ export class GanttView extends Panel {
     this.lastW = scroll.clientWidth;
     // "Today" shows only while the today line is out of sight; the arrow points the way back.
     const sync = () => {
+      if (scroll.scrollLeft < 400 && !this.dragging && !this.shiftWeeks) { memory.back += 26; this.shiftWeeks = 26; this.onDataUpdated(); return; } // endless history
       const lo = scroll.scrollLeft, hi = scroll.scrollLeft + scroll.clientWidth - 200;
       const out = todayX < lo ? "left" : todayX > hi ? "right" : null;
       if (out === pillSlot.dataset.out) return; pillSlot.dataset.out = out ?? ""; pillSlot.empty();

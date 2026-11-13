@@ -115,7 +115,11 @@ export class GanttView extends Panel {
     if (projects.length) {
       const addRow = chart.createDiv("samaya-gantt-row samaya-gantt-addrow");
       const an = addRow.createDiv("samaya-gantt-name");
-      an.createEl("button", { text: "+ New project", cls: "samaya-gantt-add" }).onclick = addProject;
+      const add = an.createEl("input", { type: "text", cls: "samaya-sub-add samaya-gantt-add", attr: { placeholder: "+ New project" } });
+      add.addEventListener("keydown", e => {
+        if (e.key !== "Enter" || !add.value.trim()) return;
+        const v = add.value.trim(); add.value = ""; void createProject(this.app, s, v).then(() => this.plugin.bus.emit());
+      });
       addRow.createDiv("samaya-gantt-track").style.width = `${width}px`;
     }
     if (!hidden) for (const cell of Array.from(chart.querySelectorAll<HTMLElement>(".samaya-gantt-name"))) this.resizer(cell, chart, width, nw);
@@ -136,10 +140,22 @@ export class GanttView extends Panel {
         const side = n.x1 <= lo ? "left" : n.x0 >= hi ? "right" : wide || (n.x0 < lo && n.x1 > hi) ? null : n.x0 < lo ? "left" : n.x1 > hi ? "right" : null;
         if (!side) { n.btn?.addClass("is-hidden"); continue; }
         if (!n.btn) {
-          n.btn = n.track.createEl("button", { cls: "samaya-gantt-nav", attr: { "aria-label": "Scroll to this project" } });
-          n.btn.onclick = () => {
-            const w = n.x1 - n.x0, room = scroll.clientWidth - nw;
-            scroll.scrollTo({ left: Math.max(0, w >= room ? n.x0 - 24 : n.x0 + w / 2 - room / 2), behavior: "smooth" });
+          const btn = n.btn = n.track.createEl("button", { cls: "samaya-gantt-nav" });
+          // where a click scrolls to: the project centred, or its start when it is wider than the view
+          const target = () => { const w = n.x1 - n.x0; return Math.max(0, w >= vis ? n.x0 - 24 : n.x0 + w / 2 - vis / 2); };
+          let tip: HTMLElement | null = null;
+          // the tooltip (a custom one, to sit beside the button in its row) names the time frame the click scrolls to
+          btn.onmouseenter = () => {
+            const t = target(), first = Math.floor(t / dayW), last = Math.max(first, Math.ceil((t + vis) / dayW) - 1);
+            const fmt = (i: number) => parseYmd(addDays(from, i)).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+            tip?.remove(); tip = n.track.createDiv({ cls: "samaya-gantt-nav-tip", text: `${fmt(first)} -> ${fmt(last)}` });
+            // beside the button, on the side that stays in view (the left edge has the name column on its left)
+            if (btn.dataset.side === "left") tip.style.left = `${btn.offsetLeft + 30}px`; else { tip.style.left = `${btn.offsetLeft - 6}px`; tip.style.transform = "translateX(-100%)"; }
+          };
+          btn.onmouseleave = () => { tip?.remove(); tip = null; };
+          btn.onclick = () => {
+            tip?.remove(); tip = null;
+            scroll.scrollTo({ left: target(), behavior: "smooth" });
             n.bar.removeClass("is-flash"); void n.bar.offsetWidth; n.bar.addClass("is-flash");
           };
         }

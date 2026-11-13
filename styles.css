@@ -1619,6 +1619,8 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 .samaya-gantt-del:not(.samaya-gantt-linkbtn):hover { color: var(--text-error); }
 .samaya-gantt-del ~ .samaya-gantt-del { margin-left: 0; }
 
-.samaya-kb-card .samaya-card-meta, .samaya-kb-lanehead .samaya-card-meta { padding-left: 0; margin-top: 4px; display: inline-flex; }
+.samaya-kb-card .samaya-card-meta, .samaya-kb-lanehead .samaya-card-meta { padding-left: 0; margin-top: 4px; display: flex; min-width: 0; max-width: 100%; }
+.samaya-kb-projectchip .samaya-chip { display: inline-flex; min-width: 0; max-width: 100%; }
+.samaya-kb-projectchip .samaya-chip > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .samaya-kb-lanehead .samaya-card-meta { margin-top: 0; font-weight: normal; }
 .samaya-kb-projectchip .samaya-chip.is-link { cursor: pointer; }

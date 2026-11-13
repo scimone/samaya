@@ -98,8 +98,11 @@ export class KanbanView extends Panel {
           if (pp) { const chip = projectChip(card.createDiv("samaya-card-meta samaya-kb-projectchip"), pp.basename); chip.addClass("is-link"); chip.onclick = e => { e.stopPropagation(); openFileSmart(this.app, pp); }; }
           const meta = [t.issueType, t.assignee].filter(Boolean).join(" · "); if (meta) card.createDiv({ cls: "samaya-kb-meta", text: meta });
           this.scope.draggable(card, t.file.path);
+          const acts = card.createDiv("samaya-kb-cardactions");
+          const addTask = acts.createSpan({ cls: "samaya-kb-cardbtn", attr: { "aria-label": "Create a task from this ticket" } }); setIcon(addTask, "list-plus");
+          addTask.onclick = e => { e.stopPropagation(); this.plugin.newTaskForTicket(t); };
           if (s.projectsOn && !linked(t)) {
-            const add = card.createSpan({ cls: "samaya-kb-cardproject", attr: { "aria-label": "Create a project from this ticket" } }); setIcon(add, "folder-plus");
+            const add = acts.createSpan({ cls: "samaya-kb-cardbtn", attr: { "aria-label": "Create a project from this ticket" } }); setIcon(add, "folder-plus");
             add.onclick = e => { e.stopPropagation(); this.newProject(t.summary || t.key, [t]); };
           }
           card.onclick = e => { void openFileSmart(this.app, t.file, e.ctrlKey || e.metaKey ? "tab" : false); };

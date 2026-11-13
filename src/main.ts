@@ -6,7 +6,7 @@ import { Editor, MarkdownView, Notice, Plugin, TFile, addIcon, normalizePath, se
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FocusManager, FocusState } from "./focus";
 import { assignTicketLinked, assignProjectLinked } from "./links";
-import { allTickets, createTask, momentFmt } from "./model";
+import { Ticket, allTickets, createTask, momentFmt } from "./model";
 import { PLANNER_VIEW_TYPE, PlannerView, SAMAYA_ICON, SAMAYA_ICON_SVG } from "./views/PlannerView";
 import { syncTickets } from "./sync";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
@@ -15,7 +15,7 @@ import type { Period } from "./journal";
 import { renderJournalBar } from "./views/journalBar";
 import { PERIODIC_KINDS, PERIOD_UI, identifyNote, findLatestPeriodNote, listPeriodNotes, neighbours, journalLocation, openPeriodNote, periodNotePath } from "./journal";
 import { affectsTaskLists, syncTaskLists } from "./tasklinks";
-import { createProject } from "./projects";
+import { createProject, projectPathOf } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { promoteParked, allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask, isOverdue, onDay } from "./model";
 import { ConfirmOverwriteModal } from "./modals";
@@ -542,6 +542,15 @@ export default class SamayaPlugin extends Plugin {
       const p = parseTitleEstimateSafe(raw);
       void createTask(this.app, this.settings, p.title, { planned: today(), estimate: p.estimate ?? this.settings.defaultEstimate });
     }).open();
+  }
+
+  /** New task assigned to a ticket (and to the ticket's project); left unplanned so it lands in the backlog. */
+  newTaskForTicket(t: Ticket) {
+    new TextPromptModal(this, `New task for ${t.key} (append 30m / 1h for an estimate)`, raw => {
+      const p = parseTitleEstimateSafe(raw);
+      const pf = this.settings.projectsOn ? this.app.vault.getAbstractFileByPath(projectPathOf(this.app, t.file)) : null;
+      void createTask(this.app, this.settings, p.title, { estimate: p.estimate ?? this.settings.defaultEstimate, ticket: `[[${t.file.basename}]]`, ...(pf instanceof TFile ? { samaya_project: `[[${pf.basename}]]` } : {}) }).then(() => this.bus.emit());
+    }, t.summary).open();
   }
 
   private async convertCheckbox(ed: Editor, view: MarkdownView) {

@@ -46,76 +46,62 @@ const CHANGE: Record<Change, { label: string; cls: string }> = {
 /** Second step of "End my day": the planned day set against the day as it really went - a timeline of both, what changed task by task, and what was achieved per ticket / project. */
 export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { date: string; all: Task[]; meetings: number; events: ReviewEvent[] }) {
   anim = Date.now() - lastShown > 4000; lastShown = Date.now();
-  const grid = host.createDiv("samaya-rv"); const left = grid.createDiv("samaya-rv-col"); const right = grid.createDiv("samaya-rv-col"); const { items, hasPlan } = reviewItems(plugin, o.all, o.date);
+  const grid = host.createDiv("samaya-rv"); const info = grid.createDiv("samaya-rv-col is-info"); const tl = grid.createDiv("samaya-rv-col is-tl"); const { items, hasPlan } = reviewItems(plugin, o.all, o.date);
   const now = nowMin(); const log = plugin.workday.log; const [winFrom, winTo] = plugin.workWindowFor(o.date); const lunch = plugin.lunchFor(o.date);
   const worked = workedOn(log, now, plugin.dayRules); const breaks = log ? breakMinutes(log) + (log.open ? Math.max(0, now - hmToMin(log.open.start)) : 0) : 0;
   const { plannedItems, added, planned, comparableActual, focus, done, addedDone } = dayTotals(items, hasPlan);
   const sp = daySplit(worked, focus, o.meetings, breaks);
   const startAt = log?.start ? hmToMin(log.start) : null; const endAt = log?.start ? (log.end ? hmToMin(log.end) : now) : null;
 
-  // ---- left: the two days side by side on one time axis
+  // ---- right: the two days side by side on one time axis
   const rows = taskRows(items);
-  left.createDiv({ cls: "samaya-rv-h", text: "Plan vs. reality" });
-  drawTimeline(left, { items, events: o.events, window: [winFrom, winTo], lunch, start: startAt, end: endAt, breaks: (log?.breaks ?? []).map((b): [number, number] => [hmToMin(b.start), hmToMin(b.end)]), hasPlan, linkRoot: grid, room: host.clientHeight });
+  tl.createDiv({ cls: "samaya-rv-h", text: "Plan vs. reality" });
+  drawTimeline(tl, { items, events: o.events, window: [winFrom, winTo], lunch, start: startAt, end: endAt, breaks: (log?.breaks ?? []).map((b): [number, number] => [hmToMin(b.start), hmToMin(b.end)]), hasPlan, linkRoot: grid, room: host.clientHeight });
   const untimed = hasPlan ? plannedItems.filter(i => !i.slots.length).length : 0;
-  if (untimed) left.createDiv({ cls: "samaya-rv-note", text: `${untimed} planned ${untimed === 1 ? "task" : "tasks"} had no time slot, so ${untimed === 1 ? "it is" : "they are"} not on the planned timeline.` });
-  if (!hasPlan) left.createDiv({ cls: "samaya-rv-note", text: "No plan was saved when this day was planned, so today's list is used as the plan." });
+  if (untimed) tl.createDiv({ cls: "samaya-rv-note", text: `${untimed} planned ${untimed === 1 ? "task" : "tasks"} had no time slot, so ${untimed === 1 ? "it is" : "they are"} not on the planned timeline.` });
+  if (!hasPlan) tl.createDiv({ cls: "samaya-rv-note", text: "No plan was saved when this day was planned, so today's list is used as the plan." });
 
-  // ---- right: headline, the day in four numbers, how the time was spent
+  // ---- left: headline, the day in four numbers, how the time was spent
   const v = verdict(planned, comparableActual, done, plannedItems.length);
-  const head = right.createDiv("samaya-rv-head");
+  const head = info.createDiv("samaya-rv-head");
   head.createDiv({ cls: "samaya-rv-vtitle", text: v.title });
   head.createDiv({ cls: "samaya-rv-vtext", text: v.text + (addedDone ? ` Plus ${addedDone} ${addedDone === 1 ? "task" : "tasks"} you added along the way.` : "") });
-  const stats = right.createDiv("samaya-rv-stats");
+  const stats = info.createDiv("samaya-rv-stats");
   const stat = (label: string, value: string, plan: string, delta: string, tone = "") => {
     const t = stats.createDiv("samaya-rv-stat"); t.createDiv({ cls: "samaya-rv-stat-l", text: label }); t.createDiv({ cls: "samaya-rv-stat-v", text: value });
-    const s = t.createDiv("samaya-rv-stat-s"); s.createSpan({ text: plan }); if (delta) s.createSpan({ cls: `samaya-rv-stat-d ${tone}`, text: delta });
+    const s = t.createDiv("samaya-rv-stat-s"); if (plan) s.createSpan({ text: plan }); if (delta) s.createSpan({ cls: `samaya-rv-stat-d ${tone}`, text: delta });
   };
   const gap = (d: number) => (Math.abs(d) < 1 ? "on time" : signed(d, fmtDur));
-  stat("Started", startAt !== null ? minToHm(startAt) : "–", `plan ${minToHm(winFrom)}`, startAt !== null ? gap(startAt - winFrom) : "", startAt !== null && startAt - winFrom > 0 ? "is-warn" : "");
-  stat(log?.end ? "Finished" : "Finishing", endAt !== null ? minToHm(endAt) : "–", `plan ${minToHm(winTo)}`, endAt !== null ? gap(endAt - winTo) : "", endAt !== null && endAt - winTo > 0 ? "is-warn" : "");
-  stat("Tasks done", `${done} / ${plannedItems.length}`, hasPlan ? "planned" : "today's list", addedDone ? `+${addedDone} unplanned` : "", "is-added");
+  stat("Start", startAt !== null ? minToHm(startAt) : "–", `plan ${minToHm(winFrom)}`, startAt !== null ? gap(startAt - winFrom) : "", startAt !== null && startAt - winFrom > 0 ? "is-warn" : "");
+  stat("Finish", endAt !== null ? minToHm(endAt) : "–", `plan ${minToHm(winTo)}`, endAt !== null ? gap(endAt - winTo) : "", endAt !== null && endAt - winTo > 0 ? "is-warn" : "");
+  stat("Tasks done", `${done + addedDone}/${plannedItems.length}`, "", added.length ? `(${added.length} unplanned)` : "", "is-added");
   stat("Time on tasks", fmtDur(focus), planned ? `plan ${fmtDur(planned)}` : "", planned ? signed(focus - planned, fmtDur) : "", focus > planned ? "is-warn" : "is-ok");
 
   if (sp.total > 0) {
-    const bar = right.createDiv("samaya-rv-split");
+    const bar = info.createDiv("samaya-rv-split");
     const parts: Array<[string, string, number]> = [["is-focus", "Focused on tasks", sp.focus], ["is-meet", "Meetings", sp.meetings], ["is-other", "Other work", sp.other], ["is-break", "Breaks", sp.breaks]];
     const segs = parts.filter(p => p[2] > 0).map(([cls, name, m]) => { const s = bar.createDiv(`samaya-rv-seg ${cls}`); s.setAttr("aria-label", `${name}: ${fmtDur(m)}`); s.style.width = "0%"; return [s, m] as const; });
     settle(() => segs.forEach(([s, m]) => { s.style.width = `${(m / sp.total) * 100}%`; }));
-    const legend = right.createDiv("samaya-rv-legend");
+    const legend = info.createDiv("samaya-rv-legend");
     for (const [cls, name, m] of parts) if (m > 0) { const l = legend.createSpan("samaya-rv-legend-item"); l.createSpan({ cls: `samaya-rv-swatch ${cls}` }); l.createSpan({ text: `${name} ${fmtDur(m)}` }); }
-    if (!focus && worked) right.createDiv({ cls: "samaya-rv-note", text: "Time on tasks comes from the focus timer. Start it on a task to see where the day goes." });
+    if (!focus && worked) info.createDiv({ cls: "samaya-rv-note", text: "Time on tasks comes from the focus timer. Start it on a task to see where the day goes." });
   }
 
   // ---- what changed, task by task
   const diff = rows.filter(r => r.changes.length); const same = rows.filter(r => !r.changes.length);
-  const h = right.createDiv({ cls: "samaya-rv-h samaya-rv-h-row" }); h.createSpan({ text: "What changed" });
+  const h = info.createDiv({ cls: "samaya-rv-h samaya-rv-h-row" }); h.createSpan({ text: "What changed" });
   if (rows.length) h.createSpan({ cls: "samaya-rv-row-tag", text: diff.length ? `${diff.length} of ${rows.length} differ from the plan` : "Everything went as planned" });
-  if (!rows.length) right.createDiv({ cls: "samaya-empty", text: "Nothing was planned or done today." });
+  if (!rows.length) info.createDiv({ cls: "samaya-empty", text: "Nothing was planned or done today." });
   else {
-    const table = right.createDiv("samaya-rv-table");
+    const table = info.createDiv("samaya-rv-table");
     const hd = table.createDiv("samaya-rv-r is-head"); hd.createSpan(); hd.createSpan({ text: "Task" }); hd.createSpan({ cls: "samaya-rv-c", text: "Planned" }); hd.createSpan({ cls: "samaya-rv-c", text: "Actual" }); hd.createSpan();
     for (const r of diff) drawRow(table, r, grid);
     if (diff.length && same.length) table.createDiv({ cls: "samaya-rv-sep", text: "As planned" });
     for (const r of same) drawRow(table, r, grid);
   }
 
-  // ---- what was achieved per ticket / project, when those are in use
-  const kinds = (["ticket", "project"] as Grouping[]).filter(k => hasGroups(items, k));
-  if (kinds.length) {
-    let by = kinds[0];
-    const gh = right.createDiv({ cls: "samaya-rv-h samaya-rv-h-row" }); const title = gh.createSpan();
-    const body = right.createDiv("samaya-rv-groups");
-    const paint = () => {
-      title.setText(by === "ticket" ? "Achieved per ticket" : "Achieved per project"); body.empty();
-      drawBars(body, groupRows(items, by).map(g => ({ label: g.label, planned: g.planned, actual: g.actual, tag: `${g.done}/${g.tasks} done`, added: g.added })));
-    };
-    if (kinds.length > 1) {
-      const sw = gh.createDiv("samaya-rv-switch");
-      kinds.forEach(k => { const b = sw.createEl("button", { text: k === "ticket" ? "Tickets" : "Projects", cls: k === by ? "is-on" : "" }); b.onclick = () => { by = k; sw.querySelectorAll("button").forEach(x => x.toggleClass("is-on", x === b)); paint(); }; });
-    }
-    paint();
-  }
+  // ---- what was achieved per ticket and per project, when those are in use (both, one under the other)
+  for (const by of ["ticket", "project"] as Grouping[]) if (hasGroups(items, by)) drawGroups(info, items, by);
 }
 
 /** One task of the comparison table: its planned and actual start and length, what differs as chips, the gap in tracked time. */
@@ -125,7 +111,7 @@ function drawRow(table: HTMLElement, r: Row, root: HTMLElement) {
   const name = row.createDiv("samaya-rv-r-name"); name.createSpan({ cls: "samaya-rv-row-name", text: r.label, attr: { "aria-label": r.label } });
   for (const c of r.changes) name.createSpan({ cls: `samaya-rv-chip ${CHANGE[c].cls}`, text: CHANGE[c].label });
   row.createSpan({ cls: "samaya-rv-c samaya-rv-r-plan", text: r.unplanned ? "–" : when(r.plannedAt, r.planned) });
-  row.createSpan({ cls: "samaya-rv-c samaya-rv-r-act", text: r.actual || r.actualAt !== null ? when(r.actualAt, r.actual) : r.done ? "checked off" : "–" });
+  row.createSpan({ cls: "samaya-rv-c samaya-rv-r-act", text: r.actual ? fmtDur(r.actual) : r.done ? "checked off" : "–" });
   const d = r.planned && r.actual ? r.actual - r.planned : 0; const dl = row.createSpan("samaya-rv-delta" + (d >= 5 ? " is-over" : d <= -5 ? " is-under" : ""));
   if (Math.abs(d) >= 5) { setIcon(dl.createSpan(), d > 0 ? ICON_UP : ICON_DOWN); dl.createSpan({ text: fmtDur(Math.abs(d)) }); }
 }
@@ -187,21 +173,29 @@ function drawTimeline(host: HTMLElement, t: TimelineIn) {
   for (const [cls, name] of [["is-ghost", "Planned"], ["is-fill", "Tracked"], ["is-added", "Unplanned"], ["is-skipped", "Not worked"], ["is-meeting", "Meeting"]]) { const l = key.createSpan("samaya-rv-legend-item"); l.createSpan({ cls: `samaya-rv-key ${cls}` }); l.createSpan({ text: name }); }
 }
 
-interface Bar { label: string; planned: number; actual: number; tag: string; added: number; }
-/** Two thin bars per row on a shared scale: the plan as a pale track, the actual time in front of it (orange where it passes the plan). */
-function drawBars(host: HTMLElement, rows: Bar[]) {
-  const max = Math.max(1, ...rows.flatMap(r => [r.planned, r.actual])); const list = host.createDiv("samaya-rv-rows"); const fills: Array<[HTMLElement, number]> = [];
-  for (const r of rows) {
-    const row = list.createDiv("samaya-rv-row"); const top = row.createDiv("samaya-rv-row-top");
-    top.createSpan({ cls: "samaya-rv-row-name", text: r.label, attr: { "aria-label": r.label } });
-    top.createSpan({ cls: "samaya-rv-row-tag", text: r.tag });
-    if (r.added) top.createSpan({ cls: "samaya-rv-chip is-added", text: `${r.added} unplanned` });
-    const nums = top.createSpan("samaya-rv-row-nums");
-    nums.createSpan({ cls: "samaya-rv-row-act", text: r.actual ? fmtDur(r.actual) : "–" });
-    if (r.planned) nums.createSpan({ cls: "samaya-rv-row-plan", text: ` / ${fmtDur(r.planned)}` });
-    const track = row.createDiv("samaya-rv-track"); track.setAttr("aria-label", `Planned ${r.planned ? fmtDur(r.planned) : "-"} · Actual ${r.actual ? fmtDur(r.actual) : "-"}`);
-    if (r.planned) { const p = track.createDiv("samaya-rv-fill is-plan"); fills.push([p, (r.planned / max) * 100]); }
-    if (r.actual) { const over = r.planned > 0 && r.actual > r.planned * 1.1; const a = track.createDiv("samaya-rv-fill is-act" + (over ? " is-over" : "")); fills.push([a, (r.actual / max) * 100]); }
+/** Hue for the n-th ticket / project; the "none" group is grey. */
+const hueOf = (n: number) => `hsl(${(n * 137.5 + 150) % 360} 48% 58%)`;
+/** Time per ticket or project: the plan and the day as two stacked bars on one scale (same colours), and under them a row for each with what got done. */
+function drawGroups(host: HTMLElement, items: ReviewItem[], by: Grouping) {
+  const groups = groupRows(items, by); const none = by === "ticket" ? "No ticket" : "No project";
+  const colour = (g: { label: string }, n: number) => (g.label === none ? "var(--rv-other)" : hueOf(n));
+  const sec = host.createDiv("samaya-rv-sec"); const h = sec.createDiv({ cls: "samaya-rv-h samaya-rv-h-row" }); h.createSpan({ text: by === "ticket" ? "Achieved per ticket" : "Achieved per project" });
+  const done = groups.reduce((a, g) => a + g.done, 0); const tasks = groups.reduce((a, g) => a + g.tasks, 0); h.createSpan({ cls: "samaya-rv-row-tag", text: `${done}/${tasks} tasks done` });
+  const total = (k: "planned" | "actual") => groups.reduce((a, g) => a + g[k], 0); const max = Math.max(1, total("planned"), total("actual"));
+  const bars = sec.createDiv("samaya-rv-stacks"); const fills: Array<[HTMLElement, number]> = [];
+  for (const [k, name] of [["planned", "Plan"], ["actual", "Actual"]] as const) {
+    const row = bars.createDiv("samaya-rv-stack-row"); row.createSpan({ cls: "samaya-rv-stack-l", text: name });
+    const bar = row.createDiv("samaya-rv-stack"); let n = 0;
+    for (const g of groups) { const m = g[k]; const c = colour(g, n++); if (m <= 0) continue; const seg = bar.createDiv("samaya-rv-stack-seg"); seg.style.background = c; seg.style.width = "0%"; seg.setAttr("aria-label", `${g.label}: ${fmtDur(m)} ${k === "planned" ? "planned" : "tracked"}`); fills.push([seg, (m / max) * 100]); }
+    row.createSpan({ cls: "samaya-rv-stack-n", text: total(k) ? fmtDur(total(k)) : "–" });
   }
   settle(() => fills.forEach(([el, w]) => { el.style.width = `${w}%`; }));
+  const list = sec.createDiv("samaya-rv-glist"); let n = 0;
+  for (const g of groups) {
+    const row = list.createDiv("samaya-rv-g"); row.createSpan("samaya-rv-dot").style.background = colour(g, n++);
+    row.createSpan({ cls: "samaya-rv-row-name", text: g.label, attr: { "aria-label": g.label } });
+    if (g.added) row.createSpan({ cls: "samaya-rv-chip is-added", text: `${g.added} unplanned` });
+    row.createSpan({ cls: "samaya-rv-g-done", text: `${g.done}/${g.tasks} done` });
+    const nums = row.createSpan("samaya-rv-row-nums"); nums.createSpan({ cls: "samaya-rv-row-act", text: g.actual ? fmtDur(g.actual) : "–" }); if (g.planned) nums.createSpan({ cls: "samaya-rv-row-plan", text: ` / ${fmtDur(g.planned)}` });
+  }
 }

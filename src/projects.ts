@@ -3,7 +3,7 @@ import { App, TFile, normalizePath } from "obsidian";
 import type { SamayaSettings } from "./settings";
 import { ensureFolder, patchNote } from "./model";
 import { Span, parseSpan } from "./gantt";
-import { addDays, safeFileName, today } from "./util";
+import { safeFileName } from "./util";
 
 export const PROJECT_PROP = "assigned_project";
 /** Name used by earlier versions: still read, removed when the assignment is written. */
@@ -49,13 +49,12 @@ export function projectStats(app: App, tasksPrefix: string, ticketsPrefix: strin
   return out;
 }
 
-/** New project note starting today and running two weeks. */
+/** New project note, active and without dates (the Projects chart places it on click). */
 export async function createProject(app: App, s: SamayaSettings, name: string): Promise<TFile> {
   const folder = folderOf(s); await ensureFolder(app, folder);
   const base = safeFileName(name); let path = `${folder}/${base}.md`; let i = 2;
   while (app.vault.getAbstractFileByPath(path)) path = `${folder}/${base} ${i++}.md`;
   const f = await app.vault.create(path, "");
-  const start = today();
-  await patchNote(app, f, { status: "active", start, end: addDays(start, DEFAULT_PROJECT_DAYS - 1) });
+  await patchNote(app, f, { status: "active" }); // no dates yet: the chart places it when the user clicks its row
   return f;
 }

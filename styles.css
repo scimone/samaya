@@ -386,11 +386,11 @@ body {
 .samaya-gantt-month, .samaya-gantt-week { position: absolute; font-size: var(--font-ui-smaller); color: var(--text-muted); white-space: nowrap; overflow: hidden; padding-left: 4px; }
 .samaya-gantt-month { top: 4px; font-weight: 600; color: var(--text-normal); }
 .samaya-gantt-week { top: 24px; padding-left: 2px; box-sizing: border-box; border-left: 1px solid var(--background-modifier-border); }
-.samaya-gantt-bar { position: absolute; z-index: 1; top: 8px; height: 26px; border-radius: 5px; background: color-mix(in srgb, var(--interactive-accent) 35%, var(--background-primary)); border: 1px solid var(--interactive-accent); cursor: grab; overflow: hidden; touch-action: none; user-select: none; }
+.samaya-gantt-bar { position: absolute; z-index: 1; top: 8px; height: 26px; border-radius: 5px; background: color-mix(in srgb, var(--interactive-accent) 35%, var(--background-primary)); border: 1px solid var(--interactive-accent); cursor: grab; touch-action: none; user-select: none; }
 .samaya-gantt-bar.is-done { opacity: 0.5; filter: grayscale(0.6); }
 .samaya-gantt-bar.is-dragging { cursor: grabbing; }
-.samaya-gantt-fill { position: absolute; inset: 0 auto 0 0; background: var(--interactive-accent); opacity: 0.55; pointer-events: none; }
-.samaya-gantt-label { position: relative; padding: 0 8px; line-height: 24px; font-size: var(--font-ui-smaller); color: var(--text-normal); white-space: nowrap; pointer-events: none; }
+.samaya-gantt-fill { border-radius: inherit; position: absolute; inset: 0 auto 0 0; background: var(--interactive-accent); opacity: 0.55; pointer-events: none; }
+.samaya-gantt-label { position: sticky; left: var(--name); display: inline-block; padding: 0 8px; line-height: 24px; font-size: var(--font-ui-smaller); color: var(--text-normal); white-space: nowrap; pointer-events: none; }
 .samaya-gantt-handle { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
 .samaya-gantt-handle.is-start { left: 0; } .samaya-gantt-handle.is-end { right: 0; }
 .samaya-gantt-nav { position: absolute; top: 9px; width: 24px; height: 24px; padding: 0; display: flex; align-items: center; justify-content: center; z-index: 3; border-radius: 5px; box-shadow: none; background: var(--text-normal); border: none; color: var(--background-primary); cursor: pointer; }
@@ -409,6 +409,8 @@ body {
 .samaya-gantt-chart.is-resizing { user-select: none; cursor: col-resize; }
 .samaya-gantt-mline { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--background-modifier-border); pointer-events: none; z-index: 0; }
 .samaya-gantt-add { flex: 1 1 0; min-width: 0; }
+.samaya-gantt-track.is-placeable { cursor: copy; }
+.samaya-gantt-bar.is-ghost { opacity: 0.5; border-style: dashed; cursor: copy; pointer-events: none; }
 .samaya-gantt-nodates { padding: 0 12px; line-height: 42px; color: var(--text-faint); font-size: var(--font-ui-smaller); }
 .samaya-gantt-today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text-error); opacity: 0.6; pointer-events: none; z-index: 2; }
 

@@ -3,7 +3,7 @@ import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { openFileBeside } from "../openfile";
 import { DragMode, GRANULARITIES, Granularity, daysBetween, dragSpan, ganttRange, granularityDayWidth, monthMarks } from "../gantt";
-import { Project, projectStats, readProject, createProject, projectsPrefix } from "../projects";
+import { DEFAULT_PROJECT_DAYS, Project, projectStats, readProject, createProject, projectsPrefix } from "../projects";
 import { patchNote, prefixOf } from "../model";
 import { TextPromptModal } from "../modals";
 import { renderHeadTitle } from "./plannerHead";
@@ -106,7 +106,23 @@ export class GanttView extends Panel {
       const st = stats.get(p.file.path);
       if (st) name.createSpan({ cls: "samaya-gantt-count", text: `${st.done}/${st.tasks}`, attr: { title: `${st.done} of ${st.tasks} tasks done${st.tickets ? `, ${st.tickets} ticket${st.tickets > 1 ? "s" : ""}` : ""}` } });
       const track = row.createDiv("samaya-gantt-track"); track.style.width = `${width}px`;
-      if (!p.span) { track.createDiv({ cls: "samaya-gantt-nodates", text: "Set start and end in the note" }); continue; }
+      if (!p.span) {
+        // not on the timeline yet: hovering shows where a default-length item would go, a click sets its dates
+        const hint = track.createDiv({ cls: "samaya-gantt-nodates", text: "Click to place on the timeline" });
+        const ghost = track.createDiv("samaya-gantt-bar is-ghost"); ghost.createSpan({ cls: "samaya-gantt-label", text: p.name }); ghost.hide();
+        const dayAt = (e: MouseEvent) => Math.floor((e.clientX - track.getBoundingClientRect().left) / dayW);
+        track.addClass("is-placeable");
+        track.addEventListener("pointermove", e => {
+          ghost.style.left = `${dayAt(e) * dayW}px`; ghost.style.width = `${DEFAULT_PROJECT_DAYS * dayW}px`; ghost.show(); hint.hide();
+        });
+        track.addEventListener("pointerleave", () => { ghost.hide(); hint.show(); });
+        track.addEventListener("click", e => {
+          if ((e.target as HTMLElement).closest(".samaya-gantt-nav")) return;
+          const start = addDays(from, dayAt(e));
+          void patchNote(this.app, p.file, { start, end: addDays(start, DEFAULT_PROJECT_DAYS - 1) });
+        });
+        continue;
+      }
       const bar = track.createDiv({ cls: "samaya-gantt-bar" + (p.done ? " is-done" : "") });
       if (st?.tasks) bar.createDiv("samaya-gantt-fill").style.width = `${(st.done / st.tasks) * 100}%`;
       bar.createSpan({ cls: "samaya-gantt-label", text: p.name });

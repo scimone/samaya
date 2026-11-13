@@ -149,18 +149,24 @@ export async function periodNotePath(app: App, s: SamayaSettings, p: Period, dat
 export function latestOnOrBefore<T extends { date: string }>(items: T[], limit: string): T | null {
   return items.filter(i => i.date <= limit).sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
 }
+/** The date a note file stands for, or null. The format may contain folders (Daily notes: "[Journal]/YYYY/YYYY-MM/YYYY-MM-DD"): then the path below the folder is parsed, else the file name. */
+function parseNoteDate(file: TFile, loc: JournalLoc, root: string): string | null {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const moment = (window as any).moment;
+  const noExt = file.path.replace(/\.md$/, ""); const rel = root === "/" ? noExt : noExt.slice(root.length + 1);
+  const m = moment(loc.format.includes("/") ? rel : file.basename, loc.format, true); if (!m.isValid()) return null;
+  const yr = file.path.match(/(?:^|\/)((?:19|20)\d{2})(?:\/|-|$)/)?.[1]; // formats without a year (e.g. [Q]Q) take it from the path
+  if (yr && !/[YyGg]/.test(loc.format.replace(/\[[^\]]*\]/g, ""))) m.year(Number(yr));
+  return m.format("YYYY-MM-DD");
+}
 /** All existing notes of a kind, oldest first, found by parsing file names with the configured format. */
 export async function listPeriodNotes(app: App, s: SamayaSettings, p: Period): Promise<Array<{ file: TFile; date: string }>> {
   const loc = await periodLocation(app, s, p); if (!loc) return [];
   const root = loc.pattern ? rootOf(loc.folder) : normalizePath(loc.folder || "/"); const prefix = root === "/" ? "" : root + "/";
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const moment = (window as any).moment; const items: Array<{ file: TFile; date: string }> = [];
-  const hasYear = /[YyGg]/.test(loc.format.replace(/\[[^\]]*\]/g, ""));
+  const items: Array<{ file: TFile; date: string }> = [];
   for (const f of app.vault.getMarkdownFiles()) {
     if (!f.path.startsWith(prefix)) continue;
-    const m = moment(f.basename, loc.format, true); if (!m.isValid()) continue;
-    const yr = f.path.match(/(?:^|\/)((?:19|20)\d{2})(?:\/|-|$)/)?.[1]; if (yr && !hasYear) m.year(Number(yr));
-    items.push({ file: f, date: m.format("YYYY-MM-DD") });
+    const date = parseNoteDate(f, loc, root); if (date) items.push({ file: f, date });
   }
   return items.sort((a, b) => a.date.localeCompare(b.date));
 }
@@ -176,16 +182,11 @@ export function neighbours<T extends { date: string }>(items: T[], date: string)
 }
 /** Which note of the journal a file is (kind and a date inside its period), or null. Matches by file name format inside the kind's folder, wherever in it the file sits. */
 export async function identifyNote(app: App, s: SamayaSettings, file: TFile): Promise<{ p: Period; date: string } | null> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const moment = (window as any).moment;
-  const yr = file.path.match(/(?:^|\/)((?:19|20)\d{2})(?:\/|-|$)/)?.[1]; // formats without a year (e.g. [Q]Q) take it from the path
   for (const p of ["daily", "weekly", "monthly", "quarterly", "yearly"] as Period[]) {
     const loc = await periodLocation(app, s, p); if (!loc) continue;
     const root = loc.pattern ? rootOf(loc.folder) : normalizePath(loc.folder || "/"); const prefix = root === "/" ? "" : root + "/";
     if (!file.path.startsWith(prefix)) continue;
-    const m = moment(file.basename, loc.format, true); if (!m.isValid()) continue;
-    if (yr && !/[YyGg]/.test(loc.format.replace(/\[[^\]]*\]/g, ""))) m.year(Number(yr));
-    return { p, date: m.format("YYYY-MM-DD") };
+    const date = parseNoteDate(file, loc, root); if (date) return { p, date };
   }
   return null;
 }

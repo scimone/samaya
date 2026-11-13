@@ -248,7 +248,7 @@ export async function assignTicket(app: App, task: TFile, ticket: Ticket | null)
   await patchTask(app, task, { ticket: ticket ? `[[${ticket.file.basename}]]` : null });
 }
 
-const SOURCE_NAMES: Record<string, string> = { jira: "Jira", gitlab: "GitLab", manual: "Manual" };
+export const SOURCE_NAMES: Record<string, string> = { jira: "Jira", gitlab: "GitLab", manual: "Manual" };
 export const varsOfRaw = (t: RawTicket): TicketVars => ({ id: t.key, title: t.summary, type: t.type, status: t.state, assignedTo: t.assignee, url: t.url, description: t.description, source: SOURCE_NAMES[t.source] ?? t.source, project: t.project });
 export const varsOfTicket = (t: Ticket): TicketVars => ({ id: t.key, title: t.summary, type: t.issueType, status: t.state, assignedTo: t.assignee, url: t.url, description: "", source: SOURCE_NAMES[t.source] ?? t.source, project: t.project });
 /** Folder for a ticket note: the tickets path with {{TICKET_*}} variables and date parts filled in. */

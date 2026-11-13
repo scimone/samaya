@@ -1612,8 +1612,10 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 .samaya-gantt-pill-ticket { flex: 0 0 auto; cursor: pointer; white-space: nowrap; }
 .samaya-gantt-pill-ticket:hover { filter: brightness(1.15); }
 
-.samaya-gantt-del { flex: 0 0 auto; display: none; color: var(--text-muted); cursor: pointer; }
+.samaya-gantt-del { flex: 0 0 auto; margin-left: auto; display: none; color: var(--text-muted); cursor: pointer; }
 .samaya-gantt-del svg { width: 14px; height: 14px; }
 .samaya-gantt-row:hover .samaya-gantt-del { display: inline-flex; }
 .samaya-gantt-del:hover { color: var(--text-normal); }
 .samaya-gantt-del:not(.samaya-gantt-linkbtn):hover { color: var(--text-error); }
+.samaya-gantt-del ~ .samaya-gantt-del { margin-left: 0; }
+.samaya-gantt-row:hover .samaya-gantt-count { margin-left: 0; }

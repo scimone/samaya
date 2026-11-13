@@ -1,7 +1,7 @@
 import { FuzzySuggestModal, Modal } from "obsidian";
 import type SamayaPlugin from "./main";
 import { Project, allProjects, projectPathOf } from "./projects";
-import { Ticket, allTickets } from "./model";
+import { SOURCE_NAMES, Ticket, allTickets } from "./model";
 import { HORIZONS, Horizon, fmtDur, parseDuration } from "./util";
 
 export class TextPromptModal extends Modal {
@@ -76,11 +76,11 @@ export class TicketTargetSuggestModal extends FuzzySuggestModal<TicketTarget> {
   constructor(private plugin: SamayaPlugin, private projectPath: string, private choose: (t: TicketTarget) => void) { super(plugin.app); this.setPlaceholder("Link to a ticket or a Jira / GitLab project…"); }
   getItems(): TicketTarget[] {
     const open = allTickets(this.app, this.plugin.settings).filter(t => projectPathOf(this.app, t.file) !== this.projectPath);
-    const by = new Map<string, Ticket[]>();
-    for (const t of open) if (t.project) (by.get(t.project) ?? by.set(t.project, []).get(t.project)!).push(t);
-    return [...[...by].map(([name, tickets]): TicketTarget => ({ kind: "project", name, tickets })), ...open.map((ticket): TicketTarget => ({ kind: "ticket", ticket }))];
+    const by = new Map<string, Ticket[]>(); // keyed by source + project, since ids can repeat across Jira and GitLab
+    for (const t of open) if (t.project) { const k = `${t.source}\n${t.project}`; (by.get(k) ?? by.set(k, []).get(k)!).push(t); }
+    return [...[...by.values()].map((tickets): TicketTarget => ({ kind: "project", name: tickets[0].project, tickets })), ...open.map((ticket): TicketTarget => ({ kind: "ticket", ticket }))];
   }
-  getItemText(t: TicketTarget) { return t.kind === "project" ? `Project ${t.name} (${t.tickets.length} ticket${t.tickets.length === 1 ? "" : "s"})` : `${t.ticket.key}  ${t.ticket.summary}`; }
+  getItemText(t: TicketTarget) { return t.kind === "project" ? `${SOURCE_NAMES[t.tickets[0]?.source] ?? "Ticket"} project ${t.name} (${t.tickets.length} ticket${t.tickets.length === 1 ? "" : "s"})` : `${t.ticket.key}  ${t.ticket.summary}`; }
   onChooseItem(t: TicketTarget) { this.choose(t); }
 }
 

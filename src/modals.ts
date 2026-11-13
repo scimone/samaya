@@ -1,6 +1,6 @@
 import { FuzzySuggestModal, Modal } from "obsidian";
 import type SamayaPlugin from "./main";
-import { Project, allProjects } from "./projects";
+import { Project, allProjects, projectPathOf } from "./projects";
 import { Ticket, allTickets } from "./model";
 import { HORIZONS, Horizon, fmtDur, parseDuration } from "./util";
 
@@ -50,9 +50,9 @@ export class ConfirmOverwriteModal extends Modal {
 
 /** "Delete this task?" - the delete button is the warning one; Cancel has the focus. */
 export class ConfirmDeleteModal extends Modal {
-  constructor(plugin: SamayaPlugin, private title: string, private onDelete: () => void) { super(plugin.app); }
+  constructor(plugin: SamayaPlugin, private title: string, private onDelete: () => void, private noun = "task") { super(plugin.app); }
   onOpen() {
-    this.titleEl.setText("Delete task?");
+    this.titleEl.setText(`Delete ${this.noun}?`);
     this.contentEl.createEl("p", { text: `“${this.title}” will be deleted (it goes where your vault's “Deleted files” setting sends it).` });
     const nav = this.contentEl.createDiv("samaya-ritual-nav");
     const cancel = nav.createEl("button", { text: "Cancel" }); cancel.onclick = () => this.close();
@@ -68,6 +68,20 @@ export class TicketSuggestModal extends FuzzySuggestModal<Ticket | null> {
   getItems() { return allTickets(this.app, this.plugin.settings).filter(t => t.state !== "closed"); }
   getItemText(t: Ticket | null) { return t ? `${t.key}  ${t.summary}` : "(no ticket)"; }
   onChooseItem(t: Ticket | null) { this.choose(t); }
+}
+
+/** A single ticket, or a whole Jira / GitLab project (its tickets not yet linked to the chosen project). */
+export type TicketTarget = { kind: "ticket"; ticket: Ticket } | { kind: "project"; name: string; tickets: Ticket[] };
+export class TicketTargetSuggestModal extends FuzzySuggestModal<TicketTarget> {
+  constructor(private plugin: SamayaPlugin, private projectPath: string, private choose: (t: TicketTarget) => void) { super(plugin.app); this.setPlaceholder("Link to a ticket or a Jira / GitLab project…"); }
+  getItems(): TicketTarget[] {
+    const open = allTickets(this.app, this.plugin.settings).filter(t => projectPathOf(this.app, t.file) !== this.projectPath);
+    const by = new Map<string, Ticket[]>();
+    for (const t of open) if (t.project) (by.get(t.project) ?? by.set(t.project, []).get(t.project)!).push(t);
+    return [...[...by].map(([name, tickets]): TicketTarget => ({ kind: "project", name, tickets })), ...open.map((ticket): TicketTarget => ({ kind: "ticket", ticket }))];
+  }
+  getItemText(t: TicketTarget) { return t.kind === "project" ? `Project ${t.name} (${t.tickets.length} ticket${t.tickets.length === 1 ? "" : "s"})` : `${t.ticket.key}  ${t.ticket.summary}`; }
+  onChooseItem(t: TicketTarget) { this.choose(t); }
 }
 
 export class ProjectSuggestModal extends FuzzySuggestModal<Project> {

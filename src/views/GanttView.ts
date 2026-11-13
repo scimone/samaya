@@ -3,9 +3,9 @@ import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { openFileSmart, openFileBeside } from "../openfile";
 import { DragMode, GRANULARITIES, Granularity, daysBetween, dragSpan, ganttRange, granularityDayWidth, monthMarks } from "../gantt";
-import { DEFAULT_PROJECT_DAYS, Project, projectStats, readProject, createProject, projectPathOf, projectsPrefix } from "../projects";
+import { DEFAULT_PROJECT_DAYS, Project, projectStats, readProject, createProject, projectPathOf, linkTickets, projectsPrefix } from "../projects";
 import { Ticket, allTickets, patchNote, prefixOf } from "../model";
-import { TextPromptModal } from "../modals";
+import { ConfirmDeleteModal, TextPromptModal, TicketTargetSuggestModal } from "../modals";
 import { renderHeadTitle } from "./plannerHead";
 import { renderResetPill } from "./dateNav";
 import { NoteText, matches, renderSearch } from "./search";
@@ -102,6 +102,7 @@ export class GanttView extends Panel {
 
     if (!projects.length) chart.createDiv({ cls: "samaya-empty", text: q ? "No projects match." : "No projects yet. Use “Add project”." });
     const byProject = new Map<string, Ticket[]>(); // tickets linked to each project (by note path)
+    const allTk = allTickets(this.app, s).length > 0;
     for (const t of allTickets(this.app, s)) { const pp = projectPathOf(this.app, t.file); if (pp) (byProject.get(pp) ?? byProject.set(pp, []).get(pp)!).push(t); }
     const navs: Array<{ track: HTMLElement; bar: HTMLElement; x0: number; x1: number; btn: HTMLElement | null }> = [];
     for (const p of projects) {
@@ -120,6 +121,14 @@ export class GanttView extends Panel {
       for (const t of linked) if (!tp || t.project !== tp) pill(t.key, t.source, t.summary || t.key).onclick = e => { e.stopPropagation(); openFileSmart(this.app, t.file); };
       const st = stats.get(p.file.path);
       if (st) name.createSpan({ cls: "samaya-gantt-count", text: `${st.done}/${st.tasks}`, attr: { title: `${st.done} of ${st.tasks} tasks done${st.tickets ? `, ${st.tickets} ticket${st.tickets > 1 ? "s" : ""}` : ""}` } });
+      if (s.jiraOn || s.gitlabOn || byProject.size || allTk) {
+        const lk = name.createSpan({ cls: "samaya-gantt-del samaya-gantt-linkbtn", attr: { "aria-label": "Link to a ticket or ticket project" } }); setIcon(lk, "link");
+        lk.onclick = e => { e.stopPropagation(); new TicketTargetSuggestModal(this.plugin, p.file.path, t => {
+          void (t.kind === "ticket" ? linkTickets(this.app, p.file, [t.ticket.file]) : linkTickets(this.app, p.file, t.tickets.map(x => x.file), t.name)).then(() => this.plugin.bus.emit());
+        }).open(); };
+      }
+      const del = name.createSpan({ cls: "samaya-gantt-del", attr: { "aria-label": "Delete project" } }); setIcon(del, "trash-2");
+      del.onclick = e => { e.stopPropagation(); new ConfirmDeleteModal(this.plugin, p.name, () => { void this.app.fileManager.trashFile(p.file).then(() => { window.setTimeout(() => this.plugin.bus.emit(), 150); }); }, "project").open(); };
       const track = row.createDiv("samaya-gantt-track"); track.style.width = `${width}px`;
       if (!p.span) {
         // not on the timeline yet: hovering shows where a default-length item would go, a click sets its dates

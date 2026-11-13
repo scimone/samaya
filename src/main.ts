@@ -1,4 +1,5 @@
 import { openNote } from "./openfile";
+import { renderSideBars } from "./views/sideBar";
 import { Editor, MarkdownView, Notice, Plugin, TFile, normalizePath, setIcon } from "obsidian";
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FocusManager, FocusState } from "./focus";
@@ -292,6 +293,7 @@ export default class SamayaPlugin extends Plugin {
           renderTaskCard(this, el, isTask ? file! : null);
           await this.renderJournalBar(leaf, el, s.journalNavBar && file && id ? { file, ...id } : null);
         }
+        renderSideBars(this);
       } while (this.markAgain);
     } finally { this.marking = false; }
   }

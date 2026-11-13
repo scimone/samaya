@@ -1,3 +1,4 @@
+import { closeSide } from "../openfile";
 import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
 import { Panel } from "./panel";
 import { SECTION_TABS } from "./sections";
@@ -138,6 +139,7 @@ export class PlannerView extends ItemView {
 
   private async showSection(id: string, items: Awaited<ReturnType<SamayaPlugin["nav"]["items"]>>) {
     const tabs = SECTION_TABS[id];
+    if (id !== this.section) closeSide(this.app); // another view: the side pane goes
     this.section = items.some(i => i.id === id) && tabs ? id : "planner";
     this.railEl.querySelectorAll<HTMLElement>(".samaya-rail-btn").forEach(b => b.toggleClass("is-active", b.dataset.id === this.section));
     this.embedC?.unload(); this.embedC = null; this.embedEl.empty();

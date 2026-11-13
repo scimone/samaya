@@ -26,3 +26,22 @@ export async function openNote(app: App, file: TFile): Promise<void> {
   if (leafPath(leaf) !== file.path) await leaf.openFile(file);
   void ws.revealLeaf(leaf); ws.setActiveLeaf(leaf, { focus: true });
 }
+
+/** The side pane, when it is open. */
+export function sideLeaf(app: App): WorkspaceLeaf | null {
+  let found: WorkspaceLeaf | null = null;
+  app.workspace.iterateRootLeaves(l => { if (l === side) found = l; });
+  return found;
+}
+/** Close the side pane. */
+export function closeSide(app: App): void { const l = sideLeaf(app); side = null; l?.detach(); }
+/** Close the side pane and show its note in a full page: the tab that already shows it, else a new one. */
+export async function expandSide(app: App): Promise<void> {
+  const l = sideLeaf(app); const file = l ? app.vault.getAbstractFileByPath(leafPath(l) ?? "") : null;
+  closeSide(app); if (!(file instanceof TFile)) return;
+  let found: WorkspaceLeaf | null = null;
+  app.workspace.iterateRootLeaves(x => { if (!found && leafPath(x) === file.path) found = x; });
+  const leaf: WorkspaceLeaf = found ?? app.workspace.getLeaf("tab");
+  if (!found) await leaf.openFile(file);
+  void app.workspace.revealLeaf(leaf); app.workspace.setActiveLeaf(leaf, { focus: true });
+}

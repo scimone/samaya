@@ -1488,3 +1488,8 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 /* panes side by side: the meeting and focus banners are one strip across all of them, between the headers and the notes. It floats in the editor area, out of the flow (and wide enough to beat Obsidian's `.workspace-split.mod-vertical>*{width:0;height:100%}`); a gap under every pane header keeps the notes clear of it. bars.ts sets the strip's place and the gaps' height. */
 .workspace-split.mod-root > .samaya-bars { position: absolute; height: auto; flex: none; z-index: 5; display: flex; flex-direction: column; background: var(--background-primary); }
 .samaya-bar-gap { flex: none; pointer-events: none; }
+/* the bar of a note in the side pane: its title (its own heading is hidden below) and two icon buttons */
+.samaya-side-bar { flex: none; display: flex; align-items: center; gap: var(--samaya-sp-2); min-height: 36px; box-sizing: border-box; padding: var(--samaya-sp-1) var(--samaya-sp-3) var(--samaya-sp-1) var(--samaya-sp-6); border-bottom: 1px solid var(--background-modifier-border); background: var(--background-primary); }
+.samaya-side-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-ui-large); font-weight: var(--font-semibold); color: var(--text-normal); }
+.samaya-side-btns { display: flex; align-items: center; gap: 2px; margin-left: auto; flex: none; }
+.samaya-side-note:not(.samaya-task-note) .inline-title { display: none !important; }

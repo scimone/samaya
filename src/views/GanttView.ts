@@ -23,17 +23,16 @@ export class GanttView extends Panel {
   private pending = false;
   private texts: NoteText;
   private shownGran: Granularity | null = null;
-  private lastW = 0;
+  private dayW = 0;
+  private syncEdges?: () => void;
   private shiftWeeks = 0;
   private growing = false;
 
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
     super(plugin, () => projectsPrefix(plugin.settings)); this.texts = new NoteText(this.app);
     this.root = parentEl.createDiv("samaya-gantt");
-    this.ro = new ResizeObserver(() => {
-      const w = this.root.querySelector<HTMLElement>(".samaya-gantt-scroll")?.clientWidth ?? 0;
-      if (this.plugin.settings.projectsScale !== "year" && w && Math.abs(w - this.lastW) > 40) this.onDataUpdated();
-    });
+    // a resized pane shows a shorter or longer time span; the day width stays (it is only fitted when the scale changes)
+    this.ro = new ResizeObserver(() => this.syncEdges?.());
     this.ro.observe(this.root);
   }
   private ro?: ResizeObserver;
@@ -46,8 +45,10 @@ export class GanttView extends Panel {
   private render() {
     const s = this.plugin.settings; const gran = s.projectsScale;
     const hidden = s.projectsTableHidden; const nw = hidden ? COLLAPSED_W : Math.max(MIN_NAME_W, s.projectsNameWidth || 200);
-    const dayW = granularityDayWidth(gran, (this.root.querySelector<HTMLElement>(".samaya-gantt-scroll")?.clientWidth ?? this.root.clientWidth) - nw);
-    const changed = gran !== this.shownGran; this.shownGran = gran;
+    const fit = gran !== this.shownGran || !this.dayW;
+    const dayW = fit ? granularityDayWidth(gran, (this.root.querySelector<HTMLElement>(".samaya-gantt-scroll")?.clientWidth ?? this.root.clientWidth) - nw) : this.dayW;
+    this.dayW = this.root.clientWidth > 0 ? dayW : 0; // a hidden view has no width to fit to yet
+    const changed = gran !== this.shownGran; this.shownGran = this.dayW ? gran : null;
     const every: Project[] = this.data.data.filter(e => e.file.extension === "md").map(e => readProject(this.app, e.file));
     const q = memory.query.trim();
     if (q) this.texts.load(every.map(p => p.file), () => { if (this.root.isConnected && memory.query.trim()) this.onDataUpdated(); });
@@ -127,7 +128,6 @@ export class GanttView extends Panel {
     if (keep) { scroll.scrollLeft = keep.x; scroll.scrollTop = keep.y; }
     else if (gran === "year") scroll.scrollLeft = Math.max(0, todayX - 120);
     else { scroll.scrollLeft = Math.max(0, daysBetween(from, `${td.slice(0, 8)}01`) * dayW); }
-    this.lastW = scroll.clientWidth;
     // "Today" shows only while the today line is out of sight; the arrow points the way back.
     const sync = () => {
       if (scroll.scrollLeft < 400 && !this.dragging && !this.shiftWeeks) { memory.back += 26; this.shiftWeeks = 26; this.onDataUpdated(); return; } // endless history
@@ -167,7 +167,7 @@ export class GanttView extends Panel {
       if (out === pillSlot.dataset.out) return; pillSlot.dataset.out = out ?? ""; pillSlot.empty();
       if (out) renderResetPill(pillSlot, "Today", "Scroll back to today", out, () => { scroll.scrollLeft = Math.max(0, todayX - scroll.clientWidth / 3); });
     };
-    scroll.addEventListener("scroll", sync, { passive: true }); sync();
+    scroll.addEventListener("scroll", sync, { passive: true }); this.syncEdges = sync; sync();
   }
 
   /** The drag handle on a name cell's right border: resizes the whole column live, saves on release. */

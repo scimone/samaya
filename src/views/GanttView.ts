@@ -115,10 +115,12 @@ export class GanttView extends Panel {
     const sync = () => {
       if (scroll.scrollLeft < 400 && !this.dragging && !this.shiftWeeks) { memory.back += 26; this.shiftWeeks = 26; this.onDataUpdated(); return; } // endless history
       if (scroll.scrollLeft + scroll.clientWidth > scroll.scrollWidth - 400 && !this.dragging && !this.growing) { this.growing = true; memory.fwd += 26; this.onDataUpdated(); return; }
-      // A project scrolled fully out of view gets an arrow button at the edge it lies beyond; clicking it scrolls back to the project and flashes it.
+      // A project scrolled out of view (fully or partly) gets an arrow button at the edge it lies beyond; clicking it scrolls back to the project and flashes it.
       const vis = scroll.clientWidth - 200;
       for (const n of navs) {
-        const side = n.x1 <= scroll.scrollLeft ? "left" : n.x0 >= scroll.scrollLeft + vis ? "right" : null;
+        const lo = scroll.scrollLeft, hi = lo + vis, wide = n.x1 - n.x0 >= vis;
+        // Fully or partly cut off at one edge: offer the jump (a project wider than the view only when it is entirely out of sight).
+        const side = n.x1 <= lo ? "left" : n.x0 >= hi ? "right" : wide || (n.x0 < lo && n.x1 > hi) ? null : n.x0 < lo ? "left" : n.x1 > hi ? "right" : null;
         if (!side) { n.btn?.addClass("is-hidden"); continue; }
         if (!n.btn) {
           n.btn = n.track.createEl("button", { cls: "samaya-gantt-nav", attr: { "aria-label": "Scroll to this project" } });

@@ -60,8 +60,9 @@ export async function createProject(app: App, s: SamayaSettings, name: string): 
 }
 
 /** New project that is linked to the given ticket notes (each gets `assigned_project`, so the project lists them). */
-export async function createProjectFor(app: App, s: SamayaSettings, name: string, tickets: TFile[]): Promise<TFile> {
+export async function createProjectFor(app: App, s: SamayaSettings, name: string, tickets: TFile[], ticketProject?: string): Promise<TFile> {
   const f = await createProject(app, s, name);
+  if (ticketProject) await patchNote(app, f, { ticket_project: ticketProject });
   for (const t of tickets) await patchNote(app, t, { [PROJECT_PROP]: `[[${f.basename}]]`, [LEGACY_PROJECT_PROP]: null });
   return f;
 }

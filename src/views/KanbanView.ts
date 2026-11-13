@@ -32,8 +32,8 @@ export class KanbanView extends Panel {
     if (this.plugin.settings.ticketsPath.includes("TICKET_STATUS")) await relocateTicket(this.app, this.plugin.settings, t, { ...varsOfTicket(t), status });
   }
   /** Ask for a name (pre-filled), create a project and link the given tickets to it. */
-  private newProject(initial: string, tickets: TFile[]) {
-    new TextPromptModal(this.plugin, "New project name", n => { void createProjectFor(this.app, this.plugin.settings, n, tickets).then(() => this.plugin.bus.emit()); }, initial).open();
+  private newProject(initial: string, tickets: TFile[], ticketProject?: string) {
+    new TextPromptModal(this.plugin, "New project name", n => { void createProjectFor(this.app, this.plugin.settings, n, tickets, ticketProject).then(() => this.plugin.bus.emit()); }, initial).open();
   }
   onDataUpdated(): void {
     if (this.scope.active) { this.pending = true; return; }
@@ -71,7 +71,7 @@ export class KanbanView extends Panel {
       const open = all.filter(t => t.project === lane.project && !linked(t));
       if (s.projectsOn && lane.project !== NO_PROJECT && open.length) {
         const add = title.createSpan({ cls: "samaya-kb-addproject", attr: { "aria-label": `Create a project from ${lane.project}` } }); setIcon(add, "folder-plus");
-        add.onclick = e => { e.stopPropagation(); this.newProject(lane.project, open.map(t => t.file)); };
+        add.onclick = e => { e.stopPropagation(); this.newProject(lane.project, open.map(t => t.file), lane.project); };
       }
       title.onclick = () => { if (!this.collapsed.delete(lane.project)) this.collapsed.add(lane.project); this.render(); };
       if (this.collapsed.has(lane.project)) continue;

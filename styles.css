@@ -1608,3 +1608,6 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 .samaya-kb-cardproject svg { width: 14px; height: 14px; }
 .samaya-kb-card:hover .samaya-kb-cardproject { display: inline-flex; }
 .samaya-kb-cardproject:hover { color: var(--text-normal); }
+
+.samaya-gantt-pill-ticket { flex: 0 0 auto; cursor: pointer; white-space: nowrap; }
+.samaya-gantt-pill-ticket:hover { filter: brightness(1.15); }

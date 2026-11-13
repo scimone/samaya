@@ -1,10 +1,10 @@
-import { setIcon } from "obsidian";
+import { Menu, setIcon } from "obsidian";
 import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
-import { openFileBeside } from "../openfile";
+import { openFileSmart, openFileBeside } from "../openfile";
 import { DragMode, GRANULARITIES, Granularity, daysBetween, dragSpan, ganttRange, granularityDayWidth, monthMarks } from "../gantt";
-import { DEFAULT_PROJECT_DAYS, Project, projectStats, readProject, createProject, projectsPrefix } from "../projects";
-import { patchNote, prefixOf } from "../model";
+import { DEFAULT_PROJECT_DAYS, Project, projectStats, readProject, createProject, projectPathOf, projectsPrefix } from "../projects";
+import { Ticket, allTickets, patchNote, prefixOf } from "../model";
 import { TextPromptModal } from "../modals";
 import { renderHeadTitle } from "./plannerHead";
 import { renderResetPill } from "./dateNav";
@@ -101,12 +101,23 @@ export class GanttView extends Panel {
     }
 
     if (!projects.length) chart.createDiv({ cls: "samaya-empty", text: q ? "No projects match." : "No projects yet. Use “Add project”." });
+    const byProject = new Map<string, Ticket[]>(); // tickets linked to each project (by note path)
+    for (const t of allTickets(this.app, s)) { const pp = projectPathOf(this.app, t.file); if (pp) (byProject.get(pp) ?? byProject.set(pp, []).get(pp)!).push(t); }
     const navs: Array<{ track: HTMLElement; bar: HTMLElement; x0: number; x1: number; btn: HTMLElement | null }> = [];
     for (const p of projects) {
       const row = chart.createDiv("samaya-gantt-row");
       const name = row.createDiv("samaya-gantt-name");
       const link = name.createSpan({ cls: "samaya-gantt-link", text: p.name }); link.title = p.file.path;
       link.onclick = () => { openFileBeside(this.app, p.file); };
+      const linked = byProject.get(p.file.path) ?? [];
+      const tp = String(this.app.metadataCache.getFileCache(p.file)?.frontmatter?.ticket_project ?? "");
+      const pill = (text: string, source: string, title: string) => name.createSpan({ cls: `samaya-chip samaya-chip-ticket samaya-gantt-pill-ticket is-${source}`, text, attr: { "aria-label": title } });
+      if (tp) { // created from a Jira / GitLab project: one pill; clicking lists its linked tickets
+        const mine = linked.filter(t => t.project === tp);
+        const el = pill(tp, mine[0]?.source ?? "", `Ticket project ${tp}`);
+        el.onclick = e => { e.stopPropagation(); if (mine.length === 1) { openFileSmart(this.app, mine[0].file); return; } const m = new Menu(); for (const t of mine) m.addItem(i => i.setTitle(`${t.key} • ${t.summary}`).onClick(() => openFileSmart(this.app, t.file))); m.showAtMouseEvent(e); };
+      }
+      for (const t of linked) if (!tp || t.project !== tp) pill(t.key, t.source, t.summary || t.key).onclick = e => { e.stopPropagation(); openFileSmart(this.app, t.file); };
       const st = stats.get(p.file.path);
       if (st) name.createSpan({ cls: "samaya-gantt-count", text: `${st.done}/${st.tasks}`, attr: { title: `${st.done} of ${st.tasks} tasks done${st.tickets ? `, ${st.tickets} ticket${st.tickets > 1 ? "s" : ""}` : ""}` } });
       const track = row.createDiv("samaya-gantt-track"); track.style.width = `${width}px`;

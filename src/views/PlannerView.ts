@@ -112,9 +112,9 @@ export class PlannerView extends ItemView {
     const plugin = this.plugin, on = !plugin.settings.navigationOn;
     const items = on ? await plugin.nav.items() : [];
     const key = items.map(i => i.id).join("|");
+    this.railEl.toggleClass("is-hidden", !on); // before the early return: with no items the key equals the initial one, and the empty rail would keep its 44px
     if (key === this.railKey && (this.section === "planner" || items.some(i => i.id === this.section))) return;
     this.railKey = key;
-    this.railEl.toggleClass("is-hidden", !on);
     this.railEl.empty();
     if (!on) return; // the explorer shortcuts navigate instead; a section opened through them stays
     if (this.section !== "planner" && !items.some(i => i.id === this.section)) { void this.showSection("planner", items); return; }

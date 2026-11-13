@@ -9,6 +9,7 @@ import { applyTaskPatch, readPlanning, readProp, sessionsOf } from "./taskprops"
 
 export interface Task {
   file: TFile; title: string; status: "todo" | "done";
+  /** day the task was checked off (YYYY-MM-DD, "" = unknown or open) */ completed: string;
   planned: string; start: string; estimate: number; actual: number; order: number; channel: string;
   /** link path of the assigned ticket note ("" = none) */ ticket: string;
   /** week-start date (YYYY-MM-DD) for "this week" tasks without a day */ week: string;
@@ -43,6 +44,7 @@ export function readTask(app: App, file: TFile): Task {
   return {
     file, title: file.basename, later, horizon: isHorizon(str(fm.horizon)) ? (str(fm.horizon) as Horizon) : "",
     status: fm.status === "done" ? "done" : "todo",
+    completed: fm.status === "done" ? ymdOf(fm.day_completed) : "",
     planned, start,
     estimate, sessions, rest, actual: num(readProp(fm, "actual")), order: fm.order == null ? 1e6 : num(fm.order),
     channel: str(fm.channel),
@@ -89,10 +91,10 @@ export function dayTask(t: Task, date: string): Task {
 export function restTask(t: Task): Task {
   return { ...t, planned: "", start: "", segments: [], estimate: t.rest, part: partOf(t, "rest", "") };
 }
-/** What is planned for `date`: tasks with a piece on that day, each showing that day's piece. */
+/** What is planned for `date`: tasks with a piece on that day, each showing that day's piece. Tasks already checked off on an earlier day are left out (they neither show nor count towards capacity). */
 export function onDay(all: Task[], date: string): Task[] {
   const out: Task[] = [];
-  for (const t of all) if (t.sessions.some(g => g.date === date)) out.push(dayTask(t, date));
+  for (const t of all) if (t.sessions.some(g => g.date === date) && !(t.status === "done" && t.completed && t.completed < date)) out.push(dayTask(t, date));
   return out;
 }
 /** Tasks without a day: the ones never planned, and the unplanned rest of tasks that are planned in part. */

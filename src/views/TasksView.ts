@@ -217,7 +217,7 @@ export class TasksView extends Panel {
       this.timer = window.setTimeout(() => { this.render(); const el = this.root.querySelector<HTMLInputElement>(".samaya-mt-search"); el?.focus(); el?.setSelectionRange(el.value.length, el.value.length); }, 150);
     };
     if (canSync) {
-      const b = right.createEl("button", { cls: "samaya-hd-icon", attr: { "aria-label": "Sync tickets", title: "Sync Jira / GitLab tickets" } });
+      const b = right.createEl("button", { cls: "samaya-hd-icon", attr: { "aria-label": "Sync Jira / GitLab tickets" } });
       setIcon(b, "refresh-cw"); b.onclick = () => { void this.plugin.syncTickets(); };
     }
     if (canTicket || canProject) {
@@ -246,12 +246,12 @@ export class TasksView extends Panel {
     const file = tk?.file ?? pr?.file;
     const act = h.createDiv("samaya-tk-laneacts");
     if (file) {
-      const o = act.createEl("button", { cls: "samaya-hd-icon", attr: { "aria-label": "Open note", title: "Open note" } }); setIcon(o, "arrow-up-right");
+      const o = act.createEl("button", { cls: "samaya-hd-icon", attr: { "aria-label": "Open note" } }); setIcon(o, "arrow-up-right");
       o.onclick = e => { e.stopPropagation(); if (tk?.url && (e.ctrlKey || e.metaKey) && e.shiftKey) { window.open(tk.url); return; } void openFileSmart(app, file, e.ctrlKey || e.metaKey ? "tab" : false); };
       o.oncontextmenu = e => { e.preventDefault(); e.stopPropagation(); const m = new Menu(); if (tk?.url) m.addItem(i => i.setTitle("Open in browser").setIcon("external-link").onClick(() => window.open(tk.url))); m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { void openFileSmart(app, file, "tab"); })); m.showAtMouseEvent(e); };
     }
     if (!key || file) {
-      const plus = act.createEl("button", { cls: "samaya-hd-icon", attr: { "aria-label": "Add a task", title: "Add a task to this lane" } }); setIcon(plus, "plus");
+      const plus = act.createEl("button", { cls: "samaya-hd-icon", attr: { "aria-label": "Add a task to this lane" } }); setIcon(plus, "plus");
       plus.onclick = e => { e.stopPropagation(); memory.adding = memory.adding === lkey ? null : lkey; this.render(); };
     }
     if (memory.adding === lkey && !closed) {

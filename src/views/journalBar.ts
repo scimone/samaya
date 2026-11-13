@@ -53,7 +53,7 @@ export function renderJournalBar(plugin: SamayaPlugin, leaf: WorkspaceLeaf, bar:
     b.onclick = () => { void plugin.openPlannerAt(cur.p === "daily" ? "day" : "week", anchor(cur.p, cur.date)); };
   }
   const s = plugin.settings; const kinds: Period[] = ["daily", ...PERIODIC_KINDS.filter(k => s.journalNotes[k].on)];
-  const kind = right.createEl("button", { cls: `samaya-jn-badge samaya-jb-kind is-${cur.p}`, attr: { title: kinds.length > 1 ? "Switch to another kind of note" : KIND[cur.p], "aria-label": `Kind of note: ${KIND[cur.p]}` } });
+  const kind = right.createEl("button", { cls: `samaya-jn-badge samaya-jb-kind is-${cur.p}`, attr: { "aria-label": kinds.length > 1 ? "Switch to another kind of note" : KIND[cur.p] } });
   kind.createSpan({ text: KIND[cur.p] });
   if (kinds.length > 1) {
     setIcon(kind.createSpan("samaya-jb-kind-caret"), "chevron-down");

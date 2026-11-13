@@ -83,7 +83,7 @@ export class JournalView extends Panel {
   private target(parent: HTMLElement, p: Period, date: string, text: string, cls: string): HTMLElement {
     if (!this.on.includes(p)) return parent.createSpan({ cls, text });
     const ex = this.exists(p, date); const name = this.spanName(p, spanStart(p, date));
-    const b = parent.createEl("button", { cls: `${cls} samaya-jn-hit${ex ? " has-note" : ""}`, text, attr: { title: ex ? `Open ${name}` : `${name}: not written yet. Create it`, "aria-label": `${ex ? "Open" : "Create"} ${PERIOD_UI[p].noun} note, ${name}` } });
+    const b = parent.createEl("button", { cls: `${cls} samaya-jn-hit${ex ? " has-note" : ""}`, text, attr: { "aria-label": ex ? `Open ${name}` : `${name}: not written yet. Create it` } });
     b.onclick = () => { void this.go(p, date); };
     return b;
   }

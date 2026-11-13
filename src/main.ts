@@ -1,4 +1,4 @@
-import { openNote } from "./openfile";
+import { openNote, sideLeaf } from "./openfile";
 import { renderSideBars } from "./views/sideBar";
 import { Editor, MarkdownView, Notice, Plugin, TFile, normalizePath, setIcon } from "obsidian";
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
@@ -290,7 +290,7 @@ export default class SamayaPlugin extends Plugin {
           el.toggleClass("samaya-journal-note", s.journalHideProps && !!id);
           const isTask = !!file && file.extension === "md" && file.path.startsWith(prefixOf(s.tasksPath));
           el.toggleClass("samaya-task-note", isTask); // hides the properties; the task card shows them instead
-          renderTaskCard(this, el, isTask ? file! : null);
+          renderTaskCard(this, el, isTask ? file! : null, leaf === sideLeaf(this.app));
           await this.renderJournalBar(leaf, el, s.journalNavBar && file && id ? { file, ...id } : null);
         }
         renderSideBars(this);

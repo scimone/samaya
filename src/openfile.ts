@@ -41,15 +41,19 @@ export function sideLeaf(app: App): WorkspaceLeaf | null {
 }
 /** Close the side pane. */
 export function closeSide(app: App): void { const l = sideLeaf(app); side = null; l?.detach(); }
-/** Close the side pane and show its note in a full page: the tab that already shows it, else a new one. */
-export async function expandSide(app: App): Promise<void> {
-  const l = sideLeaf(app); const file = l ? app.vault.getAbstractFileByPath(leafPath(l) ?? "") : null;
-  closeSide(app); if (!(file instanceof TFile)) return;
+/** Show a note in a full page: the tab that already shows it, else a new tab. A side pane that shows the same note closes. */
+export async function openFull(app: App, file: TFile): Promise<void> {
+  const l = sideLeaf(app); if (l && leafPath(l) === file.path) closeSide(app);
   let found: WorkspaceLeaf | null = null;
   app.workspace.iterateRootLeaves(x => { if (!found && leafPath(x) === file.path) found = x; });
   const leaf: WorkspaceLeaf = found ?? app.workspace.getLeaf("tab");
   if (!found) await leaf.openFile(file);
   void app.workspace.revealLeaf(leaf); app.workspace.setActiveLeaf(leaf, { focus: true });
+}
+/** Close the side pane and show its note in a full page. */
+export async function expandSide(app: App): Promise<void> {
+  const l = sideLeaf(app); const file = l ? app.vault.getAbstractFileByPath(leafPath(l) ?? "") : null;
+  closeSide(app); if (file instanceof TFile) await openFull(app, file);
 }
 
 /** The side pane shows its note now (called once the note is dressed), if it is the one that was waited for. */

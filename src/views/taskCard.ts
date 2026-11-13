@@ -21,7 +21,7 @@ function dayLabel(date: string): string {
  * (tracked / planned, today's piece when that differs from the whole task) and a Focus button, on the same line as the title.
  * While a focus is running (or on a break) the block is gone altogether: the focus bar on top takes over.
  */
-export function renderTaskCard(plugin: SamayaPlugin, el: HTMLElement, file: TFile | null) {
+export function renderTaskCard(plugin: SamayaPlugin, el: HTMLElement, file: TFile | null, inSide = false) {
   const cards = () => Array.from(el.querySelectorAll<HTMLElement>(".samaya-task-card, .samaya-tc-line"));
   const clear = () => { cards().forEach(c => c.remove()); el.querySelectorAll(".samaya-tc-host").forEach(h => { h.removeClass("samaya-tc-host"); (h as HTMLElement).style.removeProperty("--tc-pl"); (h as HTMLElement).style.removeProperty("--tc-pr"); }); };
   const f = plugin.focus.state;
@@ -34,7 +34,7 @@ export function renderTaskCard(plugin: SamayaPlugin, el: HTMLElement, file: TFil
   const showToday = hasToday && (todayEst !== t.estimate || todayAct !== t.actual);
   const projectPath = plugin.settings.projectsOn ? projectPathOf(plugin.app, file) : "";
   const withHead = (hasToday || mine) && t.status !== "done";
-  const key = JSON.stringify([withHead, f ? [f.path, !!f.startedAt] : null, file.path, t.status, t.sessions, t.estimate, t.actual, todayEst, todayAct, showToday, t.ticket, projectPath, day]);
+  const key = JSON.stringify([inSide, withHead, f ? [f.path, !!f.startedAt] : null, file.path, t.status, t.sessions, t.estimate, t.actual, todayEst, todayAct, showToday, t.ticket, projectPath, day]);
 
   // where it goes: under the note title (inside the editor / reading column); without such a column, above the note
   const sizers = Array.from(el.querySelectorAll<HTMLElement>(".cm-sizer, .markdown-preview-sizer"));
@@ -42,36 +42,16 @@ export function renderTaskCard(plugin: SamayaPlugin, el: HTMLElement, file: TFil
   if (!sizers.length && !content) return;
   const hosts = sizers.length ? sizers : [content as HTMLElement];
   const existing = cards();
-  if (existing.length === hosts.length * (f ? 1 : 2) && existing.every(c => c.dataset.key === key && hosts.includes(c.parentElement as HTMLElement))) return;
+  if (existing.length === hosts.length * ((f ? 0 : 1) + (inSide ? 0 : 1)) && existing.every(c => c.dataset.key === key && hosts.includes(c.parentElement as HTMLElement))) return;
   clear();
   for (const host of hosts) {
     const title = host.querySelector<HTMLElement>(":scope > .inline-title");
     const card = f ? null : build(); // while a focus runs the properties are gone; checkbox, clock and the Pause button stay
     if (card) host.insertBefore(card, anchorIn(host));
-    const line = titleLine(); host.insertBefore(line, title ?? card ?? anchorIn(host));
+    if (inSide) continue; // the title line (checkbox, clock, Focus) is in the side pane's top bar
+    const line = taskLine(plugin, file); line.dataset.key = key; host.insertBefore(line, title ?? card ?? anchorIn(host));
     host.addClass("samaya-tc-host");
     if (title) pin(host, title, line); else line.addClass("is-flow");
-  }
-
-  /** The checkbox (left) and, for a task planned today, the clock and Focus button (right): one layer on the title's first line. */
-  function titleLine(): HTMLElement {
-    const h = createDiv({ cls: "samaya-tc-line" }); h.dataset.key = key;
-    const done = t.status === "done";
-    roundCheck(h, done, done ? "Done - click to reopen" : "Mark as done", v => { void patchTask(plugin.app, file!, v ? { status: "done", completed: today() } : { status: "todo", completed: null }); }, "samaya-tc-check");
-    if (!withHead) return h;
-    h.createDiv("samaya-tc-spacer");
-    const right = h.createDiv("samaya-tc-right"); // clock and button, bottoms aligned
-    const act = showToday ? todayAct : t.actual, est = showToday ? todayEst : t.estimate;
-    const clock = right.createDiv({ cls: "samaya-tc-clock" + (est && act > est ? " is-over" : "") });
-    const num = (label: string, text: string, cls = "", live = false) => {
-      const c = clock.createDiv("samaya-tc-num");
-      c.createSpan({ cls: "samaya-tc-numlabel", text: label });
-      const n = c.createSpan({ cls: "samaya-tc-big " + cls, text });
-      if (live) { n.addClass("samaya-tc-act"); n.dataset.tcBase = String(act); } // counts along while this task is in focus
-    };
-    num("actual", fmtHm(act + (mine ? plugin.focus.liveMin(file!.path) : 0)), "", mine); clock.createSpan({ cls: "samaya-tc-bigsep", text: "/" }); num("planned", est ? fmtHm(est) : "--:--", "is-est");
-    if (f || hasToday) { const b = focusButton(plugin, right, t, "samaya-tc-focus"); if (b) b.addClass("mod-cta"); } // Focus, or Pause / Resume (+ Stop) while this task is in focus
-    return h;
   }
 
   /** Where a task without a day waits. */
@@ -155,6 +135,39 @@ export function renderTaskCard(plugin: SamayaPlugin, el: HTMLElement, file: TFil
     if (plugin.settings.jiraOn || plugin.settings.gitlabOn || ticketPath) relation("Ticket", "ticket", ticketPath, f => { const k = readTicket(plugin.app, f); return k.summary ? `${k.key} • ${k.summary}` : k.key; }, m => addTicketItems(m, plugin, t));
     return card;
   }
+}
+
+/**
+ * The checkbox and, for a task planned today (or in focus), the clock and Focus button, as one line. On the title's first line in a note;
+ * in the side pane's top bar (`title` given) the task's title sits between the checkbox and the clock.
+ */
+export function taskLine(plugin: SamayaPlugin, file: TFile, title?: string): HTMLElement {
+  const f = plugin.focus.state; const mine = !!f && f.path === file.path;
+  const t = readTask(plugin.app, file);
+  const day = today(); const dt = dayTask(t, day); const hasToday = t.sessions.some(g => g.date === day);
+  const todayEst = hasToday ? dt.estimate : 0;
+  const todayAct = Math.max(0, t.actual - trackedBefore(plugin, t, day));
+  const showToday = hasToday && (todayEst !== t.estimate || todayAct !== t.actual);
+  const withHead = (hasToday || mine) && t.status !== "done";
+  const h = createDiv({ cls: "samaya-tc-line" });
+  h.dataset.key = JSON.stringify([title ?? null, withHead, f ? [f.path, !!f.startedAt] : null, file.path, t.status, t.estimate, t.actual, todayEst, todayAct, showToday, plugin.workday.started]);
+  const done = t.status === "done";
+  roundCheck(h, done, done ? "Done - click to reopen" : "Mark as done", v => { void patchTask(plugin.app, file, v ? { status: "done", completed: today() } : { status: "todo", completed: null }); }, "samaya-tc-check");
+  if (title !== undefined) h.createDiv({ cls: "samaya-side-title", text: title, attr: { "aria-label": file.path } });
+  if (!withHead) return h;
+  if (title === undefined) h.createDiv("samaya-tc-spacer");
+  const right = h.createDiv("samaya-tc-right"); // clock and button, bottoms aligned
+  const act = showToday ? todayAct : t.actual, est = showToday ? todayEst : t.estimate;
+  const clock = right.createDiv({ cls: "samaya-tc-clock" + (est && act > est ? " is-over" : "") });
+  const num = (label: string, text: string, cls = "", live = false) => {
+    const c = clock.createDiv("samaya-tc-num");
+    c.createSpan({ cls: "samaya-tc-numlabel", text: label });
+    const n = c.createSpan({ cls: "samaya-tc-big " + cls, text });
+    if (live) { n.addClass("samaya-tc-act"); n.dataset.tcBase = String(act); } // counts along while this task is in focus
+  };
+  num("actual", fmtHm(act + (mine ? plugin.focus.liveMin(file.path) : 0)), "", mine); clock.createSpan({ cls: "samaya-tc-bigsep", text: "/" }); num("planned", est ? fmtHm(est) : "--:--", "is-est");
+  if (f || hasToday) { const b = focusButton(plugin, right, t, "samaya-tc-focus"); if (b) b.addClass("mod-cta"); } // Focus, or Pause / Resume (+ Stop) while this task is in focus
+  return h;
 }
 
 /** Under the inline title if there is one, else before the note's own content. */

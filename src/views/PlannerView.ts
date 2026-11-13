@@ -120,7 +120,7 @@ export class PlannerView extends ItemView {
     if (!on) return; // the explorer shortcuts navigate instead; a section opened through them stays
     if (this.section !== "planner" && !items.some(i => i.id === this.section)) { void this.showSection("planner", items); return; }
     for (const it of items) {
-      const b = this.railEl.createEl("button", { cls: "samaya-rail-btn", attr: { "aria-label": it.name, title: it.name, "data-id": it.id } });
+      const b = this.railEl.createEl("button", { cls: "samaya-rail-btn", attr: { "aria-label": it.name, "data-id": it.id } });
       setIcon(b, it.icon); b.toggleClass("is-active", it.id === this.section);
       b.onclick = () => { void this.showSection(it.id, items); };
     }
@@ -171,7 +171,7 @@ export class PlannerView extends ItemView {
     for (const bar of [this.bar]) {
       bar.empty();
       const arrow = (dir: "up" | "down", to: Layout, text: string, hint: string) => {
-        const b = bar.createEl("button", { cls: "samaya-splitarrow", attr: { title: hint, "aria-label": hint } });
+        const b = bar.createEl("button", { cls: "samaya-splitarrow", attr: { "aria-label": hint } });
         setIcon(b.createSpan("samaya-splitarrow-icon"), dir === "up" ? "chevron-up" : "chevron-down"); b.createSpan({ cls: "samaya-splitarrow-text", text });
         b.onclick = () => { this.plugin.weekLayout = to; this.plugin.bus.emit(); };
       };

@@ -1,7 +1,7 @@
 import { Notice, TFile, setIcon } from "obsidian";
 import { bannerSlots } from "./bars";
 import type SamayaPlugin from "./main";
-import { openFileSmart, openNote } from "./openfile";
+import { openFileSmart, openFull } from "./openfile";
 import { dayTask, patchTask, readTask } from "./model";
 import { roundCheck, trackedBefore } from "./views/place";
 import { today } from "./util";
@@ -75,7 +75,7 @@ export class FocusManager {
     const st = this.state; const file = this.file; if (!st) return;
     bar.toggleClass("is-focus", !!st.startedAt); bar.toggleClass("is-break", !st.startedAt);
     const btn = (parent: HTMLElement, icon: string, label: string, fn: () => Promise<void>, cls = "") => {
-      const b = parent.createEl("button", { cls: `samaya-focus-bbtn ${cls}`.trim(), attr: { "aria-label": label, title: label } });
+      const b = parent.createEl("button", { cls: `samaya-focus-bbtn ${cls}`.trim(), attr: { "aria-label": label } });
       setIcon(b.createSpan({ cls: "samaya-focus-bicon" }), icon); if (here) b.createSpan({ text: label.split(" ")[0] });
       b.addEventListener("click", () => { void fn(); });
     };
@@ -114,7 +114,7 @@ export class FocusManager {
       bar.style.setProperty("--p", planned ? `${Math.min(100, (actual / planned) * 100)}%` : "0%");
     });
   }
-  openNote() { const f = this.file; if (f) void openFileSmart(this.plugin.app, f, "tab"); }
+  openNote() { const f = this.file; if (f) void openFull(this.plugin.app, f); } // the focused task: a full page
 
   async start(file: TFile) {
     if (!this.plugin.workday.started) { new Notice("Samaya: start your day before starting a focus."); return; }
@@ -122,8 +122,8 @@ export class FocusManager {
     if (!this.state) this.state = { path: file.path, accumulatedMs: 0, startedAt: Date.now() };
     else if (!this.state.startedAt) this.state.startedAt = Date.now();
     await this.persist();
-    // task note in the side view, so you can write notes while working
-    await openNote(this.plugin.app, file);
+    // the task note in a full page (the one exception to the side pane), so you can write notes while working
+    await openFull(this.plugin.app, file);
     this.refreshViews();
   }
   /** Pause (a pause): write the time worked so far to the task, so duration_actual is up to date during the pause. */

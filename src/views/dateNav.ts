@@ -15,14 +15,14 @@ export interface DateNavOpts {
 /** ‹ date › in one bordered control: the date navigation of the day and week headings and of the Today sidebar. */
 export function renderDateNav(parent: HTMLElement, o: DateNavOpts): HTMLElement {
   const nav = parent.createDiv("samaya-weeknav");
-  const step = (icon: string, label: string, run: () => void, off = false) => { const b = nav.createEl("button", { cls: "samaya-weeknav-step", attr: { "aria-label": label, title: label } }); setIcon(b, icon); if (off) b.disabled = true; else b.onclick = run; };
+  const step = (icon: string, label: string, run: () => void, off = false) => { const b = nav.createEl("button", { cls: "samaya-weeknav-step", attr: { "aria-label": label } }); setIcon(b, icon); if (off) b.disabled = true; else b.onclick = run; };
   step("chevron-left", o.prevLabel, o.onPrev, o.prevDisabled);
   const asIcon = !!(o.icon && o.pick);
   const lab = nav.createSpan({ cls: "samaya-weeknav-label", text: asIcon ? "" : o.label });
   if (asIcon) { lab.addClass("is-icon"); setIcon(lab, o.icon!); }
   if (o.pick) {
     const pick = o.pick; const name = pick.label ?? "Pick a date";
-    lab.addClass("is-pickable"); lab.setAttr("role", "button"); lab.setAttr("tabindex", "0"); lab.setAttr("aria-label", `${name} (${o.label})`); lab.setAttr("title", asIcon ? `${name} (${o.label})` : name);
+    lab.addClass("is-pickable"); lab.setAttr("role", "button"); lab.setAttr("tabindex", "0"); lab.setAttr("aria-label", asIcon ? `${name} (${o.label})` : name);
     let run: () => void;
     if (pick.open) { const open = pick.open; run = () => open(lab); lab.onclick = run; }
     else {
@@ -39,7 +39,7 @@ export function renderDateNav(parent: HTMLElement, o: DateNavOpts): HTMLElement 
 
 /** The soft accent pill that jumps back ("Today", "This week"); the arrow shows which way it goes. */
 export function renderResetPill(parent: HTMLElement, text: string, hint: string, dir: "left" | "right", run: () => void): HTMLElement {
-  const r = parent.createEl("button", { cls: "samaya-datereset", attr: { title: hint, "aria-label": hint } });
+  const r = parent.createEl("button", { cls: "samaya-datereset", attr: { "aria-label": hint } });
   setIcon(r.createSpan("samaya-datereset-icon"), dir === "right" ? "arrow-right" : "arrow-left");
   r.createSpan({ text }); r.onclick = run;
   return r;
@@ -48,6 +48,6 @@ export function renderResetPill(parent: HTMLElement, text: string, hint: string,
 /** « ‹ › » in one bordered control: plain steps without a label (the journal calendar: months and years). */
 export function renderStepNav(parent: HTMLElement, steps: Array<[icon: string, label: string, run: () => void]>): HTMLElement {
   const nav = parent.createDiv("samaya-weeknav is-steps");
-  for (const [icon, label, run] of steps) { const b = nav.createEl("button", { cls: "samaya-weeknav-step", attr: { "aria-label": label, title: label } }); setIcon(b, icon); b.onclick = run; }
+  for (const [icon, label, run] of steps) { const b = nav.createEl("button", { cls: "samaya-weeknav-step", attr: { "aria-label": label } }); setIcon(b, icon); b.onclick = run; }
   return nav;
 }

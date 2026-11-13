@@ -16,7 +16,7 @@ export function openPeriodPicker(anchor: HTMLElement, p: Coarse, value: string, 
   const draw = () => {
     box.empty();
     const head = box.createDiv("samaya-pp-head"); const span = p === "yearly" ? 12 : 1; const start = year - 5;
-    const step = (icon: string, label: string, n: number) => { const b = head.createEl("button", { cls: "samaya-pp-step", attr: { "aria-label": label, title: label } }); setIcon(b, icon); b.onclick = () => { year += n * span; draw(); }; };
+    const step = (icon: string, label: string, n: number) => { const b = head.createEl("button", { cls: "samaya-pp-step", attr: { "aria-label": label } }); setIcon(b, icon); b.onclick = () => { year += n * span; draw(); }; };
     step("chevron-left", p === "yearly" ? "Earlier years" : "Previous year", -1);
     head.createSpan({ cls: "samaya-pp-title", text: p === "yearly" ? `${start} – ${start + 11}` : String(year) });
     step("chevron-right", p === "yearly" ? "Later years" : "Next year", 1);

@@ -127,7 +127,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
     b.addEventListener("click", e => { e.stopPropagation(); fn(); });
   });
   if (o.split && canSplit(t)) { // scissors: cut the task into parts, here or on other days
-    const cut = acts.createEl("button", { cls: "samaya-mini samaya-split-btn", attr: { "aria-label": "Split into parts", title: "Split into parts" } });
+    const cut = acts.createEl("button", { cls: "samaya-mini samaya-split-btn", attr: { "aria-label": "Split into parts" } });
     setIcon(cut, "scissors");
     cut.addEventListener("pointerdown", e => e.stopPropagation()); // not a drag
     cut.addEventListener("click", e => { e.stopPropagation(); new PartsModal(plugin, t, "split").open(); });

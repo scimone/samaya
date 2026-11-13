@@ -1246,6 +1246,8 @@ body.samaya-focusing .samaya-card:not(.is-current):hover { border-color: var(--b
 body.samaya-focusing .samaya-daily .samaya-card:not(.is-current):hover { background: var(--background-primary-alt); box-shadow: none; }
 body.samaya-focusing .samaya-block:not(.is-current):hover { background: color-mix(in srgb, var(--samaya-task) var(--samaya-tint), var(--background-primary)); }
 body.samaya-focusing .samaya-block.is-done:not(.is-current):hover { background: color-mix(in srgb, var(--text-muted) 12%, var(--background-primary)); }
+/* other days / weeks than the current one are not faded */
+body.samaya-focusing .is-other-period :is(.samaya-block, .samaya-event, .samaya-card, .samaya-wtl-chip, .samaya-wtl-hour-label, .samaya-wtl-day, .samaya-donebar, .samaya-add, .samaya-dayline, .samaya-hour-label, .samaya-tasks-count, .samaya-band, .samaya-agenda-row, .samaya-agenda-empty, .samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .samaya-col-head, .samaya-loadbar, .samaya-colhead-count) { opacity: 1 !important; }
 .samaya-focus-stop { margin-left: 4px; }
 body.samaya-focusing .samaya-hs-group.is-cap, body.samaya-focusing .samaya-hd-btn.is-end-day, body.samaya-focusing .samaya-hd-btn.is-review-week, body.samaya-focusing .samaya-hd-icon.is-worktime { display: none; }
 body.samaya-focusing :is(.samaya-agenda-row:not(.is-current), .samaya-agenda-empty) { opacity: 0.15; }

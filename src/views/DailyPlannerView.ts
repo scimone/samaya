@@ -87,7 +87,7 @@ export class DailyPlannerView extends PlannerPane {
     const ip = this.root.querySelector<HTMLElement>(".samaya-info"); if (ip) this.infoScroll = ip.scrollTop;
     this.root.empty(); this.scope.clear();
 
-    const all = this.entryTasks(); const isToday = this.date === today();
+    const all = this.entryTasks(); const isToday = this.date === today(); this.root.toggleClass("is-other-period", !isToday); // focus mode only fades the current day
     const day = sortTasks(onDay(all, this.date));
     const overdue = isToday ? sortTasks(overdueParts(all)) : [];
 

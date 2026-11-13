@@ -69,6 +69,7 @@ export class WeeklyBoardView extends PlannerPane {
     this.root.removeClass("is-guided");
     const all = allTasks(this.app, this.plugin.settings);
     const scrollX = this.root.scrollLeft; const scrollY = this.root.scrollTop;
+    this.root.toggleClass("is-other-period", this.weekStart !== startOfWeek(today())); // focus mode only fades the current week
     this.root.empty(); this.scope.clear(); this.root.toggleClass("is-aligned", !!this.host?.aligned?.()); // expanded week: the day columns line up with the timeline's, in every layout
 
     if (this.plugin.boardWeek !== this.weekStart) { this.plugin.boardWeek = this.weekStart; this.plugin.modeBus.emit(); }

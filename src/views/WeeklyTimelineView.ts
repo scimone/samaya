@@ -70,6 +70,7 @@ export class WeeklyTimelineView extends PlannerPane {
       this.root.createDiv({ cls: "samaya-empty", text: "Planning your week happens in the Weekly Board view. Pick it from the view menu at the top of this tab." });
       return;
     }
+    this.root.toggleClass("is-other-period", this.weekStart !== startOfWeek(today())); // focus mode only fades the current week
     const flow = !!this.host?.flow?.(); this.root.toggleClass("is-flow", flow); // stacked above the board on one scrolling page
     const old = this.root.querySelector<HTMLElement>(".samaya-wtl-scroll"); if (old && !flow) this.scrollTop = old.scrollTop;
     this.root.empty(); this.scope.clear();

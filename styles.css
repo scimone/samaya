@@ -376,7 +376,7 @@ body {
 .samaya-gantt-chart { position: relative; min-height: 100%; }
 .samaya-gantt-row { display: flex; height: 42px; border-bottom: 1px solid var(--background-modifier-border); }
 .samaya-gantt-hrow { height: 44px; position: sticky; top: 0; z-index: 4; background: var(--background-primary); }
-.samaya-gantt-name { flex: 0 0 200px; position: sticky; left: 0; z-index: 3; background: var(--background-primary); display: flex; align-items: center; gap: 6px; padding: 0 10px; border-right: 1px solid var(--background-modifier-border); overflow: hidden; }
+.samaya-gantt-name { flex: 0 0 var(--name, 200px); position: sticky; left: 0; z-index: 3; background: var(--background-primary); display: flex; align-items: center; gap: 6px; padding: 0 10px; border-right: 1px solid var(--background-modifier-border); overflow: hidden; }
 .samaya-gantt-hrow .samaya-gantt-name { z-index: 5; }
 .samaya-gantt-link { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .samaya-gantt-link:hover { color: var(--text-accent); }
@@ -394,11 +394,21 @@ body {
 .samaya-gantt-handle { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
 .samaya-gantt-handle.is-start { left: 0; } .samaya-gantt-handle.is-end { right: 0; }
 .samaya-gantt-nav { position: absolute; top: 9px; width: 24px; height: 24px; padding: 0; display: flex; align-items: center; justify-content: center; z-index: 3; border-radius: 5px; box-shadow: none; background: var(--text-normal); border: none; color: var(--background-primary); cursor: pointer; }
-.samaya-gantt-nav:hover { background: var(--text-muted); }
+.samaya-gantt-nav:hover { background: var(--text-normal); opacity: 0.8; }
 .samaya-gantt-nav.is-hidden { display: none; }
 .samaya-gantt-nav svg { width: 14px; height: 14px; }
 .samaya-gantt-bar.is-flash { animation: samaya-gantt-flash 1.6s ease-out; }
 @keyframes samaya-gantt-flash { 0%, 40% { box-shadow: 0 0 0 3px var(--interactive-accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.samaya-gantt-toggle { position: absolute; top: 50%; right: 4px; transform: translateY(-50%); }
+.samaya-gantt-chart.is-collapsed .samaya-gantt-name { padding: 0; }
+.samaya-gantt-chart.is-collapsed .samaya-gantt-name > :not(.samaya-gantt-toggle) { display: none; }
+.samaya-gantt-chart.is-collapsed .samaya-gantt-toggle { right: 50%; transform: translate(50%, -50%); }
+.samaya-gantt-resize { position: absolute; top: 0; bottom: 0; right: 0; width: 6px; cursor: col-resize; z-index: 1; }
+.samaya-gantt-resize:hover, .samaya-gantt-chart.is-resizing .samaya-gantt-resize { background: var(--interactive-accent); opacity: 0.6; }
+.samaya-gantt-chart.is-resizing { user-select: none; cursor: col-resize; }
+.samaya-gantt-addrow .samaya-gantt-track { background-image: none; }
+.samaya-gantt-add { background: none; box-shadow: none; border: none; padding: 0; height: auto; color: var(--text-muted); cursor: pointer; font-size: var(--font-ui-small); }
+.samaya-gantt-add:hover { color: var(--text-accent); }
 .samaya-gantt-nodates { padding: 0 12px; line-height: 42px; color: var(--text-faint); font-size: var(--font-ui-smaller); }
 .samaya-gantt-today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text-error); opacity: 0.6; pointer-events: none; z-index: 2; }
 

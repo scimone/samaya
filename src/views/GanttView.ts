@@ -13,6 +13,7 @@ import { NoteText, matches, renderSearch } from "./search";
 const memory = { query: "", back: 0, fwd: 0 }; // extra weeks before / after the dates, grown by scrolling to either edge
 import { addDays, parseYmd, today } from "../util";
 
+const MIN_NAME_W = 120, MAX_NAME_W = 600, COLLAPSED_W = 36;
 export const GANTT_VIEW_TYPE = "samaya-gantt";
 
 export class GanttView extends Panel {
@@ -44,7 +45,8 @@ export class GanttView extends Panel {
 
   private render() {
     const s = this.plugin.settings; const gran = s.projectsScale;
-    const dayW = granularityDayWidth(gran, (this.root.querySelector<HTMLElement>(".samaya-gantt-scroll")?.clientWidth ?? this.root.clientWidth) - 200);
+    const hidden = s.projectsTableHidden; const nw = hidden ? COLLAPSED_W : Math.max(MIN_NAME_W, s.projectsNameWidth || 200);
+    const dayW = granularityDayWidth(gran, (this.root.querySelector<HTMLElement>(".samaya-gantt-scroll")?.clientWidth ?? this.root.clientWidth) - nw);
     const changed = gran !== this.shownGran; this.shownGran = gran;
     const every: Project[] = this.data.data.filter(e => e.file.extension === "md").map(e => readProject(this.app, e.file));
     const q = memory.query.trim();
@@ -64,17 +66,21 @@ export class GanttView extends Panel {
     for (const g of GRANULARITIES) sel.createEl("option", { text: g[0].toUpperCase() + g.slice(1), value: g });
     sel.value = gran; sel.onchange = () => { s.projectsScale = sel.value as Granularity; void this.plugin.saveSettings(); this.render(); };
     const pillSlot = right.createDiv("samaya-gantt-pill");
-    right.createEl("button", { text: "Add project", cls: "mod-cta" }).onclick = () => new TextPromptModal(this.plugin, "New project name", name => {
+    const addProject = () => new TextPromptModal(this.plugin, "New project name", name => {
       void createProject(this.app, s, name).then(() => this.plugin.bus.emit());
     }).open();
+    right.createEl("button", { text: "Add project", cls: "mod-cta" }).onclick = addProject;
 
     const td = today();
     const { from, days } = ganttRange(projects.flatMap(p => (p.span ? [p.span] : [])), td, memory.back, memory.fwd);
     const width = days * dayW; const todayX = daysBetween(from, td) * dayW + dayW / 2;
-    const chart = scroll.createDiv("samaya-gantt-chart"); chart.style.setProperty("--day", `${dayW}px`); chart.style.width = `${200 + width}px`; chart.style.setProperty("--grid", `${(gran === "month" ? 1 : 7) * dayW}px`);
+    const chart = scroll.createDiv("samaya-gantt-chart"); chart.style.setProperty("--day", `${dayW}px`); chart.style.setProperty("--name", `${nw}px`); chart.style.width = `calc(var(--name) + ${width}px)`; chart.toggleClass("is-collapsed", hidden); chart.style.setProperty("--grid", `${(gran === "month" ? 1 : 7) * dayW}px`);
 
     const hdr = chart.createDiv("samaya-gantt-row samaya-gantt-hrow");
-    hdr.createDiv("samaya-gantt-name");
+    const hName = hdr.createDiv("samaya-gantt-name");
+    const toggle = hName.createEl("button", { cls: "clickable-icon samaya-gantt-toggle", attr: { "aria-label": hidden ? "Show table" : "Hide table" } });
+    setIcon(toggle, hidden ? "chevrons-right" : "chevrons-left");
+    toggle.onclick = () => { s.projectsTableHidden = !hidden; void this.plugin.saveSettings(); this.render(); };
     const hTrack = hdr.createDiv("samaya-gantt-track"); hTrack.style.width = `${width}px`;
     for (const m of monthMarks(from, days)) {
       const el = hTrack.createDiv({ cls: "samaya-gantt-month", text: m.span * dayW > 60 ? m.date.toLocaleDateString(undefined, { month: "short", year: "numeric" }) : "" });
@@ -106,7 +112,14 @@ export class GanttView extends Panel {
       this.drag(bar, p, dayW, place);
       const x0 = daysBetween(from, p.span.start) * dayW; navs.push({ track, bar, x0, x1: x0 + (daysBetween(p.span.start, p.span.end) + 1) * dayW, btn: null });
     }
-    const line = chart.createDiv("samaya-gantt-today"); line.style.left = `${200 + todayX}px`;
+    if (projects.length) {
+      const addRow = chart.createDiv("samaya-gantt-row samaya-gantt-addrow");
+      const an = addRow.createDiv("samaya-gantt-name");
+      an.createEl("button", { text: "+ New project", cls: "samaya-gantt-add" }).onclick = addProject;
+      addRow.createDiv("samaya-gantt-track").style.width = `${width}px`;
+    }
+    if (!hidden) for (const cell of Array.from(chart.querySelectorAll<HTMLElement>(".samaya-gantt-name"))) this.resizer(cell, chart, width, nw);
+    const line = chart.createDiv("samaya-gantt-today"); line.style.left = `calc(var(--name) + ${todayX}px)`;
     if (keep) { scroll.scrollLeft = keep.x; scroll.scrollTop = keep.y; }
     else if (gran === "year") scroll.scrollLeft = Math.max(0, todayX - 120);
     else { scroll.scrollLeft = Math.max(0, daysBetween(from, `${td.slice(0, 8)}01`) * dayW); }
@@ -116,7 +129,7 @@ export class GanttView extends Panel {
       if (scroll.scrollLeft < 400 && !this.dragging && !this.shiftWeeks) { memory.back += 26; this.shiftWeeks = 26; this.onDataUpdated(); return; } // endless history
       if (scroll.scrollLeft + scroll.clientWidth > scroll.scrollWidth - 400 && !this.dragging && !this.growing) { this.growing = true; memory.fwd += 26; this.onDataUpdated(); return; }
       // A project scrolled out of view (fully or partly) gets an arrow button at the edge it lies beyond; clicking it scrolls back to the project and flashes it.
-      const vis = scroll.clientWidth - 200;
+      const vis = scroll.clientWidth - nw;
       for (const n of navs) {
         const lo = scroll.scrollLeft, hi = lo + vis, wide = n.x1 - n.x0 >= vis;
         // Fully or partly cut off at one edge: offer the jump (a project wider than the view only when it is entirely out of sight).
@@ -125,7 +138,7 @@ export class GanttView extends Panel {
         if (!n.btn) {
           n.btn = n.track.createEl("button", { cls: "samaya-gantt-nav", attr: { "aria-label": "Scroll to this project" } });
           n.btn.onclick = () => {
-            const w = n.x1 - n.x0, room = scroll.clientWidth - 200;
+            const w = n.x1 - n.x0, room = scroll.clientWidth - nw;
             scroll.scrollTo({ left: Math.max(0, w >= room ? n.x0 - 24 : n.x0 + w / 2 - room / 2), behavior: "smooth" });
             n.bar.removeClass("is-flash"); void n.bar.offsetWidth; n.bar.addClass("is-flash");
           };
@@ -133,12 +146,28 @@ export class GanttView extends Panel {
         n.btn.removeClass("is-hidden"); n.btn.dataset.side = side; n.btn.empty(); setIcon(n.btn, side === "left" ? "arrow-left" : "arrow-right");
         n.btn.style.left = `${side === "left" ? scroll.scrollLeft + 6 : scroll.scrollLeft + vis - 30}px`;
       }
-      const lo = scroll.scrollLeft, hi = scroll.scrollLeft + scroll.clientWidth - 200;
+      const lo = scroll.scrollLeft, hi = scroll.scrollLeft + scroll.clientWidth - nw;
       const out = todayX < lo ? "left" : todayX > hi ? "right" : null;
       if (out === pillSlot.dataset.out) return; pillSlot.dataset.out = out ?? ""; pillSlot.empty();
       if (out) renderResetPill(pillSlot, "Today", "Scroll back to today", out, () => { scroll.scrollLeft = Math.max(0, todayX - scroll.clientWidth / 3); });
     };
     scroll.addEventListener("scroll", sync, { passive: true }); sync();
+  }
+
+  /** The drag handle on a name cell's right border: resizes the whole column live, saves on release. */
+  private resizer(cell: HTMLElement, chart: HTMLElement, width: number, nw: number) {
+    const h = cell.createDiv("samaya-gantt-resize"); h.setAttr("aria-label", "Drag to resize");
+    h.addEventListener("pointerdown", e => {
+      if (e.button !== 0) return; e.preventDefault();
+      const x0 = e.clientX; let w = nw; h.setPointerCapture(e.pointerId); this.dragging = true; chart.addClass("is-resizing");
+      const onMove = (ev: PointerEvent) => { w = Math.min(MAX_NAME_W, Math.max(MIN_NAME_W, nw + ev.clientX - x0)); chart.style.setProperty("--name", `${w}px`); };
+      const onUp = () => {
+        h.removeEventListener("pointermove", onMove); h.removeEventListener("pointerup", onUp); h.removeEventListener("pointercancel", onUp);
+        this.dragging = false; this.pending = false; chart.removeClass("is-resizing");
+        this.plugin.settings.projectsNameWidth = w; void this.plugin.saveSettings(); this.render();
+      };
+      h.addEventListener("pointermove", onMove); h.addEventListener("pointerup", onUp); h.addEventListener("pointercancel", onUp);
+    });
   }
 
   private drag(bar: HTMLElement, p: Project, dayW: number, place: (s: { start: string; end: string }) => void) {

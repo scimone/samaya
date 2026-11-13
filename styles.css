@@ -1208,7 +1208,7 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-shell-main > .is-hidden { display: none; }
 .samaya-embed { height: 100%; overflow: auto; display: flex; flex-direction: column; }
 .samaya-embed-tabs { display: flex; justify-content: center; padding: var(--size-4-2) var(--size-4-3) 0; }
-.samaya-embed-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0 var(--size-4-3); }
+.samaya-embed-body { flex: 1 1 auto; min-height: 0; overflow: auto; padding: 0; } /* no side padding: every panel's heading sits at the same left edge as the planner's */
 .samaya-rail { flex: 0 0 auto; width: 44px; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: var(--size-4-3) 0; }
 .samaya-rail.is-hidden { display: none; }
 .samaya-rail-btn { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; background: none !important; box-shadow: none !important; border: 0 !important; color: var(--text-faint); cursor: pointer; }

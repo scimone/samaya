@@ -4,7 +4,8 @@ import { Task, onDay, readTicket } from "../model";
 import { projectPathOf } from "../projects";
 import { dayPieces } from "../sessions";
 import { Change, Grouping, ReviewItem, Row, Span, dayTotals, daySplit, when, groupRows, hasGroups, hourRange, runSpansOn, signed, taskRows, verdict } from "../dayreview";
-import { breakMinutes, workedOn } from "../worktime";
+import { breakMinutes, capacityWindow, workedOn } from "../worktime";
+import { bufferShare, loadLevel } from "../weekplan";
 import { fmtDur, hmToMin, minToHm } from "../util";
 import { nowMin } from "../workday";
 
@@ -55,8 +56,14 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
 
   // ---- right: the two days side by side on one time axis
   const rows = taskRows(items);
+  const share = bufferShare(plugin.settings.bufferPercent); const cap = capacityWindow(winFrom, winTo, lunch, o.events.map((e): [number, number] => [e.s, e.e]));
+  const bufferMin = Math.round(cap.free * (1 - share)); const planTasks = Math.min(planned, Math.max(0, cap.total - cap.lunch - cap.meetings)); const level = loadLevel(planned, cap.free, share);
+  const scale = Math.max(cap.total - cap.lunch, sp.meetings + sp.focus + sp.other, 1); // both bars on one scale: the plannable day, or the worked time when that is more
+  const capPlan: CapSeg[] = [{ cls: "is-meet", m: cap.meetings, tip: `Meetings: ${fmtDur(cap.meetings)}` }, { cls: `is-task is-${level}`, m: planTasks, tip: `Planned tasks: ${fmtDur(planned)}${level === "ok" ? "" : level === "tight" ? " (into the buffer)" : " (more than there is time for)"}` }];
+  const capAct: CapSeg[] = [{ cls: "is-meet", m: sp.meetings, tip: `Meetings: ${fmtDur(sp.meetings)}` }, { cls: "is-task", m: sp.focus, tip: `Focused on tasks: ${fmtDur(sp.focus)}` }, { cls: "is-other", m: sp.other, tip: `Other work: ${fmtDur(sp.other)}` }];
+  const capIn = { scale, buffer: bufferMin > 0 ? [cap.total - cap.lunch - bufferMin, cap.total - cap.lunch] as [number, number] : null, bufferTip: `Buffer: ${fmtDur(bufferMin)} kept free for the unforeseen`, plan: capPlan, act: capAct };
   tl.createDiv({ cls: "samaya-rv-h", text: "Plan vs. reality" });
-  drawTimeline(tl, { items, events: o.events, window: [winFrom, winTo], lunch, start: startAt, end: endAt, breaks: (log?.breaks ?? []).map((b): [number, number] => [hmToMin(b.start), hmToMin(b.end)]), hasPlan, linkRoot: grid, room: host.clientHeight });
+  drawTimeline(tl, { items, events: o.events, window: [winFrom, winTo], lunch, start: startAt, end: endAt, breaks: (log?.breaks ?? []).map((b): [number, number] => [hmToMin(b.start), hmToMin(b.end)]), hasPlan, linkRoot: grid, room: host.clientHeight, cap: capIn });
   const untimed = hasPlan ? plannedItems.filter(i => !i.slots.length).length : 0;
   if (untimed) tl.createDiv({ cls: "samaya-rv-note", text: `${untimed} planned ${untimed === 1 ? "task" : "tasks"} had no time slot, so ${untimed === 1 ? "it is" : "they are"} not on the planned timeline.` });
   if (!hasPlan) tl.createDiv({ cls: "samaya-rv-note", text: "No plan was saved when this day was planned, so today's list is used as the plan." });
@@ -77,19 +84,6 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   stat("Tasks done", `${done + addedDone}/${plannedItems.length}`, "", added.length ? `(${added.length} unplanned)` : "", "is-added");
   stat("Time on tasks", fmtDur(focus), planned ? `plan ${fmtDur(planned)}` : "", planned ? signed(focus - planned, fmtDur) : "", focus > planned ? "is-warn" : "is-ok");
 
-  if (sp.total > 0) {
-    const bar = info.createDiv("samaya-rv-split");
-    const parts: Array<[string, string, number]> = [["is-focus", "Focused on tasks", sp.focus], ["is-meet", "Meetings", sp.meetings], ["is-other", "Other work", sp.other], ["is-break", "Breaks", sp.breaks]];
-    const segs = parts.filter(p => p[2] > 0).map(([cls, name, m]) => { const s = bar.createDiv(`samaya-rv-seg ${cls}`); s.setAttr("aria-label", `${name}: ${fmtDur(m)}`); s.style.width = "0%"; return [s, m] as const; });
-    settle(() => segs.forEach(([s, m]) => { s.style.width = `${(m / sp.total) * 100}%`; }));
-    const legend = info.createDiv("samaya-rv-legend");
-    for (const [cls, name, m] of parts) if (m > 0) { const l = legend.createSpan("samaya-rv-legend-item"); l.createSpan({ cls: `samaya-rv-swatch ${cls}` }); l.createSpan({ text: `${name} ${fmtDur(m)}` }); }
-    if (!focus && worked) info.createDiv({ cls: "samaya-rv-note", text: "Time on tasks comes from the focus timer. Start it on a task to see where the day goes." });
-  }
-
-  // ---- time per ticket and per project, when those are in use
-  drawRings(info, items);
-
   // ---- what changed, task by task: takes the height that is left and scrolls when it is too long
   const diff = rows.filter(r => r.changes.length); const same = rows.filter(r => !r.changes.length);
   const sec = info.createDiv("samaya-rv-sec is-grow");
@@ -103,6 +97,9 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
     if (diff.length && same.length) table.createDiv({ cls: "samaya-rv-sep", text: "As planned" });
     for (const r of same) drawRow(table, r, grid);
   }
+
+  // ---- time per ticket and per project, when those are in use
+  drawRings(info, items);
 }
 
 /** One task of the comparison table: its planned and actual start and length, what differs as chips, the gap in tracked time. */
@@ -123,8 +120,8 @@ function linkHover(el: HTMLElement, root: HTMLElement, key: string) {
   el.addEventListener("mouseleave", () => { root.removeClass("is-linking"); root.querySelectorAll(".is-linked").forEach(x => x.removeClass("is-linked")); });
 }
 
-interface TimelineIn { items: ReviewItem[]; events: ReviewEvent[]; window: [number, number]; lunch: [number, number]; start: number | null; end: number | null; breaks: Array<[number, number]>; hasPlan: boolean; linkRoot: HTMLElement; /** height of the pane: the hours stretch to fill it */ room: number; }
-const MIN_HOUR_PX = 20, MAX_HOUR_PX = 160, CHROME_PX = 215; // CHROME_PX: padding, headings, column titles and legend around the lanes
+interface TimelineIn { items: ReviewItem[]; events: ReviewEvent[]; window: [number, number]; lunch: [number, number]; start: number | null; end: number | null; breaks: Array<[number, number]>; hasPlan: boolean; linkRoot: HTMLElement; cap: CapIn; /** height of the pane: the hours stretch to fill it */ room: number; }
+const MIN_HOUR_PX = 20, MAX_HOUR_PX = 160, CHROME_PX = 240; // CHROME_PX: padding, headings, column titles and legend around the lanes
 /** Two lanes on one time axis: the plan as dashed outlines, the day as filled blocks. What was never worked is a faded outline, what nobody planned wears the accent colour. */
 function drawTimeline(host: HTMLElement, t: TimelineIn) {
   const spans = t.items.flatMap(i => [...i.slots, ...i.spans]);
@@ -132,7 +129,9 @@ function drawTimeline(host: HTMLElement, t: TimelineIn) {
   const HOUR_PX = Math.max(MIN_HOUR_PX, Math.min(MAX_HOUR_PX, Math.floor((t.room - CHROME_PX) / (h1 - h0))));
   const px = (m: number) => ((Math.min(h1 * 60, Math.max(h0 * 60, m)) - h0 * 60) / 60) * HOUR_PX; const height = (h1 - h0) * HOUR_PX;
   const box = host.createDiv("samaya-rv-tl");
-  const head = box.createDiv("samaya-rv-tl-head"); head.createSpan(); head.createSpan({ text: "Planned" }); head.createSpan({ text: "Actual" });
+  const head = box.createDiv("samaya-rv-tl-head"); head.createSpan();
+  head.createDiv("samaya-rv-tl-col").createSpan({ text: "Planned" }); drawCap(head.lastElementChild as HTMLElement, t.cap.plan, t.cap);
+  head.createDiv("samaya-rv-tl-col").createSpan({ text: "Actual" }); drawCap(head.lastElementChild as HTMLElement, t.cap.act, t.cap);
   const body = box.createDiv("samaya-rv-tl-body"); body.style.height = `${height}px`;
   const axis = body.createDiv("samaya-rv-axis");
   for (let h = h0; h < h1; h++) axis.createSpan({ cls: "samaya-rv-hour", text: minToHm(h * 60) }).style.top = `${(h - h0) * HOUR_PX}px`;
@@ -172,6 +171,17 @@ function drawTimeline(host: HTMLElement, t: TimelineIn) {
 
   const key = box.createDiv("samaya-rv-legend");
   for (const [cls, name] of [["is-ghost", "Planned"], ["is-fill", "Tracked"], ["is-added", "Unplanned"], ["is-skipped", "Not worked"], ["is-meeting", "Meeting"]]) { const l = key.createSpan("samaya-rv-legend-item"); l.createSpan({ cls: `samaya-rv-key ${cls}` }); l.createSpan({ text: name }); }
+}
+
+interface CapSeg { cls: string; m: number; tip: string; }
+interface CapIn { scale: number; buffer: [number, number] | null; bufferTip: string; plan: CapSeg[]; act: CapSeg[]; }
+/** A day's capacity as one bar: meetings, then tasks, then other work, on `scale` minutes. The hatched stretch is the buffer, the end of the plannable time kept free for what nobody can foresee. The details are in tooltips. */
+function drawCap(host: HTMLElement, segs: CapSeg[], c: CapIn) {
+  const bar = host.createDiv("samaya-rv-cap"); const fills: Array<[HTMLElement, number]> = [];
+  if (c.buffer) { const b = bar.createDiv("samaya-rv-cap-buffer"); b.style.left = `${(c.buffer[0] / c.scale) * 100}%`; b.style.width = `${((c.buffer[1] - c.buffer[0]) / c.scale) * 100}%`; b.setAttr("aria-label", c.bufferTip); }
+  const row = bar.createDiv("samaya-rv-cap-segs");
+  for (const g of segs) if (g.m > 0) { const e = row.createDiv(`samaya-rv-cap-seg ${g.cls}`); e.style.width = "0%"; e.setAttr("aria-label", g.tip); fills.push([e, (g.m / c.scale) * 100]); }
+  settle(() => fills.forEach(([e, w]) => { e.style.width = `${w}%`; }));
 }
 
 /** Hue for the n-th ticket / project; the "none" group is grey. */

@@ -19,7 +19,8 @@
 .samaya-card-row { display: flex; align-items: flex-start; gap: 6px; }
 .samaya-card:hover { border-color: var(--interactive-accent); }
 .samaya-card.is-dragging, .samaya-block.is-dragging { opacity: 0.3; }
-.samaya-card.is-done .samaya-card-title { text-decoration: line-through; color: var(--text-faint); }
+.samaya-card.is-done .samaya-card { cursor: pointer; }
+.samaya-card-title { text-decoration: line-through; color: var(--text-faint); }
 .samaya-card-title { cursor: pointer; overflow-wrap: anywhere; color: var(--text-normal); text-decoration: none; font-size: var(--font-ui-medium); font-weight: 600; }
 .samaya-card-meta { display: flex; gap: 4px; flex-wrap: wrap; }
 .samaya-chip { font-size: var(--font-ui-smaller); color: var(--text-muted); background: var(--background-modifier-hover); padding: 0 6px; border-radius: var(--samaya-r-pill); }
@@ -1481,9 +1482,7 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
 .samaya-weeknav.is-steps button.samaya-weeknav-step + button.samaya-weeknav-step { border-left: 1px solid var(--background-modifier-border); }
 /* the kind-of-note pill in a journal note's bar */
 button.samaya-jb-kind { all: unset; box-sizing: border-box; flex: none; display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 var(--samaya-sp-2) 0 10px; border-radius: var(--samaya-r-pill); font-size: var(--font-ui-smaller); font-weight: 600; color: var(--text-muted); background: var(--background-modifier-hover); cursor: pointer; }
-button.samaya-jb-kind.is-daily { color: var(--text-accent); background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); }
 button.samaya-jb-kind:hover { background: var(--background-modifier-border); }
-button.samaya-jb-kind.is-daily:hover { background: color-mix(in srgb, var(--interactive-accent) 24%, transparent); }
 button.samaya-jb-kind:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
 .samaya-jb-kind-caret { display: inline-flex; }
 .samaya-jb-kind-caret svg { width: 14px; height: 14px; }

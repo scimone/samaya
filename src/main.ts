@@ -147,7 +147,8 @@ export default class SamayaPlugin extends Plugin {
     const marks = () => { void this.markJournalNotes(); };
     this.registerEvent(this.app.workspace.on("file-open", marks)); this.registerEvent(this.app.workspace.on("layout-change", marks)); this.registerEvent(this.app.workspace.on("active-leaf-change", marks));
     this.register(this.bus.on(marks));
-    this.registerEvent(this.app.metadataCache.on("changed", f => { if (f.path.startsWith(prefixOf(this.settings.tasksPath))) marks(); }));
+    this.registerEvent(this.app.metadataCache.on("changed", f => { if (f.path.startsWith(prefixOf(this.settings.tasksPath)) || (sideLeaf(this.app)?.view as { file?: TFile } | undefined)?.file === f) marks(); })); // the side pane's note changed (e.g. a meeting's title): redraw its bar
+    this.registerEvent(this.app.vault.on("rename", () => marks()));
     this.registerEvent(this.app.metadataCache.on("changed", f => { if (this.indexLunch(f)) this.bus.emit(); void this.fileByPlanned(f); }));
     // Tasks sections of project / ticket notes follow task assignments (and their dates)
     const tl = (f: { path: string }) => { if (affectsTaskLists(this.settings, f.path)) this.scheduleTaskLists(); };

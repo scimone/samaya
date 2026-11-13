@@ -49,7 +49,7 @@ export function renderJournalBar(plugin: SamayaPlugin, leaf: WorkspaceLeaf, bar:
   renderHeadTitle(bar, t.title, t.sub).addClass("is-inline"); // the dates sit next to the title: a slimmer bar
   const right = bar.createDiv("samaya-planner-right");
   if (cur.p === "daily" || cur.p === "weekly") { // the planner of this day / week
-    const b = right.createEl("button", { cls: "samaya-hd-icon", attr: { "aria-label": "Open Samaya" } }); setIcon(b, "calendar-clock");
+    const b = right.createEl("button", { cls: "samaya-hd-icon", attr: { "aria-label": "Open planner" } }); setIcon(b, "calendar-clock");
     b.onclick = () => { void plugin.openPlannerAt(cur.p === "daily" ? "day" : "week", anchor(cur.p, cur.date)); };
   }
   const s = plugin.settings; const kinds: Period[] = ["daily", ...PERIODIC_KINDS.filter(k => s.journalNotes[k].on)];

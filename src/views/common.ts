@@ -75,7 +75,11 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   const cb = line.createEl("input", { type: "checkbox", cls: "samaya-check" }); cb.checked = t.status === "done";
   cb.addEventListener("change", () => { void setDone(app, t, cb.checked); });
   const title = line.createDiv({ cls: "samaya-card-title", text: t.title });
-  title.addEventListener("click", e => { void openFileSmart(app, t.file, e.ctrlKey || e.metaKey ? "tab" : false); });
+  // the whole card opens the note, except its buttons, inputs, chips and the subtasks (the title's click bubbles up to here)
+  el.addEventListener("click", e => {
+    if (e.defaultPrevented || (e.target instanceof HTMLElement && e.target.closest("button, input, textarea, a, select, .samaya-subs, .samaya-chip, [contenteditable]"))) return;
+    void openFileSmart(app, t.file, e.ctrlKey || e.metaKey ? "tab" : false);
+  });
   keyActivate(title, `Open task: ${t.title}`, () => { void openFileSmart(app, t.file, false); }, "link");
 
   // duration pill at the end of the title line: [logged/]estimated as hh:mm, filled like a progress bar

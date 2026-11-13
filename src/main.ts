@@ -1,4 +1,4 @@
-import { leafPath } from "./openfile";
+import { openNote } from "./openfile";
 import { Editor, MarkdownView, Notice, Plugin, TFile, normalizePath, setIcon } from "obsidian";
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FocusManager, FocusState } from "./focus";
@@ -311,17 +311,8 @@ export default class SamayaPlugin extends Plugin {
     renderJournalBar(this, leaf, bar, cur, prev?.file ?? null, next?.file ?? null, isNow);
     el.insertBefore(bar, content);
   }
-  /** Open a note in the main area: reuse a tab already showing it, else the first note tab, else a new tab. */
-  async openNoteInMain(file: TFile) {
-    let same: import("obsidian").WorkspaceLeaf | null = null, note: import("obsidian").WorkspaceLeaf | null = null;
-    this.app.workspace.iterateRootLeaves(l => {
-      if (leafPath(l) === file.path) same = l;
-      else if (!note && l.view.getViewType() === "markdown") note = l;
-    });
-    const leaf = same ?? note ?? this.app.workspace.getLeaf("tab");
-    if (!same) await (leaf as import("obsidian").WorkspaceLeaf).openFile(file);
-    await this.app.workspace.revealLeaf(leaf as import("obsidian").WorkspaceLeaf);
-  }
+  /** Open a note in the side view (see openfile.ts). */
+  async openNoteInMain(file: TFile) { await openNote(this.app, file); }
   async openProjects() { await this.scaffoldProjects(false); await this.openSection("projects"); }
   /** Open the planner (in the current tab when asked) showing a section: "planner" or a module shown on its side rail. */
   async openSection(id: string) {

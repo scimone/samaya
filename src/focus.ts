@@ -1,7 +1,7 @@
-import { Notice, TFile, WorkspaceLeaf, setIcon } from "obsidian";
+import { Notice, TFile, setIcon } from "obsidian";
 import { bannerSlots } from "./bars";
 import type SamayaPlugin from "./main";
-import { openFileSmart } from "./openfile";
+import { openFileSmart, openNote } from "./openfile";
 import { dayTask, patchTask, readTask } from "./model";
 import { roundCheck, trackedBefore } from "./views/place";
 import { today } from "./util";
@@ -122,12 +122,8 @@ export class FocusManager {
     if (!this.state) this.state = { path: file.path, accumulatedMs: 0, startedAt: Date.now() };
     else if (!this.state.startedAt) this.state.startedAt = Date.now();
     await this.persist();
-    // task note next to the focus panel, so you can write notes while working
-    const app = this.plugin.app;
-    let leaf: WorkspaceLeaf | null = null;
-    app.workspace.iterateAllLeaves(l => { if (!leaf && l.view instanceof Object && (l.view as { file?: TFile }).file?.path === file.path && l.getRoot() === app.workspace.rootSplit) leaf = l; });
-    if (!leaf) { leaf = app.workspace.getLeaf("tab"); await leaf.openFile(file); }
-    app.workspace.setActiveLeaf(leaf, { focus: true });
+    // task note in the side view, so you can write notes while working
+    await openNote(this.plugin.app, file);
     this.refreshViews();
   }
   /** Pause (a pause): write the time worked so far to the task, so duration_actual is up to date during the pause. */

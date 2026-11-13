@@ -289,12 +289,12 @@ export default class SamayaPlugin extends Plugin {
           const isTask = !!file && file.extension === "md" && file.path.startsWith(prefixOf(s.tasksPath));
           el.toggleClass("samaya-task-note", isTask); // hides the properties; the task card shows them instead
           renderTaskCard(this, el, isTask ? file! : null);
-          await this.renderJournalBar(el, s.journalNavBar && file && id ? { file, ...id } : null);
+          await this.renderJournalBar(leaf, el, s.journalNavBar && file && id ? { file, ...id } : null);
         }
       } while (this.markAgain);
     } finally { this.marking = false; }
   }
-  private async renderJournalBar(el: HTMLElement, cur: { file: TFile; p: Period; date: string } | null) {
+  private async renderJournalBar(leaf: import("obsidian").WorkspaceLeaf, el: HTMLElement, cur: { file: TFile; p: Period; date: string } | null) {
     const bars = () => Array.from(el.querySelectorAll<HTMLElement>(":scope > .samaya-journal-bar"));
     if (!cur) { bars().forEach(b => b.remove()); return; }
     const s = this.settings; const ui = PERIOD_UI[cur.p];
@@ -307,7 +307,7 @@ export default class SamayaPlugin extends Plugin {
     existing.forEach(b => b.remove());
     const content = el.querySelector(":scope > .view-content"); if (!content) return;
     const bar = createDiv({ cls: "samaya-journal-bar" }); bar.dataset.key = key;
-    const open = (f: TFile | null) => { if (f) void this.openNoteInMain(f); };
+    const open = (f: TFile | null) => { if (f) void leaf.openFile(f); }; // stepping through notes stays in this tab
     const nav = bar.createDiv({ cls: "samaya-jb-nav" });
     const arrow = (icon: string, dir: string, target: { file: TFile } | null) => {
       const b = nav.createEl("button", { cls: "samaya-jb-arrow", attr: { "aria-label": target ? `${dir} ${ui.noun}: ${target.file.basename}` : `No ${dir} ${ui.noun}` } });

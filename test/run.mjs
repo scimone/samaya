@@ -502,7 +502,7 @@ await bundle("src/tasksboard.ts", "test/.tasksboard.mjs");
 }
 
 // ---- journal dashboard: spans and labels
-{ const { sameSpan, anchor, spanKey, spanStart, rowLabel, weekValue, weekValueDate, retarget } = await import("./.journaldigest.mjs");
+{ const { sameSpan, anchor, spanKey, spanStart, rowLabel, weekValue, weekValueDate, retarget, nearestSpan } = await import("./.journaldigest.mjs");
   assert.equal(sameSpan("daily", "2026-11-13", "2026-11-13"), true);
   assert.equal(sameSpan("weekly", "2026-11-09", "2026-11-15"), true);
   assert.equal(sameSpan("weekly", "2026-11-08", "2026-11-15"), true); // a week parsed to its Sunday still is the week that follows
@@ -520,4 +520,8 @@ await bundle("src/tasksboard.ts", "test/.tasksboard.mjs");
   assert.equal(retarget("weekly", "2026-11-09", "daily", "2026-11-13"), "2026-11-13"); // today is inside that week
   assert.equal(retarget("weekly", "2026-11-02", "daily", "2026-11-13"), "2026-11-02"); // else its first day
   assert.equal(retarget("daily", "2026-11-04", "weekly", "2026-11-13"), "2026-11-04"); // coarser: the same date
-  assert.equal(retarget("yearly", "2025-01-01", "monthly", "2026-11-13"), "2025-01-01"); }
+  assert.equal(retarget("yearly", "2025-01-01", "monthly", "2026-11-13"), "2025-01-01");
+  const wks = [{ date: "2026-11-02" }, { date: "2026-11-23" }];
+  assert.equal(nearestSpan("weekly", wks, "2026-11-13").date, "2026-11-02"); assert.equal(nearestSpan("weekly", wks, "2026-11-20").date, "2026-11-23");
+  assert.equal(nearestSpan("weekly", [{ date: "2026-11-09" }, { date: "2026-11-23" }], "2026-11-16").date, "2026-11-09"); // a tie goes to the earlier note
+  assert.equal(nearestSpan("weekly", [], "2026-11-16"), null); }

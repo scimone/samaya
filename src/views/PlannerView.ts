@@ -125,6 +125,14 @@ export class PlannerView extends ItemView {
     }
   }
 
+  /** Show a day in the day planner (the expanded week and the work time dashboard step aside). */
+  showDay(date: string) { this.plugin.hideWorkTime(); this.plugin.collapseTimeline(); this.day.goTo(date); }
+  /** Show the week containing `date` in the expanded week. */
+  showWeek(date: string) {
+    this.plugin.hideWorkTime(); const w = startOfWeek(date);
+    if (this.plugin.timelineWide) { this.tl.showWeekOf(w); this.week.showWeekOf(w); this.renderHead(); }
+    else { this.plugin.weekToShow = w; this.plugin.expandTimeline(); } // the mode change below picks the week up
+  }
   /** Show a section by id (the navigation shortcuts and commands call this). */
   async showSectionById(id: string) { await this.showSection(id, await this.plugin.nav.items()); }
 

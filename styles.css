@@ -1482,3 +1482,7 @@ button.samaya-pp-cell:focus-visible { outline: 2px solid var(--interactive-accen
 button.samaya-pp-cell.is-now { color: var(--text-accent); font-weight: 600; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--interactive-accent) 45%, transparent); }
 button.samaya-pp-cell.is-selected { background: var(--interactive-accent); color: var(--text-on-accent, #fff); font-weight: 600; box-shadow: none; }
 button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; }
+
+/* journal note bar: the dates sit next to the title */
+.samaya-journal-bar > .samaya-planner-titles.is-inline { flex: 1; width: auto; flex-direction: row; align-items: baseline; gap: var(--samaya-sp-3); }
+.samaya-journal-bar > .samaya-planner-titles.is-inline .samaya-planner-title, .samaya-journal-bar > .samaya-planner-titles.is-inline .samaya-planner-sub { margin: 0; }

@@ -355,6 +355,12 @@ export default class SamayaPlugin extends Plugin {
     }
   }
 
+  /** Open the planner in its own tab, showing a day (the day planner) or the week of a date (the week view). */
+  async openPlannerAt(kind: "day" | "week", date: string) {
+    await this.openPlanner(); await this.openSection("planner");
+    const v = this.app.workspace.getLeavesOfType(PLANNER_VIEW_TYPE)[0]?.view as PlannerView | undefined;
+    if (kind === "day") v?.showDay(date); else v?.showWeek(date);
+  }
   /** Open (or focus) the planner in the MAIN area, even when called from a sidebar. */
   async openPlanner(inCurrentTab = false) {
     await this.scaffold(false);

@@ -4,6 +4,7 @@ import { openFileSmart } from "../openfile";
 import type SamayaPlugin from "../main";
 import { Instance, MeetingNote, Series, buildSeries, hueOf, nextWorkday, parseNote, seriesKey } from "../meetingseries";
 import { addDays, parseYmd, startOfWeek, today as todayYmd } from "../util";
+import { weekValue, weekValueDate } from "../journaldigest";
 import { renderDateNav, renderResetPill } from "./dateNav";
 import { isoWeek, renderHeadTitle, renderSwitch, weekRangeLabel } from "./plannerHead";
 
@@ -99,7 +100,7 @@ export class MeetingsView extends Panel {
       renderDateNav(right, {
         label: weekRangeLabel(w), prevLabel: "Previous week", nextLabel: "Next week",
         onPrev: () => { memory.week--; this.rerender(); }, onNext: () => { memory.week++; this.rerender(); },
-        pick: { value: w, label: "Pick a week", run: d => { memory.week = Math.round((parseYmd(startOfWeek(d)).getTime() - parseYmd(cur).getTime()) / (7 * 864e5)); this.rerender(); } }, icon: "calendar",
+        pick: { value: weekValue(w), type: "week", label: "Pick a week", run: v => { memory.week = Math.round((parseYmd(weekValueDate(v)).getTime() - parseYmd(cur).getTime()) / (7 * 864e5)); this.rerender(); } }, icon: "calendar",
       });
     }
     const search = right.createEl("input", { cls: "samaya-mt-search", type: "search", placeholder: "Search meetings" }); search.value = memory.query;

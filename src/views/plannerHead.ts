@@ -1,5 +1,6 @@
 import { addDays, parseYmd, startOfWeek, today } from "../util";
 import type SamayaPlugin from "../main";
+import { weekValue, weekValueDate } from "../journaldigest";
 import { renderDateNav, renderResetPill } from "./dateNav";
 import { renderWeekHeadStatus, renderWeekNoteIcon } from "./headStatus";
 
@@ -78,7 +79,7 @@ export function renderWeekHead(head: HTMLElement, weekStart: string, go: (weekSt
   renderDateNav(right, {
     label: weekRangeLabel(weekStart), prevLabel: "Previous week", nextLabel: "Next week",
     onPrev: () => go(addDays(weekStart, -7)), onNext: () => go(addDays(weekStart, 7)),
-    pick: { value: weekStart, label: "Pick a week", run: d => go(startOfWeek(d)) }, icon: "calendar",
+    pick: { value: weekValue(weekStart), type: "week", label: "Pick a week", run: v => go(weekValueDate(v)) }, icon: "calendar", // whole weeks, not days
   });
   if (back) renderModeSwitch(right, "week", { day: back });
   if (plugin) fitHead(head);

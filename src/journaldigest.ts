@@ -60,3 +60,10 @@ export function retarget(from: Period, date: string, to: Period, today: string):
   if (ORDER.indexOf(to) >= ORDER.indexOf(from)) return a;
   return sameSpan(from, a, today) ? today : spanStart(from, a);
 }
+
+/** The note whose span lies closest to the span containing `ref` (ties go to the earlier one), or null without notes. Pure. */
+export function nearestSpan<T extends { date: string }>(p: Period, items: T[], ref: string): T | null {
+  const at = parseYmd(spanStart(p, ref)).getTime(); let best: T | null = null, bestD = Infinity;
+  for (const n of items) { const d = Math.abs(parseYmd(spanStart(p, anchor(p, n.date))).getTime() - at); if (d < bestD) { best = n; bestD = d; } }
+  return best;
+}

@@ -1,8 +1,8 @@
 import { Menu, setIcon, type TFile, type WorkspaceLeaf } from "obsidian";
 import { ConfirmCreateModal, ConfirmCreatePeriodModal } from "../modals";
 import type SamayaPlugin from "../main";
-import { PERIODIC_KINDS, PERIOD_UI, Period, openPeriodNote, periodNotePath } from "../journal";
-import { anchor, retarget, spanStart, weekValue, weekValueDate } from "../journaldigest";
+import { PERIODIC_KINDS, PERIOD_UI, Period, listPeriodNotes, openPeriodNote, periodNotePath } from "../journal";
+import { anchor, nearestSpan, retarget, spanStart, weekValue, weekValueDate } from "../journaldigest";
 import { parseYmd, startOfWeek, today } from "../util";
 import { renderDateNav, renderResetPill } from "./dateNav";
 import { openPeriodPicker } from "./periodPicker";
@@ -33,11 +33,12 @@ async function go(plugin: SamayaPlugin, leaf: WorkspaceLeaf, p: Period, date: st
 const KIND: Record<Period, string> = { daily: "Day", weekly: "Week", monthly: "Month", quarterly: "Quarter", yearly: "Year" };
 const ADJ: Record<Period, string> = { daily: "daily", weekly: "weekly", monthly: "monthly", quarterly: "quarterly", yearly: "yearly" };
 
-/** Show the note of another kind for the same time: the note that contains the date (see `retarget`), or, when there is none yet, a question whether to create it. */
+/** Show the note of another kind for the same time: the note that contains the date (see `retarget`), else the closest one that exists, and only when there is no note of that kind at all, a question whether to create it. */
 async function switchKind(plugin: SamayaPlugin, leaf: WorkspaceLeaf, from: Period, date: string, to: Period) {
   const s = plugin.settings; const ref = spanStart(to, retarget(from, date, to, today()));
   const info = await periodNotePath(plugin.app, s, to, ref); if (!info) return;
   if (info.file) { void leaf.openFile(info.file); return; }
+  const near = nearestSpan(to, await listPeriodNotes(plugin.app, s, to), ref); if (near) { void leaf.openFile(near.file); return; }
   const t = journalBarTitle(to, ref); const label = to === "yearly" ? t.title : to === "daily" ? `${t.title}, ${t.sub}` : `${t.title} (${t.sub})`; // "Friday, Nov 13, 2026 · Week 46", "Week 46 (Nov 9 – 15)", "Q4 (Oct – Dec 2026)", "2026"
   new ConfirmCreatePeriodModal(plugin, ADJ[to], label, () => { void openPeriodNote(plugin.app, s, to, ref).then(f => { if (f) void leaf.openFile(f); }); }).open();
 }
@@ -45,8 +46,12 @@ async function switchKind(plugin: SamayaPlugin, leaf: WorkspaceLeaf, from: Perio
 /** The bar above a journal note, built like the planner's heading: title and dates on the left, on the right the pill back to now (only when elsewhere), then ‹ 📅 › (arrows step to the previous / next note that exists, the calendar picks any date). */
 export function renderJournalBar(plugin: SamayaPlugin, leaf: WorkspaceLeaf, bar: HTMLElement, cur: { p: Period; date: string }, prev: TFile | null, next: TFile | null, isNow: boolean) {
   const ui = PERIOD_UI[cur.p]; const t = journalBarTitle(cur.p, cur.date);
-  renderHeadTitle(bar, t.title, t.sub);
+  renderHeadTitle(bar, t.title, t.sub).addClass("is-inline"); // the dates sit next to the title: a slimmer bar
   const right = bar.createDiv("samaya-planner-right");
+  if (cur.p === "daily" || cur.p === "weekly") { // the planner of this day / week
+    const b = right.createEl("button", { cls: "samaya-hd-icon", attr: { "aria-label": "Open planner" } }); setIcon(b, "calendar-clock");
+    b.onclick = () => { void plugin.openPlannerAt(cur.p === "daily" ? "day" : "week", anchor(cur.p, cur.date)); };
+  }
   const s = plugin.settings; const kinds: Period[] = ["daily", ...PERIODIC_KINDS.filter(k => s.journalNotes[k].on)];
   const kind = right.createEl("button", { cls: `samaya-jn-badge samaya-jb-kind is-${cur.p}`, attr: { title: kinds.length > 1 ? "Switch to another kind of note" : KIND[cur.p], "aria-label": `Kind of note: ${KIND[cur.p]}` } });
   kind.createSpan({ text: KIND[cur.p] });

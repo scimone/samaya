@@ -1,7 +1,7 @@
 import { Notice, TFile, setIcon } from "obsidian";
 import { bannerSlots } from "./bars";
 import type SamayaPlugin from "./main";
-import { openFileSmart, openFull } from "./openfile";
+import { closeSide, openFileSmart, openFull } from "./openfile";
 import { dayTask, patchTask, readTask } from "./model";
 import { roundCheck, trackedBefore } from "./views/place";
 import { today } from "./util";
@@ -115,7 +115,12 @@ export class FocusManager {
       bar.style.setProperty("--p", planned ? `${Math.min(100, (actual / planned) * 100)}%` : "0%");
     });
   }
-  openNote() { const f = this.file; if (f) void openFull(this.plugin.app, f); } // the focused task: a full page
+  /** The focused task as a full page, with every side pane closed: the Samaya side pane and both sidebars. */
+  openNote() {
+    const f = this.file; if (!f) return; const ws = this.plugin.app.workspace;
+    closeSide(this.plugin.app); ws.leftSplit?.collapse(); ws.rightSplit?.collapse();
+    void openFull(this.plugin.app, f);
+  }
 
   async start(file: TFile) {
     if (!this.plugin.workday.started) { new Notice("Samaya: start your day before starting a focus."); return; }

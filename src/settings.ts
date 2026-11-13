@@ -349,7 +349,7 @@ export class SamayaSettingTab extends PluginSettingTab {
       toggle(b, "Count calendar events as busy", "Meetings from your calendar take up time in the planner.", () => s.plannerShowEvents, v => { s.plannerShowEvents = v; this.plugin.bus.emit(); this.plugin.refreshPlanner(); });
     }
 
-    tab("tasks", "Tasks", "check-square");
+    tab("tasks", "Tasks", "circle-check");
     {
       const b = card("Tasks", "One note per task, created from the planner, the backlog or a checkbox.");
       num(b, "Default estimate (minutes)", "Used for new tasks, and for unestimated tasks dropped on the grid.", () => s.defaultEstimate, v => (s.defaultEstimate = v), { min: 1, max: 1440, int: true });

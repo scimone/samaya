@@ -31,7 +31,7 @@ export class NavShortcuts {
     const out: Item[] = [{ id: "planner", name: "Samaya", icon: "calendar-clock", open: () => p.openSection("planner"), folders: [], extra: m => this.dayItems(m) }];
     const tasks = root(s.tasksPath);
     out[0].folder = tasks ?? "/"; // the planner is a view: its path actions use the tasks folder
-    out.push({ id: "tasks", name: "Tasks", icon: "check-square", open: () => p.openSection("tasks"), folders: tasks ? [tasks] : [], folder: tasks ?? "/", create: { label: "New task", icon: "check-square", run: () => p.quickAdd() } });
+    out.push({ id: "tasks", name: "Tasks", icon: "circle-check", open: () => p.openSection("tasks"), folders: tasks ? [tasks] : [], folder: tasks ?? "/", create: { label: "New task", icon: "circle-check", run: () => p.quickAdd() } });
     if (s.journalOn) {
       const loc = await journalLocation(p.app, s);
       const jr = loc.pattern ? root(loc.folder) : normalizePath(loc.folder || "/");

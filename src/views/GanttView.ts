@@ -1,3 +1,4 @@
+import { setIcon } from "obsidian";
 import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { openFileBeside } from "../openfile";
@@ -86,6 +87,7 @@ export class GanttView extends Panel {
     }
 
     if (!projects.length) chart.createDiv({ cls: "samaya-empty", text: q ? "No projects match." : "No projects yet. Use “Add project”." });
+    const navs: Array<{ track: HTMLElement; bar: HTMLElement; x0: number; x1: number; btn: HTMLElement | null }> = [];
     for (const p of projects) {
       const row = chart.createDiv("samaya-gantt-row");
       const name = row.createDiv("samaya-gantt-name");
@@ -102,6 +104,7 @@ export class GanttView extends Panel {
       place(p.span);
       bar.createDiv({ cls: "samaya-gantt-handle is-start" }); bar.createDiv({ cls: "samaya-gantt-handle is-end" });
       this.drag(bar, p, dayW, place);
+      const x0 = daysBetween(from, p.span.start) * dayW; navs.push({ track, bar, x0, x1: x0 + (daysBetween(p.span.start, p.span.end) + 1) * dayW, btn: null });
     }
     const line = chart.createDiv("samaya-gantt-today"); line.style.left = `${200 + todayX}px`;
     if (keep) { scroll.scrollLeft = keep.x; scroll.scrollTop = keep.y; }
@@ -112,6 +115,22 @@ export class GanttView extends Panel {
     const sync = () => {
       if (scroll.scrollLeft < 400 && !this.dragging && !this.shiftWeeks) { memory.back += 26; this.shiftWeeks = 26; this.onDataUpdated(); return; } // endless history
       if (scroll.scrollLeft + scroll.clientWidth > scroll.scrollWidth - 400 && !this.dragging && !this.growing) { this.growing = true; memory.fwd += 26; this.onDataUpdated(); return; }
+      // A project scrolled fully out of view gets an arrow button at the edge it lies beyond; clicking it scrolls back to the project and flashes it.
+      const vis = scroll.clientWidth - 200;
+      for (const n of navs) {
+        const side = n.x1 <= scroll.scrollLeft ? "left" : n.x0 >= scroll.scrollLeft + vis ? "right" : null;
+        if (!side) { n.btn?.addClass("is-hidden"); continue; }
+        if (!n.btn) {
+          n.btn = n.track.createEl("button", { cls: "samaya-gantt-nav", attr: { "aria-label": "Scroll to this project" } });
+          n.btn.onclick = () => {
+            const w = n.x1 - n.x0, room = scroll.clientWidth - 200;
+            scroll.scrollTo({ left: Math.max(0, w >= room ? n.x0 - 24 : n.x0 + w / 2 - room / 2), behavior: "smooth" });
+            n.bar.removeClass("is-flash"); void n.bar.offsetWidth; n.bar.addClass("is-flash");
+          };
+        }
+        n.btn.removeClass("is-hidden"); n.btn.dataset.side = side; n.btn.empty(); setIcon(n.btn, side === "left" ? "arrow-left" : "arrow-right");
+        n.btn.style.left = `${side === "left" ? scroll.scrollLeft + 6 : scroll.scrollLeft + vis - 30}px`;
+      }
       const lo = scroll.scrollLeft, hi = scroll.scrollLeft + scroll.clientWidth - 200;
       const out = todayX < lo ? "left" : todayX > hi ? "right" : null;
       if (out === pillSlot.dataset.out) return; pillSlot.dataset.out = out ?? ""; pillSlot.empty();

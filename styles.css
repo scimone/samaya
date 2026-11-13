@@ -393,6 +393,12 @@ body {
 .samaya-gantt-label { position: relative; padding: 0 8px; line-height: 24px; font-size: var(--font-ui-smaller); color: var(--text-normal); white-space: nowrap; pointer-events: none; }
 .samaya-gantt-handle { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
 .samaya-gantt-handle.is-start { left: 0; } .samaya-gantt-handle.is-end { right: 0; }
+.samaya-gantt-nav { position: absolute; top: 9px; width: 24px; height: 24px; padding: 0; display: flex; align-items: center; justify-content: center; z-index: 3; border-radius: 5px; box-shadow: none; background: var(--background-secondary); border: 1px solid var(--interactive-accent); color: var(--text-normal); cursor: pointer; }
+.samaya-gantt-nav:hover { background: var(--interactive-accent); color: var(--text-on-accent); }
+.samaya-gantt-nav.is-hidden { display: none; }
+.samaya-gantt-nav svg { width: 14px; height: 14px; }
+.samaya-gantt-bar.is-flash { animation: samaya-gantt-flash 1.6s ease-out; }
+@keyframes samaya-gantt-flash { 0%, 40% { box-shadow: 0 0 0 3px var(--interactive-accent); } 100% { box-shadow: 0 0 0 0 transparent; } }
 .samaya-gantt-nodates { padding: 0 12px; line-height: 42px; color: var(--text-faint); font-size: var(--font-ui-smaller); }
 .samaya-gantt-today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text-error); opacity: 0.6; pointer-events: none; z-index: 2; }
 

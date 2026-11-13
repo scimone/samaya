@@ -29,7 +29,7 @@ export function reviewItems(plugin: SamayaPlugin, all: Task[], date: string): { 
     const tf = t.ticket ? app.metadataCache.getFirstLinkpathDest(t.ticket, t.file.path) : null;
     const pp = plugin.settings.projectsOn ? projectPathOf(app, t.file) : "";
     items.push({ key: t.file.path, title: t.title, wasPlanned: !!plan || !hasPlan, planned: plan?.est ?? 0, actual, done: t.status === "done", slots: plan?.slots ?? [], spans,
-      ticket: tf ? readTicket(app, tf).key : "", project: pp ? pp.split("/").pop()!.replace(/\.md$/, "") : "" });
+      ticket: tf ? readTicket(app, tf).key : "", ticketNote: tf ? tf.basename : "", project: pp ? pp.split("/").pop()!.replace(/\.md$/, "") : "" });
   }
   return { items, hasPlan };
 }
@@ -63,7 +63,7 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   const capAct: CapSeg[] = [{ cls: "is-meet", m: sp.meetings, tip: `Meetings: ${fmtDur(sp.meetings)}` }, { cls: "is-task", m: sp.focus, tip: `Focused on tasks: ${fmtDur(sp.focus)}` }, { cls: "is-other", m: sp.other, tip: `Other work: ${fmtDur(sp.other)}` }];
   const capIn = { scale, buffer: bufferMin > 0 ? [cap.total - cap.lunch - bufferMin, cap.total - cap.lunch] as [number, number] : null, bufferTip: `Buffer: ${fmtDur(bufferMin)} kept free for the unforeseen`, plan: capPlan, act: capAct };
   tl.createDiv({ cls: "samaya-rv-h", text: "Plan vs. reality" });
-  drawTimeline(tl, { items, events: o.events, window: [winFrom, winTo], lunch, start: startAt, end: endAt, breaks: (log?.breaks ?? []).map((b): [number, number] => [hmToMin(b.start), hmToMin(b.end)]), hasPlan, linkRoot: grid, room: host.clientHeight, cap: capIn });
+  drawTimeline(tl, { items, events: o.events, window: [winFrom, winTo], lunch, start: startAt, end: endAt, breaks: (log?.breaks ?? []).map((b): [number, number] => [hmToMin(b.start), hmToMin(b.end)]), hasPlan, linkRoot: grid, cap: capIn });
   const untimed = hasPlan ? plannedItems.filter(i => !i.slots.length).length : 0;
   if (untimed) tl.createDiv({ cls: "samaya-rv-note", text: `${untimed} planned ${untimed === 1 ? "task" : "tasks"} had no time slot, so ${untimed === 1 ? "it is" : "they are"} not on the planned timeline.` });
   if (!hasPlan) tl.createDiv({ cls: "samaya-rv-note", text: "No plan was saved when this day was planned, so today's list is used as the plan." });
@@ -84,11 +84,11 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   stat("Tasks done", `${done + addedDone}/${plannedItems.length}`, "", added.length ? `(${added.length} unplanned)` : "", "is-added");
   stat("Time on tasks", fmtDur(focus), planned ? `plan ${fmtDur(planned)}` : "", planned ? signed(focus - planned, fmtDur) : "", focus > planned ? "is-warn" : "is-ok");
 
-  // ---- what changed, task by task: takes the height that is left and scrolls when it is too long
+  // ---- every task of the day, the changes first: takes the height that is left and scrolls when it is too long
   const diff = rows.filter(r => r.changes.length); const same = rows.filter(r => !r.changes.length);
   const sec = info.createDiv("samaya-rv-sec is-grow");
-  const h = sec.createDiv({ cls: "samaya-rv-h samaya-rv-h-row" }); h.createSpan({ text: "What changed" });
-  if (rows.length) h.createSpan({ cls: "samaya-rv-row-tag", text: diff.length ? `${diff.length} of ${rows.length} differ from the plan` : "Everything went as planned" });
+  const h = sec.createDiv({ cls: "samaya-rv-h samaya-rv-h-row" }); h.createSpan({ text: "Tasks" });
+  if (rows.length) h.createSpan({ cls: "samaya-rv-row-tag", text: `${rows.length} ${rows.length === 1 ? "task" : "tasks"} · ${diff.length ? `${diff.length} differ from the plan` : "all as planned"}` });
   if (!rows.length) sec.createDiv({ cls: "samaya-empty", text: "Nothing was planned or done today." });
   else {
     const table = sec.createDiv("samaya-rv-table samaya-rv-scroll");
@@ -120,29 +120,28 @@ function linkHover(el: HTMLElement, root: HTMLElement, key: string) {
   el.addEventListener("mouseleave", () => { root.removeClass("is-linking"); root.querySelectorAll(".is-linked").forEach(x => x.removeClass("is-linked")); });
 }
 
-interface TimelineIn { items: ReviewItem[]; events: ReviewEvent[]; window: [number, number]; lunch: [number, number]; start: number | null; end: number | null; breaks: Array<[number, number]>; hasPlan: boolean; linkRoot: HTMLElement; cap: CapIn; /** height of the pane: the hours stretch to fill it */ room: number; }
-const MIN_HOUR_PX = 20, MAX_HOUR_PX = 160, CHROME_PX = 240; // CHROME_PX: padding, headings, column titles and legend around the lanes
+interface TimelineIn { items: ReviewItem[]; events: ReviewEvent[]; window: [number, number]; lunch: [number, number]; start: number | null; end: number | null; breaks: Array<[number, number]>; hasPlan: boolean; linkRoot: HTMLElement; cap: CapIn; }
+const MIN_HOUR_PX = 20; // the lanes fill the column (CSS); this is the least height an hour gets
 /** Two lanes on one time axis: the plan as dashed outlines, the day as filled blocks. What was never worked is a faded outline, what nobody planned wears the accent colour. */
 function drawTimeline(host: HTMLElement, t: TimelineIn) {
   const spans = t.items.flatMap(i => [...i.slots, ...i.spans]);
   const [h0, h1] = hourRange([t.window[0], t.window[1], ...spans.flatMap(g => [g.s, g.e]), ...t.events.flatMap(e => [e.s, e.e]), ...(t.start !== null ? [t.start] : []), ...(t.end !== null ? [t.end] : [])]);
-  const HOUR_PX = Math.max(MIN_HOUR_PX, Math.min(MAX_HOUR_PX, Math.floor((t.room - CHROME_PX) / (h1 - h0))));
-  const px = (m: number) => ((Math.min(h1 * 60, Math.max(h0 * 60, m)) - h0 * 60) / 60) * HOUR_PX; const height = (h1 - h0) * HOUR_PX;
+  const pct = (m: number) => ((Math.min(h1 * 60, Math.max(h0 * 60, m)) - h0 * 60) / ((h1 - h0) * 60)) * 100; // positions in percent of the lane: it stretches with the pane, no measuring
   const box = host.createDiv("samaya-rv-tl");
   const head = box.createDiv("samaya-rv-tl-head"); head.createSpan();
   head.createDiv("samaya-rv-tl-col").createSpan({ text: "Planned" }); drawCap(head.lastElementChild as HTMLElement, t.cap.plan, t.cap);
   head.createDiv("samaya-rv-tl-col").createSpan({ text: "Actual" }); drawCap(head.lastElementChild as HTMLElement, t.cap.act, t.cap);
-  const body = box.createDiv("samaya-rv-tl-body"); body.style.height = `${height}px`;
+  const body = box.createDiv("samaya-rv-tl-body"); body.style.setProperty("--h", String(h1 - h0)); body.style.minHeight = `${(h1 - h0) * MIN_HOUR_PX}px`;
   const axis = body.createDiv("samaya-rv-axis");
-  for (let h = h0; h < h1; h++) axis.createSpan({ cls: "samaya-rv-hour", text: minToHm(h * 60) }).style.top = `${(h - h0) * HOUR_PX}px`;
-  const lane = (cls: string) => { const l = body.createDiv(`samaya-rv-lane ${cls}`); l.style.backgroundSize = `100% ${HOUR_PX}px`; return l; };
-  const band = (l: HTMLElement, cls: string, a: number, b: number) => { if (b <= a) return; const d = l.createDiv(`samaya-rv-band ${cls}`); d.style.top = `${px(a)}px`; d.style.height = `${Math.max(0, px(b) - px(a))}px`; return d; };
+  for (let h = h0; h < h1; h++) axis.createSpan({ cls: "samaya-rv-hour", text: minToHm(h * 60) }).style.top = `${((h - h0) / (h1 - h0)) * 100}%`;
+  const lane = (cls: string) => { return body.createDiv(`samaya-rv-lane ${cls}`); };
+  const band = (l: HTMLElement, cls: string, a: number, b: number) => { if (b <= a) return; const d = l.createDiv(`samaya-rv-band ${cls}`); d.style.top = `${pct(a)}%`; d.style.height = `${Math.max(0, pct(b) - pct(a))}%`; return d; };
   const edge = (l: HTMLElement, a: number, b: number) => { // the lane's first and last minute, as times
-    l.createDiv({ cls: "samaya-rv-edge is-top", text: minToHm(a) }).style.top = `${px(a)}px`;
-    l.createDiv({ cls: "samaya-rv-edge is-bottom", text: minToHm(b) }).style.top = `${px(b)}px`;
+    l.createDiv({ cls: "samaya-rv-edge is-top", text: minToHm(a) }).style.top = `${pct(a)}%`;
+    l.createDiv({ cls: "samaya-rv-edge is-bottom", text: minToHm(b) }).style.top = `${pct(b)}%`;
   };
   const block = (l: HTMLElement, cls: string, a: number, b: number, text: string, time: string, tip: string, key?: string) => {
-    const d = l.createDiv(`samaya-rv-blk ${cls}`); d.style.top = `${px(a)}px`; d.style.height = `${Math.max(14, px(b) - px(a) - 1)}px`; d.setAttr("aria-label", tip);
+    const d = l.createDiv(`samaya-rv-blk ${cls}`); d.style.top = `${pct(a)}%`; d.style.height = `calc(${Math.max(0, pct(b) - pct(a))}% - 1px)`; d.setAttr("aria-label", tip);
     d.createSpan({ cls: "samaya-rv-blk-t", text }); d.createSpan({ cls: "samaya-rv-blk-m", text: time });
     if (key) { d.dataset.k = key; linkHover(d, t.linkRoot, key); }
     return d;

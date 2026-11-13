@@ -35,7 +35,7 @@ export function runMinutesBefore(runs: unknown[], date: string): number {
 export interface ReviewItem {
   key: string; title: string; /** it was on the day's plan this morning */ wasPlanned: boolean; /** minutes planned for this day (0 = not planned for the day) */ planned: number; /** minutes actually worked on this day */ actual: number; done: boolean;
   /** the time slots it had on the plan, and the focus runs it really got (minutes of the day) */ slots: Span[]; spans: Span[];
-  /** ticket key or project name, "" = none */ ticket: string; project: string;
+  /** ticket key or project name, "" = none */ ticket: string; project: string; /** note name of the ticket (for a link), "" = none */ ticketNote?: string;
 }
 export type Grouping = "ticket" | "project";
 /** How a task's day differs from its plan. */
@@ -44,7 +44,7 @@ export interface Row {
   key: string; label: string; planned: number; actual: number; done: boolean; /** tracked or checked off, but not planned for the day */ unplanned: boolean;
   /** planned / actual start (minutes of the day), null = no time */ plannedAt: number | null; actualAt: number | null; changes: Change[];
 }
-export interface GroupRow { label: string; planned: number; actual: number; tasks: number; done: number; added: number; }
+export interface GroupRow { /** note to link the group to, "" = none */ target: string; label: string; planned: number; actual: number; tasks: number; done: number; added: number; }
 
 /** Moving a task by this much counts as a difference; so does a gap of this size between planned and tracked time (and 10%). */
 export const MOVED_MIN = 30, GAP_MIN = 5;
@@ -74,7 +74,7 @@ export function groupRows(items: ReviewItem[], by: Grouping): GroupRow[] {
   for (const i of items) {
     if (!i.planned && !i.actual && !i.done) continue;
     const label = (by === "ticket" ? i.ticket : i.project) || none;
-    const g = m.get(label) ?? { label, planned: 0, actual: 0, tasks: 0, done: 0, added: 0 };
+    const g = m.get(label) ?? { target: (by === "ticket" ? i.ticketNote : i.project) || "", label, planned: 0, actual: 0, tasks: 0, done: 0, added: 0 };
     g.planned += i.planned; g.actual += i.actual; g.tasks++; if (i.done) g.done++; if (!i.wasPlanned) g.added++; m.set(label, g);
   }
   return [...m.values()].sort((a, b) => Number(a.label === none) - Number(b.label === none) || Math.max(b.planned, b.actual) - Math.max(a.planned, a.actual) || a.label.localeCompare(b.label));
@@ -142,7 +142,7 @@ export function reviewSummary(i: SummaryIn): string {
   for (const by of ["ticket", "project"] as Grouping[]) {
     if (!hasGroups(i.items, by)) continue;
     out.push(`- **By ${by}:**`);
-    for (const g of groupRows(i.items, by)) out.push(`  - ${g.label}: ${fmtDur(g.actual)}${g.planned ? ` of ${fmtDur(g.planned)} planned` : ""}, ${g.done}/${g.tasks} done${g.added ? `, ${g.added} unplanned` : ""}`);
+    for (const g of groupRows(i.items, by)) out.push(`  - ${!g.target ? g.label : g.target === g.label ? `[[${g.label}]]` : `[[${g.target}|${g.label}]]`}: ${fmtDur(g.actual)}${g.planned ? ` of ${fmtDur(g.planned)} planned` : ""}, ${g.done}/${g.tasks} done${g.added ? `, ${g.added} unplanned` : ""}`);
   }
   return out.join("\n");
 }

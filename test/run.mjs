@@ -472,7 +472,9 @@ await bundle("src/dayreview.ts", "test/.dayreview.mjs");
   { const txt = reviewSummary({ items: [...items, it({ title: "H", planned: 30, actual: 30, done: true, ticket: "T-1" })], hasPlan: true, window: [540, 1050], start: 560, end: 1020, worked: 400, ref: t => `[[${t}]]` }).split("\n");
     assert.ok(txt[0].startsWith("- **")); assert.ok(txt.some(l => l.startsWith("- **Day:** 09:20–17:00 (planned 09:00–17:30)")));
     assert.ok(txt.includes("  - [[B]] — Not worked: planned 10:00 · 30m, actual none".replace("10:00 · ", "")), txt.join("\n"));
-    assert.ok(txt.some(l => l.startsWith("  - [[C]] — Unplanned")) && txt.some(l => l.startsWith("  - T-1:"))); }
+    assert.ok(txt.some(l => l.startsWith("  - [[C]] — Unplanned")) && txt.some(l => l.startsWith("  - T-1:")));
+    const lk = reviewSummary({ items: [it({ title: "L", planned: 30, actual: 30, done: true, ticket: "OPS-1", ticketNote: "OPS-1 Fix deploy", project: "Apollo" })], hasPlan: true, window: [540, 1050], start: 560, end: 1020, worked: 400, ref: t => `[[${t}]]` });
+    assert.ok(lk.includes("  - [[OPS-1 Fix deploy|OPS-1]]: 30m"), lk); assert.ok(lk.includes("  - [[Apollo]]: 30m"), lk); }
   assert.equal(signed(65, m => m + "m"), "+65m"); assert.equal(signed(-20, m => m + "m"), "−20m"); assert.equal(signed(0, m => m + "m"), "");
 }
 

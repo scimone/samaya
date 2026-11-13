@@ -62,11 +62,11 @@ export class GanttView extends Panel {
     renderHeadTitle(head, "Projects", `${projects.length} ${projects.length === 1 ? "project" : "projects"}`);
     const right = head.createDiv("samaya-planner-right");
     const scroll = this.root.createDiv("samaya-gantt-scroll");
+    const pillSlot = right.createDiv("samaya-gantt-pill"); // leftmost, so the controls to its right stay put when the Today pill appears
     renderSearch(right, "Search projects", memory.query, v => { memory.query = v; }, () => this.render(), id => { this.timer = id; });
     const sel = right.createEl("select", { cls: "dropdown samaya-gantt-gran", attr: { "aria-label": "Time scale" } });
     for (const g of GRANULARITIES) sel.createEl("option", { text: g[0].toUpperCase() + g.slice(1), value: g });
     sel.value = gran; sel.onchange = () => { s.projectsScale = sel.value as Granularity; void this.plugin.saveSettings(); this.render(); };
-    const pillSlot = right.createDiv("samaya-gantt-pill");
     const addProject = () => new TextPromptModal(this.plugin, "New project name", name => {
       void createProject(this.app, s, name).then(() => this.plugin.bus.emit());
     }).open();
@@ -81,6 +81,7 @@ export class GanttView extends Panel {
 
     // a full-height backdrop behind the name column, so the today line and gridlines vanish under it from top to bottom (also in the row borders and below the last row)
     const backdrop = chart.createDiv("samaya-gantt-namebg").createDiv("samaya-gantt-namebg-fill");
+    backdrop.createDiv("samaya-gantt-namelines").style.height = `${(projects.length ? projects.length + 1 : 0) * 42}px`; // a line for each row of the chart, no more
     const fitBackdrop = () => { backdrop.style.height = `${chart.offsetHeight}px`; };
     const hdr = chart.createDiv("samaya-gantt-row samaya-gantt-hrow");
     const hName = hdr.createDiv("samaya-gantt-name");

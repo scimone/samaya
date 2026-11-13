@@ -412,7 +412,7 @@ body {
 .samaya-gantt-track.is-placeable { cursor: copy; }
 .samaya-gantt-bar.is-ghost { opacity: 0.5; border-style: dashed; cursor: copy; pointer-events: none; }
 .samaya-gantt-namebg { position: sticky; left: 0; width: var(--name); height: 0; z-index: 3; }
-.samaya-gantt-namebg-fill { position: absolute; top: 0; left: 0; width: 100%; box-sizing: border-box; background: var(--background-primary); border-right: 1px solid var(--background-modifier-border); pointer-events: none; }
+.samaya-gantt-namebg-fill { position: absolute; top: 0; left: 0; width: 100%; box-sizing: border-box; background: linear-gradient(to bottom, transparent 41px, var(--background-modifier-border) 41px) 0 44px / 100% 42px repeat-y var(--background-primary); border-right: 1px solid var(--background-modifier-border); pointer-events: none; } /* row lines: header is 44px, rows 42px with the line at the bottom */
 .samaya-gantt-nodates { padding: 0 12px; line-height: 42px; color: var(--text-faint); font-size: var(--font-ui-smaller); }
 .samaya-gantt-today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text-error); opacity: 0.6; pointer-events: none; z-index: 2; }
 

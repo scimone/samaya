@@ -344,7 +344,7 @@ export class SamayaSettingTab extends PluginSettingTab {
         d.setValue(String(s.slotMinutes)).onChange(async v => { s.slotMinutes = Number(v); await changed(); });
       });
       label(b, "Startup & files");
-      toggle(b, "Open planner on startup", "Open today's planner whenever Obsidian starts.", () => s.openOnStartup, v => (s.openOnStartup = v));
+      toggle(b, "Open Samaya on startup", "Open today's planner whenever Obsidian starts.", () => s.openOnStartup, v => (s.openOnStartup = v));
       toggle(b, "Show weekends", "Plan Saturday and Sunday in the week views too.", () => s.plannerWeekends, v => { s.plannerWeekends = v; this.plugin.bus.emit(); this.plugin.refreshPlanner(); });
       toggle(b, "Count calendar events as busy", "Meetings from your calendar take up time in the planner.", () => s.plannerShowEvents, v => { s.plannerShowEvents = v; this.plugin.bus.emit(); this.plugin.refreshPlanner(); });
     }
@@ -471,7 +471,7 @@ export class SamayaSettingTab extends PluginSettingTab {
     }
     tab("navigation", "Navigation", "compass");
     {
-      card("Navigation", "Shows Planner, Tasks, Journal, Meetings, Projects and Tickets as shortcuts at the top of the file explorer (only the modules you switched on) and hides their folders. Planner opens the planner, the others open their base.", {
+      card("Navigation", "Shows Samaya, Tasks, Journal, Meetings, Projects and Tickets as shortcuts at the top of the file explorer (only the modules you switched on) and hides their folders. Samaya opens the planner, the others open their base.", {
         enabled: { get: () => s.navigationOn, set: v => { s.navigationOn = v; void this.plugin.nav.apply(); this.plugin.bus.emit(); } },
       });
     }

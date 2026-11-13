@@ -28,7 +28,7 @@ export class NavShortcuts {
     const s = this.plugin.settings, p = this.plugin;
     const root = (path: string) => { const r = rootOf(path); return r === "/" ? null : r; };
     const join = (dir: string | null, file: string) => dir ? `${dir}/${file}` : file;
-    const out: Item[] = [{ id: "planner", name: "Planner", icon: "calendar-clock", open: () => p.openSection("planner"), folders: [], extra: m => this.dayItems(m) }];
+    const out: Item[] = [{ id: "planner", name: "Samaya", icon: "calendar-clock", open: () => p.openSection("planner"), folders: [], extra: m => this.dayItems(m) }];
     const tasks = root(s.tasksPath);
     out[0].folder = tasks ?? "/"; // the planner is a view: its path actions use the tasks folder
     out.push({ id: "tasks", name: "Tasks", icon: "check-square", open: () => p.openSection("tasks"), folders: tasks ? [tasks] : [], folder: tasks ?? "/", create: { label: "New task", icon: "check-square", run: () => p.quickAdd() } });

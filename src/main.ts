@@ -88,7 +88,7 @@ export default class SamayaPlugin extends Plugin {
     this.addSettingTab(new SamayaSettingTab(this.app, this));
 
 
-    this.addRibbonIcon(SAMAYA_ICON, "Open Samaya planner", () => { void this.openPlanner(); });
+    this.addRibbonIcon(SAMAYA_ICON, "Open Samaya", () => { void this.openPlanner(); });
     this.focus.init(this.data.focus ?? null);
     this.meetingBanner.init();
     this.workday.init(this.data.workday ?? null);
@@ -100,7 +100,7 @@ export default class SamayaPlugin extends Plugin {
     this.addCommand({ id: "plan-week", name: "Plan my week (guided)", callback: () => this.startWeekGuide() });
     this.addCommand({ id: "review-week", name: "Review my week", callback: () => this.reviewWeek() });
     this.addCommand({ id: "toggle-week-timeline", name: "Toggle week timeline (expand / collapse)", callback: () => { if (this.timelineWide) this.collapseTimeline(); else { void this.openPlanner().then(() => this.expandTimeline()); } } });
-    this.addCommand({ id: "open-planner", name: "Open planner", callback: () => this.openPlanner() });
+    this.addCommand({ id: "open-planner", name: "Open Samaya", callback: () => this.openPlanner() });
     this.addCommand({ id: "plan-day", name: "Plan my day (guided)", callback: () => this.startGuide() });
     this.addCommand({ id: "start-day", name: "Start workday now", callback: () => this.workday.startDay() });
     this.addCommand({ id: "start-break", name: "Start break", callback: () => this.workday.startBreak() });
@@ -141,7 +141,7 @@ export default class SamayaPlugin extends Plugin {
       const ok2 = this.settings.projectsOn && !!f && (f.path.startsWith(prefixOf(this.settings.tasksPath)) || f.path.startsWith(prefixOf(this.settings.ticketsPath)));
       if (ok2 && !c && f) new ProjectSuggestModal(this, p => { void assignProject(this.app, f, p); }).open(); return ok2;
     } });
-    this.addCommand({ id: "scaffold", name: "Create planner files", callback: () => this.scaffold(true) });
+    this.addCommand({ id: "scaffold", name: "Create Samaya files", callback: () => this.scaffold(true) });
 
     // journal notes get a class that hides their properties block (styles.css)
     const marks = () => { void this.markJournalNotes(); };

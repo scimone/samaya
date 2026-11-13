@@ -390,7 +390,7 @@ body {
 .samaya-gantt-bar.is-done { opacity: 0.5; filter: grayscale(0.6); }
 .samaya-gantt-bar.is-dragging { cursor: grabbing; }
 .samaya-gantt-fill { border-radius: inherit; position: absolute; inset: 0 auto 0 0; background: var(--interactive-accent); opacity: 0.55; pointer-events: none; }
-.samaya-gantt-label { position: sticky; left: calc(var(--name) + 34px); display: inline-block; padding: 0 8px; line-height: 24px; font-size: var(--font-ui-smaller); color: var(--text-normal); white-space: nowrap; pointer-events: none; }
+.samaya-gantt-label { position: relative; display: inline-block; padding: 0 8px; line-height: 24px; font-size: var(--font-ui-smaller); color: var(--text-normal); white-space: nowrap; pointer-events: none; }
 .samaya-gantt-handle { position: absolute; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
 .samaya-gantt-handle.is-start { left: 0; } .samaya-gantt-handle.is-end { right: 0; }
 .samaya-gantt-nav { position: absolute; top: 9px; width: 24px; height: 24px; padding: 0; display: flex; align-items: center; justify-content: center; z-index: 3; border-radius: 5px; box-shadow: none; background: var(--text-normal); border: none; color: var(--background-primary); cursor: pointer; }

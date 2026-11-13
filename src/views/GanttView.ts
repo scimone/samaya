@@ -159,6 +159,9 @@ export class GanttView extends Panel {
         const lo = scroll.scrollLeft, hi = lo + vis;
         // Any project cut off at an edge gets a jump button on that side (the left one when it is cut at both), unless the jump would not move the view.
         const side = n.x0 >= lo && n.x1 <= hi ? null : Math.abs(target(n) - lo) < 2 ? null : n.x0 < lo ? "left" : "right";
+        // keep the name in view while the item's left part is scrolled away (right of the jump button when there is one); it may run past the item's right edge
+        const label = n.bar.querySelector<HTMLElement>(".samaya-gantt-label");
+        if (label) label.style.transform = `translateX(${Math.max(0, lo + (side === "left" ? 34 : 0) - n.x0)}px)`;
         if (!side) { n.btn?.addClass("is-hidden"); continue; }
         if (!n.btn) {
           const btn = n.btn = n.track.createEl("button", { cls: "samaya-gantt-nav" });

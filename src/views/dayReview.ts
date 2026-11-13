@@ -87,21 +87,22 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
     if (!focus && worked) info.createDiv({ cls: "samaya-rv-note", text: "Time on tasks comes from the focus timer. Start it on a task to see where the day goes." });
   }
 
-  // ---- what changed, task by task
+  // ---- time per ticket and per project, when those are in use
+  drawRings(info, items);
+
+  // ---- what changed, task by task: takes the height that is left and scrolls when it is too long
   const diff = rows.filter(r => r.changes.length); const same = rows.filter(r => !r.changes.length);
-  const h = info.createDiv({ cls: "samaya-rv-h samaya-rv-h-row" }); h.createSpan({ text: "What changed" });
+  const sec = info.createDiv("samaya-rv-sec is-grow");
+  const h = sec.createDiv({ cls: "samaya-rv-h samaya-rv-h-row" }); h.createSpan({ text: "What changed" });
   if (rows.length) h.createSpan({ cls: "samaya-rv-row-tag", text: diff.length ? `${diff.length} of ${rows.length} differ from the plan` : "Everything went as planned" });
-  if (!rows.length) info.createDiv({ cls: "samaya-empty", text: "Nothing was planned or done today." });
+  if (!rows.length) sec.createDiv({ cls: "samaya-empty", text: "Nothing was planned or done today." });
   else {
-    const table = info.createDiv("samaya-rv-table");
+    const table = sec.createDiv("samaya-rv-table samaya-rv-scroll");
     const hd = table.createDiv("samaya-rv-r is-head"); hd.createSpan(); hd.createSpan({ text: "Task" }); hd.createSpan({ cls: "samaya-rv-c", text: "Planned" }); hd.createSpan({ cls: "samaya-rv-c", text: "Actual" }); hd.createSpan();
     for (const r of diff) drawRow(table, r, grid);
     if (diff.length && same.length) table.createDiv({ cls: "samaya-rv-sep", text: "As planned" });
     for (const r of same) drawRow(table, r, grid);
   }
-
-  // ---- what was achieved per ticket and per project, when those are in use (both, one under the other)
-  for (const by of ["ticket", "project"] as Grouping[]) if (hasGroups(items, by)) drawGroups(info, items, by);
 }
 
 /** One task of the comparison table: its planned and actual start and length, what differs as chips, the gap in tracked time. */
@@ -123,7 +124,7 @@ function linkHover(el: HTMLElement, root: HTMLElement, key: string) {
 }
 
 interface TimelineIn { items: ReviewItem[]; events: ReviewEvent[]; window: [number, number]; lunch: [number, number]; start: number | null; end: number | null; breaks: Array<[number, number]>; hasPlan: boolean; linkRoot: HTMLElement; /** height of the pane: the hours stretch to fill it */ room: number; }
-const MIN_HOUR_PX = 46, MAX_HOUR_PX = 160, CHROME_PX = 190; // CHROME_PX: padding, headings, column titles and legend around the lanes
+const MIN_HOUR_PX = 20, MAX_HOUR_PX = 160, CHROME_PX = 215; // CHROME_PX: padding, headings, column titles and legend around the lanes
 /** Two lanes on one time axis: the plan as dashed outlines, the day as filled blocks. What was never worked is a faded outline, what nobody planned wears the accent colour. */
 function drawTimeline(host: HTMLElement, t: TimelineIn) {
   const spans = t.items.flatMap(i => [...i.slots, ...i.spans]);
@@ -175,27 +176,32 @@ function drawTimeline(host: HTMLElement, t: TimelineIn) {
 
 /** Hue for the n-th ticket / project; the "none" group is grey. */
 const hueOf = (n: number) => `hsl(${(n * 137.5 + 150) % 360} 48% 58%)`;
-/** Time per ticket or project: the plan and the day as two stacked bars on one scale (same colours), and under them a row for each with what got done. */
-function drawGroups(host: HTMLElement, items: ReviewItem[], by: Grouping) {
-  const groups = groupRows(items, by); const none = by === "ticket" ? "No ticket" : "No project";
-  const colour = (g: { label: string }, n: number) => (g.label === none ? "var(--rv-other)" : hueOf(n));
-  const sec = host.createDiv("samaya-rv-sec"); const h = sec.createDiv({ cls: "samaya-rv-h samaya-rv-h-row" }); h.createSpan({ text: by === "ticket" ? "Achieved per ticket" : "Achieved per project" });
-  const done = groups.reduce((a, g) => a + g.done, 0); const tasks = groups.reduce((a, g) => a + g.tasks, 0); h.createSpan({ cls: "samaya-rv-row-tag", text: `${done}/${tasks} tasks done` });
-  const total = (k: "planned" | "actual") => groups.reduce((a, g) => a + g[k], 0); const max = Math.max(1, total("planned"), total("actual"));
-  const bars = sec.createDiv("samaya-rv-stacks"); const fills: Array<[HTMLElement, number]> = [];
-  for (const [k, name] of [["planned", "Plan"], ["actual", "Actual"]] as const) {
-    const row = bars.createDiv("samaya-rv-stack-row"); row.createSpan({ cls: "samaya-rv-stack-l", text: name });
-    const bar = row.createDiv("samaya-rv-stack"); let n = 0;
-    for (const g of groups) { const m = g[k]; const c = colour(g, n++); if (m <= 0) continue; const seg = bar.createDiv("samaya-rv-stack-seg"); seg.style.background = c; seg.style.width = "0%"; seg.setAttr("aria-label", `${g.label}: ${fmtDur(m)} ${k === "planned" ? "planned" : "tracked"}`); fills.push([seg, (m / max) * 100]); }
-    row.createSpan({ cls: "samaya-rv-stack-n", text: total(k) ? fmtDur(total(k)) : "–" });
-  }
-  settle(() => fills.forEach(([el, w]) => { el.style.width = `${w}%`; }));
-  const list = sec.createDiv("samaya-rv-glist"); let n = 0;
-  for (const g of groups) {
-    const row = list.createDiv("samaya-rv-g"); row.createSpan("samaya-rv-dot").style.background = colour(g, n++);
-    row.createSpan({ cls: "samaya-rv-row-name", text: g.label, attr: { "aria-label": g.label } });
-    if (g.added) row.createSpan({ cls: "samaya-rv-chip is-added", text: `${g.added} unplanned` });
-    row.createSpan({ cls: "samaya-rv-g-done", text: `${g.done}/${g.tasks} done` });
-    const nums = row.createSpan("samaya-rv-row-nums"); nums.createSpan({ cls: "samaya-rv-row-act", text: g.actual ? fmtDur(g.actual) : "–" }); if (g.planned) nums.createSpan({ cls: "samaya-rv-row-plan", text: ` / ${fmtDur(g.planned)}` });
+const RING_R = 38, RING_C = 2 * Math.PI * RING_R;
+/** One ring per grouping in use (tickets, projects): how the tracked time divides up, with the biggest first in a list beside it. */
+function drawRings(host: HTMLElement, items: ReviewItem[]) {
+  const kinds = (["ticket", "project"] as Grouping[]).map(by => ({ by, groups: hasGroups(items, by) ? groupRows(items, by).filter(g => g.actual > 0) : [] })).filter(k => k.groups.length);
+  if (!kinds.length) return;
+  const wrap = host.createDiv("samaya-rv-rings");
+  for (const { by, groups } of kinds) {
+    const none = by === "ticket" ? "No ticket" : "No project";
+    const sorted = [...groups].sort((a, b) => Number(a.label === none) - Number(b.label === none) || b.actual - a.actual);
+    const total = sorted.reduce((a, g) => a + g.actual, 0); const colour = (label: string, n: number) => (label === none ? "var(--rv-other)" : hueOf(n));
+    const card = wrap.createDiv("samaya-rv-ringcard"); card.createDiv({ cls: "samaya-rv-h", text: by === "ticket" ? "Time per ticket" : "Time per project" });
+    const body = card.createDiv("samaya-rv-ringbody"); const box = body.createDiv("samaya-rv-ring");
+    const svg = box.createSvg("svg", { attr: { viewBox: "0 0 100 100", role: "img", "aria-label": `Time per ${by}` } });
+    svg.createSvg("circle", { attr: { class: "samaya-rv-ring-bg", cx: "50", cy: "50", r: String(RING_R) } });
+    const gapLen = sorted.length > 1 ? 1.6 : 0; let at = 0; const arcs: Array<[SVGElement, number, number]> = [];
+    sorted.forEach((g, n) => {
+      const len = (g.actual / total) * RING_C; const c = svg.createSvg("circle", { attr: { class: "samaya-rv-ring-seg", cx: "50", cy: "50", r: String(RING_R), transform: "rotate(-90 50 50)", "stroke-dasharray": `0 ${RING_C}`, "stroke-dashoffset": String(-at) } });
+      c.style.stroke = colour(g.label, n); c.setAttribute("aria-label", `${g.label}: ${fmtDur(g.actual)}`); arcs.push([c, Math.max(0.5, len - gapLen), len]); at += len;
+    });
+    settle(() => arcs.forEach(([c, shown]) => c.setAttribute("stroke-dasharray", `${shown} ${RING_C - shown}`)));
+    const mid = box.createDiv("samaya-rv-ring-mid"); mid.createSpan({ cls: "samaya-rv-ring-n", text: fmtDur(total) });
+    const list = body.createDiv("samaya-rv-glist samaya-rv-scroll");
+    sorted.forEach((g, n) => {
+      const row = list.createDiv("samaya-rv-g"); row.createSpan("samaya-rv-dot").style.background = colour(g.label, n);
+      row.createSpan({ cls: "samaya-rv-row-name", text: g.label, attr: { "aria-label": g.label } });
+      row.createSpan({ cls: "samaya-rv-row-act", text: fmtDur(g.actual) }); row.createSpan({ cls: "samaya-rv-g-pct", text: `${Math.round((g.actual / total) * 100)}%` });
+    });
   }
 }

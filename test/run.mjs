@@ -1,7 +1,7 @@
 import esbuild from "esbuild";
 import assert from "node:assert/strict";
 const bundle = async (entry, out) => esbuild.build({ entryPoints: [entry], bundle: true, format: "esm", outfile: out, alias: { obsidian: "./test/obsidian-stub.mjs" }, logLevel: "error" });
-await bundle("src/util.ts", "test/.util.mjs");
+await bundle("src/util.ts", "test/.util.mjs"); await bundle("src/journaldigest.ts", "test/.journaldigest.mjs");
 await bundle("src/colors.ts", "test/.colors.mjs"); await bundle("src/worktime.ts", "test/.worktime.mjs"); await bundle("src/segments.ts", "test/.segments.mjs"); await bundle("src/sessions.ts", "test/.sessions.mjs"); await bundle("src/model.ts", "test/.model.mjs"); await bundle("src/taskprops.ts", "test/.taskprops.mjs");
 await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timeline.ts", "test/.timeline.mjs");
 await bundle("src/settings.ts", "test/.settings.mjs"); await bundle("src/weekplan.ts", "test/.weekplan.mjs");
@@ -500,3 +500,24 @@ await bundle("src/tasksboard.ts", "test/.tasksboard.mjs");
   const ls = lanes([{ k: "b" }, { k: "" }, { k: "a" }, { k: "b" }], t => t.k, k => k);
   assert.deepEqual(ls.map(l => [l.key, l.items.length]), [["a", 1], ["b", 2], ["", 1]]); // named A-Z, no group last
 }
+
+// ---- journal overview: digest, spans, labels
+{ const { digest, sameSpan, anchor, groupLabel, rowLabel } = await import("./.journaldigest.mjs");
+  const day = "---\ndate: 2026-11-03\n---\n## Planned today\n\n- [[a]] • *30 min*\n    - sub\n- [[b]] • *45 min*\n\n## Obstacles in my way\n\n- oh no\n\n## Finished today\n\n- [[a|Task A]] • *25 min*\n    - sub\n\n## Planned for tomorrow\n\n- [[c]] • *30 min*\n";
+  assert.deepEqual(digest(day, "daily"), { lines: ["Task A"], finished: 1, planned: 2 }); // finished work first; tomorrow's plan is not today's
+  assert.deepEqual(digest("## Planned tasks\n\n- [ ] x\n- [ ] y\n- [ ] z", "daily", 2).lines, ["x", "y"]); // nothing finished: the plan
+  assert.deepEqual(digest("## Planned tasks\n\n- None", "daily").lines, []); // "None" placeholders are not content
+  const wk = "## Overview\n\n**18 hr** of tasks · **9 hr** of meetings\n16 tasks\n\n| Day | Tasks |\n| --- | --- |\n| x | y |\n\n## Meetings\n- **Monday**";
+  assert.deepEqual(digest(wk, "weekly").lines, ["18 hr of tasks · 9 hr of meetings", "16 tasks"]); // prose, emphasis removed, tables skipped
+  assert.deepEqual(digest("", "monthly").lines, []);
+  assert.equal(sameSpan("daily", "2026-11-13", "2026-11-13"), true);
+  assert.equal(sameSpan("weekly", "2026-11-09", "2026-11-15"), true);
+  assert.equal(sameSpan("weekly", "2026-11-08", "2026-11-15"), true); // a week parsed to its Sunday still is the week that follows
+  assert.equal(sameSpan("weekly", "2026-11-09", "2026-11-16"), false);
+  assert.equal(sameSpan("quarterly", "2026-10-01", "2026-12-31"), true);
+  assert.equal(sameSpan("quarterly", "2026-10-01", "2027-01-01"), false);
+  assert.equal(sameSpan("monthly", "2026-11-01", "2026-12-01"), false);
+  assert.equal(anchor("weekly", "2026-11-08"), "2026-11-09");
+  assert.equal(groupLabel("weekly", "2026-11-09"), "2026"); assert.equal(groupLabel("yearly", "2026-01-01"), "");
+  assert.deepEqual(rowLabel("weekly", "2026-11-09", () => 46, () => "Nov 9 – 15"), { main: "Week 46", sub: "Nov 9 – 15" });
+  assert.equal(rowLabel("quarterly", "2026-11-01", () => 0, () => "").main, "Q4"); }

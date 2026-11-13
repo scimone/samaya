@@ -11,6 +11,10 @@ import { WeeklyTimelineView } from "./WeeklyTimelineView";
 import { renderWeekHead } from "./plannerHead";
 import { DashboardPanel } from "./DashboardView";
 
+/** Lotus icon (registered with addIcon, 100x100 viewBox) */
+export const SAMAYA_ICON = "samaya-lotus";
+export const SAMAYA_ICON_SVG = `<g fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><path d="M50 14 C64 30 64 54 50 70 C36 54 36 30 50 14 Z"/><path d="M50 70 C42 66 22 58 16 34 C34 36 46 48 50 70"/><path d="M50 70 C58 66 78 58 84 34 C66 36 54 48 50 70"/><path d="M50 70 C38 74 20 74 8 62 C22 58 40 62 50 70"/><path d="M50 70 C62 74 80 74 92 62 C78 58 60 62 50 70"/><path d="M30 86 H70"/></g>`;
+
 export const PLANNER_VIEW_TYPE = "samaya-planner";
 
 type Mode = "day" | "week" | "expanded" | "worktime";
@@ -45,8 +49,8 @@ export class PlannerView extends ItemView {
 
   constructor(leaf: WorkspaceLeaf, private plugin: SamayaPlugin) { super(leaf); }
   getViewType() { return PLANNER_VIEW_TYPE; }
-  getDisplayText() { return "Planner"; }
-  getIcon() { return "calendar-clock"; }
+  getDisplayText() { return "Samaya"; }
+  getIcon() { return SAMAYA_ICON; }
 
   async onOpen() {
     const plugin = this.plugin; const parentEl = this.contentEl; parentEl.empty();

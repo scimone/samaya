@@ -1,10 +1,10 @@
 import { hooks, openNote, sideLeaf } from "./openfile";
 import { renderSideBars } from "./views/sideBar";
-import { Editor, MarkdownView, Notice, Plugin, TFile, normalizePath, setIcon } from "obsidian";
+import { Editor, MarkdownView, Notice, Plugin, TFile, addIcon, normalizePath, setIcon } from "obsidian";
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FocusManager, FocusState } from "./focus";
 import { allTickets, assignTicket, createTask, momentFmt } from "./model";
-import { PLANNER_VIEW_TYPE, PlannerView } from "./views/PlannerView";
+import { PLANNER_VIEW_TYPE, PlannerView, SAMAYA_ICON, SAMAYA_ICON_SVG } from "./views/PlannerView";
 import { syncTickets } from "./sync";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
 import { ConfirmCreateModal, ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "./modals";
@@ -81,13 +81,14 @@ export default class SamayaPlugin extends Plugin {
     this.data = (await this.loadData()) ?? {};
     this.settings = Object.assign({}, DEFAULT_SETTINGS, migrateSettings(this.data.settings ?? {}));
     applyColors(this.settings);
+    addIcon(SAMAYA_ICON, SAMAYA_ICON_SVG);
     this.registerView(PLANNER_VIEW_TYPE, leaf => new PlannerView(leaf, this));
     this.registerView(DASHBOARD_VIEW_TYPE, leaf => new DashboardView(leaf, this));
     this.registerView(TODAY_VIEW_TYPE, leaf => new TodayView(leaf));
     this.addSettingTab(new SamayaSettingTab(this.app, this));
 
 
-    this.addRibbonIcon("calendar-clock", "Open Samaya planner", () => { void this.openPlanner(); });
+    this.addRibbonIcon(SAMAYA_ICON, "Open Samaya planner", () => { void this.openPlanner(); });
     this.focus.init(this.data.focus ?? null);
     this.meetingBanner.init();
     this.workday.init(this.data.workday ?? null);

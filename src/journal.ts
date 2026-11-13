@@ -150,7 +150,14 @@ export function latestOnOrBefore<T extends { date: string }>(items: T[], limit: 
   return items.filter(i => i.date <= limit).sort((a, b) => b.date.localeCompare(a.date))[0] ?? null;
 }
 /** The date a note file stands for, or null. The format may contain folders (Daily notes: "[Journal]/YYYY/YYYY-MM/YYYY-MM-DD"): then the path below the folder is parsed, else the file name. */
+const parsed = new Map<string, string | null>(); // moment's strict parse is slow and the same files are listed again on every update: remember each result
 function parseNoteDate(file: TFile, loc: JournalLoc, root: string): string | null {
+  const key = `${loc.format}\u0000${root}\u0000${file.path}`; const hit = parsed.get(key); if (hit !== undefined) return hit;
+  const date = parseNoteDateUncached(file, loc, root);
+  if (parsed.size > 200000) parsed.clear();
+  parsed.set(key, date); return date;
+}
+function parseNoteDateUncached(file: TFile, loc: JournalLoc, root: string): string | null {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const moment = (window as any).moment;
   const noExt = file.path.replace(/\.md$/, ""); const rel = root === "/" ? noExt : noExt.slice(root.length + 1);

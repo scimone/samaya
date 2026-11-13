@@ -1416,7 +1416,7 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
 .samaya-jn .samaya-jn-card { --tone: var(--text-muted); position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 3px; width: 100%; height: auto; padding: var(--samaya-sp-4) var(--samaya-sp-5) calc(var(--samaya-sp-4) + 6px); text-align: left; border: 1px solid transparent; border-radius: var(--samaya-r-l); background: var(--background-secondary); color: var(--text-normal); cursor: pointer; overflow: hidden; transition: background .25s ease, border-color .25s ease; }
 .samaya-jn .samaya-jn-card:hover { background: var(--background-modifier-hover); }
 /* not written yet: an outline, no fill */
-.samaya-jn .samaya-jn-card.is-missing { background: transparent; border-color: var(--background-modifier-border); }
+.samaya-jn .samaya-jn-card.is-missing { background: transparent; border-style: dashed; border-color: var(--background-modifier-border); }
 .samaya-jn .samaya-jn-card.is-missing:hover { background: transparent; border-color: var(--text-faint); }
 .samaya-jn .samaya-jn-card:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
 .samaya-jn .samaya-jn-card-kicker { font-size: var(--samaya-fs-label); letter-spacing: .14em; text-transform: uppercase; color: var(--text-faint); }
@@ -1424,7 +1424,8 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
 .samaya-jn .samaya-jn-card-sub { font-size: var(--font-ui-smaller); color: var(--text-faint); font-variant-numeric: tabular-nums; }
 .samaya-jn .samaya-jn-card-foot { position: absolute; top: var(--samaya-sp-4); right: var(--samaya-sp-4); }
 .samaya-jn .samaya-jn-card.is-loading .samaya-jn-card-act { visibility: hidden; }
-.samaya-jn .samaya-jn-card-act { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-ui-smaller); color: var(--text-muted); opacity: 0; transition: opacity .25s; } /* "Open" / "Create" appear on hover only */
+.samaya-jn .samaya-jn-card-act { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-ui-smaller); color: var(--text-muted); opacity: 0; transition: opacity .25s; } /* "Open" appears on hover; "Create" is always shown */
+.samaya-jn .samaya-jn-card.is-missing .samaya-jn-card-act { opacity: 1; }
 .samaya-jn .samaya-jn-card-act .svg-icon { width: 13px; height: 13px; }
 .samaya-jn .samaya-jn-card:hover .samaya-jn-card-act, .samaya-jn .samaya-jn-card:focus-visible .samaya-jn-card-act { opacity: 1; }
 .samaya-jn .samaya-jn-card-bar { position: absolute; left: var(--samaya-sp-5); right: var(--samaya-sp-5); bottom: var(--samaya-sp-3); height: 2px; border-radius: 2px; background: color-mix(in srgb, var(--text-muted) 15%, transparent); overflow: hidden; }

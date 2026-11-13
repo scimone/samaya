@@ -1,5 +1,4 @@
 import { Notice, TFile, WorkspaceLeaf, setIcon } from "obsidian";
-import { barStack } from "./bars";
 import type SamayaPlugin from "./main";
 import { openFileSmart } from "./openfile";
 import { dayTask, patchTask, readTask } from "./model";
@@ -58,7 +57,7 @@ export class FocusManager {
     const ws = this.plugin.app.workspace;
     if (!this.state) { document.querySelectorAll(".samaya-focus-bar").forEach(el => el.remove()); return; }
     // one banner, in the pane in front (it moves along when another pane is picked)
-    const leaf = ws.getMostRecentLeaf(ws.rootSplit); const host = barStack(leaf);
+    const leaf = ws.getMostRecentLeaf(ws.rootSplit); const host = leaf?.view?.containerEl;
     if (!host) return;
     const here = (leaf!.view as { file?: TFile }).file?.path === this.state.path;
     const variant = here ? "current" : "elsewhere";
@@ -66,8 +65,9 @@ export class FocusManager {
     if (have && have.dataset.variant === variant) return;
     document.querySelectorAll(".samaya-focus-bar").forEach(el => el.remove());
     const bar = createDiv("samaya-focus-bar"); bar.dataset.variant = variant; bar.toggleClass("is-current", here);
+    const header = host.querySelector(":scope > .view-header");
     const meet = host.querySelector(":scope > .samaya-meet-bar"); // a meeting banner stays on top
-    if (meet) meet.after(bar); else host.prepend(bar);
+    if (meet) meet.after(bar); else if (header) header.after(bar); else host.prepend(bar);
     this.buildBanner(bar, here);
     this.tickBanners();
   }

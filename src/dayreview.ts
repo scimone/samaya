@@ -1,4 +1,5 @@
 // Pure logic for the end-of-day review: how the day was really spent, set against what was planned. No Obsidian imports (unit-tested).
+import { fmtDur, minToHm } from "./util";
 
 export interface Span { s: number; e: number; }
 /** The focus runs of `date` as time spans (minutes of the day), from runs written as "2026-11-11 09:05–09:40" (the end carries its date when the run crosses midnight). */
@@ -107,4 +108,41 @@ export function verdict(planned: number, actual: number, done: number, count: nu
   if (r < 0.85) return { title: "Lighter than planned", text: `You tracked ${Math.round(r * 100)}% of the planned task time.` };
   if (r <= 1.15) return { title: "Right on plan", text: `Your tracked time is within ${Math.round(Math.abs(r - 1) * 100)}% of the plan.` };
   return { title: "More than planned", text: `Tasks took ${Math.round((r - 1) * 100)}% longer than estimated.` };
+}
+
+/** "10:00 · 1h" / "1h" / "10:00" / "–" */
+export const when = (at: number | null, dur: number): string => [at !== null ? minToHm(at) : "", dur ? fmtDur(dur) : ""].filter(Boolean).join(" · ") || "–";
+
+export interface Totals { plannedItems: ReviewItem[]; added: ReviewItem[]; planned: number; comparableActual: number; focus: number; done: number; addedDone: number; }
+/** The day in sums. `added` is only meaningful with a saved plan (without one today's list is the plan). */
+export function dayTotals(items: ReviewItem[], hasPlan: boolean): Totals {
+  const plannedItems = items.filter(i => i.wasPlanned); const added = hasPlan ? items.filter(i => !i.wasPlanned) : [];
+  return { plannedItems, added, planned: plannedItems.reduce((a, i) => a + i.planned, 0), comparableActual: plannedItems.reduce((a, i) => a + i.actual, 0), focus: items.reduce((a, i) => a + i.actual, 0),
+    done: plannedItems.filter(i => i.done).length, addedDone: added.filter(i => i.done).length };
+}
+
+export interface SummaryIn { items: ReviewItem[]; hasPlan: boolean; window: [number, number]; start: number | null; end: number | null; worked: number; /** how a task is written, e.g. a link */ ref: (title: string) => string; }
+const LABEL: Record<Change, string> = { added: "Unplanned", skipped: "Not worked", open: "Not finished", over: "Over", under: "Under", moved: "Moved" };
+/** The review as a few markdown lines for the daily note: headline, the day in numbers, what changed, what was achieved per ticket / project. */
+export function reviewSummary(i: SummaryIn): string {
+  const t = dayTotals(i.items, i.hasPlan); const v = verdict(t.planned, t.comparableActual, t.done, t.plannedItems.length); const out: string[] = [];
+  out.push(`- **${v.title}.** ${v.text}`);
+  if (i.start !== null) out.push(`- **Day:** ${minToHm(i.start)}–${i.end !== null ? minToHm(i.end) : "?"} (planned ${minToHm(i.window[0])}–${minToHm(i.window[1])}), worked ${fmtDur(i.worked)}`);
+  out.push(`- **Tasks:** ${t.done} of ${t.plannedItems.length} planned done${t.added.length ? `, ${t.added.length} unplanned (${t.addedDone} done)` : ""}`);
+  out.push(`- **Time on tasks:** ${fmtDur(t.focus)}${t.planned ? ` (planned ${fmtDur(t.planned)}, ${signed(t.focus - t.planned, fmtDur) || "as planned"})` : ""}`);
+  const diff = taskRows(i.items).filter(r => r.changes.length);
+  if (diff.length) {
+    out.push("- **What changed:**");
+    for (const r of diff) {
+      const d = r.planned && r.actual ? signed(r.actual - r.planned, fmtDur) : "";
+      const detail = r.unplanned ? `${r.actual ? fmtDur(r.actual) + " tracked" : "checked off"}${r.done ? ", done" : ""}` : `planned ${when(r.plannedAt, r.planned)}, actual ${r.actual || r.actualAt !== null ? when(r.actualAt, r.actual) : r.done ? "checked off" : "none"}`;
+      out.push(`  - ${i.ref(r.label)} — ${r.changes.map(c => LABEL[c]).join(", ")}${d ? ` (${d})` : ""}: ${detail}`);
+    }
+  } else if (t.plannedItems.length) out.push("- **What changed:** nothing, the day went as planned");
+  for (const by of ["ticket", "project"] as Grouping[]) {
+    if (!hasGroups(i.items, by)) continue;
+    out.push(`- **By ${by}:**`);
+    for (const g of groupRows(i.items, by)) out.push(`  - ${g.label}: ${fmtDur(g.actual)}${g.planned ? ` of ${fmtDur(g.planned)} planned` : ""}, ${g.done}/${g.tasks} done${g.added ? `, ${g.added} unplanned` : ""}`);
+  }
+  return out.join("\n");
 }

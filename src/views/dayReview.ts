@@ -3,7 +3,7 @@ import type SamayaPlugin from "../main";
 import { Task, onDay, readTicket } from "../model";
 import { projectPathOf } from "../projects";
 import { dayPieces } from "../sessions";
-import { Change, Grouping, ReviewItem, Row, Span, daySplit, groupRows, hasGroups, hourRange, runSpansOn, signed, taskRows, verdict } from "../dayreview";
+import { Change, Grouping, ReviewItem, Row, Span, dayTotals, daySplit, when, groupRows, hasGroups, hourRange, runSpansOn, signed, taskRows, verdict } from "../dayreview";
 import { breakMinutes, workedOn } from "../worktime";
 import { fmtDur, hmToMin, minToHm } from "../util";
 import { nowMin } from "../workday";
@@ -12,7 +12,7 @@ import { nowMin } from "../workday";
 export interface ReviewEvent { title: string; s: number; e: number; }
 
 /** Everything the review needs. The baseline is the plan saved when the day was first planned (tasks, lengths, time slots); without one, today's list as it is now (`hasPlan` false). */
-function reviewItems(plugin: SamayaPlugin, all: Task[], date: string): { items: ReviewItem[]; hasPlan: boolean } {
+export function reviewItems(plugin: SamayaPlugin, all: Task[], date: string): { items: ReviewItem[]; hasPlan: boolean } {
   const app = plugin.app; const snap = plugin.data.dayPlans?.[date]; const hasPlan = !!snap;
   const now = new Map(onDay(all, date).map(t => [t.file.path, t]));
   const base = new Map<string, { est: number; slots: Span[] }>(snap
@@ -49,10 +49,7 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   const grid = host.createDiv("samaya-rv"); const left = grid.createDiv("samaya-rv-col"); const right = grid.createDiv("samaya-rv-col"); const { items, hasPlan } = reviewItems(plugin, o.all, o.date);
   const now = nowMin(); const log = plugin.workday.log; const [winFrom, winTo] = plugin.workWindowFor(o.date); const lunch = plugin.lunchFor(o.date);
   const worked = workedOn(log, now, plugin.dayRules); const breaks = log ? breakMinutes(log) + (log.open ? Math.max(0, now - hmToMin(log.open.start)) : 0) : 0;
-  const focus = items.reduce((a, i) => a + i.actual, 0);
-  const plannedItems = items.filter(i => i.wasPlanned); const added = hasPlan ? items.filter(i => !i.wasPlanned) : [];
-  const planned = plannedItems.reduce((a, i) => a + i.planned, 0); const comparableActual = plannedItems.reduce((a, i) => a + i.actual, 0);
-  const done = plannedItems.filter(i => i.done).length; const addedDone = added.filter(i => i.done).length;
+  const { plannedItems, added, planned, comparableActual, focus, done, addedDone } = dayTotals(items, hasPlan);
   const sp = daySplit(worked, focus, o.meetings, breaks);
   const startAt = log?.start ? hmToMin(log.start) : null; const endAt = log?.start ? (log.end ? hmToMin(log.end) : now) : null;
 
@@ -120,9 +117,6 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
     paint();
   }
 }
-
-/** "10:00 · 1h" / "1h" / "10:00" / "–" */
-const when = (at: number | null, dur: number) => [at !== null ? minToHm(at) : "", dur ? fmtDur(dur) : ""].filter(Boolean).join(" · ") || "–";
 
 /** One task of the comparison table: its planned and actual start and length, what differs as chips, the gap in tracked time. */
 function drawRow(table: HTMLElement, r: Row, root: HTMLElement) {

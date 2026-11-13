@@ -1,5 +1,7 @@
 import { hooks, openNote, sideLeaf } from "./openfile";
 import { renderSideBars } from "./views/sideBar";
+import { reviewItems } from "./views/dayReview";
+import { reviewSummary } from "./dayreview";
 import { Editor, MarkdownView, Notice, Plugin, TFile, addIcon, normalizePath, setIcon } from "obsidian";
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FocusManager, FocusState } from "./focus";
@@ -23,12 +25,12 @@ import { MeetingBanner } from "./meetingbanner";
 import { calendarEnabled, calendarEvents } from "./calendar";
 import { dayPieces } from "./sessions";
 import { Emitter, addDays, hmToMin, minToHm, parseTitleEstimate as parseTitleEstimateSafe, parseYmd, today } from "./util";
-import { WorkdayManager } from "./workday";
+import { WorkdayManager, nowMin } from "./workday";
 import { NavShortcuts } from "./navigation";
 import { applyColors, clearColors } from "./colors";
 import { BUFFER_SHARE, isLeftover, weekSteps, weekToPlan } from "./weekplan";
 import { capacityOf, weekBuckets } from "./views/weekColumn";
-import type { DayLog, RulesFor } from "./worktime";
+import { workedOn, type DayLog, type RulesFor } from "./worktime";
 
 interface PluginData { settings?: Partial<SamayaSettings>; focus?: FocusState | null; workday?: DayLog | null; /** per-day workday start/end set with the timeline lines */ dayWindows?: Record<string, [string, string]>; /** the plan as it was when the day was first planned (date -> task path and estimate), the baseline of the end-of-day review */ dayPlans?: Record<string, Array<{ path: string; est: number; /** its time slots that day: [start minute, length] */ slots?: Array<[number, number]> }>>; }
 export interface GuideState { step: number; /** the Review step exists (there were unfinished overdue tasks) */ review: boolean; fresh: boolean; /** "shutdown": the one-step end-of-day guide; "week": the guided week plan */ kind: "plan" | "shutdown" | "week"; /** week guide: the monday (ymd) being planned */ week?: string; /** week guide: the Tickets step exists (there are open tickets) */ tickets?: boolean; /** week guide: days shown by the board (5 or 7), for the sidebar */ days?: number; }
@@ -512,14 +514,18 @@ export default class SamayaPlugin extends Plugin {
        review: false, fresh: true, kind: "shutdown" };
     await this.openPlanner(); this.bus.emit();
   }
-  /** Closing a day (by hand or automatically, because it was forgotten) writes its finished tasks and what is planned for the next day into that day's note. */
+  /** Closing a day (by hand or automatically, because it was forgotten) writes its finished tasks and a summary of its review into that day's note. */
   async writeDayClose(date: string) {
-    const s = this.settings; const next = addDays(date, 1);
+    const s = this.settings;
     const all = allTasks(this.app, s);
     const finished = sortTasks(onDay(all, date).filter(t => t.status === "done"));
-    const tomorrow = sortTasks(onDay(all, next).filter(t => t.status !== "done"));
     if (journalWants(s, "journalFinished")) await writeSection(this.app, s, date, "Finished tasks", taskLines(await toJournalTasks(this.app, finished, true)));
-    if (journalWants(s, "journalTomorrow")) await writeSection(this.app, s, date, "Planned for tomorrow", taskLines(await toJournalTasks(this.app, tomorrow)));
+    if (journalWants(s, "journalReview")) {
+      const { items, hasPlan } = reviewItems(this, all, date); const log = this.workday.allLogs().find(l => l.date === date) ?? null; const now = nowMin();
+      const body = reviewSummary({ items, hasPlan, window: this.workWindowFor(date), start: log?.start ? hmToMin(log.start) : null, end: log?.start ? (log.end ? hmToMin(log.end) : date === today() ? now : null) : null,
+        worked: workedOn(log, now, this.dayRules), ref: t => `[[${t}]]` });
+      await writeSection(this.app, s, date, "Productivity review", body);
+    }
   }
   async finishShutdown() {
     const s = this.settings; const td = today();

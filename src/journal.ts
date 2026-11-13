@@ -7,11 +7,11 @@ import { hmToMin, minToHm, today } from "./util";
 import { fmtSegments } from "./segments";
 import { BUFFER_SHARE, loadLevel } from "./weekplan";
 
-export type JournalPart = "journalPlanned" | "journalFinished" | "journalTomorrow" | "journalWorkTimes" | "journalBreaks" | "journalTracked" | "journalWeekPlan" | "journalWeekMeetings" | "journalWeekTasks";
+export type JournalPart = "journalPlanned" | "journalFinished" | "journalReview" | "journalWorkTimes" | "journalBreaks" | "journalTracked" | "journalWeekPlan" | "journalWeekMeetings" | "journalWeekTasks";
 /** Whether the journal module is on and the given part of it is enabled. */
 export const journalWants = (s: SamayaSettings, part: JournalPart): boolean => s.journalOn && s[part];
 
-export const SECTIONS = ["Meetings", "Planned tasks", "Finished tasks", "Planned for tomorrow"] as const;
+export const SECTIONS = ["Meetings", "Planned tasks", "Finished tasks", "Productivity review"] as const;
 export type Section = typeof SECTIONS[number];
 /** The weekly note's sections the week plan writes, in order; "Weekly review" is added later and comes last. */
 export const WEEK_OVERVIEW = "Overview", WEEK_MEETINGS = "Meetings", WEEK_TASKS = "Planned tasks";

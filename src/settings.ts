@@ -22,7 +22,7 @@ export interface SamayaSettings {
   /** optional modules; off by default for new installs */
   calendarOn: boolean; jiraOn: boolean; gitlabOn: boolean;
   /** journal module: write into the daily note, and which parts */
-  journalOn: boolean; journalPlanned: boolean; journalFinished: boolean; journalTomorrow: boolean;
+  journalOn: boolean; journalPlanned: boolean; journalFinished: boolean; journalReview: boolean;
   journalWorkTimes: boolean; journalBreaks: boolean; journalTracked: boolean;
   /** parts of the weekly note written when the week plan is finished */ journalWeekPlan: boolean; journalWeekMeetings: boolean; journalWeekTasks: boolean;
   /** weekly / monthly / quarterly / yearly notes of the journal calendar */
@@ -48,7 +48,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   gitlabUrl: "https://gitlab.com", gitlabToken: "", gitlabScope: "assigned_to_me", syncOnStartup: false,
   lunchStart: "12:00", lunchEnd: "13:00", weeklyHours: 40, workDays: 5, vacationKeyword: "Urlaub", bufferPercent: 20, taskColor: "#8fcfa6", meetingColor: "#8db8f0", autoLunch: true,
   calendarOn: false, jiraOn: false, gitlabOn: false,
-  journalOn: false, journalPlanned: true, journalFinished: true, journalTomorrow: true,
+  journalOn: false, journalPlanned: true, journalFinished: true, journalReview: true,
   journalWorkTimes: true, journalBreaks: true, journalTracked: true, journalWeekPlan: true, journalWeekMeetings: true, journalWeekTasks: true,
   journalHideProps: true, journalOpenAfterPlan: false, journalNavBar: true,
   journalNotes: {
@@ -87,6 +87,7 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<SamayaS
     jn[k] = { ...dj[k], ...c };
   }
   o.journalNotes = jn;
+  if ("journalTomorrow" in o) { if (!("journalReview" in o)) o.journalReview = o.journalTomorrow; delete o.journalTomorrow; } // the tomorrow section became the productivity review
   delete o.tasksFolder; delete o.ticketsFolder; delete o.meetingsFolder;
   return o as Partial<SamayaSettings>;
 }
@@ -94,7 +95,7 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<SamayaS
 const JOURNAL_PARTS: Array<[JournalPart, string, string]> = [
   ["journalPlanned", "Planned tasks", "“Planned tasks” section, written when you finish the morning planning."],
   ["journalFinished", "Finished tasks", "“Finished tasks” section, written at shutdown (with the tracked time per task)."],
-  ["journalTomorrow", "Tomorrow's plan", "“Planned for tomorrow” section, written at shutdown."],
+  ["journalReview", "Productivity review", "“Productivity review” section, written at shutdown: a summary of the day review (plan vs. actual, what changed, ticket / project breakdown)."],
   ["journalWorkTimes", "Work start & end", "work_start and work_end properties."],
   ["journalBreaks", "Breaks & lunch", "breaks, break_minutes and lunch properties."],
   ["journalTracked", "Tracked work time", "work_minutes property: total time worked that day."],

@@ -186,10 +186,10 @@ assert.equal(meetingLines([{ title: "Sync", start: new Date(2026, 0, 1, 9, 30), 
 assert.deepEqual(sortByStart([{ start: "" , n: 1 }, { start: "13:00", n: 2 }, { start: "9:30", n: 3 }, { start: "", n: 4 }]).map(x => x.n), [3, 2, 1, 4]);
 assert.equal(bulletLines(["", "- a", "b "]), "- a\n- b");
 let note = upsertSection("", "Planned tasks", "- [[A]]");
-note = upsertSection(note, "Planned for tomorrow", "- [[C]]");
-note = upsertSection(note, "Finished tasks", "- [[A]] • *5 min*"); // must land before "Planned for tomorrow"
+note = upsertSection(note, "Productivity review", "- [[C]]");
+note = upsertSection(note, "Finished tasks", "- [[A]] • *5 min*"); // must land before "Productivity review"
 const order = note.split("\n").filter(l => l.startsWith("## "));
-assert.deepEqual(order, ["## Planned tasks", "## Finished tasks", "## Planned for tomorrow"]);
+assert.deepEqual(order, ["## Planned tasks", "## Finished tasks", "## Productivity review"]);
 note = upsertSection(note, "Planned tasks", "- [[A]]\n- [[B]]"); // replaces, doesn't duplicate
 assert.equal(note.split("## Planned tasks").length, 2);
 assert.deepEqual(readSection(note, "Planned tasks"), ["[[A]]", "[[B]]"]);
@@ -442,7 +442,7 @@ console.log("all tests passed");
 // ---- day review
 await bundle("src/dayreview.ts", "test/.dayreview.mjs");
 {
-  const { runMinutesOn, runSpansOn, taskRows, changesOf, groupRows, daySplit, verdict, hourRange, signed } = await import("./.dayreview.mjs");
+  const { reviewSummary, runMinutesOn, runSpansOn, taskRows, changesOf, groupRows, daySplit, verdict, hourRange, signed } = await import("./.dayreview.mjs");
   const runs = ["2026-11-11 09:05–09:40", "2026-11-11 10:00-10:30", "2026-11-10 09:00–10:00", "2026-11-11 23:30–2026-11-12 00:20", "junk"];
   assert.equal(runMinutesOn(runs, "2026-11-11"), 35 + 30 + 30);
   assert.deepEqual(runSpansOn(runs, "2026-11-11"), [{ s: 545, e: 580 }, { s: 600, e: 630 }, { s: 1410, e: 1440 }]);
@@ -465,6 +465,10 @@ await bundle("src/dayreview.ts", "test/.dayreview.mjs");
   const d = daySplit(120, 100, 40, 15); assert.equal(d.focus, 80); assert.equal(d.other, 0); assert.equal(d.total, 135);
   assert.equal(verdict(60, 62, 1, 1).title, "Right on plan"); assert.equal(verdict(60, 90, 1, 1).title, "More than planned");
   assert.deepEqual(hourRange([545, 1050]), [9, 18]); assert.deepEqual(hourRange([600, 630]), [7, 13]); assert.deepEqual(hourRange([]), [8, 14]);
+  { const txt = reviewSummary({ items: [...items, it({ title: "H", planned: 30, actual: 30, done: true, ticket: "T-1" })], hasPlan: true, window: [540, 1050], start: 560, end: 1020, worked: 400, ref: t => `[[${t}]]` }).split("\n");
+    assert.ok(txt[0].startsWith("- **")); assert.ok(txt.some(l => l.startsWith("- **Day:** 09:20–17:00 (planned 09:00–17:30)")));
+    assert.ok(txt.includes("  - [[B]] — Not worked: planned 10:00 · 30m, actual none".replace("10:00 · ", "")), txt.join("\n"));
+    assert.ok(txt.some(l => l.startsWith("  - [[C]] — Unplanned")) && txt.some(l => l.startsWith("  - T-1:"))); }
   assert.equal(signed(65, m => m + "m"), "+65m"); assert.equal(signed(-20, m => m + "m"), "−20m"); assert.equal(signed(0, m => m + "m"), "");
 }
 

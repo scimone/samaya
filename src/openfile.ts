@@ -9,6 +9,8 @@ export function leafPath(l: WorkspaceLeaf): string | undefined {
 /** The pane Samaya opens notes in (beside the view the click came from), for as long as it is there. */
 let side: WorkspaceLeaf | null = null;
 let waitPath = "";
+/** What the opener needs from the plugin: the task in focus (it always opens in a full page), and dressing the side pane's note (bars, hidden heading). */
+export const hooks = { focusPath: (): string | undefined => undefined, dress: (): Promise<void> => Promise.resolve() };
 
 /**
  * Open a note in the side view: a split beside the Samaya page you are on. Once that pane exists every note opens in it, replacing what it showed
@@ -18,6 +20,7 @@ export function openFileSmart(app: App, file: TFile, _where?: PaneType | boolean
 export const openFileBeside = (app: App, file: TFile): void => openFileSmart(app, file);
 
 export async function openNote(app: App, file: TFile): Promise<void> {
+  if (hooks.focusPath() === file.path) { await openFull(app, file); return; } // the task in focus: a full page
   const ws = app.workspace; let leaf: WorkspaceLeaf | null = null;
   ws.iterateRootLeaves(l => { if (l === side && !l.view.getViewType().startsWith("samaya-")) leaf = l; }); // still there, and not one of our own pages
   if (!leaf) {
@@ -27,9 +30,10 @@ export async function openNote(app: App, file: TFile): Promise<void> {
   if (leafPath(leaf) !== file.path) {
     // hide the note until its bars and hidden headings are in place (see renderSideBars), so it does not show half dressed first
     const pane = leaf.view.containerEl.closest<HTMLElement>(".workspace-leaf"); pane?.addClass("samaya-side-wait"); waitPath = file.path;
-    window.setTimeout(() => pane?.removeClass("samaya-side-wait"), 2000); // never stay hidden
+    window.setTimeout(() => pane?.removeClass("samaya-side-wait"), 1200); // never stay hidden
     await leaf.openFile(file);
   }
+  void hooks.dress(); // bars at once, not behind the slower pass over every open note
   void ws.revealLeaf(leaf); ws.setActiveLeaf(leaf, { focus: true });
 }
 

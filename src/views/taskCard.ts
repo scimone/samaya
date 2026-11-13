@@ -22,7 +22,7 @@ function dayLabel(date: string): string {
  * While a focus is running (or on a break) the block is gone altogether: the focus bar on top takes over.
  */
 export function renderTaskCard(plugin: SamayaPlugin, el: HTMLElement, file: TFile | null, inSide = false) {
-  const cards = () => Array.from(el.querySelectorAll<HTMLElement>(".samaya-task-card, .samaya-tc-line"));
+  const cards = () => Array.from(el.querySelectorAll<HTMLElement>(".samaya-task-card, .samaya-tc-line")).filter(c => !c.closest(".samaya-side-bar")); // not the line in the side pane's top bar
   const clear = () => { cards().forEach(c => c.remove()); el.querySelectorAll(".samaya-tc-host").forEach(h => { h.removeClass("samaya-tc-host"); (h as HTMLElement).style.removeProperty("--tc-pl"); (h as HTMLElement).style.removeProperty("--tc-pr"); }); };
   const f = plugin.focus.state;
   if (!file) { clear(); return; }

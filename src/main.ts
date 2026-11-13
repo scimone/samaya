@@ -1,4 +1,4 @@
-import { openNote, sideLeaf } from "./openfile";
+import { hooks, openNote, sideLeaf } from "./openfile";
 import { renderSideBars } from "./views/sideBar";
 import { Editor, MarkdownView, Notice, Plugin, TFile, normalizePath, setIcon } from "obsidian";
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
@@ -77,6 +77,7 @@ export default class SamayaPlugin extends Plugin {
   }
 
   async onload() {
+    hooks.focusPath = () => this.focus.state?.path; hooks.dress = () => this.dressSide(); // what openfile.ts needs from the plugin
     this.data = (await this.loadData()) ?? {};
     this.settings = Object.assign({}, DEFAULT_SETTINGS, migrateSettings(this.data.settings ?? {}));
     applyColors(this.settings);
@@ -283,19 +284,29 @@ export default class SamayaPlugin extends Plugin {
     try {
       do {
         this.markAgain = false;
-        const s = this.settings;
-        for (const leaf of this.app.workspace.getLeavesOfType("markdown")) {
-          const file = (leaf.view as { file?: TFile }).file; const el = leaf.view.containerEl;
-          const id = s.journalOn && !!file ? await identifyNote(this.app, s, file) : null;
-          el.toggleClass("samaya-journal-note", s.journalHideProps && !!id);
-          const isTask = !!file && file.extension === "md" && file.path.startsWith(prefixOf(s.tasksPath));
-          el.toggleClass("samaya-task-note", isTask); // hides the properties; the task card shows them instead
-          renderTaskCard(this, el, isTask ? file! : null, leaf === sideLeaf(this.app));
-          await this.renderJournalBar(leaf, el, s.journalNavBar && file && id ? { file, ...id } : null);
-        }
+        for (const leaf of this.app.workspace.getLeavesOfType("markdown")) await this.markLeaf(leaf);
         renderSideBars(this);
       } while (this.markAgain);
     } finally { this.marking = false; }
+  }
+  /** One note tab: journal / task marks, the task card, the journal bar. */
+  private async markLeaf(leaf: import("obsidian").WorkspaceLeaf) {
+    const s = this.settings;
+    const file = (leaf.view as { file?: TFile }).file; const el = leaf.view.containerEl;
+    const isTask = !!file && file.extension === "md" && file.path.startsWith(prefixOf(s.tasksPath));
+    // tasks, tickets and meetings are never journal notes: no need to look them up (that is the slow part)
+    const other = !!file && (isTask || file.path.startsWith(prefixOf(s.ticketsPath)) || file.path.startsWith(normalizePath(s.eventNotesFolder.trim() || "Meetings") + "/"));
+    const id = s.journalOn && !!file && !other ? await identifyNote(this.app, s, file) : null;
+    el.toggleClass("samaya-journal-note", s.journalHideProps && !!id);
+    el.toggleClass("samaya-task-note", isTask); // hides the properties; the task card shows them instead
+    renderTaskCard(this, el, isTask ? file! : null, leaf === sideLeaf(this.app));
+    await this.renderJournalBar(leaf, el, s.journalNavBar && file && id ? { file, ...id } : null);
+  }
+  /** The note in the side pane, dressed at once (its own tab only, not every open note) and shown. */
+  async dressSide() {
+    const side = sideLeaf(this.app);
+    if (side && side.view.getViewType() === "markdown") await this.markLeaf(side);
+    renderSideBars(this);
   }
   private async renderJournalBar(leaf: import("obsidian").WorkspaceLeaf, el: HTMLElement, cur: { file: TFile; p: Period; date: string } | null) {
     const bars = () => Array.from(el.querySelectorAll<HTMLElement>(":scope > .samaya-journal-bar"));

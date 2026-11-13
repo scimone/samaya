@@ -75,7 +75,9 @@ export class GanttView extends Panel {
     const td = today();
     const { from, days } = ganttRange(projects.flatMap(p => (p.span ? [p.span] : [])), td, memory.back, memory.fwd);
     const width = days * dayW; const todayX = daysBetween(from, td) * dayW + dayW / 2;
-    const chart = scroll.createDiv("samaya-gantt-chart"); chart.style.setProperty("--day", `${dayW}px`); chart.style.setProperty("--name", `${nw}px`); chart.style.width = `calc(var(--name) + ${width}px)`; chart.toggleClass("is-collapsed", hidden); chart.style.setProperty("--grid", `${(gran === "month" ? 1 : 7) * dayW}px`);
+    const chart = scroll.createDiv("samaya-gantt-chart"); chart.style.setProperty("--day", `${dayW}px`); chart.style.setProperty("--name", `${nw}px`); chart.style.width = `calc(var(--name) + ${width}px)`; chart.toggleClass("is-collapsed", hidden); chart.style.setProperty("--grid", `${7 * dayW}px`);
+    // month: no gridlines, weekends shaded like the sidebars; quarter and year: only a line between months (below)
+    chart.style.setProperty("--weekend", gran === "month" ? "linear-gradient(to right, transparent calc(var(--day) * 5), var(--background-secondary) calc(var(--day) * 5))" : "none");
 
     const hdr = chart.createDiv("samaya-gantt-row samaya-gantt-hrow");
     const hName = hdr.createDiv("samaya-gantt-name");
@@ -84,6 +86,7 @@ export class GanttView extends Panel {
     toggle.onclick = () => { s.projectsTableHidden = !hidden; void this.plugin.saveSettings(); this.render(); };
     const hTrack = hdr.createDiv("samaya-gantt-track"); hTrack.style.width = `${width}px`;
     for (const m of monthMarks(from, days)) {
+      if (gran !== "month" && m.offset > 0) chart.createDiv("samaya-gantt-mline").style.left = `calc(var(--name) + ${m.offset * dayW}px)`;
       const el = hTrack.createDiv({ cls: "samaya-gantt-month", text: m.span * dayW > 60 ? m.date.toLocaleDateString(undefined, { month: "short", year: "numeric" }) : "" });
       el.style.left = `${m.offset * dayW}px`; el.style.width = `${m.span * dayW}px`;
     }
@@ -192,13 +195,21 @@ export class GanttView extends Panel {
       const mode: DragMode = (e.target as HTMLElement).hasClass("is-start") ? "start" : (e.target as HTMLElement).hasClass("is-end") ? "end" : "move";
       const x0 = e.clientX; let delta = 0; let moved = false; const base = p.span;
       bar.setPointerCapture(e.pointerId); this.dragging = true; bar.addClass("is-dragging");
+      // resizing names the edge's day in a tooltip beside it (left of the start edge, right of the end edge)
+      const tip = mode === "move" ? null : (bar.parentElement as HTMLElement).createDiv("samaya-gantt-nav-tip");
+      const showTip = (sp: { start: string; end: string }) => {
+        if (!tip) return;
+        tip.setText(parseYmd(mode === "start" ? sp.start : sp.end).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" }));
+        if (mode === "start") { tip.style.left = `${bar.offsetLeft - 6}px`; tip.style.transform = "translateX(-100%)"; } else tip.style.left = `${bar.offsetLeft + bar.offsetWidth + 6}px`;
+      };
+      showTip(base);
       const onMove = (ev: PointerEvent) => {
         delta = Math.round((ev.clientX - x0) / dayW); if (Math.abs(ev.clientX - x0) > 3) moved = true;
-        place(dragSpan(base, mode, delta));
+        const sp = dragSpan(base, mode, delta); place(sp); showTip(sp);
       };
       const onUp = () => {
         bar.removeEventListener("pointermove", onMove); bar.removeEventListener("pointerup", onUp); bar.removeEventListener("pointercancel", onUp);
-        bar.removeClass("is-dragging"); this.dragging = false;
+        bar.removeClass("is-dragging"); this.dragging = false; tip?.remove();
         const next = dragSpan(base, mode, delta);
         if (moved && (next.start !== base.start || next.end !== base.end)) void patchNote(this.app, p.file, { start: next.start, end: next.end });
         else if (moved) place(base);

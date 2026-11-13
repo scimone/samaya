@@ -27,6 +27,7 @@ export class JournalView extends Panel {
   private timer = 0; private seq = 0;
   private lists = new Map<Period, Note[]>(); private has = new Map<Period, Set<string>>(); // which spans have a note
   private on: Period[] = [];
+  private ready = false; private loaded = false; private sig = ""; // ready: first draw done; loaded: the notes have been listed; sig: what the last drawing was built from
 
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin) { super(plugin); this.root = parentEl.createDiv("samaya-mt samaya-jn"); }
   onload() {
@@ -36,19 +37,24 @@ export class JournalView extends Panel {
     this.register(() => window.clearInterval(tick));
   }
   onunload() { window.clearTimeout(this.timer); this.seq++; }
-  onDataUpdated(): void { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { void this.reload(); }, 150); }
+  /** The first call lists and draws at once (no waiting for the vault to go quiet); later ones, which come in bursts from every note change and planner update, are bundled. */
+  onDataUpdated(): void {
+    window.clearTimeout(this.timer);
+    if (!this.ready) { this.ready = true; this.on = this.periods(); this.render(); void this.reload(); return; } // the frame first, the dots and states follow
+    this.timer = window.setTimeout(() => { void this.reload(); }, 250);
+  }
 
   private periods(): Period[] { const s = this.plugin.settings; return s.journalOn ? ["daily", ...PERIODIC_KINDS.filter(k => s.journalNotes[k].on)] : []; }
 
   /** Find the notes (names only, nothing is read), then draw. */
   private async reload() {
-    const seq = ++this.seq; const s = this.plugin.settings; const ps = this.periods(); const lists = new Map<Period, Note[]>(); const has = new Map<Period, Set<string>>();
-    for (const p of ps) {
-      const l = (await listPeriodNotes(this.app, s, p)).reverse(); lists.set(p, l);
-      has.set(p, new Set(l.map(n => spanKey(p, n.date))));
-    }
+    const seq = ++this.seq; const s = this.plugin.settings; const ps = this.periods();
+    const found = await Promise.all(ps.map(async p => [p, (await listPeriodNotes(this.app, s, p)).reverse()] as const)); // the five kinds in parallel
     if (seq !== this.seq) return; // a newer load is under way
-    this.lists = lists; this.has = has; this.on = ps; this.render();
+    const sig = ps.join() + "|" + found.map(([, l]) => l.map(n => n.file.path).join(",")).join("|") + "|" + todayYmd();
+    this.lists = new Map(found); this.has = new Map(found.map(([p, l]) => [p, new Set(l.map(n => spanKey(p, n.date)))] as const)); this.on = ps;
+    this.loaded = true; if (sig === this.sig) return; // nothing changed: keep the page as it is
+    this.sig = sig; this.render();
   }
 
   private exists(p: Period, date: string): boolean { return this.has.get(p)?.has(spanKey(p, date, false)) ?? false; }
@@ -100,7 +106,7 @@ export class JournalView extends Panel {
       const ex = this.exists(p, td); const l = rowLabel(p, spanStart(p, td), w => isoWeek(parseYmd(w)), weekRangeLabel); const d = parseYmd(td);
       const title = p === "daily" ? d.toLocaleDateString(undefined, { weekday: "long" }) : l.main;
       const sub = p === "daily" ? d.toLocaleDateString(undefined, { month: "long", day: "numeric" }) : p === "quarterly" ? this.quarterMonths(td) : p === "yearly" ? "" : l.sub;
-      const card = row.createEl("button", { cls: `samaya-jn-card is-${p}${ex ? "" : " is-missing"}`, attr: { title: ex ? `Open ${this.spanName(p, td)}` : `${this.spanName(p, td)}: not written yet. Create it` } });
+      const card = row.createEl("button", { cls: `samaya-jn-card is-${p}${!this.loaded ? " is-loading" : ex ? "" : " is-missing"}`, attr: { title: ex ? `Open ${this.spanName(p, td)}` : `${this.spanName(p, td)}: not written yet. Create it` } });
       card.onclick = () => { void this.go(p, td); };
       card.createDiv({ cls: "samaya-jn-card-kicker", text: PERIOD_UI[p].now });
       card.createDiv({ cls: "samaya-jn-card-title", text: title });
@@ -142,8 +148,8 @@ export class JournalView extends Panel {
     this.target(title, "quarterly", first, `Q${Math.floor(memory.month / 3) + 1}`, "samaya-jn-cal-q");
     const nav = head.createDiv("samaya-jn-cal-nav");
     if (!isNow) { const t = nav.createEl("button", { cls: "samaya-jn-pill", text: "Today", attr: { title: "Back to the current month" } }); t.onclick = () => { const d = parseYmd(td); memory.year = d.getFullYear(); memory.month = d.getMonth(); this.render(); }; }
-    const prev = nav.createEl("button", { cls: "samaya-jn-step", attr: { title: "Previous month", "aria-label": "Previous month" } }); setIcon(prev, "chevron-left"); prev.onclick = () => step(-1);
-    const next = nav.createEl("button", { cls: "samaya-jn-step", attr: { title: "Next month", "aria-label": "Next month" } }); setIcon(next, "chevron-right"); next.onclick = () => step(1);
+    const btn = (icon: string, label: string, n: number, cls = "") => { const b = nav.createEl("button", { cls: "samaya-jn-step" + cls, attr: { title: label, "aria-label": label } }); setIcon(b, icon); b.onclick = () => step(n); };
+    btn("chevrons-left", "Previous year", -12); btn("chevron-left", "Previous month", -1, " is-month"); btn("chevron-right", "Next month", 1, " is-month"); btn("chevrons-right", "Next year", 12);
 
     const grid = box.createDiv("samaya-jn-grid"); const weekly = this.on.includes("weekly");
     grid.createDiv({ cls: "samaya-jn-dow is-wk", text: "Wk" });

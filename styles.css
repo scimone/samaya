@@ -1404,7 +1404,9 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
 .samaya-jn-card.is-daily .samaya-jn-card-kicker { color: var(--text-accent); }
 .samaya-jn-card-title { margin-top: var(--samaya-sp-1); font-size: var(--font-ui-large); font-weight: 600; line-height: 1.2; }
 .samaya-jn-card-sub { font-size: var(--font-ui-smaller); color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.samaya-jn-card-foot { margin-top: var(--samaya-sp-3); }
+.samaya-jn-card-foot { margin-top: var(--samaya-sp-3); min-height: 18px; }
+.samaya-jn-card.is-loading .samaya-jn-card-act { visibility: hidden; }
+.samaya-jn-step.is-month { margin: 0 -2px; }
 .samaya-jn-card-act { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-ui-smaller); font-weight: 500; color: var(--text-faint); transition: color .15s; }
 .samaya-jn-card-act .svg-icon { width: 14px; height: 14px; }
 .samaya-jn-card:not(.is-missing) .samaya-jn-card-act { color: var(--text-muted); }

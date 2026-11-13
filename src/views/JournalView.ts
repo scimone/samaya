@@ -7,12 +7,12 @@ import { PERIODIC_KINDS, PERIOD_UI, Period, listPeriodNotes, openPeriodNote, per
 import { anchor, rowLabel, spanKey, spanStart } from "../journaldigest";
 import { monthGrid } from "../monthgrid";
 import { addDays, parseYmd, today as todayYmd, ymd } from "../util";
-import { dayHeadSub, isoWeek, renderHeadTitle, weekRangeLabel } from "./plannerHead";
+import { isoWeek, renderHeadTitle, weekRangeLabel } from "./plannerHead";
 
 interface Note { file: TFile; date: string }
 
 const KIND: Record<Period, string> = { daily: "Day", weekly: "Week", monthly: "Month", quarterly: "Quarter", yearly: "Year" };
-const RECENT = 6;
+const RECENT = 5;
 
 /** The month the calendar shows, kept for the session so coming back lands where you were. */
 const memory = { year: 0, month: -1 };
@@ -83,11 +83,12 @@ export class JournalView extends Panel {
     const y = this.root.querySelector<HTMLElement>(".samaya-mt-page")?.scrollTop ?? 0;
     this.root.empty();
     const head = this.root.createDiv("samaya-week-head samaya-day-head samaya-mt-head");
-    renderHeadTitle(head, "Journal", this.on.length ? dayHeadSub(todayYmd()) : " ");
+    renderHeadTitle(head, "Journal", "\u00a0"); // no subheading; the blank line keeps the bar as tall as the planner's
     const page = this.root.createDiv("samaya-mt-page").createDiv("samaya-mt-col");
     if (!this.on.length) { page.createDiv({ cls: "samaya-mt-none", text: "The journal is switched off. Turn it on in the settings." }); return; }
     if (memory.month < 0) { const t = parseYmd(todayYmd()); memory.year = t.getFullYear(); memory.month = t.getMonth(); }
-    this.jump(page); this.calendar(page); this.recent(page);
+    this.calendar(page.createDiv("samaya-jn-main")); // the calendar on the left, the quick jumps and latest entries beside it
+    const side = page.createDiv("samaya-jn-side"); this.jump(side); this.recent(side);
     if (y) this.root.querySelector<HTMLElement>(".samaya-mt-page")!.scrollTop = y;
   }
 
@@ -98,12 +99,12 @@ export class JournalView extends Panel {
     for (const p of this.on) {
       const ex = this.exists(p, td); const l = rowLabel(p, spanStart(p, td), w => isoWeek(parseYmd(w)), weekRangeLabel); const d = parseYmd(td);
       const title = p === "daily" ? d.toLocaleDateString(undefined, { weekday: "long" }) : l.main;
-      const sub = p === "daily" ? d.toLocaleDateString(undefined, { month: "long", day: "numeric" }) : p === "quarterly" ? this.quarterMonths(td) : p === "yearly" ? `${Math.round(this.elapsed(p, td) * 100)}% done` : l.sub;
+      const sub = p === "daily" ? d.toLocaleDateString(undefined, { month: "long", day: "numeric" }) : p === "quarterly" ? this.quarterMonths(td) : p === "yearly" ? "" : l.sub;
       const card = row.createEl("button", { cls: `samaya-jn-card is-${p}${ex ? "" : " is-missing"}`, attr: { title: ex ? `Open ${this.spanName(p, td)}` : `${this.spanName(p, td)}: not written yet. Create it` } });
       card.onclick = () => { void this.go(p, td); };
       card.createDiv({ cls: "samaya-jn-card-kicker", text: PERIOD_UI[p].now });
       card.createDiv({ cls: "samaya-jn-card-title", text: title });
-      card.createDiv({ cls: "samaya-jn-card-sub", text: sub });
+      if (sub) card.createDiv({ cls: "samaya-jn-card-sub", text: sub });
       const foot = card.createDiv("samaya-jn-card-foot");
       const act = foot.createSpan("samaya-jn-card-act"); setIcon(act.createSpan(), ex ? "arrow-up-right" : "plus"); act.createSpan({ text: ex ? "Open" : "Create" });
       const bar = card.createDiv("samaya-jn-card-bar"); bar.createDiv("samaya-jn-card-fill").style.width = `${Math.round(this.elapsed(p, td) * 100)}%`;

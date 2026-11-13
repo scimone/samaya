@@ -1505,3 +1505,4 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 .samaya-side-bar .samaya-tc-right { margin-left: auto; align-items: center; gap: var(--samaya-sp-3); flex: none; }
 .samaya-side-bar .samaya-tc-big { font-size: var(--font-ui-medium); } .samaya-side-bar .samaya-tc-bigsep { font-size: var(--font-ui-medium); }
 .samaya-side-bar .samaya-tc-clock { align-items: flex-end; }
+.samaya-focus-bar[data-variant="elsewhere"] { cursor: pointer; }

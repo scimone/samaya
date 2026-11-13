@@ -26,6 +26,7 @@ export async function openNote(app: App, file: TFile): Promise<void> {
   if (!leaf) {
     const active = ws.getActiveViewOfType(ItemView)?.leaf; const base = active && active.getRoot() === ws.rootSplit ? active : ws.getMostRecentLeaf(ws.rootSplit);
     leaf = base ? ws.createLeafBySplit(base, "vertical") : ws.getLeaf("tab"); side = leaf;
+    narrowSide(leaf);
   }
   if (leafPath(leaf) !== file.path) {
     // hide the note until its bars and hidden headings are in place (see renderSideBars), so it does not show half dressed first
@@ -64,4 +65,12 @@ export async function expandSide(app: App): Promise<void> {
 export function sideWaitDone(leaf: WorkspaceLeaf | null): void {
   if (!leaf || !waitPath || leafPath(leaf) !== waitPath) return;
   waitPath = ""; leaf.view.containerEl.closest(".workspace-leaf")?.removeClass("samaya-side-wait");
+}
+
+/** A new side pane starts a bit narrower than the page it opened beside (42 : 58 instead of half and half). Obsidian's own, undocumented call; skipped when it is not there or the row has more than two panes. */
+function narrowSide(leaf: WorkspaceLeaf) {
+  type Item = { setDimension?: (pct: number) => void; parent?: { children?: Item[] } };
+  const mine = leaf.parent as unknown as Item; const row = mine.parent?.children;
+  if (!row || row.length !== 2 || !row.every(i => typeof i.setDimension === "function")) return;
+  row.forEach(i => i.setDimension!(i === mine ? 42 : 58));
 }

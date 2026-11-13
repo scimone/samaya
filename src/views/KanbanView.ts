@@ -5,7 +5,8 @@ import { groupTickets } from "../kanban";
 import { DndScope } from "../dnd";
 import { bindZone } from "./common";
 import { patchNote, prefixOf, readTicket, relocateTicket, varsOfTicket } from "../model";
-import { TFile } from "obsidian";
+import { TFile, setIcon } from "obsidian";
+import { renderHeadTitle } from "./plannerHead";
 
 export const KANBAN_VIEW_TYPE = "samaya-kanban";
 
@@ -33,6 +34,13 @@ export class KanbanView extends Panel {
       .filter(t => this.config.get("hideDone") !== true || !/(done|closed|resolved)/i.test(t.state));
     const prev = this.root.querySelector<HTMLElement>(".samaya-kb-scroll"); const keep = prev ? { x: prev.scrollLeft, y: prev.scrollTop } : null;
     this.root.empty(); this.scope.clear();
+    const head0 = this.root.createDiv("samaya-week-head samaya-day-head samaya-kb-head");
+    renderHeadTitle(head0, "Tickets", `${tickets.length} ${tickets.length === 1 ? "ticket" : "tickets"}`);
+    const s = this.plugin.settings;
+    if (s.jiraOn || s.gitlabOn || tickets.length) {
+      const b = head0.createDiv("samaya-planner-right").createEl("button", { cls: "samaya-hd-icon", attr: { "aria-label": "Sync tickets", title: "Sync Jira / GitLab tickets" } });
+      setIcon(b, "refresh-cw"); b.onclick = () => { void this.plugin.syncTickets(); };
+    }
     if (!tickets.length) { this.root.createDiv({ cls: "samaya-empty", text: "No tickets yet. Import them from Jira or GitLab (Sync tickets)." }); return; }
     const { columns, lanes } = groupTickets(tickets);
     const scroll = this.root.createDiv("samaya-kb-scroll");

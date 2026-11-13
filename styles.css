@@ -370,7 +370,8 @@ body {
 /* ---- projects: gantt */
 .samaya-chip-project { background: var(--background-modifier-hover); }
 .samaya-gantt { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.samaya-gantt-head { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--background-modifier-border); }
+.samaya-gantt-head, .samaya-kb-head { flex: none; width: 100%; padding: var(--samaya-sp-1) var(--samaya-sp-4) var(--samaya-sp-2) var(--samaya-sp-6); box-sizing: border-box; }
+.samaya-gantt-head > .samaya-planner-titles, .samaya-kb-head > .samaya-planner-titles { flex: 1; width: auto; }
 .samaya-gantt-scroll { flex: 1; overflow: auto; position: relative; }
 .samaya-gantt-chart { position: relative; min-height: 100%; }
 .samaya-gantt-row { display: flex; height: 34px; border-bottom: 1px solid var(--background-modifier-border); }
@@ -396,8 +397,8 @@ body {
 .samaya-gantt-today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--text-error); opacity: 0.6; pointer-events: none; z-index: 2; }
 
 /* ---- tickets: kanban */
-.samaya-kanban { height: 100%; }
-.samaya-kb-scroll { height: 100%; overflow: auto; padding: 8px 12px; }
+.samaya-kanban { height: 100%; display: flex; flex-direction: column; min-height: 0; }
+.samaya-kb-scroll { flex: 1; min-height: 0; overflow: auto; padding: 8px 12px; }
 .samaya-kb-grid { min-width: calc(var(--cols) * 220px); }
 .samaya-kb-cols, .samaya-kb-row { display: grid; grid-template-columns: repeat(var(--cols), minmax(220px, 1fr)); gap: 8px; }
 .samaya-kb-cols { position: sticky; top: -8px; z-index: 2; background: var(--background-primary); padding: 8px 0 4px; }
@@ -1150,7 +1151,7 @@ input.is-invalid { border-color: var(--text-error); }
 
 /* ---------- meetings base: zen list under the planner's top bar ---------- */
 .samaya-mt { height: 100%; display: flex; flex-direction: column; min-height: 0; }
-.samaya-mt-head { flex: none; width: 100%; border-bottom: 1px solid var(--background-modifier-border); padding-top: var(--samaya-sp-3); padding-bottom: var(--samaya-sp-3); }
+.samaya-mt-head { flex: none; width: 100%; padding: var(--samaya-sp-1) var(--samaya-sp-4) var(--samaya-sp-2) var(--samaya-sp-6); box-sizing: border-box; }
 .samaya-mt-head.is-detail > .samaya-planner-titles { flex: 1; width: auto; }
 .samaya-mt-search { width: 170px; height: 30px; font-size: var(--font-ui-small); }
 .samaya-mt-page { flex: 1; min-height: 0; overflow-y: auto; }
@@ -1312,7 +1313,7 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
 /* ---------- Tasks page: board and backlog, built like the planner and the meetings ---------- */
 .samaya-embed-body:has(> .samaya-tk) { padding: 0; overflow: hidden; }
 .samaya-tk { --checkbox-color: var(--samaya-green); --checkbox-color-hover: color-mix(in srgb, var(--samaya-green) 85%, black); height: 100%; display: flex; flex-direction: column; min-height: 0; }
-.samaya-tk-head { flex: none; width: 100%; flex-wrap: wrap; overflow: visible; row-gap: var(--samaya-sp-2); border-bottom: 1px solid var(--background-modifier-border); padding-top: var(--samaya-sp-3); padding-bottom: var(--samaya-sp-3); }
+.samaya-tk-head { flex: none; width: 100%; flex-wrap: wrap; overflow: visible; row-gap: var(--samaya-sp-2); padding: var(--samaya-sp-1) var(--samaya-sp-4) var(--samaya-sp-2) var(--samaya-sp-6); box-sizing: border-box; }
 .samaya-tk-head > .samaya-planner-titles { flex: 1 1 140px; width: auto; }
 .samaya-tk-head .samaya-planner-right { flex-wrap: wrap; justify-content: flex-end; }
 .samaya-tk-group { display: inline-flex; align-items: center; gap: var(--samaya-sp-2); }
@@ -1373,7 +1374,6 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
 .samaya-tk-lanekey.is-project { display: inline-flex; align-items: center; gap: 6px; }
 .samaya-tk-lanekey .samaya-chip-icon svg { width: 13px; height: 13px; color: var(--text-muted); }
 /* journal dashboard: jump-to cards on top, then the month calendar with the latest entries beside it; it fills the pane instead of scrolling (a narrow pane stacks the parts and scrolls) */
-.samaya-jn .samaya-mt-head { padding: var(--samaya-sp-1) var(--samaya-sp-4) var(--samaya-sp-2) var(--samaya-sp-6); border-bottom: 0; box-sizing: border-box; }
 .samaya-jn .samaya-mt-page { container-type: inline-size; overflow-y: auto; }
 .samaya-jn .samaya-mt-col { display: flex; flex-direction: column; gap: var(--samaya-sp-6); max-width: 1280px; height: 100%; min-height: 460px; margin: 0 auto; padding: var(--samaya-sp-4) var(--samaya-sp-6) var(--samaya-sp-6); }
 .samaya-jn .samaya-mt-section { margin-top: 0; }

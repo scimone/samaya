@@ -5,6 +5,7 @@ import { DragMode, daysBetween, dragSpan, ganttRange, monthMarks } from "../gant
 import { Project, projectStats, readProject, createProject, projectsPrefix } from "../projects";
 import { patchNote, prefixOf } from "../model";
 import { TextPromptModal } from "../modals";
+import { renderHeadTitle } from "./plannerHead";
 import { addDays, parseYmd, today } from "../util";
 
 export const GANTT_VIEW_TYPE = "samaya-gantt";
@@ -33,12 +34,14 @@ export class GanttView extends Panel {
     const keep = prev ? { x: prev.scrollLeft, y: prev.scrollTop } : null;
     this.root.empty();
 
-    const head = this.root.createDiv("samaya-gantt-head");
-    head.createEl("button", { text: "Add project", cls: "mod-cta" }).onclick = () => new TextPromptModal(this.plugin, "New project name", name => {
+    const head = this.root.createDiv("samaya-week-head samaya-day-head samaya-gantt-head");
+    renderHeadTitle(head, "Projects", `${projects.length} ${projects.length === 1 ? "project" : "projects"}`);
+    const right = head.createDiv("samaya-planner-right");
+    const scroll = this.root.createDiv("samaya-gantt-scroll");
+    right.createEl("button", { text: "Today" }).onclick = () => { scroll.scrollLeft = Math.max(0, todayX - scroll.clientWidth / 3); };
+    right.createEl("button", { text: "Add project", cls: "mod-cta" }).onclick = () => new TextPromptModal(this.plugin, "New project name", name => {
       void createProject(this.app, s, name).then(() => this.plugin.bus.emit());
     }).open();
-    const scroll = this.root.createDiv("samaya-gantt-scroll");
-    head.createEl("button", { text: "Today" }).onclick = () => { scroll.scrollLeft = Math.max(0, todayX - scroll.clientWidth / 3); };
 
     const td = today();
     const { from, days } = ganttRange(projects.flatMap(p => (p.span ? [p.span] : [])), td);

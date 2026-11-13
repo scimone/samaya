@@ -3,8 +3,9 @@ import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { openFileSmart } from "../openfile";
-import { Task, Ticket, allTasks, allTickets, assignTicket, dayTask, prefixOf, readTask, restTask, sendPiece, setDone, sortTasks, ticketPathOf } from "../model";
-import { PROJECT_PROP, Project, allProjects, assignProject, projectPathOf } from "../projects";
+import { Task, Ticket, allTasks, allTickets, dayTask, prefixOf, readTask, restTask, sendPiece, setDone, sortTasks, ticketPathOf } from "../model";
+import { assignProjectLinked, assignTicketLinked } from "../links";
+import { PROJECT_PROP, Project, allProjects, projectPathOf } from "../projects";
 import { sessionDays } from "../sessions";
 import { readProp } from "../taskprops";
 import { BACKLOG_COLS, BOARD_COLS, BacklogCol, Col, backlogOf, columnOf, doneThisWeek, lanes } from "../tasksboard";
@@ -195,8 +196,8 @@ export class TasksView extends Panel {
     await hooks.drop(col, path, i);
     if (lane === null) return;
     const t = readTask(this.app, f);
-    if (memory.group === "ticket" && ticketPathOf(this.app, t) !== lane) await assignTicket(this.app, f, tickets.get(lane) ?? null);
-    else if (memory.group === "project" && projectPathOf(this.app, f) !== lane) await assignProject(this.app, f, projects.get(lane) ?? null);
+    if (memory.group === "ticket" && ticketPathOf(this.app, t) !== lane) await assignTicketLinked(this.app, this.plugin.settings, f, tickets.get(lane) ?? null);
+    else if (memory.group === "project" && projectPathOf(this.app, f) !== lane) await assignProjectLinked(this.app, this.plugin.settings, f, projects.get(lane) ?? null);
   }
 
   // ---- heading

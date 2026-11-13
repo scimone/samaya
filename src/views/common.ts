@@ -2,11 +2,12 @@ import { App, Menu, TFile, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { openFileSmart } from "../openfile";
 import { DndScope, DropInfo } from "../dnd";
-import { Source, Task, addSubtask, assignTicket, patchTask, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
+import { Source, Task, addSubtask, patchTask, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
 import { ConfirmDeleteModal, ProjectSuggestModal, TicketSuggestModal } from "../modals";
 import { focusButton, isCurrentTask, trackedBefore, joinParts, splitTitle } from "./place";
 import { PartsModal } from "./partsModal";
-import { assignProject, projectPathOf } from "../projects";
+import { projectPathOf } from "../projects";
+import { assignProjectLinked, assignTicketLinked } from "../links";
 import { HORIZONS, Horizon, bucketOf, fmtDur, fmtHm, minToHm, parseDuration, parseYmd, startOfWeek, today } from "../util";
 
 export interface CardOpts {
@@ -108,7 +109,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   }
   if (plugin.settings.projectsOn) {
     const pp = projectPathOf(app, t.file);
-    if (pp) { const pc = meta.createSpan({ cls: "samaya-chip samaya-chip-project" }); setIcon(pc.createSpan({ cls: "samaya-chip-icon" }), "folder-kanban"); pc.createSpan({ text: pp.split("/").pop()!.replace(/\.md$/, "") }); }
+    if (pp) projectChip(meta, pp.split("/").pop()!.replace(/\.md$/, ""));
   }
   if (t.channel) meta.createSpan({ cls: "samaya-chip samaya-chip-channel", text: t.channel });
   if (t.part) partChip(plugin, meta, t);
@@ -164,19 +165,23 @@ export function renderBacklogBuckets(plugin: SamayaPlugin, host: HTMLElement, ta
   }
 }
 
+/** The outlined project pill of the task cards. */
+export function projectChip(parent: HTMLElement, name: string): HTMLElement {
+  const pc = parent.createSpan({ cls: "samaya-chip samaya-chip-project" }); setIcon(pc.createSpan({ cls: "samaya-chip-icon" }), "folder-kanban"); pc.createSpan({ text: name }); return pc;
+}
 /** Ticket entries of the task menu: assign / change / remove. */
 export function addTicketItems(m: Menu, plugin: SamayaPlugin, t: Task) {
   const app = plugin.app; const tp = ticketPathOf(app, t); const ticketsOn = plugin.settings.jiraOn || plugin.settings.gitlabOn;
-  if (ticketsOn || tp) m.addItem(i => i.setTitle(tp ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void assignTicket(app, t.file, tk); }).open()));
-  if (tp && ticketsOn) m.addItem(i => i.setTitle("Remove ticket").setIcon("unlink").onClick(() => { void assignTicket(app, t.file, null); }));
+  if (ticketsOn || tp) m.addItem(i => i.setTitle(tp ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void assignTicketLinked(app, plugin.settings, t.file, tk); }).open()));
+  if (tp && ticketsOn) m.addItem(i => i.setTitle("Remove ticket").setIcon("unlink").onClick(() => { void assignTicketLinked(app, plugin.settings, t.file, null); }));
 }
 /** Project entries of the task menu: assign / change / remove. */
 export function addProjectItems(m: Menu, plugin: SamayaPlugin, t: Task) {
   const app = plugin.app;
   if (!plugin.settings.projectsOn) return;
   const has = !!projectPathOf(app, t.file);
-  m.addItem(i => i.setTitle(has ? "Change project…" : "Assign project…").setIcon("folder-kanban").onClick(() => new ProjectSuggestModal(plugin, pr => { void assignProject(app, t.file, pr); }).open()));
-  if (has) m.addItem(i => i.setTitle("Remove project").setIcon("unlink").onClick(() => { void assignProject(app, t.file, null); }));
+  m.addItem(i => i.setTitle(has ? "Change project…" : "Assign project…").setIcon("folder-kanban").onClick(() => new ProjectSuggestModal(plugin, pr => { void assignProjectLinked(app, plugin.settings, t.file, pr); }).open()));
+  if (has) m.addItem(i => i.setTitle("Remove project").setIcon("unlink").onClick(() => { void assignProjectLinked(app, plugin.settings, t.file, null); }));
 }
 /** Planning entries of the task menu: split / move, plan for today or this week, back to the timeline's edge, backlog buckets. `seg`: the piece of a split day that was clicked (timeline blocks). */
 export function addPlanItems(m: Menu, plugin: SamayaPlugin, t: Task, seg: number | null = null, canCut = false) {

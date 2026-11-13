@@ -3,8 +3,9 @@ import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { openFileSmart, openFileBeside } from "../openfile";
 import { DragMode, GRANULARITIES, Granularity, daysBetween, dragSpan, ganttRange, granularityDayWidth, monthMarks } from "../gantt";
-import { DEFAULT_PROJECT_DAYS, Project, projectStats, readProject, createProject, projectPathOf, linkTickets, projectsPrefix } from "../projects";
+import { DEFAULT_PROJECT_DAYS, Project, projectStats, readProject, createProject, projectPathOf, projectsPrefix } from "../projects";
 import { Ticket, allTickets, patchNote, prefixOf } from "../model";
+import { linkProject } from "../links";
 import { ConfirmDeleteModal, TextPromptModal, TicketTargetSuggestModal } from "../modals";
 import { renderHeadTitle } from "./plannerHead";
 import { renderResetPill } from "./dateNav";
@@ -110,6 +111,8 @@ export class GanttView extends Panel {
       const name = row.createDiv("samaya-gantt-name");
       const link = name.createSpan({ cls: "samaya-gantt-link", text: p.name }); link.title = p.file.path;
       link.onclick = () => { openFileBeside(this.app, p.file); };
+      const st = stats.get(p.file.path) ?? { tasks: 0, done: 0, tickets: 0 };
+      name.createSpan({ cls: "samaya-gantt-count", text: `${st.done}/${st.tasks}`, attr: { title: `${st.done} of ${st.tasks} tasks done${st.tickets ? `, ${st.tickets} ticket${st.tickets > 1 ? "s" : ""}` : ""}` } });
       const linked = byProject.get(p.file.path) ?? [];
       const tp = String(this.app.metadataCache.getFileCache(p.file)?.frontmatter?.ticket_project ?? "");
       const pill = (text: string, source: string, title: string) => name.createSpan({ cls: `samaya-chip samaya-chip-ticket samaya-gantt-pill-ticket is-${source}`, text, attr: { "aria-label": title } });
@@ -119,12 +122,10 @@ export class GanttView extends Panel {
         el.onclick = e => { e.stopPropagation(); if (mine.length === 1) { openFileSmart(this.app, mine[0].file); return; } const m = new Menu(); for (const t of mine) m.addItem(i => i.setTitle(`${t.key} • ${t.summary}`).onClick(() => openFileSmart(this.app, t.file))); m.showAtMouseEvent(e); };
       }
       for (const t of linked) if (!tp || t.project !== tp) pill(t.key, t.source, t.summary || t.key).onclick = e => { e.stopPropagation(); openFileSmart(this.app, t.file); };
-      const st = stats.get(p.file.path);
-      if (st) name.createSpan({ cls: "samaya-gantt-count", text: `${st.done}/${st.tasks}`, attr: { title: `${st.done} of ${st.tasks} tasks done${st.tickets ? `, ${st.tickets} ticket${st.tickets > 1 ? "s" : ""}` : ""}` } });
       if (s.jiraOn || s.gitlabOn || byProject.size || allTk) {
         const lk = name.createSpan({ cls: "samaya-gantt-del samaya-gantt-linkbtn", attr: { "aria-label": "Link to a ticket or ticket project" } }); setIcon(lk, "ticket");
         lk.onclick = e => { e.stopPropagation(); new TicketTargetSuggestModal(this.plugin, p.file.path, t => {
-          void (t.kind === "ticket" ? linkTickets(this.app, p.file, [t.ticket.file]) : linkTickets(this.app, p.file, t.tickets.map(x => x.file), t.name)).then(() => this.plugin.bus.emit());
+          void (t.kind === "ticket" ? linkProject(this.app, s, p.file, [t.ticket]) : linkProject(this.app, s, p.file, t.tickets, t.name)).then(() => this.plugin.bus.emit());
         }).open(); };
       }
       const del = name.createSpan({ cls: "samaya-gantt-del", attr: { "aria-label": "Delete project" } }); setIcon(del, "trash-2");

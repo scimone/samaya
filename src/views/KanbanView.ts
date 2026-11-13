@@ -4,10 +4,12 @@ import { openFileSmart } from "../openfile";
 import { NO_PROJECT, groupTickets } from "../kanban";
 import { DndScope } from "../dnd";
 import { bindZone } from "./common";
-import { patchNote, prefixOf, readTicket, relocateTicket, varsOfTicket } from "../model";
+import { Ticket, patchNote, prefixOf, readTicket, relocateTicket, varsOfTicket } from "../model";
 import { TFile, setIcon } from "obsidian";
 import { TextPromptModal } from "../modals";
-import { createProjectFor, projectPathOf } from "../projects";
+import { createProject, projectPathOf } from "../projects";
+import { linkProject } from "../links";
+import { projectChip } from "./common";
 import { renderHeadTitle } from "./plannerHead";
 import { NoteText, matches, renderSearch } from "./search";
 
@@ -32,8 +34,8 @@ export class KanbanView extends Panel {
     if (this.plugin.settings.ticketsPath.includes("TICKET_STATUS")) await relocateTicket(this.app, this.plugin.settings, t, { ...varsOfTicket(t), status });
   }
   /** Ask for a name (pre-filled), create a project and link the given tickets to it. */
-  private newProject(initial: string, tickets: TFile[], ticketProject?: string) {
-    new TextPromptModal(this.plugin, "New project name", n => { void createProjectFor(this.app, this.plugin.settings, n, tickets, ticketProject).then(() => this.plugin.bus.emit()); }, initial).open();
+  private newProject(initial: string, tickets: Ticket[], ticketProject?: string) {
+    new TextPromptModal(this.plugin, "New project name", n => { void createProject(this.app, this.plugin.settings, n).then(f => linkProject(this.app, this.plugin.settings, f, tickets, ticketProject)).then(() => this.plugin.bus.emit()); }, initial).open();
   }
   onDataUpdated(): void {
     if (this.scope.active) { this.pending = true; return; }
@@ -57,6 +59,7 @@ export class KanbanView extends Panel {
       setIcon(b, "refresh-cw"); b.onclick = () => { void this.plugin.syncTickets(); };
     }
     if (!all.length) { this.root.createDiv({ cls: "samaya-empty", text: "No tickets yet. Import them from Jira or GitLab (Sync tickets)." }); return; }
+    const projectOf0 = (t: Ticket): TFile | null => { const f = this.app.vault.getAbstractFileByPath(projectPathOf(this.app, t.file)); return f instanceof TFile ? f : null; };
     const linked = (t: { file: TFile }) => !!projectPathOf(this.app, t.file);
     const { columns } = groupTickets(all); const { lanes } = groupTickets(tickets); // the columns stay whatever the search finds
     if (!tickets.length) this.root.createDiv({ cls: "samaya-empty", text: "No tickets match." });
@@ -68,10 +71,18 @@ export class KanbanView extends Panel {
       const box = grid.createDiv("samaya-kb-lane");
       const title = box.createDiv({ cls: "samaya-kb-lanehead" + (this.collapsed.has(lane.project) ? " is-collapsed" : "") });
       title.createSpan({ cls: "samaya-kb-chevron", text: "▾" }); title.createSpan({ text: lane.project }); title.createSpan({ cls: "samaya-kb-count", text: String(lane.count) });
+      const projectOf = (t: Ticket) => projectPathOf(this.app, t.file);
+      const laneProjects = new Set(all.filter(t => t.project === lane.project).map(projectOf).filter(Boolean));
+      for (const pp of laneProjects) { // projects created from this Jira / GitLab project
+        const pf = this.app.vault.getAbstractFileByPath(pp); if (!(pf instanceof TFile)) continue;
+        if (String(this.app.metadataCache.getFileCache(pf)?.frontmatter?.ticket_project ?? "") !== lane.project) continue;
+        const chip = projectChip(title.createSpan("samaya-card-meta samaya-kb-projectchip"), pf.basename); chip.addClass("is-link");
+        chip.onclick = e => { e.stopPropagation(); openFileSmart(this.app, pf); };
+      }
       const open = all.filter(t => t.project === lane.project && !linked(t));
       if (s.projectsOn && lane.project !== NO_PROJECT && open.length) {
         const add = title.createSpan({ cls: "samaya-kb-addproject", attr: { "aria-label": `Create a project from ${lane.project}` } }); setIcon(add, "folder-plus");
-        add.onclick = e => { e.stopPropagation(); this.newProject(lane.project, open.map(t => t.file), lane.project); };
+        add.onclick = e => { e.stopPropagation(); this.newProject(lane.project, open, lane.project); };
       }
       title.onclick = () => { if (!this.collapsed.delete(lane.project)) this.collapsed.add(lane.project); this.render(); };
       if (this.collapsed.has(lane.project)) continue;
@@ -83,11 +94,13 @@ export class KanbanView extends Panel {
           const card = cell.createDiv("samaya-kb-card");
           card.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${t.source}`, text: t.key });
           card.createDiv({ cls: "samaya-kb-title", text: t.summary || t.file.basename });
+          const pp = s.projectsOn ? projectOf0(t) : null;
+          if (pp) { const chip = projectChip(card.createDiv("samaya-card-meta samaya-kb-projectchip"), pp.basename); chip.addClass("is-link"); chip.onclick = e => { e.stopPropagation(); openFileSmart(this.app, pp); }; }
           const meta = [t.issueType, t.assignee].filter(Boolean).join(" · "); if (meta) card.createDiv({ cls: "samaya-kb-meta", text: meta });
           this.scope.draggable(card, t.file.path);
           if (s.projectsOn && !linked(t)) {
             const add = card.createSpan({ cls: "samaya-kb-cardproject", attr: { "aria-label": "Create a project from this ticket" } }); setIcon(add, "folder-plus");
-            add.onclick = e => { e.stopPropagation(); this.newProject(t.summary || t.key, [t.file]); };
+            add.onclick = e => { e.stopPropagation(); this.newProject(t.summary || t.key, [t]); };
           }
           card.onclick = e => { void openFileSmart(this.app, t.file, e.ctrlKey || e.metaKey ? "tab" : false); };
         }

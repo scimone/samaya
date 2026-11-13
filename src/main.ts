@@ -5,7 +5,8 @@ import { reviewSummary } from "./dayreview";
 import { Editor, MarkdownView, Notice, Plugin, TFile, addIcon, normalizePath, setIcon } from "obsidian";
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FocusManager, FocusState } from "./focus";
-import { allTickets, assignTicket, createTask, momentFmt } from "./model";
+import { assignTicketLinked, assignProjectLinked } from "./links";
+import { allTickets, createTask, momentFmt } from "./model";
 import { PLANNER_VIEW_TYPE, PlannerView, SAMAYA_ICON, SAMAYA_ICON_SVG } from "./views/PlannerView";
 import { syncTickets } from "./sync";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
@@ -14,7 +15,7 @@ import type { Period } from "./journal";
 import { renderJournalBar } from "./views/journalBar";
 import { PERIODIC_KINDS, PERIOD_UI, identifyNote, findLatestPeriodNote, listPeriodNotes, neighbours, journalLocation, openPeriodNote, periodNotePath } from "./journal";
 import { affectsTaskLists, syncTaskLists } from "./tasklinks";
-import { assignProject, createProject } from "./projects";
+import { createProject } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { promoteParked, allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask, isOverdue, onDay } from "./model";
 import { ConfirmOverwriteModal } from "./modals";
@@ -124,7 +125,7 @@ export default class SamayaPlugin extends Plugin {
     gated("sync-gitlab", "Sync GitLab issues", () => this.settings.gitlabOn, "gitlab");
     this.addCommand({ id: "assign-ticket", name: "Assign current task note to a ticket", checkCallback: c => {
       const f = this.app.workspace.getActiveFile(); const ok2 = (this.settings.jiraOn || this.settings.gitlabOn) && !!f && f.path.startsWith(prefixOf(this.settings.tasksPath));
-      if (ok2 && !c && f) new TicketSuggestModal(this, t => { void assignTicket(this.app, f, t); }).open(); return ok2;
+      if (ok2 && !c && f) new TicketSuggestModal(this, t => { void assignTicketLinked(this.app, this.settings, f, t); }).open(); return ok2;
     } });
     // project commands only show while the module is switched on
     this.addCommand({ id: "new-project", name: "New project", checkCallback: c => {
@@ -142,7 +143,7 @@ export default class SamayaPlugin extends Plugin {
     this.addCommand({ id: "assign-project", name: "Assign current task or ticket note to a project", checkCallback: c => {
       const f = this.app.workspace.getActiveFile();
       const ok2 = this.settings.projectsOn && !!f && (f.path.startsWith(prefixOf(this.settings.tasksPath)) || f.path.startsWith(prefixOf(this.settings.ticketsPath)));
-      if (ok2 && !c && f) new ProjectSuggestModal(this, p => { void assignProject(this.app, f, p); }).open(); return ok2;
+      if (ok2 && !c && f) new ProjectSuggestModal(this, p => { void assignProjectLinked(this.app, this.settings, f, p); }).open(); return ok2;
     } });
     this.addCommand({ id: "scaffold", name: "Create Samaya files", callback: () => this.scaffold(true) });
 

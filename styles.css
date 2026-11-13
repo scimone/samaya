@@ -381,7 +381,7 @@ body {
 .samaya-gantt-hrow .samaya-gantt-name { z-index: 5; }
 .samaya-gantt-link { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .samaya-gantt-link:hover { color: var(--text-accent); }
-.samaya-gantt-count { margin-left: auto; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.samaya-gantt-count { flex: 0 0 auto; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .samaya-gantt-track { position: relative; flex: none; background-image: var(--weekend, none); background-size: var(--grid, calc(var(--day) * 7)) 100%; }
 .samaya-gantt-hrow .samaya-gantt-track { background-image: none; }
 .samaya-gantt-month, .samaya-gantt-week { position: absolute; font-size: var(--font-ui-smaller); color: var(--text-muted); white-space: nowrap; overflow: hidden; padding-left: 4px; }
@@ -1618,4 +1618,7 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 .samaya-gantt-del:hover { color: var(--text-normal); }
 .samaya-gantt-del:not(.samaya-gantt-linkbtn):hover { color: var(--text-error); }
 .samaya-gantt-del ~ .samaya-gantt-del { margin-left: 0; }
-.samaya-gantt-row:hover .samaya-gantt-count { margin-left: 0; }
+
+.samaya-kb-card .samaya-card-meta, .samaya-kb-lanehead .samaya-card-meta { padding-left: 0; margin-top: 4px; display: inline-flex; }
+.samaya-kb-lanehead .samaya-card-meta { margin-top: 0; font-weight: normal; }
+.samaya-kb-projectchip .samaya-chip.is-link { cursor: pointer; }

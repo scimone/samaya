@@ -1600,7 +1600,11 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 .samaya-side-bar .samaya-tc-clock { align-items: flex-end; }
 .samaya-focus-bar[data-variant="elsewhere"] { cursor: pointer; }
 
-.samaya-kb-addproject { margin-left: auto; display: inline-flex; opacity: 0; color: var(--text-muted); cursor: pointer; }
+.samaya-kb-addproject { display: inline-flex; margin-left: 4px; color: var(--text-muted); cursor: pointer; }
 .samaya-kb-addproject svg { width: 14px; height: 14px; }
-.samaya-kb-lanehead:hover .samaya-kb-addproject { opacity: 1; }
 .samaya-kb-addproject:hover { color: var(--text-normal); }
+.samaya-kb-card { position: relative; }
+.samaya-kb-cardproject { position: absolute; top: 4px; right: 4px; display: none; padding: 2px; border-radius: var(--radius-s); background: var(--background-primary); color: var(--text-muted); cursor: pointer; }
+.samaya-kb-cardproject svg { width: 14px; height: 14px; }
+.samaya-kb-card:hover .samaya-kb-cardproject { display: inline-flex; }
+.samaya-kb-cardproject:hover { color: var(--text-normal); }

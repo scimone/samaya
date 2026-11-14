@@ -2,7 +2,7 @@ import { TFile, normalizePath } from "obsidian";
 import { Panel } from "./panel";
 import { openFileSmart } from "../openfile";
 import type SamayaPlugin from "../main";
-import { Instance, MeetingNote, Series, buildSeries, hueOf, nextWorkday, parseNote, seriesKey } from "../meetingseries";
+import { Instance, MeetingNote, Series, buildSeries, nextWorkday, parseNote } from "../meetingseries";
 import { addDays, parseYmd, startOfWeek, today as todayYmd } from "../util";
 import { weekValue, weekValueDate } from "../journaldigest";
 import { renderDateNav, renderResetPill } from "./dateNav";
@@ -16,7 +16,6 @@ const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${Stri
 const time = (i: Pick<Instance, "start" | "end">) => i.start == null ? "" : hm(i.start);
 const span = (i: Pick<Instance, "start" | "end">) => i.start == null ? "" : `${hm(i.start)}${i.end != null ? "–" + hm(i.end) : ""}`;
 const short = (d: string) => parseYmd(d).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
-const hue = (i: { title: string }) => hueOf(seriesKey(i.title));
 const byTime = (a: Instance, b: Instance) => a.date.localeCompare(b.date) || (a.start ?? 0) - (b.start ?? 0);
 
 /** What the view was showing, kept for the session: opening a meeting note replaces the view, and going back must land on the same tab, week and series. */
@@ -34,11 +33,13 @@ export class MeetingsView extends Panel {
   private cache = new Map<string, { mtime: number; body: string }>();
 
   private tick = 0;
+  private recurring = new Set<string>(); // paths of the meetings that belong to a recurring series
+  private fitting?: ResizeObserver;
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
     super(plugin, () => normalizePath(plugin.settings.eventNotesFolder.trim() || "Meetings") + "/"); this.root = parentEl.createDiv("samaya-mt samaya-md");
     this.tick = window.setInterval(() => { if (this.root.isShown() && !this.root.querySelector("input:focus")) this.rerender(); }, 60000); // a meeting that ends moves from next to recent
   }
-  onunload() { window.clearTimeout(this.timer); window.clearInterval(this.tick); }
+  onunload() { this.fitting?.disconnect(); window.clearTimeout(this.timer); window.clearInterval(this.tick); }
   protected visibleEl(): HTMLElement { return this.root; }
   onDataUpdated(): void { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { this.render(); }, 30); }
 
@@ -74,7 +75,8 @@ export class MeetingsView extends Panel {
     const td = todayYmd(); const now = new Date();
     const { series, oneOffs } = buildSeries(notes, td, now.getHours() * 60 + now.getMinutes());
     const keep = Array.from(this.root.querySelectorAll<HTMLElement>("[data-keep]")).map(el => [el.dataset.keep!, el.scrollTop, el.scrollLeft] as const); // every scroller keeps its place across a redraw
-    this.root.empty();
+    this.fitting?.disconnect(); this.root.empty();
+    this.recurring = new Set(series.flatMap(s => s.instances.map(i => i.path)));
     const sel = memory.selected ? series.find(s => s.key === memory.selected) : undefined;
     if (memory.selected && !sel) memory.selected = null;
     this.head(td, sel);
@@ -116,10 +118,11 @@ export class MeetingsView extends Panel {
 
   // ---- shared pieces
   /** A section: the quiet small-caps heading (with an optional count and action on its right) over a box that scrolls on its own. */
-  private section(parent: HTMLElement, title: string, key: string, count?: number | string): { sec: HTMLElement; body: HTMLElement; head: HTMLElement } {
+  private section(parent: HTMLElement, title: string, key: string, count?: number | string, cols?: [string, string]): { sec: HTMLElement; body: HTMLElement; head: HTMLElement } {
     const sec = parent.createDiv("samaya-md-sec"); const head = sec.createDiv("samaya-md-sec-head");
     head.createDiv({ cls: "samaya-mt-h", text: title });
     if (count != null && count !== "") head.createSpan({ cls: "samaya-md-sec-count", text: String(count) });
+    if (cols) { const c = sec.createDiv("samaya-md-colhead"); c.createSpan({ text: cols[0] }); c.createSpan({ text: cols[1] }); }
     return { sec, head, body: this.scroller(sec, key, "samaya-md-scroll") };
   }
   private none(parent: HTMLElement, text: string) { parent.createDiv({ cls: "samaya-md-none", text }); }
@@ -136,7 +139,8 @@ export class MeetingsView extends Panel {
     return i.start <= m && m < (i.end ?? i.start + 60);
   }
   private rowEl(parent: HTMLElement, i: { title: string }) {
-    const r = parent.createDiv("samaya-md-row"); r.style.setProperty("--h", String(hue(i))); r.createSpan("samaya-md-dot");
+    const r = parent.createDiv("samaya-md-row"); r.createSpan("samaya-md-dot");
+    if (!("path" in i) || this.recurring.has((i as Instance).path)) r.addClass("is-recurring"); // one colour for every recurring meeting, none for one-offs
     if ("date" in i && this.isLive(i as Instance)) r.addClass("is-live");
     return r;
   }
@@ -176,16 +180,17 @@ export class MeetingsView extends Panel {
       for (const i of items) this.meetingRow(g, i);
     }
 
-    const recent = all.filter(i => i.when === "past").sort((x, y) => byTime(y, x)).slice(0, 12);
+    const recent = all.filter(i => i.when === "past").sort((x, y) => byTime(y, x)).slice(0, 40);
     const rec = this.section(left, "Recent", "recent");
     if (!recent.length) this.none(rec.body, "No past meetings yet.");
     for (const i of recent) this.meetingRow(rec.body, i, true);
+    this.fit(left, [next.sec, rec.sec]);
 
     const list = series.filter(s => this.matches(s)).sort((a, b) => (a.next ? a.next.date + hm(a.next.start ?? 0) : "9999").localeCompare(b.next ? b.next.date + hm(b.next.start ?? 0) : "9999") || a.title.localeCompare(b.title));
-    const rc = this.section(right, "Recurring", "recurring", list.length || "");
+    const rc = this.section(right, "Recurring", "recurring", list.length || "", ["Meeting", "Next"]);
     if (!list.length) this.none(rc.body, "No recurring meetings match.");
     for (const s of list) {
-      const r = this.rowEl(rc.body, s); r.style.setProperty("--h", String(s.hue));
+      const r = this.rowEl(rc.body, s);
       const text = r.createDiv("samaya-md-stack");
       text.createSpan({ cls: "samaya-md-name", text: s.title });
       text.createSpan({ cls: "samaya-md-sub", text: [s.cadence, s.days].filter(Boolean).join(" · ") });
@@ -218,7 +223,7 @@ export class MeetingsView extends Panel {
 
   // ---- one series
   private detail(page: HTMLElement, s: Series, td: string) {
-    page.style.setProperty("--h", String(s.hue)); page.addClass("is-detail");
+    page.addClass("is-detail");
     const row = page.createDiv("samaya-md-cards");
     const card = (kicker: string, value: string, sub: string, tone: "" | "meet" | "warn" = "") => {
       const c = row.createDiv("samaya-md-card" + (tone ? " is-" + tone : "")); c.createDiv({ cls: "samaya-md-card-kicker", text: kicker }); c.createDiv({ cls: "samaya-md-card-value", text: value }); c.createDiv({ cls: "samaya-md-card-sub", text: sub || " " });
@@ -261,29 +266,33 @@ export class MeetingsView extends Panel {
     }
   }
 
-  // ---- agenda: one week, a column per day (like the board of the tasks page); each column scrolls on its own
+  /** Share the height of a column between its sections by what each needs: one that fits is shown whole, the other gets the rest (both only scroll when neither fits half). */
+  private fit(col: HTMLElement, secs: HTMLElement[]) {
+    const run = () => {
+      if (!col.isConnected || !col.clientHeight) return;
+      const need = secs.map(sec => { const b = sec.querySelector<HTMLElement>(".samaya-md-scroll")!; return sec.offsetHeight - b.offsetHeight + b.scrollHeight; });
+      const gap = parseFloat(getComputedStyle(col).rowGap) || 0; const room = col.clientHeight - gap * (secs.length - 1); const half = room / secs.length;
+      const fixed = (n: number) => `0 0 ${Math.ceil(n)}px`; const rest = "1 1 0px";
+      if (need.reduce((a, b) => a + b, 0) <= room) { secs.forEach((sec, i) => { sec.style.flex = fixed(need[i]); }); return; }
+      secs.forEach((sec, i) => { sec.style.flex = need[i] <= half ? fixed(need[i]) : rest; });
+    };
+    this.fitting = new ResizeObserver(run); this.fitting.observe(col); window.requestAnimationFrame(run);
+  }
+
+  // ---- agenda: one week at a time, a soft panel per day
   private agenda(page: HTMLElement, all: Instance[], td: string) {
-    const w = addDays(startOfWeek(td), memory.week * 7);
-    const items = all.filter(i => i.date >= w && i.date <= addDays(w, 6)).sort(byTime);
-    const days = [0, 1, 2, 3, 4, 5, 6].map(n => addDays(w, n)).filter((d, n) => n < 5 || items.some(i => i.date === d)); // the weekend only when something is planned
-    const scroll = this.scroller(page, "agenda", "samaya-md-week-scroll");
-    const grid = scroll.createDiv("samaya-md-week"); grid.style.setProperty("--cols", String(days.length));
-    for (const d of days) {
-      const day = items.filter(i => i.date === d);
-      const col = grid.createDiv("samaya-md-day" + (d === td ? " is-today" : ""));
-      const head = col.createDiv("samaya-md-day-head");
-      head.createSpan({ cls: "samaya-md-day-label", text: parseYmd(d).toLocaleDateString(undefined, { weekday: "short" }) });
-      head.createSpan({ cls: "samaya-md-day-num", text: String(parseYmd(d).getDate()) });
-      if (day.length) head.createSpan({ cls: "samaya-md-sec-count", text: String(day.length) });
-      const cell = this.scroller(col, "day-" + d, "samaya-md-cell");
-      if (!day.length) cell.createDiv({ cls: "samaya-md-empty", text: "Free" });
-      for (const i of day) {
-        const c = cell.createDiv("samaya-md-tile is-" + i.when); c.style.setProperty("--h", String(hue(i)));
-        if (this.isLive(i)) c.addClass("is-live");
-        const top = c.createDiv("samaya-md-tile-top"); top.createSpan({ cls: "samaya-md-when", text: span(i) }); this.mark(top, i);
-        c.createDiv({ cls: "samaya-md-tile-title", text: i.title.trim() });
-        c.onclick = e => this.open(i.path, e);
-      }
+    const w = addDays(startOfWeek(td), memory.week * 7); const end = addDays(w, 6);
+    const items = all.filter(i => i.date >= w && i.date <= end).sort(byTime);
+    const { body } = this.section(page.createDiv("samaya-md-col is-results"), "This week", "agenda", items.length || "");
+    if (!items.length) { this.none(body, "No meetings this week."); return; }
+    for (let n = 0; n < 7; n++) {
+      const d = addDays(w, n); const day = items.filter(i => i.date === d); if (!day.length) continue;
+      const g = body.createDiv("samaya-md-day" + (d === td ? " is-today" : ""));
+      const head = g.createDiv("samaya-md-day-head");
+      head.createSpan({ cls: "samaya-md-day-label", text: d === td ? "Today" : d === addDays(td, 1) ? "Tomorrow" : parseYmd(d).toLocaleDateString(undefined, { weekday: "long" }) });
+      head.createSpan({ cls: "samaya-md-day-num", text: parseYmd(d).toLocaleDateString(undefined, { day: "numeric", month: "short" }) });
+      head.createSpan({ cls: "samaya-md-sec-count", text: String(day.length) });
+      for (const i of day) this.meetingRow(g, i);
     }
   }
 }

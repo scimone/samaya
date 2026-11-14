@@ -1,4 +1,4 @@
-import { hooks, openNote, sideLeaf } from "./openfile";
+import { hooks, openNote, sideLeaf, setupSideCleanup } from "./openfile";
 import { renderSideBars } from "./views/sideBar";
 import { reviewItems } from "./views/dayReview";
 import { reviewSummary } from "./dayreview";
@@ -165,6 +165,7 @@ export default class SamayaPlugin extends Plugin {
     this.register(() => document.body.removeClass("samaya-left-collapsed"));
     for (const ev of ["layout-change", "resize", "active-leaf-change"] as const) this.registerEvent(this.app.workspace.on(ev as "resize", leftState));
     this.nav.init();
+    setupSideCleanup(this.app, fn => this.register(fn));
     this.app.workspace.onLayoutReady(async () => {
       leftState();
       void this.nav.apply();

@@ -26,7 +26,7 @@ export async function openNote(app: App, file: TFile): Promise<void> {
   if (!leaf) {
     const active = ws.getActiveViewOfType(ItemView)?.leaf; const base = active && active.getRoot() === ws.rootSplit ? active : ws.getMostRecentLeaf(ws.rootSplit);
     leaf = base ? ws.createLeafBySplit(base, "vertical") : ws.getLeaf("tab"); side = leaf;
-    narrowSide(leaf);
+    narrowSide(leaf); rememberSide(app, leaf);
   }
   if (leafPath(leaf) !== file.path) {
     // hide the note until its bars and hidden headings are in place (see renderSideBars), so it does not show half dressed first
@@ -45,7 +45,21 @@ export function sideLeaf(app: App): WorkspaceLeaf | null {
   return found;
 }
 /** Close the side pane. */
-export function closeSide(app: App): void { const l = sideLeaf(app); side = null; l?.detach(); }
+export function closeSide(app: App): void { const l = sideLeaf(app); side = null; l?.detach(); app.saveLocalStorage(SIDE_KEY, null); }
+
+const SIDE_KEY = "samaya-side-leaf";
+/** Leaf ids are saved in the workspace layout, so a side pane left open when Obsidian quit can be recognised on the next start. */
+function rememberSide(app: App, leaf: WorkspaceLeaf): void { const id = (leaf as unknown as { id?: string }).id; if (id) app.saveLocalStorage(SIDE_KEY, id); }
+/** Close Samaya's side pane when Obsidian quits, so it does not reopen next time; and sweep one that survived a crash. Other panes are left alone. */
+export function setupSideCleanup(app: App, register: (fn: () => void) => void): void {
+  const onQuit = () => closeSide(app);
+  window.addEventListener("beforeunload", onQuit); register(() => window.removeEventListener("beforeunload", onQuit));
+  app.workspace.onLayoutReady(() => {
+    const id = app.loadLocalStorage(SIDE_KEY) as string | null; if (!id) return;
+    app.workspace.iterateRootLeaves(l => { if ((l as unknown as { id?: string }).id === id && !l.view.getViewType().startsWith("samaya-")) l.detach(); });
+    app.saveLocalStorage(SIDE_KEY, null);
+  });
+}
 /** Show a note in a full page: the tab that already shows it, else a new tab. A side pane that shows the same note closes. */
 export async function openFull(app: App, file: TFile): Promise<void> {
   const l = sideLeaf(app); if (l && leafPath(l) === file.path) closeSide(app);

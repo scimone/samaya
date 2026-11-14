@@ -1458,16 +1458,16 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
   .samaya-jn-body { grid-template-columns: minmax(0, 1fr); }
   .samaya-jn-main > .samaya-mt-section { min-height: 420px; }
 }
-.samaya-jn .samaya-jn-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(136px, 1fr)); gap: var(--samaya-sp-4); }
-.samaya-jn .samaya-jn-card { --tone: var(--text-muted); position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 3px; width: 100%; height: auto; padding: var(--samaya-sp-4) var(--samaya-sp-5) calc(var(--samaya-sp-4) + 6px); text-align: left; border: 1px solid transparent; border-radius: var(--samaya-r-l); background: var(--background-secondary); color: var(--text-normal); cursor: pointer; overflow: hidden; transition: background .25s ease, border-color .25s ease; }
+.samaya-jn .samaya-jn-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--samaya-sp-4); flex: none; }
+.samaya-jn .samaya-jn-card { --tone: var(--text-muted); position: relative; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 2px; width: 100%; height: auto; min-width: 0; padding: var(--samaya-sp-4) var(--samaya-sp-5) calc(var(--samaya-sp-4) + 6px); text-align: left; border: 1px solid transparent; border-radius: var(--samaya-r-l); background: var(--background-secondary); color: var(--text-normal); cursor: pointer; overflow: hidden; transition: background .25s ease, border-color .25s ease; }
 .samaya-jn .samaya-jn-card:hover { background: var(--background-modifier-hover); }
 /* not written yet: an outline, no fill */
 .samaya-jn .samaya-jn-card.is-missing { background: transparent; border-style: dashed; border-color: var(--background-modifier-border); }
 .samaya-jn .samaya-jn-card.is-missing:hover { background: transparent; border-color: var(--text-faint); }
 .samaya-jn .samaya-jn-card:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
 .samaya-jn .samaya-jn-card-kicker { font-size: var(--samaya-fs-label); letter-spacing: .14em; text-transform: uppercase; color: var(--text-faint); }
-.samaya-jn .samaya-jn-card-title { margin-top: var(--samaya-sp-1); font-size: var(--font-ui-large); font-weight: 500; letter-spacing: -.01em; line-height: 1.25; }
-.samaya-jn .samaya-jn-card-sub { font-size: var(--font-ui-smaller); color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.samaya-jn .samaya-jn-card-title { margin-top: var(--samaya-sp-1); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 26px; line-height: 1.15; font-weight: 500; letter-spacing: -.015em; }
+.samaya-jn .samaya-jn-card-sub { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-ui-smaller); color: var(--text-faint); font-variant-numeric: tabular-nums; }
 .samaya-jn .samaya-jn-card-foot { position: absolute; top: var(--samaya-sp-4); right: var(--samaya-sp-4); }
 .samaya-jn .samaya-jn-card.is-loading .samaya-jn-card-act { visibility: hidden; }
 .samaya-jn .samaya-jn-card-act { display: inline-flex; align-items: center; gap: 4px; font-size: var(--font-ui-smaller); color: var(--text-muted); opacity: 0; transition: opacity .25s; } /* "Open" appears on hover; "Create" is always shown */

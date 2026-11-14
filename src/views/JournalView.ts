@@ -122,8 +122,7 @@ export class JournalView extends Panel {
 
   // ---- jump to: one card per kind of note, for the current day / week / month / quarter / year
   private jump(page: HTMLElement) {
-    const sec = page.createDiv("samaya-mt-section"); sec.createDiv({ cls: "samaya-mt-h", text: "Jump to" });
-    const row = sec.createDiv("samaya-jn-cards"); const td = todayYmd();
+    const row = page.createDiv("samaya-jn-cards"); const td = todayYmd(); // no heading: the cards sit exactly where the meetings figures do const td = todayYmd();
     for (const p of this.on) {
       const ex = this.exists(p, td); const l = rowLabel(p, spanStart(p, td), w => isoWeek(parseYmd(w)), weekRangeLabel); const d = parseYmd(td);
       const title = p === "daily" ? d.toLocaleDateString(undefined, { weekday: "long" }) : l.main;
@@ -132,7 +131,7 @@ export class JournalView extends Panel {
       card.onclick = () => { void this.go(p, td); };
       card.createDiv({ cls: "samaya-jn-card-kicker", text: PERIOD_UI[p].now });
       card.createDiv({ cls: "samaya-jn-card-title", text: title });
-      if (sub) card.createDiv({ cls: "samaya-jn-card-sub", text: sub });
+      card.createDiv({ cls: "samaya-jn-card-sub", text: sub || " " }); // always present: every card is as tall as the meetings cards
       const foot = card.createDiv("samaya-jn-card-foot");
       const act = foot.createSpan("samaya-jn-card-act"); setIcon(act.createSpan(), ex ? "arrow-up-right" : "plus"); act.createSpan({ text: ex ? "Open" : "Create" });
       const bar = card.createDiv("samaya-jn-card-bar"); bar.createDiv("samaya-jn-card-fill").style.width = `${Math.round(this.elapsed(p, td) * 100)}%`;
@@ -189,12 +188,11 @@ export class JournalView extends Panel {
     legend.createSpan({ cls: "samaya-jn-key", text: "Written" }); legend.createSpan({ cls: "samaya-jn-key is-empty", text: "Not yet · click to create" });
   }
 
-  // ---- the latest entries, newest first: just where they are, no previews
+  // ---- the latest entries (added or edited most recently) first: just where they are, no previews
   private recent(page: HTMLElement) {
     const all = this.on.flatMap(p => (this.lists.get(p) ?? []).map(n => ({ p, n, key: anchor(p, n.date) })));
     if (!all.length) return;
-    const td = todayYmd();
-    const items = all.filter(i => i.key <= td).sort((a, b) => b.key.localeCompare(a.key) || this.on.indexOf(b.p) - this.on.indexOf(a.p)).slice(0, RECENT);
+    const items = all.sort((a, b) => Math.max(b.n.file.stat.mtime, b.n.file.stat.ctime) - Math.max(a.n.file.stat.mtime, a.n.file.stat.ctime) || b.key.localeCompare(a.key)).slice(0, RECENT); // added or modified last
     if (!items.length) return;
     const sec = page.createDiv("samaya-mt-section"); sec.createDiv({ cls: "samaya-mt-h", text: "Recent entries" });
     const list = sec.createDiv("samaya-jn-recent");

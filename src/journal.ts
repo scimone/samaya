@@ -89,7 +89,7 @@ export interface JournalLoc { folder: string; format: string; pattern?: boolean;
 export const PERIODIC_KINDS = ["weekly", "monthly", "quarterly", "yearly"] as const;
 export type PeriodicKind = typeof PERIODIC_KINDS[number];
 export type Period = "daily" | PeriodicKind;
-export const PERIOD_DEFAULT_FORMAT: Record<Period, string> = { daily: "YYYY-MM-DD", weekly: "YYYY-[W]ww", monthly: "YYYY-MM", quarterly: "[Q]Q", yearly: "YYYY" };
+export const PERIOD_DEFAULT_FORMAT: Record<Period, string> = { daily: "YYYY-MM-DD", weekly: "gggg-[W]ww", monthly: "YYYY-MM", quarterly: "[Q]Q", yearly: "YYYY" };
 const DEFAULT_FORMAT = PERIOD_DEFAULT_FORMAT.daily;
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const readJson = async (app: App, path: string): Promise<any> => {

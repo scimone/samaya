@@ -1625,3 +1625,9 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 .samaya-kb-projectchip .samaya-chip > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .samaya-kb-lanehead .samaya-card-meta { margin-top: 0; font-weight: normal; }
 .samaya-kb-projectchip .samaya-chip.is-link { cursor: pointer; }
+
+/* Plan my day: the timeline runs to the right edge of the window (no gutter, no inner padding on that side) */
+.samaya-daily.is-review { scrollbar-gutter: auto; }
+.samaya-daily.is-review .samaya-tlpane { padding-right: 0; }
+.samaya-daily.is-review .samaya-tlpane .samaya-scroll { margin-right: 0; }
+.samaya-daily.is-review .samaya-tlpane .samaya-grid { margin-right: 0; }

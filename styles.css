@@ -1146,7 +1146,8 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-rv-cap-seg.is-meet { background: var(--rv-meet); }
 .samaya-rv-cap-seg.is-task { background: var(--rv-focus); } .samaya-rv-cap-seg.is-task.is-tight { background: var(--rv-over); } .samaya-rv-cap-seg.is-task.is-over { background: var(--rv-miss); }
 .samaya-rv-cap-seg.is-other { background: var(--rv-other); }
-.samaya-rv-cap-buffer { position: absolute; top: 0; bottom: 0; z-index: 2; border-left: 2px solid var(--text-muted); background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--text-normal) 55%, transparent) 0 2px, transparent 2px 6px); }
+.samaya-rv-cap-buffer { position: absolute; top: 0; bottom: 0; z-index: 2; width: 8px; margin-left: -4px; } /* the notch where the buffer starts, like .samaya-col-bar-mark; 8px wide so the tooltip is easy to hit */
+.samaya-rv-cap-buffer::before { content: ""; position: absolute; top: 0; bottom: 0; left: 3px; width: 2px; background: var(--background-primary); opacity: 0.9; }
 .samaya-rv-tl-body { position: relative; flex: 1 1 0; }
 .samaya-rv-axis { position: relative; }
 .samaya-rv-hour { position: absolute; left: 0; transform: translateY(-50%); font-size: var(--samaya-fs-label); color: var(--text-faint); font-variant-numeric: tabular-nums; }

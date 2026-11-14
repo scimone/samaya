@@ -174,10 +174,10 @@ function drawTimeline(host: HTMLElement, t: TimelineIn) {
 
 interface CapSeg { cls: string; m: number; tip: string; }
 interface CapIn { scale: number; buffer: [number, number] | null; bufferTip: string; plan: CapSeg[]; act: CapSeg[]; }
-/** A day's capacity as one bar: meetings, then tasks, then other work, on `scale` minutes. The hatched stretch is the buffer, the end of the plannable time kept free for what nobody can foresee. The details are in tooltips. */
+/** A day's capacity as one bar: meetings, then tasks, then other work, on `scale` minutes. The notch is where the buffer starts (like the notch in the capacity bars elsewhere): the end of the plannable time is kept free for what nobody can foresee. The details are in tooltips. */
 function drawCap(host: HTMLElement, segs: CapSeg[], c: CapIn) {
   const bar = host.createDiv("samaya-rv-cap"); const fills: Array<[HTMLElement, number]> = [];
-  if (c.buffer) { const b = bar.createDiv("samaya-rv-cap-buffer"); b.style.left = `${(c.buffer[0] / c.scale) * 100}%`; b.style.width = `${((c.buffer[1] - c.buffer[0]) / c.scale) * 100}%`; b.setAttr("aria-label", c.bufferTip); }
+  if (c.buffer) { const b = bar.createDiv("samaya-rv-cap-buffer"); b.style.left = `${(c.buffer[0] / c.scale) * 100}%`; b.setAttr("aria-label", c.bufferTip); }
   const row = bar.createDiv("samaya-rv-cap-segs");
   for (const g of segs) if (g.m > 0) { const e = row.createDiv(`samaya-rv-cap-seg ${g.cls}`); e.style.width = "0%"; e.setAttr("aria-label", g.tip); fills.push([e, (g.m / c.scale) * 100]); }
   settle(() => fills.forEach(([e, w]) => { e.style.width = `${w}%`; }));

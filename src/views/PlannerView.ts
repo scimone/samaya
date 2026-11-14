@@ -40,6 +40,9 @@ export class PlannerView extends ItemView {
   private shown: Mode = "day";
   private shownLayout: Layout = "split";
   private seenH = 0;
+  /** A redraw was skipped because the planner tab is in the background: it catches up when the tab is shown again. */
+  private stale = false;
+  private tabHidden(): boolean { const h = !this.rootEl.isShown(); if (h) this.stale = true; return h; }
   private embedEl!: HTMLElement; // a base (tasks, journal, ...) shown inside the planner, chosen on the side rail
   private railEl!: HTMLElement;
   private embedC: Panel | null = null;
@@ -66,17 +69,17 @@ export class PlannerView extends ItemView {
     this.wtPane = root.createDiv("samaya-planner-pane samaya-wt-pane is-hidden");
     this.wt = new DashboardPanel(plugin, this.wtPane.createDiv(), () => plugin.hideWorkTime());
     const sync = (w: string) => { this.tl.showWeekOf(w); this.week.showWeekOf(w); this.renderHead(); };
-    this.day = new DailyPlannerView(this.dayPane, plugin, { hidden: () => this.mode() !== "day" });
+    this.day = new DailyPlannerView(this.dayPane, plugin, { hidden: () => this.tabHidden() || this.mode() !== "day" });
     this.week = new WeeklyBoardView(this.weekPane, plugin, {
-      hidden: () => this.mode() === "day" || this.mode() === "worktime", openDay: d => { this.day.goTo(d); plugin.collapseTimeline(); }, back: () => plugin.collapseTimeline(), weekChanged: sync,
+      hidden: () => this.tabHidden() || this.mode() === "day" || this.mode() === "worktime", openDay: d => { this.day.goTo(d); plugin.collapseTimeline(); }, back: () => plugin.collapseTimeline(), weekChanged: sync,
       aligned: () => this.mode() === "expanded",
     });
     this.tl = new WeeklyTimelineView(this.tlPane, plugin, {
-      hidden: () => this.mode() !== "expanded", layout: () => this.plugin.weekLayout, flow: () => this.mode() === "expanded", viewH: () => this.rootEl.clientHeight - this.headEl.offsetHeight, barH: () => this.bar.offsetHeight,
+      hidden: () => this.tabHidden() || this.mode() !== "expanded", layout: () => this.plugin.weekLayout, flow: () => this.mode() === "expanded", viewH: () => this.rootEl.clientHeight - this.headEl.offsetHeight, barH: () => this.bar.offsetHeight,
       back: () => plugin.collapseTimeline(), weekChanged: sync, openDay: d => { this.day.goTo(d); plugin.collapseTimeline(); },
     });
     for (const c of [this.day, this.week, this.tl]) this.addChild(c);
-    const ro = new ResizeObserver(() => { if (this.shown === "expanded" && this.rootEl.clientHeight !== this.seenH) { this.seenH = this.rootEl.clientHeight; this.tl.refresh(); } }); // the hours follow the window
+    const ro = new ResizeObserver(() => { if (this.stale && this.rootEl.isShown()) { this.stale = false; this.onDataUpdated(); } if (this.shown === "expanded" && this.rootEl.clientHeight !== this.seenH) { this.seenH = this.rootEl.clientHeight; this.tl.refresh(); } }); // the hours follow the window
     ro.observe(this.rootEl); this.register(() => ro.disconnect());
     const hro = new ResizeObserver(() => { this.rootEl.style.setProperty("--wk-head", `${this.headEl.getBoundingClientRect().height}px`); }); // the arrow bar sticks exactly under the heading, whenever the heading fills in or resizes
     hro.observe(this.headEl); this.register(() => hro.disconnect());

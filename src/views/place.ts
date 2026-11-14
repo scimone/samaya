@@ -136,7 +136,7 @@ export async function dropOnTimeline(plugin: SamayaPlugin, file: TFile, date: st
   if (seg !== null && from === date && there.length > 1) { // one piece of a split day moves inside its day
     const segs = there.map((g): Seg => ({ s: g.s!, dur: g.dur })); const moved = segs[seg]; moved.s = startMin; segs.sort((a, b) => a.s - b.s);
     const offer = mergeOffer(segs, segs.indexOf(moved), busy, limit);
-    if (offer) { const total = segsTotal(segs); new MergeSegmentsModal(plugin, total, merge => { void (merge ? write(pieces(t.sessions, [{ s: offer.at, dur: total }]), t.rest, [{ s: offer.at, dur: total }]) : write(pieces(t.sessions, segs), t.rest, segs)); }).open(); return; }
+    if (offer) { const total = segsTotal(segs); new MergeSegmentsModal(plugin, total, merge => { const cur = readTask(app, file); /* the task may have changed while the modal was open */ void (merge ? write(pieces(cur.sessions, [{ s: offer.at, dur: total }]), cur.rest, [{ s: offer.at, dur: total }]) : write(pieces(cur.sessions, segs), cur.rest, segs)); }).open(); return; }
     await write(pieces(t.sessions, segs), t.rest, segs); return;
   }
 

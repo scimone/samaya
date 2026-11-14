@@ -65,7 +65,7 @@ export class WeeklyBoardView extends PlannerPane {
     if (this.scope.active) { this.pending = true; return; }
     const wg = this.host && this.plugin.guide?.kind === "week" ? this.plugin.guide : null; // the guide runs in the Planner; the standalone board stays a board
     if (wg?.fresh) { wg.fresh = false; this.weekStart = wg.week ?? this.weekStart; }
-    if (wg) { await this.renderGuided(wg.step, from); return; }
+    if (wg) { this.renderGuided(wg.step, events); return; }
     this.root.removeClass("is-guided");
     const all = allTasks(this.app, this.plugin.settings);
     const scrollX = this.root.scrollLeft; const scrollY = this.root.scrollTop;
@@ -124,12 +124,10 @@ export class WeeklyBoardView extends PlannerPane {
   // ---------------------------------------------------------------- Plan my week
 
   /** The guided layout: the guide on the left, the step's columns next to it. Reads the vault directly, so new tasks show up at once. */
-  private async renderGuided(step: number, from: Date) {
+  private renderGuided(step: number, events: CalendarEvent[]) {
     const s = this.plugin.settings; const wk = this.weekStart; const td = today();
     const weekends = this.config.get("showWeekends") === true;
     const days = Array.from({ length: weekends ? 7 : 5 }, (_, i) => addDays(wk, i));
-    const events = calendarEnabled(s) ? await calendarEvents(this.plugin, from, parseYmd(addDays(wk, 7))).catch(() => [] as CalendarEvent[]) : [];
-    if (this.scope.active) { this.pending = true; return; }
     const g = this.plugin.guide; if (g && g.days !== days.length) { g.days = days.length; window.setTimeout(() => this.plugin.bus.emit(), 0); } // the sidebar needs to know how many days count
     const keep = new Map<string, number>(); this.root.querySelectorAll<HTMLElement>("[data-scroll]").forEach(e => { keep.set(e.dataset.scroll!, e.scrollTop); if (e.dataset.scroll === "kb") this.kbX = e.scrollLeft; });
     this.root.empty(); this.scope.clear(); this.root.removeClass("is-aligned"); this.root.addClass("is-guided"); // (a leftover is-aligned from the expanded week would squeeze the day columns)

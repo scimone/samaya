@@ -2,7 +2,7 @@ import { TFile, normalizePath, setIcon } from "obsidian";
 import { Panel } from "./panel";
 import { openFileSmart } from "../openfile";
 import type SamayaPlugin from "../main";
-import { Instance, MeetingNote, Series, buildSeries, nextWorkday, parseNote } from "../meetingseries";
+import { Instance, MeetingNote, Series, analyse, buildSeries, nextWorkday, parseNote, stripFrontmatter } from "../meetingseries";
 import { addDays, fmtDur, parseYmd, startOfWeek, today as todayYmd } from "../util";
 import { weekValue, weekValueDate } from "../journaldigest";
 import { renderDateNav, renderResetPill } from "./dateNav";
@@ -33,7 +33,7 @@ export class MeetingsView extends Panel {
   private timer = 0;
   private loading = false; // note bodies still being read: counts and excerpts would be wrong, so they stay hidden
   private inflight = new Set<string>();
-  private cache = new Map<string, { mtime: number; body: string }>();
+  private cache = new Map<string, { mtime: number; body: string; a: ReturnType<typeof analyse> }>(); // body without front matter, analysed once per change of the file
 
   private tick = 0;
   private recurring = new Set<string>(); // paths of the meetings that belong to a recurring series
@@ -54,18 +54,27 @@ export class MeetingsView extends Panel {
       const f = e.file; if (f.extension !== "md") continue;
       const c = this.cache.get(f.path);
       if (!c || c.mtime !== f.stat.mtime) missing.push(f);
-      const n = parseNote(f.path, this.app.metadataCache.getFileCache(f)?.frontmatter, f.basename, c?.body ?? ""); if (n) notes.push(n);
+      const n = parseNote(f.path, this.app.metadataCache.getFileCache(f)?.frontmatter, f.basename, ""); if (!n) continue;
+      if (c) { n.body = c.body; n.analysis = c.a; } notes.push(n);
     }
     return { notes, missing };
   }
-  /** Read bodies in the background, then draw once more with the notes' text. */
+  /** Read bodies in the background, a few at a time so the rest of Obsidian stays responsive, then draw once more with the notes' text. */
   private fill(files: TFile[]) {
     const todo = files.filter(f => !this.inflight.has(f.path)); if (!todo.length) return;
     for (const f of todo) this.inflight.add(f.path);
-    void Promise.all(todo.map(async f => {
-      try { this.cache.set(f.path, { mtime: f.stat.mtime, body: await this.app.vault.cachedRead(f) }); } catch { this.cache.set(f.path, { mtime: f.stat.mtime, body: "" }); }
-      this.inflight.delete(f.path);
-    })).then(() => { if (this.root.isConnected) this.render(); });
+    void (async () => {
+      for (let n = 0; n < todo.length; n += 25) {
+        if (!this.root.isConnected) { for (const f of todo.slice(n)) this.inflight.delete(f.path); return; } // the view was closed: stop reading
+        await Promise.all(todo.slice(n, n + 25).map(async f => {
+          const mtime = f.stat.mtime; let body = "";
+          try { body = stripFrontmatter(await this.app.vault.cachedRead(f)); } catch { /* unreadable: counts as empty */ }
+          this.cache.set(f.path, { mtime, body, a: analyse(body) }); this.inflight.delete(f.path);
+        }));
+        await new Promise<void>(r => window.setTimeout(r, 0)); // let the UI breathe between batches
+      }
+      if (this.root.isConnected) this.render();
+    })();
   }
   private open(path: string, e: MouseEvent) {
     const f = this.app.vault.getAbstractFileByPath(path);
@@ -74,6 +83,7 @@ export class MeetingsView extends Panel {
   private rerender() { this.render(); }
 
   private render() {
+    if (!this.root.isShown()) { this.stale = true; return; } // another tab or section: nothing is read or drawn until it is shown again
     const { notes, missing } = this.collect();
     this.loading = missing.length > 0;
     const td = todayYmd(); const now = new Date();

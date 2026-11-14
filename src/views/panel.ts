@@ -13,7 +13,7 @@ export abstract class Panel extends Component {
   }
   /** The element the panel draws into: while it is not on screen (another tab, another section) changes only mark the panel stale and it redraws when shown again. */
   protected visibleEl(): HTMLElement | null { return null; }
-  private stale = false;
+  protected stale = false;
   onload() {
     const el = this.visibleEl();
     if (el) {

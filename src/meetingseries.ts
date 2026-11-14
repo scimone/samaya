@@ -2,7 +2,7 @@
 import { addDays, parseYmd } from "./util";
 import { parseClock } from "./eventnotes";
 
-export interface MeetingNote { path: string; title: string; date: string; start: number | null; end: number | null; /** the `is_recurring` property; undefined when the note has none */ recurring?: boolean; /** note text without frontmatter */ body: string; }
+export interface MeetingNote { path: string; title: string; date: string; start: number | null; end: number | null; /** the `is_recurring` property; undefined when the note has none */ recurring?: boolean; /** note text without frontmatter */ body: string; /** what `analyse` found in the body, when already known (saves doing it again on every redraw) */ analysis?: { excerpt: string[]; open: number; done: number }; }
 export type When = "past" | "today" | "upcoming";
 export interface Instance extends MeetingNote { when: When; /** the first lines worth showing, without headings and empty bullets */ excerpt: string[]; hasNotes: boolean; open: number; done: number; }
 export interface Series {
@@ -73,7 +73,7 @@ export function whenOf(n: Pick<MeetingNote, "date" | "start" | "end">, today: st
 }
 
 export function toInstance(n: MeetingNote, today: string, nowMin = -1): Instance {
-  const a = analyse(n.body);
+  const a = n.analysis ?? analyse(n.body);
   return { ...n, when: whenOf(n, today, nowMin), excerpt: a.excerpt, hasNotes: a.excerpt.length > 0, open: a.open, done: a.done };
 }
 

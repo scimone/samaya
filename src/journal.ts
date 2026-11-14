@@ -92,8 +92,15 @@ export type Period = "daily" | PeriodicKind;
 export const PERIOD_DEFAULT_FORMAT: Record<Period, string> = { daily: "YYYY-MM-DD", weekly: "gggg-[W]ww", monthly: "YYYY-MM", quarterly: "[Q]Q", yearly: "YYYY" };
 const DEFAULT_FORMAT = PERIOD_DEFAULT_FORMAT.daily;
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const readJson = async (app: App, path: string): Promise<any> => {
-  try { return JSON.parse(await app.vault.adapter.read(normalizePath(path))); } catch { return null; }
+/** Obsidian / Periodic Notes config files, read from disk. The location of the journal is asked for on nearly every redraw, so reads are shared for a few seconds. */
+const jsonCache = new Map<string, { at: number; value: Promise<any> }>();
+const JSON_TTL = 5000;
+const readJson = (app: App, path: string): Promise<any> => {
+  const key = normalizePath(path); const hit = jsonCache.get(key);
+  if (hit && Date.now() - hit.at < JSON_TTL) return hit.value;
+  const value = app.vault.adapter.read(key).then(t => JSON.parse(t) as any).catch(() => null);
+  jsonCache.set(key, { at: Date.now(), value });
+  return value;
 };
 const cfg = (app: App, rel: string) => `${app.vault.configDir}/${rel}`;
 

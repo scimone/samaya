@@ -40,10 +40,10 @@ export function addTaskInput(plugin: SamayaPlugin, host: HTMLElement, placeholde
   const add = host.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder } });
   add.addEventListener("keydown", e => {
     if (e.key !== "Enter" || e.isComposing || !add.value.trim()) return;
-    const p = parseTitleEstimate(add.value); add.value = "";
+    const typed = add.value; const p = parseTitleEstimate(typed); add.value = "";
     createTask(plugin.app, s, p.title, { ...props(), estimate: p.estimate ?? s.defaultEstimate })
       .then(() => { window.setTimeout(done, 250); })
-      .catch((err: unknown) => { new Notice(`Samaya: could not create the task (${err instanceof Error ? err.message : String(err)})`); });
+      .catch((err: unknown) => { if (!add.value) add.value = typed; /* keep what was typed */ new Notice(`Samaya: could not create the task (${err instanceof Error ? err.message : String(err)})`); });
   });
   return add;
 }

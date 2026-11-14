@@ -28,7 +28,6 @@ const LENGTHS: Array<[string, (s: string) => string]> = [
  * (this week ... next year), lengths counted from the start (1 week ... 1 year) and a calendar with month and year steps. Nothing is saved until "Apply".
  */
 export function openRangePicker(o: { x: number; y: number; start?: string; end?: string }, run: (start: string, end: string) => void, clear?: () => void): void {
-  document.querySelector(".samaya-dp")?.remove();
   let start = o.start ?? "", end = o.end ?? ""; let active: "start" | "end" = start && !end ? "end" : "start";
   const base = parseYmd(start || today()); const view = { year: base.getFullYear(), month: base.getMonth() };
   const box = document.body.createDiv({ cls: "samaya-pp samaya-dp samaya-rp", attr: { role: "dialog" } }); srName(box, "Plan project");

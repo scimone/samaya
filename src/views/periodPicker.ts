@@ -1,4 +1,5 @@
 import { setIcon } from "obsidian";
+import { dismissable } from "./dayPicker";
 import { srName } from "./srname";
 import type { Period } from "../journal";
 import { parseYmd, today } from "../util";
@@ -8,12 +9,9 @@ type Coarse = Extract<Period, "monthly" | "quarterly" | "yearly">;
 
 /** A small popover for the picker of coarse notes, in place of a day calendar: the months of a year, the quarters of a year, or a page of years. Picking a cell calls `run` with the first day of that period. */
 export function openPeriodPicker(anchor: HTMLElement, p: Coarse, value: string, run: (date: string) => void): void {
-  document.querySelector(".samaya-pp")?.remove();
   const sel = parseYmd(value).getFullYear(); let year = sel;
   const box = document.body.createDiv({ cls: "samaya-pp", attr: { role: "dialog" } }); srName(box, p === "monthly" ? "Pick a month" : p === "quarterly" ? "Pick a quarter" : "Pick a year");
-  const close = () => { box.remove(); document.removeEventListener("mousedown", away, true); document.removeEventListener("keydown", key, true); window.removeEventListener("resize", close); };
-  const away = (e: MouseEvent) => { if (!box.contains(e.target as Node) && !anchor.contains(e.target as Node)) close(); };
-  const key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
+  const close = dismissable(box, anchor);
   const draw = () => {
     box.empty();
     const head = box.createDiv("samaya-pp-head"); const span = p === "yearly" ? 12 : 1; const start = year - 5;
@@ -35,6 +33,5 @@ export function openPeriodPicker(anchor: HTMLElement, p: Coarse, value: string, 
   draw();
   const r = anchor.getBoundingClientRect(); const w = box.offsetWidth;
   box.style.top = `${r.bottom + 6}px`; box.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, r.right - w))}px`;
-  document.addEventListener("mousedown", away, true); document.addEventListener("keydown", key, true); window.addEventListener("resize", close);
   box.querySelector<HTMLElement>(".is-selected, .is-now, .samaya-pp-cell")?.focus();
 }

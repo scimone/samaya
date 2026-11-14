@@ -9,11 +9,17 @@ export function placeAt(box: HTMLElement, x: number, y: number) {
   box.style.left = `${Math.max(8, Math.min(window.innerWidth - w - 8, x))}px`; box.style.top = `${Math.max(8, Math.min(window.innerHeight - h - 8, y))}px`;
 }
 /** Closes `box` on Escape or a click outside; returns the close function. */
-export function dismissable(box: HTMLElement): () => void {
-  const close = () => { box.remove(); document.removeEventListener("mousedown", away, true); document.removeEventListener("keydown", key, true); window.removeEventListener("resize", close); };
-  const away = (e: MouseEvent) => { if (!box.contains(e.target as Node)) close(); };
+let closeOpen: (() => void) | null = null;
+/** Close the popover that is open, with its listeners (only one at a time). */
+export function closePopover(): void { closeOpen?.(); }
+/** `except`: an element (the button that opened it) whose clicks do not count as outside. */
+export function dismissable(box: HTMLElement, except?: HTMLElement): () => void {
+  closePopover();
+  const close = () => { if (closeOpen === close) closeOpen = null; box.remove(); document.removeEventListener("mousedown", away, true); document.removeEventListener("keydown", key, true); window.removeEventListener("resize", close); };
+  const away = (e: MouseEvent) => { if (!box.contains(e.target as Node) && !except?.contains(e.target as Node)) close(); };
   const key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
   document.addEventListener("mousedown", away, true); document.addEventListener("keydown", key, true); window.addEventListener("resize", close);
+  closeOpen = close;
   return close;
 }
 
@@ -36,7 +42,6 @@ export function drawMonth(box: HTMLElement, view: { year: number; month: number 
 
 /** A small month calendar popover at a screen position; picking a day calls `run(day)` and closes it. */
 export function openDayPicker(o: { x: number; y: number; value?: string }, run: (day: string) => void): void {
-  document.querySelector(".samaya-dp")?.remove();
   const base = parseYmd(o.value || today()); const view = { year: base.getFullYear(), month: base.getMonth() };
   const box = document.body.createDiv({ cls: "samaya-pp samaya-dp", attr: { role: "dialog" } }); srName(box, "Pick a day");
   const close = dismissable(box);

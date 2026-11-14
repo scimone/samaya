@@ -25,7 +25,7 @@ import { renderTaskCard } from "./views/taskCard";
 import { DayPlan, LEGACY_WEEK_HEADINGS, readSection, WEEK_MEETINGS, WEEK_ORDER, WEEK_OVERVIEW, WEEK_TASKS, removeSection, upsertSection, weekMeetings, weekOverview, bulletLines, journalPath, journalWants, meetingLines, readJournalSection, sortByStart, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
 import { ensureMeetingNote } from "./meetings";
 import { MeetingBanner } from "./meetingbanner";
-import { calendarEnabled, calendarEvents } from "./calendar";
+import { calendarEnabled, calendarEvents, inEventFolder, invalidateCalendar } from "./calendar";
 import { dayPieces } from "./sessions";
 import { Emitter, addDays, hmToMin, minToHm, parseTitleEstimate as parseTitleEstimateSafe, parseYmd, today } from "./util";
 import { WorkdayManager, nowMin } from "./workday";
@@ -156,6 +156,10 @@ export default class SamayaPlugin extends Plugin {
     this.register(this.bus.on(marks));
     this.registerEvent(this.app.metadataCache.on("changed", f => { if (f.path.startsWith(prefixOf(this.settings.tasksPath)) || (sideLeaf(this.app)?.view as { file?: TFile } | undefined)?.file === f) marks(); })); // the side pane's note changed (e.g. a meeting's title): redraw its bar
     this.registerEvent(this.app.vault.on("rename", () => marks()));
+    const calChanged = (f: { path: string }) => { if (inEventFolder(this.settings, f.path)) invalidateCalendar(); };
+    this.registerEvent(this.app.metadataCache.on("changed", calChanged));
+    this.registerEvent(this.app.vault.on("create", calChanged)); this.registerEvent(this.app.vault.on("delete", calChanged));
+    this.registerEvent(this.app.vault.on("rename", (f, old) => { calChanged(f); calChanged({ path: old }); }));
     this.registerEvent(this.app.metadataCache.on("changed", f => { if (this.indexLunch(f)) this.bus.emit(); void this.fileByPlanned(f); }));
     // Tasks sections of project / ticket notes follow task assignments (and their dates)
     const tl = (f: { path: string }) => { if (affectsTaskLists(this.settings, f.path)) this.scheduleTaskLists(); };

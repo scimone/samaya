@@ -28,6 +28,7 @@ export async function openNote(app: App, file: TFile): Promise<void> {
     leaf = base ? ws.createLeafBySplit(base, "vertical") : ws.getLeaf("tab"); side = leaf;
     narrowSide(leaf); rememberSide(app, leaf);
   }
+  expected = file.path;
   if (leafPath(leaf) !== file.path) {
     // hide the note until its bars and hidden headings are in place (see renderSideBars), so it does not show half dressed first
     const pane = leaf.view.containerEl.closest<HTMLElement>(".workspace-leaf"); pane?.addClass("samaya-side-wait"); waitPath = file.path;
@@ -69,6 +70,8 @@ export async function openFull(app: App, file: TFile): Promise<void> {
   void app.workspace.revealLeaf(leaf); app.workspace.setActiveLeaf(leaf, { focus: true });
 }
 let internal = 0;
+/** The note Samaya last put in the side pane. */
+let expected = "";
 /**
  * A note opened from outside Samaya (quick switcher, link, file explorer, another tab) while Samaya's side pane is open: the side pane closes and the note
  * shows in a full tab (an existing tab of it, else a new one). If the note took over one of Samaya's own pages, that page is put back.
@@ -81,6 +84,11 @@ export function setupSideAutoClose(app: App, reg: (ev: ReturnType<typeof app.wor
   reg(ws.on("layout-change", track));
   reg(ws.on("file-open", async file => {
     if (busy || internal > 0 || !file || !sideLeaf(app)) return;
+    if (sideLeaf(app) === ws.getMostRecentLeaf(ws.rootSplit) || ws.getActiveViewOfType(ItemView)?.leaf === side) {
+      // the click landed in the side pane (it was the active tab): a note Samaya did not put there is not for it
+      if (file.path !== expected) { busy = true; try { closeSide(app); await openFull(app, file); } finally { busy = false; } }
+      return;
+    }
     const l = ws.getMostRecentLeaf(ws.rootSplit); if (!l || l === side || l.getRoot() !== ws.rootSplit || isOurs(l)) return;
     busy = true;
     try {

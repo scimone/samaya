@@ -2,7 +2,7 @@ import { addDays, parseYmd, startOfWeek, today, ymd } from "../util";
 import { dismissable, drawMonth, placeAt } from "./dayPicker";
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
-const monthsFrom = (d: string, n: number): string => { const x = parseYmd(d); return ymd(new Date(x.getFullYear(), x.getMonth() + n, x.getDate())); };
+const monthsFrom = (d: string, n: number): string => { const x = parseYmd(d); const last = new Date(x.getFullYear(), x.getMonth() + n + 1, 0).getDate(); return ymd(new Date(x.getFullYear(), x.getMonth() + n, Math.min(x.getDate(), last))); }; // Jan 31 + 1 month = Feb 28, not Mar 3
 
 /** Time frames that need no clicking through months: relative to today. */
 function presets(): Array<[string, string, string]> {

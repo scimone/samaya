@@ -87,11 +87,11 @@ export class PartsModal extends Modal {
 
     const nav = this.contentEl.createDiv("samaya-ritual-nav");
     nav.createEl("button", { text: "Cancel" }).onclick = () => this.close();
-    const ok = () => { void this.run(day, k); };
+    const ok = () => { this.run(day, k).catch(e => { console.warn("Samaya: split/move failed", e); new Notice(`Could not ${this.mode === "split" ? "split" : "move"} the task: ${e instanceof Error ? e.message : e}`); }); };
     nav.createEl("button", { text: split ? "Split" : "Move", cls: "mod-cta" }).onclick = ok;
     pick(firstChoice ?? { key: "week", label: "", split: { kind: "week", week: wk0 }, dest: { week: wk0 }, said: "this week's list" });
     paint();
-    this.scope.register([], "Enter", () => { ok(); return false; });
+    this.scope.register([], "Enter", evt => { if ((evt.target as HTMLElement | null)?.closest("button")) return true; ok(); return false; }); // Enter on Cancel / a chip keeps its own meaning
   }
 
   private async run(day: string, k: number | null) {

@@ -242,7 +242,7 @@ export async function renderSubtasks(plugin: SamayaPlugin, host: HTMLElement, fi
     const add = addHost.createEl("input", { type: "text", cls: "samaya-sub-add", attr: { placeholder: "+ Add subtask" } });
     addHost.prepend(add);
     add.addEventListener("keydown", e => {
-      if (e.key !== "Enter" || !add.value.trim()) return;
+      if (e.key !== "Enter" || e.isComposing || !add.value.trim()) return;
       const v = add.value.trim(); add.value = ""; void addSubtask(app, file, v);
     });
   }

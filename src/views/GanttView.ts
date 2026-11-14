@@ -233,7 +233,7 @@ export class GanttView extends Panel {
       const an = addRow.createDiv("samaya-gantt-name");
       const add = an.createEl("input", { type: "text", cls: "samaya-sub-add samaya-gantt-add", attr: { placeholder: "+ New project" } });
       add.addEventListener("keydown", e => {
-        if (e.key !== "Enter" || !add.value.trim()) return;
+        if (e.key !== "Enter" || e.isComposing || !add.value.trim()) return;
         const v = add.value.trim(); add.value = ""; void createProject(this.app, s, v).then(() => this.plugin.bus.emit());
       });
       addRow.createDiv("samaya-gantt-track").style.width = `${width}px`;

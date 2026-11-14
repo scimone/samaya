@@ -102,7 +102,7 @@ export class WeeklyBoardView extends PlannerPane {
     renderAgenda(top, events, key); // the day's meetings above the add field (only shown in the board-only layout, see CSS)
     const add = top.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task" } });
     add.addEventListener("keydown", e => {
-      if (e.key !== "Enter" || !add.value.trim()) return;
+      if (e.key !== "Enter" || e.isComposing || !add.value.trim()) return;
       const p = parseTitleEstimate(add.value); add.value = "";
       void createTask(this.app, this.plugin.settings, p.title, { planned: key, estimate: p.estimate ?? this.plugin.settings.defaultEstimate, order: tasks.length });
     });

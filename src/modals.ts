@@ -10,7 +10,7 @@ export class TextPromptModal extends Modal {
     this.contentEl.createEl("p", { text: this.label });
     const inp = this.contentEl.createEl("input", { type: "text" }); inp.style.width = "100%"; inp.value = this.initial; inp.focus();
     const go = () => { const v = inp.value.trim(); this.close(); if (v) this.onSubmit(v); };
-    inp.addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+    inp.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) go(); });
     this.contentEl.createDiv({ cls: "samaya-ritual-nav" }).createEl("button", { text: "OK", cls: "mod-cta" }).onclick = go;
   }
 }

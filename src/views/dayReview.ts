@@ -1,4 +1,5 @@
-import { TFile, setIcon } from "obsidian";
+import { App, TFile, setIcon } from "obsidian";
+import { openFileSmart } from "../openfile";
 import { meetingLinks } from "../links";
 import { srName } from "./srname";
 import type SamayaPlugin from "../main";
@@ -52,11 +53,18 @@ export function reviewItems(plugin: SamayaPlugin, all: Task[], date: string): { 
 let lastShown = 0; let anim = true;
 const settle = (fn: () => void) => { if (anim) requestAnimationFrame(() => requestAnimationFrame(fn)); else fn(); };
 
+/** Clicking a task, meeting, ticket or project of the review opens its note in the side pane. */
+let appRef: App | null = null;
+function setOpener(plugin: SamayaPlugin) { appRef = plugin.app; }
+function clickable(el: Element, path: string) {
+  el.classList.add("is-clickable");
+  el.addEventListener("click", e => { e.stopPropagation(); const f = appRef?.vault.getAbstractFileByPath(path); if (appRef && f instanceof TFile) openFileSmart(appRef, f); });
+}
 const ICON_OK = "check", ICON_UP = "trending-up", ICON_DOWN = "trending-down";
 
 /** Second step of "End my day": the planned day set against the day as it really went - a timeline of both, what changed task by task, and what was achieved per ticket / project. */
 export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { date: string; all: Task[]; meetings: number; events: ReviewEvent[] }) {
-  anim = Date.now() - lastShown > 4000; lastShown = Date.now();
+  anim = Date.now() - lastShown > 4000; lastShown = Date.now(); setOpener(plugin);
   const grid = host.createDiv("samaya-rv"); const info = grid.createDiv("samaya-rv-col is-info"); const tl = grid.createDiv("samaya-rv-col is-tl"); const { items, hasPlan } = reviewItems(plugin, o.all, o.date); ringLinks = new Map(items.map(i => [i.key, { ticket: i.ticket, project: i.project }]));
   const now = nowMin(); const log = plugin.workday.log; const [winFrom, winTo] = plugin.workWindowFor(o.date); const lunch = plugin.lunchFor(o.date);
   const worked = workedOn(log, now, plugin.dayRules); const breaks = log ? breakMinutes(log) + (log.open ? Math.max(0, now - hmToMin(log.open.start)) : 0) : 0;
@@ -119,13 +127,13 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
 
 /** Time per ticket and per project, one ring under the other (drawn in the guide column, under the End my day button). Nothing is drawn when neither is in use. */
 export function renderReviewRings(plugin: SamayaPlugin, host: HTMLElement, o: { date: string; all: Task[]; events: ReviewEvent[] }) {
-  const { items } = reviewItems(plugin, o.all, o.date); const log = plugin.workday.log;
+  setOpener(plugin); const { items } = reviewItems(plugin, o.all, o.date); const log = plugin.workday.log;
   drawRings(host, items, meetingLinksOf(plugin, o.events), workedOn(log, nowMin(), plugin.dayRules));
 }
 
 /** One task of the comparison table: its planned and actual start and length, what differs as chips, the gap in tracked time. */
 function drawRow(table: HTMLElement, r: Row, root: HTMLElement) {
-  const row = table.createDiv("samaya-rv-r"); row.dataset.k = r.key; linkHover(row, root, r.key);
+  const row = table.createDiv("samaya-rv-r"); row.dataset.k = r.key; linkHover(row, root, r.key); clickable(row, r.key);
   const ic = row.createSpan("samaya-rv-row-ic" + (r.done ? " is-done" : "")); if (r.done) { setIcon(ic, ICON_OK); ic.setAttr("aria-label", "Done"); }
   const name = row.createDiv("samaya-rv-r-name"); name.createDiv({ cls: "samaya-rv-r-title", text: r.label }); // the name wraps instead of being cut off
   if (!r.unplanned) name.createDiv({ cls: "samaya-rv-r-plan", text: `planned ${when(r.plannedAt, r.planned)}` });
@@ -175,10 +183,10 @@ export function drawTimeline(host: HTMLElement, t: TimelineIn) {
   const block = (l: HTMLElement, cls: string, a: number, b: number, text: string, time: string, tip: string, key?: string) => {
     const d = l.createDiv(`samaya-rv-blk ${cls}`); d.style.top = `${pct(a)}%`; d.style.height = `calc(${Math.max(0, pct(b) - pct(a))}% - 1px)`; d.setAttr("aria-label", tip);
     d.createSpan({ cls: "samaya-rv-blk-t", text }); d.createSpan({ cls: "samaya-rv-blk-m", text: time });
-    if (key) { d.dataset.k = key; linkHover(d, t.linkRoot, key); }
+    if (key) { d.dataset.k = key; linkHover(d, t.linkRoot, key); clickable(d, key); }
     return d;
   };
-  const meetings = (l: HTMLElement) => t.events.forEach(e => block(l, "is-meeting", e.s, e.e, e.title, `${minToHm(e.s)}–${minToHm(e.e)}`, `${e.title} · ${minToHm(e.s)}–${minToHm(e.e)}`));
+  const meetings = (l: HTMLElement) => t.events.forEach(e => { const d = block(l, "is-meeting", e.s, e.e, e.title, `${minToHm(e.s)}–${minToHm(e.e)}`, `${e.title} · ${minToHm(e.s)}–${minToHm(e.e)}`); if (e.notePath) clickable(d, e.notePath); });
   const range = (g: Span) => `${minToHm(g.s)}–${minToHm(g.e)}`;
 
   // planned
@@ -239,14 +247,19 @@ function drawRings(host: HTMLElement, items: ReviewItem[], meetings: MeetingLink
     const legend = card.createDiv("samaya-rv-ringlegend"); // minimal: colour, name, time
     const gapLen = groups.length > 1 ? 1.6 : 0; let at = 0; const arcs: Array<[SVGElement, number, number]> = [];
     groups.forEach((g, n) => {
-      const len = (g.actual / total) * RING_C; const c = svg.createSvg("circle", { attr: { class: "samaya-rv-ring-seg", cx: "50", cy: "50", r: String(RING_R), transform: "rotate(-90 50 50)", "stroke-dasharray": `0 ${RING_C}`, "stroke-dashoffset": String(-at) } });
-      c.style.stroke = colour(g.label, n); arcs.push([c, Math.max(0.5, len - gapLen), len]); at += len;
-      const row = legend.createDiv("samaya-rv-lg"); row.createSpan("samaya-rv-dot").style.background = colour(g.label, n);
+      let c: SVGElement | null = null; // a ticket / project without time has a legend entry but no arc
+      if (g.actual > 0) {
+        const len = (g.actual / total) * RING_C;
+        c = svg.createSvg("circle", { attr: { class: "samaya-rv-ring-seg", cx: "50", cy: "50", r: String(RING_R), transform: "rotate(-90 50 50)", "stroke-dasharray": `0 ${RING_C}`, "stroke-dashoffset": String(-at) } });
+        c.style.stroke = colour(g.label, n); arcs.push([c, Math.max(0.5, len - gapLen), len]); at += len;
+      }
+      const row = legend.createDiv("samaya-rv-lg" + (g.actual > 0 ? "" : " is-empty")); row.createSpan("samaya-rv-dot").style.background = colour(g.label, n);
       row.createSpan({ cls: "samaya-rv-lg-name", text: g.label, attr: { "aria-label": g.label } });
-      const on = () => { time.setText(fmtDur(Math.round(g.actual))); box.addClass("is-hover"); c.addClass("is-hot"); row.addClass("is-hot"); };
-      const off = () => { time.setText(""); box.removeClass("is-hover"); c.removeClass("is-hot"); row.removeClass("is-hot"); };
+      const on = () => { time.setText(fmtDur(Math.round(g.actual))); if (c) { box.addClass("is-hover"); c.classList.add("is-hot"); } row.addClass("is-hot"); };
+      const off = () => { time.setText(""); box.removeClass("is-hover"); c?.classList.remove("is-hot"); row.removeClass("is-hot"); };
       handlers.set(g.label, [on, off]);
-      for (const el of [c, row]) { el.addEventListener("mouseenter", on); el.addEventListener("mouseleave", off); }
+      const note = g.target ? appRef?.metadataCache.getFirstLinkpathDest(g.target, "") : null; // the ticket / project note: click opens it
+      for (const el of [c, row]) if (el) { el.addEventListener("mouseenter", on); el.addEventListener("mouseleave", off); if (note) clickable(el, note.path); }
     });
     settle(() => arcs.forEach(([c, shown]) => c.setAttribute("stroke-dasharray", `${shown} ${RING_C - shown}`)));
   }

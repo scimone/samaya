@@ -90,12 +90,13 @@ export function groupRows(items: ReviewItem[], by: Grouping, meetings: MeetingLi
  */
 export function timeGroups(items: ReviewItem[], by: Grouping, meetings: MeetingLink[], worked: number): GroupRow[] {
   const none = by === "ticket" ? "No ticket" : "No project"; const rows = groupRows(items, by, meetings, true).filter(g => g.actual > 0 || g.label === none);
-  if (worked <= 0) return rows.filter(g => g.actual > 0);
+  const keep = (g: GroupRow) => g.actual > 0 || (g.tasks > 0 && g.label !== none); // a ticket / project with tasks but no time still gets its (empty) place in the legend
+  if (worked <= 0) return rows.filter(keep);
   const sum = rows.reduce((a, g) => a + g.actual, 0);
   if (sum < worked) { // time that was neither tracked nor in a meeting
     const g = rows.find(x => x.label === none); if (g) g.actual += worked - sum; else rows.push({ target: "", label: none, planned: 0, actual: worked - sum, tasks: 0, done: 0, added: 0, meetings: 0 });
   } else if (sum > worked) for (const g of rows) g.actual = g.actual * worked / sum;
-  return rows.filter(g => g.actual > 0).sort((a, b) => Number(a.label === none) - Number(b.label === none) || b.actual - a.actual || a.label.localeCompare(b.label));
+  return rows.filter(keep).sort((a, b) => Number(a.label === none) - Number(b.label === none) || b.actual - a.actual || a.label.localeCompare(b.label));
 }
 export const hasGroups = (items: ReviewItem[], by: Grouping, meetings: MeetingLink[] = []): boolean =>
   items.some(i => (i.planned || i.actual || i.done) && (by === "ticket" ? i.ticket : i.project)) || meetings.some(mt => mt.minutes > 0 && (by === "ticket" ? mt.tickets : mt.projects).length > 0);

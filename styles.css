@@ -1685,3 +1685,6 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-rv-r-plan { font-size: var(--samaya-fs-label); color: var(--text-faint); }
 .samaya-rv-r-act { font-weight: 600; } .samaya-rv-r-act.is-none { font-weight: 400; color: var(--text-faint); }
 .samaya-rv-r-nums .samaya-rv-delta { font-size: var(--samaya-fs-label); }
+.samaya-rv-r.is-clickable, .samaya-rv-blk.is-clickable, .samaya-rv-lg.is-clickable, .samaya-rv-ring-seg.is-clickable { cursor: pointer; }
+.samaya-rv-r.is-clickable:hover { background: var(--background-modifier-hover); }
+.samaya-rv-lg.is-empty { opacity: 0.6; }

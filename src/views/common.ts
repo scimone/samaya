@@ -1,4 +1,5 @@
 import { App, Menu, TFile, setIcon } from "obsidian";
+import { srName } from "./srname";
 import type SamayaPlugin from "../main";
 import { safe } from "../safe";
 import { openFileSmart } from "../openfile";
@@ -24,11 +25,9 @@ export interface CardOpts {
  * Make a non-button element usable from the keyboard: it joins the tab order, is announced as `role` with `label`, and Enter / Space run `run`.
  * Only keys pressed on the element itself count, so a nested control (the done circle in a timeline block) keeps its own keys.
  */
-let srId = 0;
 export function keyActivate(el: HTMLElement, label: string, run: () => void, role = "button") {
-  // the accessible name is a visually hidden text, not an aria-label: Obsidian would show an aria-label as a tooltip
-  const sr = el.createSpan({ cls: "samaya-sr", text: label }); sr.id = `samaya-sr-${++srId}`;
-  el.setAttr("role", role); el.setAttr("tabindex", "0"); el.setAttr("aria-labelledby", sr.id);
+  srName(el, label);
+  el.setAttr("role", role); el.setAttr("tabindex", "0");
   el.addEventListener("keydown", e => { if (e.target !== el || (e.key !== "Enter" && e.key !== " ")) return; e.preventDefault(); run(); });
 }
 

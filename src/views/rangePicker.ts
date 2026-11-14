@@ -1,4 +1,5 @@
 import { addDays, parseYmd, startOfWeek, today, ymd } from "../util";
+import { srName } from "./srname";
 import { dismissable, drawMonth, placeAt } from "./dayPicker";
 
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
@@ -30,7 +31,7 @@ export function openRangePicker(o: { x: number; y: number; start?: string; end?:
   document.querySelector(".samaya-dp")?.remove();
   let start = o.start ?? "", end = o.end ?? ""; let active: "start" | "end" = start && !end ? "end" : "start";
   const base = parseYmd(start || today()); const view = { year: base.getFullYear(), month: base.getMonth() };
-  const box = document.body.createDiv({ cls: "samaya-pp samaya-dp samaya-rp", attr: { role: "dialog", "aria-label": "Plan project" } });
+  const box = document.body.createDiv({ cls: "samaya-pp samaya-dp samaya-rp", attr: { role: "dialog" } }); srName(box, "Plan project");
   const close = dismissable(box);
   const show = (d: string) => { if (YMD.test(d)) { const x = parseYmd(d); view.year = x.getFullYear(); view.month = x.getMonth(); } };
   const set = (s: string, e: string) => { start = s; end = e; show(s); draw(); };

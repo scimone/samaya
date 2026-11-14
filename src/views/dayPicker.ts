@@ -1,4 +1,5 @@
 import { setIcon } from "obsidian";
+import { srName } from "./srname";
 import { monthGrid } from "../monthgrid";
 import { parseYmd, today } from "../util";
 
@@ -37,7 +38,7 @@ export function drawMonth(box: HTMLElement, view: { year: number; month: number 
 export function openDayPicker(o: { x: number; y: number; value?: string }, run: (day: string) => void): void {
   document.querySelector(".samaya-dp")?.remove();
   const base = parseYmd(o.value || today()); const view = { year: base.getFullYear(), month: base.getMonth() };
-  const box = document.body.createDiv({ cls: "samaya-pp samaya-dp", attr: { role: "dialog", "aria-label": "Pick a day" } });
+  const box = document.body.createDiv({ cls: "samaya-pp samaya-dp", attr: { role: "dialog" } }); srName(box, "Pick a day");
   const close = dismissable(box);
   const draw = () => { box.empty(); drawMonth(box, view, draw, (b, d) => { if (d === o.value) b.addClass("is-selected"); }, d => { close(); run(d); }); };
   draw(); placeAt(box, o.x, o.y);

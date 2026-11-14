@@ -1,4 +1,5 @@
 import { setIcon } from "obsidian";
+import { srName } from "./srname";
 import type { Period } from "../journal";
 import { parseYmd, today } from "../util";
 import { sameSpan, spanStart } from "../journaldigest";
@@ -9,7 +10,7 @@ type Coarse = Extract<Period, "monthly" | "quarterly" | "yearly">;
 export function openPeriodPicker(anchor: HTMLElement, p: Coarse, value: string, run: (date: string) => void): void {
   document.querySelector(".samaya-pp")?.remove();
   const sel = parseYmd(value).getFullYear(); let year = sel;
-  const box = document.body.createDiv({ cls: "samaya-pp", attr: { role: "dialog", "aria-label": p === "monthly" ? "Pick a month" : p === "quarterly" ? "Pick a quarter" : "Pick a year" } });
+  const box = document.body.createDiv({ cls: "samaya-pp", attr: { role: "dialog" } }); srName(box, p === "monthly" ? "Pick a month" : p === "quarterly" ? "Pick a quarter" : "Pick a year");
   const close = () => { box.remove(); document.removeEventListener("mousedown", away, true); document.removeEventListener("keydown", key, true); window.removeEventListener("resize", close); };
   const away = (e: MouseEvent) => { if (!box.contains(e.target as Node) && !anchor.contains(e.target as Node)) close(); };
   const key = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };

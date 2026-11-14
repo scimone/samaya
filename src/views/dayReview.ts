@@ -1,4 +1,5 @@
 import { setIcon } from "obsidian";
+import { srName } from "./srname";
 import type SamayaPlugin from "../main";
 import { Task, onDay, readTicket } from "../model";
 import { projectPathOf } from "../projects";
@@ -197,7 +198,7 @@ function drawRings(host: HTMLElement, items: ReviewItem[]) {
     const total = sorted.reduce((a, g) => a + g.actual, 0); const colour = (label: string, n: number) => (label === none ? "var(--rv-other)" : hueOf(n));
     const card = wrap.createDiv("samaya-rv-ringcard"); card.createDiv({ cls: "samaya-rv-h", text: by === "ticket" ? "Time per ticket" : "Time per project" });
     const body = card.createDiv("samaya-rv-ringbody"); const box = body.createDiv("samaya-rv-ring");
-    const svg = box.createSvg("svg", { attr: { viewBox: "0 0 100 100", role: "img", "aria-label": `Time per ${by}` } });
+    const svg = box.createSvg("svg", { attr: { viewBox: "0 0 100 100", role: "img" } }); srName(svg, `Time per ${by}`, box);
     svg.createSvg("circle", { attr: { class: "samaya-rv-ring-bg", cx: "50", cy: "50", r: String(RING_R) } });
     const gapLen = sorted.length > 1 ? 1.6 : 0; let at = 0; const arcs: Array<[SVGElement, number, number]> = [];
     sorted.forEach((g, n) => {

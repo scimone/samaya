@@ -1,4 +1,5 @@
 import { addDays, parseYmd, startOfWeek, today } from "../util";
+import { srName } from "./srname";
 import type SamayaPlugin from "../main";
 import { weekValue, weekValueDate } from "../journaldigest";
 import { renderDateNav, renderResetPill } from "./dateNav";
@@ -34,10 +35,10 @@ export function dayHeadSub(date: string): string {
 
 /** The Day | Week switch, the same control in the day heading, the week heading and the standalone week views. Clicking the active side does nothing. */
 export function renderModeSwitch(parent: HTMLElement, active: "day" | "week", go: { day?: () => void; week?: () => void }): HTMLElement {
-  const sw = parent.createDiv("samaya-modeswitch"); sw.setAttr("role", "group"); sw.setAttr("aria-label", "Planner view");
+  const sw = parent.createDiv("samaya-modeswitch"); sw.setAttr("role", "group"); srName(sw, "Planner view");
   const side = (key: "day" | "week", text: string, hint: string) => {
     const on = active === key;
-    const b = sw.createEl("button", { text, cls: on ? "is-active" : "", attr: { title: on ? text : hint, "aria-pressed": String(on) } });
+    const b = sw.createEl("button", { text, cls: on ? "is-active" : "", attr: { ...(on ? {} : { title: hint }), "aria-pressed": String(on) } });
     if (!on && go[key]) b.onclick = go[key]!;
   };
   side("day", "Day", "Back to the day planner (Esc)");
@@ -47,10 +48,10 @@ export function renderModeSwitch(parent: HTMLElement, active: "day" | "week", go
 
 /** The same switch with any labels (the meetings view's Overview | Agenda): the active side is highlighted, the others call `go`. */
 export function renderSwitch<K extends string>(parent: HTMLElement, sides: Array<[K, string, string]>, active: K, go: (key: K) => void, label = "View"): HTMLElement {
-  const sw = parent.createDiv("samaya-modeswitch"); sw.setAttr("role", "group"); sw.setAttr("aria-label", label);
+  const sw = parent.createDiv("samaya-modeswitch"); sw.setAttr("role", "group"); srName(sw, label);
   for (const [key, text, hint] of sides) {
     const on = active === key;
-    const b = sw.createEl("button", { text, cls: on ? "is-active" : "", attr: { title: on ? text : hint, "aria-pressed": String(on) } });
+    const b = sw.createEl("button", { text, cls: on ? "is-active" : "", attr: { ...(on ? {} : { title: hint }), "aria-pressed": String(on) } });
     if (!on) b.onclick = () => go(key);
   }
   return sw;

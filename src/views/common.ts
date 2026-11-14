@@ -5,6 +5,7 @@ import { DndScope, DropInfo } from "../dnd";
 import { Source, Task, addSubtask, patchTask, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
 import { ConfirmDeleteModal, ProjectSuggestModal, TicketSuggestModal } from "../modals";
 import { focusButton, isCurrentTask, trackedBefore, joinParts, splitTitle } from "./place";
+import { openDayPicker } from "./dayPicker";
 import { PartsModal } from "./partsModal";
 import { projectPathOf } from "../projects";
 import { assignProjectLinked, assignTicketLinked } from "../links";
@@ -200,13 +201,7 @@ export function addPlanItems(m: Menu, plugin: SamayaPlugin, t: Task, seg: number
   }
   m.addItem(i => i.setTitle(part ? "Do this part today" : "Plan for today").setIcon("sun").onClick(() => send({ day: today() })));
   m.addItem(i => i.setTitle("Plan for…").setIcon("calendar").onClick(() => {
-    // a native date picker where the right-click happened; picking a day plans the task (or this part of it) there
-    const input = document.body.createEl("input", { type: "date", cls: "samaya-plan-date", attr: { "aria-label": "Plan for" } });
-    input.value = t.planned || today(); input.style.left = `${lastMenuAt.x}px`; input.style.top = `${lastMenuAt.y}px`;
-    const done = () => window.setTimeout(() => input.remove(), 0);
-    input.addEventListener("change", () => { if (/^\d{4}-\d{2}-\d{2}$/.test(input.value)) send({ day: input.value }); done(); });
-    input.addEventListener("blur", done); input.addEventListener("cancel", done);
-    try { input.showPicker(); } catch { input.focus(); input.click(); }
+    openDayPicker({ x: lastMenuAt.x, y: lastMenuAt.y, value: t.planned || today() }, day => send({ day }));
   }));
   m.addItem(i => i.setTitle(part ? "Move this part to this week" : "Plan for this week").setIcon("calendar-range").onClick(() => send({ week: startOfWeek(today()) })));
   if (t.start) m.addItem(i => i.setTitle("Remove from timeline").setIcon("x").onClick(() => { void unscheduleDay(app, t.file, t.planned); }));

@@ -8,6 +8,7 @@ import { Task, Ticket, allTasks, allTickets, patchNote, prefixOf, setDone, ticke
 import { linkProject } from "../links";
 import { ConfirmDeleteModal, TextPromptModal, TicketTargetSuggestModal } from "../modals";
 import { showTaskMenu } from "./common";
+import { openDayPicker } from "./dayPicker";
 import { renderHeadTitle } from "./plannerHead";
 import { renderResetPill } from "./dateNav";
 import { NoteText, matches, renderSearch } from "./search";
@@ -185,6 +186,9 @@ export class GanttView extends Panel {
           new TicketTargetSuggestModal(this.plugin, p.file.path, t => {
             void (t.kind === "ticket" ? linkProject(this.app, s, p.file, [t.ticket]) : linkProject(this.app, s, p.file, t.tickets, t.name)).then(() => this.plugin.bus.emit());
           }).open();
+        }));
+        m.addItem(i => i.setTitle("Plan for…").setIcon("calendar-range").onClick(() => {
+          openDayPicker({ x: e.clientX, y: e.clientY, range: true, from: p.span?.start, to: p.span?.end, value: p.span?.start }, (start, end) => { void patchNote(this.app, p.file, { start, end }); });
         }));
         m.addSeparator();
         m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { openFileBeside(this.app, p.file); }));

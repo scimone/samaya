@@ -1640,4 +1640,13 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 
 .samaya-meet-bar.is-clickable { cursor: pointer; }
 .samaya-gantt-bar.is-task.is-period { border-style: dashed; background: color-mix(in srgb, var(--text-muted) 12%, var(--background-primary)); } /* a whole week / month / quarter, not exact days */
-.samaya-plan-date { position: fixed; z-index: 1000; width: 2px; height: 2px; padding: 0; border: 0; opacity: 0; pointer-events: none; }
+.samaya-dp { width: 252px; }
+.samaya-dp-hint { text-align: center; font-size: var(--font-ui-smaller); color: var(--text-muted); margin-bottom: var(--samaya-sp-1); }
+.samaya-dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.samaya-dp-dow { text-align: center; font-size: var(--font-ui-smaller); color: var(--text-faint); padding: 2px 0; }
+button.samaya-dp-day { all: unset; box-sizing: border-box; height: 30px; display: flex; align-items: center; justify-content: center; border-radius: var(--samaya-r-m); font-size: var(--font-ui-small); font-variant-numeric: tabular-nums; cursor: pointer; }
+button.samaya-dp-day.is-out { color: var(--text-faint); }
+button.samaya-dp-day:hover { background: var(--background-modifier-hover); }
+button.samaya-dp-day.is-now { color: var(--text-accent); font-weight: 600; }
+button.samaya-dp-day.is-inrange { background: color-mix(in srgb, var(--interactive-accent) 22%, transparent); border-radius: 0; }
+button.samaya-dp-day.is-selected { background: var(--interactive-accent); color: var(--text-on-accent, #fff); font-weight: 600; border-radius: var(--samaya-r-m); }

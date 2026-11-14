@@ -6,7 +6,7 @@ import { renderSideBars } from "./views/sideBar";
 import { Editor, MarkdownView, Notice, Plugin, TFile, addIcon, normalizePath } from "obsidian";
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FocusManager, FocusState } from "./focus";
-import { assignTicketLinked, assignProjectLinked, projectFits, ticketFits, assignMeetingProject, assignMeetingTicket, meetingProjectFits, meetingsPrefix } from "./links";
+import { assignTicketLinked, assignProjectLinked, projectFits, ticketFits, assignMeetingProject, assignMeetingTicket, meetingProjectFits, meetingsPrefix, syncMeetingLinks } from "./links";
 import { Ticket, allTickets, createTask } from "./model";
 import { PLANNER_VIEW_TYPE, PlannerView, SAMAYA_ICON, SAMAYA_ICON_SVG } from "./views/PlannerView";
 import { syncTickets } from "./sync";
@@ -121,8 +121,16 @@ export default class SamayaPlugin extends Plugin {
     gated("sync-gitlab", "Sync GitLab issues", () => this.settings.ticketsOn && this.settings.gitlabOn, "gitlab");
     this.addCommand({ id: "assign-ticket", name: "Assign current task or meeting note to a ticket", checkCallback: c => {
       const f = this.app.workspace.getActiveFile(); const meet = !!f && f.path.startsWith(meetingsPrefix(this.settings)); const ok2 = this.settings.ticketsOn && !!f && (meet || f.path.startsWith(prefixOf(this.settings.tasksPath)));
-      if (ok2 && !c && f) new TicketSuggestModal(this, t => { void (meet ? assignMeetingTicket : assignTicketLinked)(this.app, this.settings, f, t); }, t => ticketFits(this.app, this.settings, f, t)).open(); return ok2;
+      if (ok2 && !c && f) new TicketSuggestModal(this, t => { void (meet ? assignMeetingTicket : assignTicketLinked)(this.app, this.settings, f, t); }, t => ticketFits(this.app, this.settings, f, t), meet).open(); return ok2;
     } });
+    // new instances of a recurring meeting (created by other code) take their series' project / ticket
+    let meetTm = 0; let meetBusy = false;
+    const meetSync = () => { window.clearTimeout(meetTm); meetTm = window.setTimeout(() => { if (meetBusy) return; meetBusy = true; syncMeetingLinks(this.app, this.settings).catch(() => 0).finally(() => { meetBusy = false; }); }, 3000); };
+    this.register(() => window.clearTimeout(meetTm));
+    this.registerEvent(this.app.metadataCache.on("changed", f => { if (f.path.startsWith(meetingsPrefix(this.settings))) meetSync(); }));
+    this.registerEvent(this.app.vault.on("create", f => { if (f.path.startsWith(meetingsPrefix(this.settings))) meetSync(); }));
+    this.registerInterval(window.setInterval(meetSync, 60000));
+    this.app.workspace.onLayoutReady(meetSync);
     // project commands only show while the module is switched on
     this.addCommand({ id: "new-project", name: "New project", checkCallback: c => {
       if (!this.settings.projectsOn) return false;

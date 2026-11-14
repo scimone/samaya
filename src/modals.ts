@@ -63,10 +63,10 @@ export class ConfirmDeleteModal extends Modal {
 }
 
 export class TicketSuggestModal extends FuzzySuggestModal<Ticket | null> {
-  constructor(private plugin: SamayaPlugin, private choose: (t: Ticket | null) => void, private fits: (t: Ticket) => boolean = () => true) {
+  constructor(private plugin: SamayaPlugin, private choose: (t: Ticket | null) => void, private fits: (t: Ticket) => boolean = () => true, private includeDone = false) {
     super(plugin.app); this.setPlaceholder("Assign to ticket…");
   }
-  getItems() { return allTickets(this.app, this.plugin.settings).filter(t => !isDoneState(t.state) && this.fits(t)); }
+  getItems() { return allTickets(this.app, this.plugin.settings).filter(t => (this.includeDone || !isDoneState(t.state)) && this.fits(t)); }
   getItemText(t: Ticket | null) { return t ? `${t.key}  ${t.summary}` : "(no ticket)"; }
   onChooseItem(t: Ticket | null) { this.choose(t); }
 }

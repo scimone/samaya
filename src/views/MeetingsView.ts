@@ -194,7 +194,7 @@ export class MeetingsView extends Panel {
     const tp = noteTicketPath(this.app, f); const tf = tp ? this.app.vault.getAbstractFileByPath(tp) : null;
     const pp = projectPathOf(this.app, f);
     if (!(tf instanceof TFile) && !pp) return;
-    const box = parent.createSpan("samaya-md-links samaya-card-meta");
+    parent.addClass("has-links"); const box = parent.createSpan("samaya-md-links samaya-card-meta");
     if (tf instanceof TFile) ticketChip(this.plugin, box, tf);
     if (pp) projectChip(box, pp.split("/").pop()!.replace(/\.md$/, ""));
   }

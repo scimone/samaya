@@ -296,7 +296,7 @@ export function addMeetingLinkItems(m: Menu, plugin: SamayaPlugin, files: TFile[
   const app = plugin.app; const st = plugin.settings; const f = files[files.length - 1];
   const each = async (run: (n: TFile) => Promise<boolean>) => { for (const n of files) if (!(await run(n))) break; };
   const tp = noteTicketPath(app, f);
-  if (st.ticketsOn || tp) m.addItem(i => i.setTitle(tp ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void each(n => assignMeetingTicket(app, st, n, tk)); }, tk => files.every(n => meetingTicketFits(app, st, n, tk))).open()));
+  if (st.ticketsOn || tp) m.addItem(i => i.setTitle(tp ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void each(n => assignMeetingTicket(app, st, n, tk)); }, tk => files.every(n => meetingTicketFits(app, st, n, tk)), true).open()));
   if (tp) m.addItem(i => i.setTitle("Unlink ticket").setIcon("unlink").onClick(() => { void each(n => assignMeetingTicket(app, st, n, null)); }));
   if (!st.projectsOn) return;
   const has = !!projectPathOf(app, f);

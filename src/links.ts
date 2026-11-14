@@ -4,6 +4,7 @@ import type { SamayaSettings } from "./settings";
 import { Ticket, allTasks, allTickets, assignTicket, readTask, ticketPathOf } from "./model";
 import { Project, allProjects, assignProject, linkTickets, projectPathOf, readProject } from "./projects";
 import { patchNote } from "./model";
+import { buildSeries, parseNote } from "./meetingseries";
 
 /** The Jira / GitLab project a project note is linked to as a whole ("" = none). */
 const ticketProjectOf = (app: App, project: TFile): string => String(app.metadataCache.getFileCache(project)?.frontmatter?.ticket_project ?? "");
@@ -84,4 +85,30 @@ export async function assignMeetingProject(app: App, s: SamayaSettings, note: TF
   if (project && !meetingProjectFits(app, s, note, project)) { new Notice("This meeting's ticket belongs to another project. Change or remove the ticket first."); return false; }
   await assignProject(app, note, project);
   return true;
+}
+
+/**
+ * New instances of a recurring meeting (created by other code) take the assignment of their series: every instance with neither a project nor a ticket gets
+ * the project / ticket of the series' latest assigned instance. Instances that have any assignment are left alone. Returns how many notes were changed.
+ */
+export async function syncMeetingLinks(app: App, s: SamayaSettings): Promise<number> {
+  if (!s.projectsOn && !s.ticketsOn) return 0;
+  const prefix = meetingsPrefix(s); const fm = (f: TFile) => (app.metadataCache.getFileCache(f)?.frontmatter ?? {}) as Record<string, unknown>;
+  const files = new Map<string, TFile>(); const notes = [];
+  for (const f of app.vault.getMarkdownFiles()) {
+    if (!f.path.startsWith(prefix)) continue;
+    const n = parseNote(f.path, fm(f), f.basename, ""); if (n) { notes.push(n); files.set(f.path, f); }
+  }
+  const { series } = buildSeries(notes, "");
+  let changed = 0;
+  for (const sr of series) {
+    const props = (path: string) => { const m = fm(files.get(path)!); return { assigned_project: m.assigned_project, assigned_ticket: m.assigned_ticket }; };
+    const has = (p: { assigned_project?: unknown; assigned_ticket?: unknown }) => !!String(p.assigned_project ?? "").trim() || !!String(p.assigned_ticket ?? "").trim();
+    const src = [...sr.instances].reverse().map(i => props(i.path)).find(has); if (!src) continue;
+    for (const i of sr.instances) {
+      if (has(props(i.path))) continue;
+      await patchNote(app, files.get(i.path)!, { assigned_project: s.projectsOn && src.assigned_project != null ? String(src.assigned_project) : null, assigned_ticket: s.ticketsOn && src.assigned_ticket != null ? String(src.assigned_ticket) : null }); changed++;
+    }
+  }
+  return changed;
 }

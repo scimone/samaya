@@ -40,7 +40,7 @@ export class GanttView extends Panel {
     this.ro.observe(this.root);
   }
   private ro?: ResizeObserver;
-  onunload() { this.ro?.disconnect(); window.clearTimeout(this.timer); }
+  onunload() { this.texts.clear(); this.ro?.disconnect(); window.clearTimeout(this.timer); }
   protected visibleEl(): HTMLElement { return this.root; }
   onDataUpdated(): void {
     if (this.dragging) { this.pending = true; return; }

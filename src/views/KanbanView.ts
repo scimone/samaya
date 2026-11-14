@@ -27,7 +27,7 @@ export class KanbanView extends Panel {
   private pending = false;
   private texts: NoteText;
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin) { super(plugin, () => prefixOf(plugin.settings.ticketsPath)); this.texts = new NoteText(this.app); this.root = parentEl.createDiv("samaya-kanban"); this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.render(); } }; }
-  onunload() { window.clearTimeout(this.timer); this.scope.dispose(); }
+  onunload() { this.texts.clear(); window.clearTimeout(this.timer); this.scope.dispose(); }
   private async setStatus(path: string, status: string) {
     const f = this.app.vault.getAbstractFileByPath(path); if (!(f instanceof TFile)) return;
     const t = readTicket(this.app, f); if (t.state === status || status === "No status") return;

@@ -39,7 +39,7 @@ export class JournalView extends Panel {
     const tick = window.setInterval(() => { if (this.root.isShown()) this.onDataUpdated(); }, 5 * 60000); // midnight: "Today" moves on
     this.register(() => window.clearInterval(tick));
   }
-  onunload() { window.clearTimeout(this.timer); this.seq++; }
+  onunload() { this.texts.clear(); window.clearTimeout(this.timer); this.seq++; }
   /** The first call lists and draws at once (no waiting for the vault to go quiet); later ones, which come in bursts from every note change and planner update, are bundled. */
   protected visibleEl(): HTMLElement { return this.root; }
   onDataUpdated(): void {

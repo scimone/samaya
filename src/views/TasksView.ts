@@ -13,6 +13,7 @@ import { BACKLOG_COLS, BOARD_COLS, backlogOf, columnOf, doneThisWeek, lanes } fr
 import { Horizon, fmtDur, horizonTarget, parseYmd, startOfWeek, today } from "../util";
 import { bindZone, renderTaskCard } from "./common";
 import { renderHeadTitle, renderSwitch } from "./plannerHead";
+import { NoteText } from "./search";
 import { addTaskInput } from "./weekColumn";
 
 type Mode = "board" | "backlog";
@@ -40,6 +41,7 @@ export class TasksView extends Panel {
   private root: HTMLElement;
   private scope = new DndScope();
   private pending = false;
+  private texts = new NoteText(this.app);
   private timer = 0;
 
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
@@ -48,7 +50,7 @@ export class TasksView extends Panel {
     this.register(plugin.bus.on(() => this.schedule())); // a focus started or stopped: the task moves to In Progress
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
   }
-  onunload() { window.clearTimeout(this.timer); this.scope.dispose(); }
+  onunload() { this.texts.clear(); window.clearTimeout(this.timer); this.scope.dispose(); }
   protected visibleEl(): HTMLElement { return this.root; }
   onDataUpdated(): void { this.schedule(); }
   private schedule() {
@@ -132,20 +134,12 @@ export class TasksView extends Panel {
     }
     return out;
   }
-  /** Ticket notes are searched by their text too: read in the background (once per change), then the search runs again. */
-  private bodies = new Map<string, { mtime: number; body: string }>(); private inflight = new Set<string>();
-  private readTicketNotes(tickets: Ticket[]) {
-    const todo = tickets.map(t => t.file).filter(f => this.bodies.get(f.path)?.mtime !== f.stat.mtime && !this.inflight.has(f.path)); if (!todo.length) return;
-    for (const f of todo) this.inflight.add(f.path);
-    void Promise.all(todo.map(async f => {
-      try { this.bodies.set(f.path, { mtime: f.stat.mtime, body: (await this.app.vault.cachedRead(f)).toLowerCase() }); } catch { this.bodies.set(f.path, { mtime: f.stat.mtime, body: "" }); }
-      this.inflight.delete(f.path);
-    })).then(() => { if (this.root.isConnected && memory.query.trim()) this.refilter(); });
-  }
+  /** Ticket notes are searched by their text too: read in the background (once per change, a few at a time), then the search runs again. */
+  private readTicketNotes(tickets: Ticket[]) { this.texts.load(tickets.map(t => t.file), () => { if (this.root.isConnected && memory.query.trim()) this.refilter(); }); }
   private refilter() { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { const had = !!this.root.querySelector("input.samaya-mt-search:focus"); this.render(); const el = this.root.querySelector<HTMLInputElement>(".samaya-mt-search"); if (had) { el?.focus(); el?.setSelectionRange(el.value.length, el.value.length); } }, 30); }
   private text(t: Task, tickets: Map<string, Ticket>, projects: Map<string, Project>): string {
     const tk = tickets.get(ticketPathOf(this.app, t)); const pr = projects.get(projectPathOf(this.app, t.file));
-    return [t.title, t.channel, tk?.key, tk?.summary, pr?.name, tk ? this.bodies.get(tk.file.path)?.body : ""].filter(Boolean).join(" ").toLowerCase();
+    return [t.title, t.channel, tk?.key, tk?.summary, pr?.name, tk ? this.texts.get(tk.file) : ""].filter(Boolean).join(" ").toLowerCase();
   }
   /** Where a card comes from, for sendPiece (a rest is "", a task on a day is that day). */
   private from = (t: Task) => ({ day: t.part?.kind === "rest" ? "" : t.planned || null, seg: null as number | null });

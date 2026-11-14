@@ -1650,3 +1650,19 @@ button.samaya-dp-day:hover { background: var(--background-modifier-hover); }
 button.samaya-dp-day.is-now { color: var(--text-accent); font-weight: 600; }
 button.samaya-dp-day.is-inrange { background: color-mix(in srgb, var(--interactive-accent) 22%, transparent); border-radius: 0; }
 button.samaya-dp-day.is-selected { background: var(--interactive-accent); color: var(--text-on-accent, #fff); font-weight: 600; border-radius: var(--samaya-r-m); }
+.samaya-rp { width: 320px; }
+.samaya-rp-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--samaya-sp-2); margin-bottom: var(--samaya-sp-2); }
+.samaya-rp-field { display: flex; flex-direction: column; gap: 2px; padding: 4px 6px; border-radius: var(--samaya-r-m); border: 1px solid var(--background-modifier-border); }
+.samaya-rp-field.is-active { border-color: var(--interactive-accent); box-shadow: 0 0 0 1px var(--interactive-accent); }
+.samaya-rp-label { font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.samaya-rp-input { width: 100%; background: transparent; border: none; box-shadow: none; padding: 0; height: auto; font-size: var(--font-ui-small); }
+.samaya-rp-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: var(--samaya-sp-2); }
+.samaya-rp-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+button.samaya-rp-chip { all: unset; box-sizing: border-box; padding: 2px 8px; border-radius: var(--samaya-r-pill); font-size: var(--font-ui-smaller); background: var(--background-modifier-hover); color: var(--text-normal); cursor: pointer; }
+button.samaya-rp-chip:hover { background: var(--background-modifier-border); }
+button.samaya-rp-chip.is-on { background: var(--interactive-accent); color: var(--text-on-accent, #fff); }
+.samaya-rp-foot { display: flex; align-items: center; gap: var(--samaya-sp-2); margin-top: var(--samaya-sp-2); }
+.samaya-rp-sum { flex: 1; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+button.samaya-rp-clear { background: none; box-shadow: none; border: none; padding: 0 4px; height: auto; font-size: var(--font-ui-smaller); color: var(--text-muted); cursor: pointer; }
+button.samaya-rp-clear:hover { color: var(--text-error); }
+.samaya-pp-head .samaya-pp-title { flex: 1; text-align: center; }

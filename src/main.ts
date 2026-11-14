@@ -150,6 +150,8 @@ export default class SamayaPlugin extends Plugin {
     this.register(this.bus.on(marks));
     this.registerEvent(this.app.metadataCache.on("changed", f => { if (f.path.startsWith(prefixOf(this.settings.tasksPath)) || (sideLeaf(this.app)?.view as { file?: TFile } | undefined)?.file === f) marks(); })); // the side pane's note changed (e.g. a meeting's title): redraw its bar
     this.registerEvent(this.app.vault.on("rename", () => marks()));
+    const lunchGone = (path: string) => { if (this.lunchIdx.delete(path)) { this.lunchDirty = true; this.bus.emit(); } }; // a deleted / renamed daily note takes its lunch with it
+    this.registerEvent(this.app.vault.on("delete", f => lunchGone(f.path))); this.registerEvent(this.app.vault.on("rename", (f, old) => { lunchGone(old); if (f instanceof TFile && this.indexLunch(f)) this.bus.emit(); }));
     const periodChanged = () => invalidatePeriodNotes();
     this.registerEvent(this.app.vault.on("create", periodChanged)); this.registerEvent(this.app.vault.on("delete", periodChanged)); this.registerEvent(this.app.vault.on("rename", periodChanged));
     const calChanged = (f: { path: string }) => { if (inEventFolder(this.settings, f.path)) invalidateCalendar(); };
@@ -225,10 +227,12 @@ export default class SamayaPlugin extends Plugin {
 
   // ---- per-day lunch: stored as the `lunch` property ("12:30-13:30") of that day's daily note
   private lunchIdx = new Map<string, { date: string; range: [string, string] }>(); // note path -> override
+  private lunchByDate = new Map<string, [string, string]>(); private lunchDirty = true;
 
   /** Lunch window for a date: the daily note's `lunch` property if set, else the default from the settings. */
   lunchFor(date: string): [number, number] {
-    for (const v of this.lunchIdx.values()) if (v.date === date) return [hmToMin(v.range[0]), hmToMin(v.range[1])];
+    if (this.lunchDirty) { this.lunchByDate.clear(); for (const v of this.lunchIdx.values()) this.lunchByDate.set(v.date, v.range); this.lunchDirty = false; } // by date, rebuilt after a change (asked for on every redraw)
+    const r = this.lunchByDate.get(date); if (r) return [hmToMin(r[0]), hmToMin(r[1])];
     return [hmToMin(this.settings.lunchStart), hmToMin(this.settings.lunchEnd)];
   }
   private indexLunch(f: TFile): boolean {
@@ -236,17 +240,18 @@ export default class SamayaPlugin extends Plugin {
     const m = fm && fm.date ? String(fm.lunch ?? "").match(/^\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})\s*$/) : null;
     const before = this.lunchIdx.get(f.path)?.range.join("-");
     if (m) this.lunchIdx.set(f.path, { date: String(fm!.date).slice(0, 10), range: [m[1], m[2]] }); else this.lunchIdx.delete(f.path);
-    return before !== (m ? `${m[1]}-${m[2]}` : undefined);
+    const changed = before !== (m ? `${m[1]}-${m[2]}` : undefined); if (changed) this.lunchDirty = true;
+    return changed;
   }
   private scanLunch() { let ch = false; for (const f of this.app.vault.getMarkdownFiles()) ch = this.indexLunch(f) || ch; if (ch) this.bus.emit(); }
   /** Set the lunch for ONE day and write it to that day's daily note (when the journal keeps break times) (null = the current default). */
   async setLunch(date: string, start: string | null, end: string | null) {
     const st = start ?? this.settings.lunchStart, en = end ?? this.settings.lunchEnd;
     if (!journalWants(this.settings, "journalBreaks")) { // no daily note to keep it in: applies until Obsidian restarts
-      this.lunchIdx.set("memory:" + date, { date, range: [st, en] }); this.bus.emit(); return;
+      this.lunchIdx.set("memory:" + date, { date, range: [st, en] }); this.lunchDirty = true; this.bus.emit(); return;
     }
     const path = await journalPath(this.app, this.settings, date);
-    this.lunchIdx.set(path, { date, range: [st, en] }); // optimistic
+    this.lunchIdx.set(path, { date, range: [st, en] }); this.lunchDirty = true; // optimistic
     this.bus.emit();
     await setJournalProps(this.app, this.settings, date, { date, lunch: `${st}-${en}` });
   }

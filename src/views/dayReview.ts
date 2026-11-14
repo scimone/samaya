@@ -5,7 +5,7 @@ import type SamayaPlugin from "../main";
 import { Task, onDay, readTicket } from "../model";
 import { projectPathOf } from "../projects";
 import { dayPieces } from "../sessions";
-import { Change, Grouping, MeetingLink, ReviewItem, Row, Span, dayTotals, daySplit, when, groupRows, hasGroups, hourRange, runSpansOn, signed, taskRows, verdict } from "../dayreview";
+import { Change, Grouping, MeetingLink, ReviewItem, Row, Span, dayTotals, daySplit, when, timeGroups, hasGroups, hourRange, runSpansOn, signed, taskRows, verdict } from "../dayreview";
 import { breakMinutes, capacityWindow, workedOn } from "../worktime";
 import { bufferShare, loadLevel } from "../weekplan";
 import { fmtDur, hmToMin, minToHm } from "../util";
@@ -17,10 +17,11 @@ export interface ReviewEvent { title: string; s: number; e: number; /** the meet
 export function meetingLinksOf(plugin: SamayaPlugin, events: ReviewEvent[]): MeetingLink[] {
   const app = plugin.app; const base = (p: string) => p.split("/").pop()!.replace(/\.md$/, ""); const out: MeetingLink[] = [];
   for (const e of events) {
-    const f = e.notePath ? app.vault.getAbstractFileByPath(e.notePath) : null; if (!(f instanceof TFile)) continue;
+    const f = e.notePath ? app.vault.getAbstractFileByPath(e.notePath) : null;
+    if (!(f instanceof TFile)) { out.push({ minutes: Math.max(0, e.e - e.s), tickets: [], projects: [] }); continue; } // a meeting without a note: unassigned
     const tickets = plugin.settings.ticketsOn ? meetingLinks(app, f, "assigned_ticket").map(p => app.vault.getAbstractFileByPath(p)).filter((x): x is TFile => x instanceof TFile).map(x => ({ label: readTicket(app, x).key || base(x.path), note: x.basename })) : [];
     const projects = plugin.settings.projectsOn ? meetingLinks(app, f, "assigned_project").map(base) : [];
-    if (tickets.length || projects.length) out.push({ minutes: Math.max(0, e.e - e.s), tickets, projects });
+    out.push({ minutes: Math.max(0, e.e - e.s), tickets, projects });
   }
   return out;
 }
@@ -97,6 +98,9 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   stat("Tasks done", `${done + addedDone}/${plannedItems.length}`, "", added.length ? `(${added.length} unplanned)` : "", "is-added");
   stat("Time on tasks", fmtDur(focus), planned ? `plan ${fmtDur(planned)}` : "", planned ? signed(focus - planned, fmtDur) : "", planned > 0 && focus > planned ? "is-warn" : "is-ok");
 
+  // ---- time per ticket and per project, when those are in use
+  drawRings(info, items, meetingLinksOf(plugin, o.events), worked);
+
   // ---- every task of the day, the changes first: takes the height that is left and scrolls when it is too long
   const diff = rows.filter(r => r.changes.length); const same = rows.filter(r => !r.changes.length);
   const sec = info.createDiv("samaya-rv-sec is-grow");
@@ -111,8 +115,6 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
     for (const r of same) drawRow(table, r, grid);
   }
 
-  // ---- time per ticket and per project, when those are in use
-  drawRings(info, items, meetingLinksOf(plugin, o.events));
 }
 
 /** One task of the comparison table: its planned and actual start and length, what differs as chips, the gap in tracked time. */
@@ -200,30 +202,25 @@ function drawCap(host: HTMLElement, segs: CapSeg[], c: CapIn) {
 const hueOf = (n: number) => `hsl(${(n * 137.5 + 150) % 360} 48% 58%)`;
 const RING_R = 38, RING_C = 2 * Math.PI * RING_R;
 /** One ring per grouping in use (tickets, projects): how the tracked time divides up, with the biggest first in a list beside it. */
-function drawRings(host: HTMLElement, items: ReviewItem[], meetings: MeetingLink[]) {
-  const kinds = (["ticket", "project"] as Grouping[]).map(by => ({ by, groups: hasGroups(items, by, meetings) ? groupRows(items, by, meetings).filter(g => g.actual > 0) : [] })).filter(k => k.groups.length);
+function drawRings(host: HTMLElement, items: ReviewItem[], meetings: MeetingLink[], worked: number) {
+  const kinds = (["ticket", "project"] as Grouping[]).map(by => ({ by, groups: hasGroups(items, by, meetings) ? timeGroups(items, by, meetings, worked) : [] })).filter(k => k.groups.length);
   if (!kinds.length) return;
-  const wrap = host.createDiv("samaya-rv-rings");
+  const wrap = host.createDiv("samaya-rv-rings"); // side by side, centred (one ring alone sits in the middle)
   for (const { by, groups } of kinds) {
     const none = by === "ticket" ? "No ticket" : "No project";
-    const sorted = [...groups].sort((a, b) => Number(a.label === none) - Number(b.label === none) || b.actual - a.actual);
-    const total = sorted.reduce((a, g) => a + g.actual, 0); const colour = (label: string, n: number) => (label === none ? "var(--rv-other)" : hueOf(n));
+    const total = groups.reduce((a, g) => a + g.actual, 0); const colour = (label: string, n: number) => (label === none ? "var(--rv-other)" : hueOf(n));
     const card = wrap.createDiv("samaya-rv-ringcard"); card.createDiv({ cls: "samaya-rv-h", text: by === "ticket" ? "Time per ticket" : "Time per project" });
-    const body = card.createDiv("samaya-rv-ringbody"); const box = body.createDiv("samaya-rv-ring");
+    const box = card.createDiv("samaya-rv-ring");
     const svg = box.createSvg("svg", { attr: { viewBox: "0 0 100 100", role: "img" } }); srName(svg, `Time per ${by}`, box);
     svg.createSvg("circle", { attr: { class: "samaya-rv-ring-bg", cx: "50", cy: "50", r: String(RING_R) } });
-    const gapLen = sorted.length > 1 ? 1.6 : 0; let at = 0; const arcs: Array<[SVGElement, number, number]> = [];
-    sorted.forEach((g, n) => {
+    const mid = box.createDiv("samaya-rv-ring-mid"); const label = mid.createSpan("samaya-rv-ring-n"); // the time of the part under the pointer
+    const gapLen = groups.length > 1 ? 1.6 : 0; let at = 0; const arcs: Array<[SVGElement, number, number]> = [];
+    groups.forEach((g, n) => {
       const len = (g.actual / total) * RING_C; const c = svg.createSvg("circle", { attr: { class: "samaya-rv-ring-seg", cx: "50", cy: "50", r: String(RING_R), transform: "rotate(-90 50 50)", "stroke-dasharray": `0 ${RING_C}`, "stroke-dashoffset": String(-at) } });
-      c.style.stroke = colour(g.label, n); c.setAttribute("aria-label", `${g.label}: ${fmtDur(g.actual)}`); arcs.push([c, Math.max(0.5, len - gapLen), len]); at += len;
+      c.style.stroke = colour(g.label, n); c.setAttribute("aria-label", g.label); arcs.push([c, Math.max(0.5, len - gapLen), len]); at += len;
+      c.addEventListener("mouseenter", () => { label.setText(fmtDur(Math.round(g.actual))); box.addClass("is-hover"); c.addClass("is-hot"); });
+      c.addEventListener("mouseleave", () => { label.setText(""); box.removeClass("is-hover"); c.removeClass("is-hot"); });
     });
     settle(() => arcs.forEach(([c, shown]) => c.setAttribute("stroke-dasharray", `${shown} ${RING_C - shown}`)));
-    const mid = box.createDiv("samaya-rv-ring-mid"); mid.createSpan({ cls: "samaya-rv-ring-n", text: fmtDur(total) });
-    const list = body.createDiv("samaya-rv-glist samaya-rv-scroll");
-    sorted.forEach((g, n) => {
-      const row = list.createDiv("samaya-rv-g"); row.createSpan("samaya-rv-dot").style.background = colour(g.label, n);
-      row.createSpan({ cls: "samaya-rv-row-name", text: g.label, attr: { "aria-label": g.label } });
-      row.createSpan({ cls: "samaya-rv-row-act", text: fmtDur(g.actual) }); row.createSpan({ cls: "samaya-rv-g-pct", text: `${Math.round((g.actual / total) * 100)}%` });
-    });
   }
 }

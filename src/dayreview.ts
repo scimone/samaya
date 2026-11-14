@@ -66,7 +66,7 @@ export function taskRows(items: ReviewItem[]): Row[] {
   })).sort((a, b) => Number(!a.changes.length) - Number(!b.changes.length) || (a.plannedAt ?? a.actualAt ?? 1e9) - (b.plannedAt ?? b.actualAt ?? 1e9) || a.label.localeCompare(b.label));
 }
 /** Time per ticket or project, and how much of it got done; what has none is gathered in "No ticket" / "No project" (always last). */
-export function groupRows(items: ReviewItem[], by: Grouping, meetings: MeetingLink[] = []): GroupRow[] {
+export function groupRows(items: ReviewItem[], by: Grouping, meetings: MeetingLink[] = [], unassigned = false): GroupRow[] {
   const none = by === "ticket" ? "No ticket" : "No project"; const m = new Map<string, GroupRow>();
   for (const i of items) {
     if (!i.planned && !i.actual && !i.done) continue;
@@ -75,13 +75,27 @@ export function groupRows(items: ReviewItem[], by: Grouping, meetings: MeetingLi
     g.planned += i.planned; g.actual += i.actual; g.tasks++; if (i.done) g.done++; if (!i.wasPlanned) g.added++; m.set(label, g);
   }
   for (const mt of meetings) {
-    const list = by === "ticket" ? mt.tickets : mt.projects.map(p => ({ label: p, note: p })); if (!list.length || mt.minutes <= 0) continue;
+    let list = by === "ticket" ? mt.tickets : mt.projects.map(p => ({ label: p, note: p })); if (mt.minutes <= 0) continue;
+    if (!list.length) { if (!unassigned) continue; list = [{ label: none, note: "" }]; } // a meeting without one: "No ticket" / "No project" (only when asked for)
     for (const t of list) {
       const g = m.get(t.label) ?? { target: t.note, label: t.label, planned: 0, actual: 0, tasks: 0, done: 0, added: 0, meetings: 0 };
       g.actual += mt.minutes / list.length; g.meetings++; m.set(t.label, g);
     }
   }
   return [...m.values()].sort((a, b) => Number(a.label === none) - Number(b.label === none) || Math.max(b.planned, b.actual) - Math.max(a.planned, a.actual) || a.label.localeCompare(b.label));
+}
+/**
+ * Where the worked time (workday minus breaks) went, per ticket or project: tasks, meetings (assigned or not) and the rest, which belongs to no ticket / project.
+ * The groups always add up to `worked` (when focus and meetings overlap, everything is scaled down to fit). Without a worked time (no workday log) it is just the tracked time.
+ */
+export function timeGroups(items: ReviewItem[], by: Grouping, meetings: MeetingLink[], worked: number): GroupRow[] {
+  const none = by === "ticket" ? "No ticket" : "No project"; const rows = groupRows(items, by, meetings, true).filter(g => g.actual > 0 || g.label === none);
+  if (worked <= 0) return rows.filter(g => g.actual > 0);
+  const sum = rows.reduce((a, g) => a + g.actual, 0);
+  if (sum < worked) { // time that was neither tracked nor in a meeting
+    const g = rows.find(x => x.label === none); if (g) g.actual += worked - sum; else rows.push({ target: "", label: none, planned: 0, actual: worked - sum, tasks: 0, done: 0, added: 0, meetings: 0 });
+  } else if (sum > worked) for (const g of rows) g.actual = g.actual * worked / sum;
+  return rows.filter(g => g.actual > 0).sort((a, b) => Number(a.label === none) - Number(b.label === none) || b.actual - a.actual || a.label.localeCompare(b.label));
 }
 export const hasGroups = (items: ReviewItem[], by: Grouping, meetings: MeetingLink[] = []): boolean =>
   items.some(i => (i.planned || i.actual || i.done) && (by === "ticket" ? i.ticket : i.project)) || meetings.some(mt => mt.minutes > 0 && (by === "ticket" ? mt.tickets : mt.projects).length > 0);
@@ -147,7 +161,7 @@ export function reviewSummary(i: SummaryIn): string {
   for (const by of ["ticket", "project"] as Grouping[]) {
     if (!hasGroups(i.items, by, i.meetings)) continue;
     out.push(`- **By ${by}:**`);
-    for (const g of groupRows(i.items, by, i.meetings)) out.push(`  - ${!g.target ? g.label : g.target === g.label ? `[[${g.label}]]` : `[[${g.target}|${g.label}]]`}: ${fmtDur(Math.round(g.actual))}${g.planned ? ` of ${fmtDur(g.planned)} planned` : ""}${g.tasks ? `, ${g.done}/${g.tasks} done` : ""}${g.added ? `, ${g.added} unplanned` : ""}${g.meetings ? `, ${g.meetings} ${g.meetings === 1 ? "meeting" : "meetings"}` : ""}`);
+    for (const g of timeGroups(i.items, by, i.meetings ?? [], i.worked)) out.push(`  - ${!g.target ? g.label : g.target === g.label ? `[[${g.label}]]` : `[[${g.target}|${g.label}]]`}: ${fmtDur(Math.round(g.actual))}${g.planned ? ` of ${fmtDur(g.planned)} planned` : ""}${g.tasks ? `, ${g.done}/${g.tasks} done` : ""}${g.added ? `, ${g.added} unplanned` : ""}${g.meetings ? `, ${g.meetings} ${g.meetings === 1 ? "meeting" : "meetings"}` : ""}`);
   }
   return out.join("\n");
 }

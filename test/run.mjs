@@ -464,7 +464,7 @@ console.log("all tests passed");
 // ---- day review
 await bundle("src/dayreview.ts", "test/.dayreview.mjs");
 {
-  const { reviewSummary, runMinutesOn, runSpansOn, taskRows, changesOf, groupRows, daySplit, verdict, hourRange, signed } = await import("./.dayreview.mjs");
+  const { timeGroups, reviewSummary, runMinutesOn, runSpansOn, taskRows, changesOf, groupRows, daySplit, verdict, hourRange, signed } = await import("./.dayreview.mjs");
   const runs = ["2026-11-11 09:05–09:40", "2026-11-11 10:00-10:30", "2026-11-10 09:00–10:00", "2026-11-11 23:30–2026-11-12 00:20", "junk"];
   assert.equal(runMinutesOn(runs, "2026-11-11"), 35 + 30 + 30);
   assert.deepEqual(runSpansOn(runs, "2026-11-11"), [{ s: 545, e: 580 }, { s: 600, e: 630 }, { s: 1410, e: 1440 }]);
@@ -487,6 +487,10 @@ await bundle("src/dayreview.ts", "test/.dayreview.mjs");
   { // meetings: time is shared among their tickets / projects; a meeting without one of that kind stays out
     const ms = [{ minutes: 60, tickets: [{ label: "T-1", note: "T-1" }, { label: "T-9", note: "T-9" }], projects: [] }, { minutes: 30, tickets: [], projects: ["P"] }];
     assert.deepEqual(groupRows(items, "ticket", ms).map(g => [g.label, g.actual, g.meetings]), [["T-1", 140, 1], ["T-9", 30, 1], ["No ticket", 90, 0]]);
+    for (const by of ["ticket", "project"]) { // both breakdowns add up to the worked time, whatever is assigned
+      assert.equal(Math.round(timeGroups(items, by, ms, 600).reduce((a, g) => a + g.actual, 0)), 600);
+      assert.equal(Math.round(timeGroups(items, by, ms, 100).reduce((a, g) => a + g.actual, 0)), 100); // overlap: scaled down
+    }
     assert.deepEqual(groupRows([], "project", ms).map(g => [g.label, g.actual, g.meetings]), [["P", 30, 1]]);
   }
   assert.equal(taskRows([...items, it({ title: "D", wasPlanned: false, done: true })]).some(r => r.label === "D"), true);

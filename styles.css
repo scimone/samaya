@@ -1118,10 +1118,11 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-rv-delta.is-over { color: var(--rv-over); } .samaya-rv-delta.is-under { color: var(--rv-ok); }
 
 /* per ticket / project: a ring each, the list beside it scrolls when long */
-.samaya-rv-rings { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px 28px; }
-.samaya-rv-ringcard { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.samaya-rv-rings { display: flex; justify-content: center; align-items: flex-start; gap: 16px 40px; }
+.samaya-rv-ringcard { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
 .samaya-rv-ringbody { display: flex; align-items: center; gap: 16px; min-width: 0; }
-.samaya-rv-ring { position: relative; width: 104px; height: 104px; flex: none; }
+.samaya-rv-ring { position: relative; width: 124px; height: 124px; flex: none; }
+.samaya-rv-ring.is-hover .samaya-rv-ring-seg:not(.is-hot) { opacity: 0.45; }
 .samaya-rv-ring svg { display: block; width: 100%; height: 100%; }
 .samaya-rv-ring-bg { fill: none; stroke: var(--background-modifier-border); stroke-width: 14; }
 .samaya-rv-ring-seg { fill: none; stroke-width: 14; transition: stroke-dasharray 0.8s cubic-bezier(0.22, 1, 0.36, 1); }

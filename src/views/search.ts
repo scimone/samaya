@@ -1,14 +1,19 @@
 import type { App, TFile } from "obsidian";
 
-/** The search box of the page headings (same look in every view). Typing redraws the page after a short pause, then puts the cursor back. */
+/** Which search box had the cursor when the page was redrawn: the new box takes it back (set while redrawing, cleared by the first box that matches). */
+let refocus = ""; let refocusAt = 0; // (valid for a second: a redraw may be async, but a box drawn much later is not the one that had the cursor)
+/** The search box of the page headings (same look in every view). Typing redraws the page after a short pause, then puts the cursor back; a redraw never interrupts an IME composition. */
 export function renderSearch(parent: HTMLElement, placeholder: string, value: string, onChange: (q: string) => void, redraw: () => void, setTimer: (id: number) => void): HTMLInputElement {
   const input = parent.createEl("input", { cls: "samaya-mt-search", type: "search", placeholder }); input.value = value;
+  if (refocus === placeholder && Date.now() - refocusAt < 1000) { refocus = ""; window.requestAnimationFrame(() => { if (!input.isConnected) return; input.focus(); input.setSelectionRange(input.value.length, input.value.length); }); }
   let t = 0;
-  input.oninput = () => {
-    onChange(input.value); window.clearTimeout(t);
-    t = window.setTimeout(() => { redraw(); const el = parent.ownerDocument.querySelector<HTMLInputElement>(`input.samaya-mt-search[placeholder="${placeholder}"]`); el?.focus(); el?.setSelectionRange(el.value.length, el.value.length); }, 150);
+  const later = () => {
+    window.clearTimeout(t);
+    t = window.setTimeout(() => { refocus = input.ownerDocument.activeElement === input ? placeholder : ""; refocusAt = Date.now(); redraw(); }, 150);
     setTimer(t);
   };
+  input.addEventListener("input", e => { onChange(input.value); if (!(e as InputEvent).isComposing) later(); });
+  input.addEventListener("compositionend", () => { onChange(input.value); later(); });
   return input;
 }
 

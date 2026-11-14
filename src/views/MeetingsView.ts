@@ -3,7 +3,7 @@ import { Panel } from "./panel";
 import { openFileSmart } from "../openfile";
 import type SamayaPlugin from "../main";
 import { Instance, MeetingNote, Series, buildSeries, nextWorkday, parseNote } from "../meetingseries";
-import { addDays, parseYmd, startOfWeek, today as todayYmd } from "../util";
+import { addDays, fmtDur, parseYmd, startOfWeek, today as todayYmd } from "../util";
 import { weekValue, weekValueDate } from "../journaldigest";
 import { renderDateNav, renderResetPill } from "./dateNav";
 import { renderSearch } from "./search";
@@ -16,6 +16,9 @@ const hm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${Stri
 const time = (i: Pick<Instance, "start" | "end">) => i.start == null ? "" : hm(i.start);
 const span = (i: Pick<Instance, "start" | "end">) => i.start == null ? "" : `${hm(i.start)}${i.end != null ? "–" + hm(i.end) : ""}`;
 const short = (d: string) => parseYmd(d).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+/** minutes of meeting time (meetings without an end time count nothing) */
+const minutes = (l: Instance[]) => l.reduce((n, i) => n + (i.start != null && i.end != null && i.end > i.start ? i.end - i.start : 0), 0);
+const plural = (n: number) => `${n} ${n === 1 ? "meeting" : "meetings"}`;
 const byTime = (a: Instance, b: Instance) => a.date.localeCompare(b.date) || (a.start ?? 0) - (b.start ?? 0);
 
 /** What the view was showing, kept for the session: opening a meeting note replaces the view, and going back must land on the same tab, week and series. */
@@ -35,6 +38,7 @@ export class MeetingsView extends Panel {
   private tick = 0;
   private recurring = new Set<string>(); // paths of the meetings that belong to a recurring series
   private fitting?: ResizeObserver;
+  private week: Instance[] = []; // the meetings of the shown week (the agenda's heading counts them)
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
     super(plugin, () => normalizePath(plugin.settings.eventNotesFolder.trim() || "Meetings") + "/"); this.root = parentEl.createDiv("samaya-mt samaya-md");
     this.tick = window.setInterval(() => { if (this.root.isShown() && !this.root.querySelector("input:focus")) this.rerender(); }, 60000); // a meeting that ends moves from next to recent
@@ -79,6 +83,8 @@ export class MeetingsView extends Panel {
     this.recurring = new Set(series.flatMap(s => s.instances.map(i => i.path)));
     const sel = memory.selected ? series.find(s => s.key === memory.selected) : undefined;
     if (memory.selected && !sel) memory.selected = null;
+    const w0 = addDays(startOfWeek(td), memory.week * 7); const w1 = addDays(w0, 6);
+    this.week = [...series.flatMap(s => s.instances), ...oneOffs].filter(i => i.date >= w0 && i.date <= w1);
     this.head(td, sel);
     const page = this.root.createDiv("samaya-md-page");
     if (sel) this.detail(page, sel, td); else this.overview(page, series, oneOffs, td, notes.length);
@@ -101,8 +107,13 @@ export class MeetingsView extends Panel {
       renderResetPill(head.createDiv("samaya-planner-right"), memory.mode === "agenda" ? "Agenda" : "Overview", "Back to the list of meetings", "left", () => { memory.selected = null; this.rerender(); });
       return;
     }
-    if (memory.mode === "agenda") renderHeadTitle(head, `Week ${isoWeek(parseYmd(w))}`, weekRangeLabel(w) + (memory.week === 0 ? " · This week" : ""));
-    else renderHeadTitle(head, "Meetings", " "); // empty line: the bar keeps the height it has in the agenda
+    if (memory.mode === "agenda") {
+      const box = renderHeadTitle(head, `Week ${isoWeek(parseYmd(w))}`, weekRangeLabel(w) + (memory.week === 0 ? " · This week" : ""));
+      if (this.week.length && !memory.query.trim()) { // the week's meeting count as a badge beside the title
+        const h2 = box.querySelector("h2")!; const row = box.createDiv("samaya-md-titlerow"); box.prepend(row); row.append(h2);
+        row.createSpan({ cls: "samaya-tasks-count samaya-md-count", text: plural(this.week.length) });
+      }
+    } else renderHeadTitle(head, "Meetings", " "); // empty line: the bar keeps the height it has in the agenda
     const right = head.createDiv("samaya-planner-right");
     if (memory.mode === "agenda") {
       if (memory.week !== 0) renderResetPill(right, "This week", "Back to the current week", memory.week < 0 ? "right" : "left", () => { memory.week = 0; this.rerender(); });
@@ -121,7 +132,7 @@ export class MeetingsView extends Panel {
   private section(parent: HTMLElement, title: string, key: string, count?: number | string, cols?: [string, string]): { sec: HTMLElement; body: HTMLElement; head: HTMLElement } {
     const sec = parent.createDiv("samaya-md-sec"); const head = sec.createDiv("samaya-md-sec-head");
     head.createDiv({ cls: "samaya-mt-h", text: title });
-    if (count != null && count !== "") head.createSpan({ cls: "samaya-md-sec-count", text: String(count) });
+    if (count != null && count !== "") head.createSpan({ cls: "samaya-tasks-count samaya-md-count", text: String(count) });
     if (cols) { const c = sec.createDiv("samaya-md-colhead"); c.createSpan({ text: cols[0] }); c.createSpan({ text: cols[1] }); }
     return { sec, head, body: this.scroller(sec, key, "samaya-md-scroll") };
   }
@@ -270,7 +281,9 @@ export class MeetingsView extends Panel {
   private fit(col: HTMLElement, secs: HTMLElement[]) {
     const run = () => {
       if (!col.isConnected || !col.clientHeight) return;
-      const need = secs.map(sec => { const b = sec.querySelector<HTMLElement>(".samaya-md-scroll")!; return sec.offsetHeight - b.offsetHeight + b.scrollHeight; });
+      const need = secs.map(sec => { // natural height: let the section take what its content needs, measure, restore
+        const b = sec.querySelector<HTMLElement>(".samaya-md-scroll")!; sec.style.flex = "none"; b.style.flex = "none"; const n = sec.offsetHeight; b.style.flex = ""; return n;
+      });
       const gap = parseFloat(getComputedStyle(col).rowGap) || 0; const room = col.clientHeight - gap * (secs.length - 1); const half = room / secs.length;
       const fixed = (n: number) => `0 0 ${Math.ceil(n)}px`; const rest = "1 1 0px";
       if (need.reduce((a, b) => a + b, 0) <= room) { secs.forEach((sec, i) => { sec.style.flex = fixed(need[i]); }); return; }
@@ -283,7 +296,7 @@ export class MeetingsView extends Panel {
   private agenda(page: HTMLElement, all: Instance[], td: string) {
     const w = addDays(startOfWeek(td), memory.week * 7); const end = addDays(w, 6);
     const items = all.filter(i => i.date >= w && i.date <= end).sort(byTime);
-    const { body } = this.section(page.createDiv("samaya-md-col is-results"), "This week", "agenda", items.length || "");
+    page.addClass("is-agenda"); const body = this.scroller(page, "agenda", "samaya-md-agenda").createDiv("samaya-md-agenda-in"); // the scrollbar sits at the edge of the view, the days in a centred column
     if (!items.length) { this.none(body, "No meetings this week."); return; }
     for (let n = 0; n < 7; n++) {
       const d = addDays(w, n); const day = items.filter(i => i.date === d); if (!day.length) continue;
@@ -291,7 +304,8 @@ export class MeetingsView extends Panel {
       const head = g.createDiv("samaya-md-day-head");
       head.createSpan({ cls: "samaya-md-day-label", text: d === td ? "Today" : d === addDays(td, 1) ? "Tomorrow" : parseYmd(d).toLocaleDateString(undefined, { weekday: "long" }) });
       head.createSpan({ cls: "samaya-md-day-num", text: parseYmd(d).toLocaleDateString(undefined, { day: "numeric", month: "short" }) });
-      head.createSpan({ cls: "samaya-md-sec-count", text: String(day.length) });
+      head.createSpan({ cls: "samaya-tasks-count samaya-md-count", text: plural(day.length) });
+      if (minutes(day)) head.createSpan({ cls: "samaya-tasks-count samaya-md-count", text: fmtDur(minutes(day)), attr: { "aria-label": "total meeting time" } });
       for (const i of day) this.meetingRow(g, i);
     }
   }

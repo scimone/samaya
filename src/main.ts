@@ -271,6 +271,7 @@ export default class SamayaPlugin extends Plugin {
   }
 
   onunload() {
+    if (this.saveTimer) { window.clearTimeout(this.saveTimer); void this.saveData(this.data); } // a soft save still waiting
     clearColors();
     // what Samaya put into the workspace goes with it: banners, the focus dimming, the side pane bookkeeping
     document.querySelectorAll(".samaya-focus-bar, .samaya-meet-bar").forEach(el => el.remove());
@@ -278,7 +279,14 @@ export default class SamayaPlugin extends Plugin {
     resetOpenFile();
   }
 
-  async saveSettings() { this.data.settings = this.settings; applyColors(this.settings); await this.saveData(this.data); }
+  private saveTimer = 0;
+  /** `soft`: for text fields (one call per keystroke): the file is written a moment after the last one instead of each time. */
+  async saveSettings(soft = false) {
+    this.data.settings = this.settings; applyColors(this.settings);
+    window.clearTimeout(this.saveTimer);
+    if (soft) { this.saveTimer = window.setTimeout(() => { void this.saveData(this.data); }, 500); return; }
+    await this.saveData(this.data);
+  }
 
   syncTickets(only?: "jira" | "gitlab") { return syncTickets(this, only); }
 

@@ -14,11 +14,12 @@ export class NavShortcuts {
   private style: HTMLStyleElement | null = null;
   private observers: MutationObserver[] = [];
   private run = 0;
+  private timer = 0;
   constructor(private plugin: SamayaPlugin) {}
 
   init() {
     const { workspace } = this.plugin.app;
-    const refresh = () => { void this.apply(); };
+    const refresh = () => { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { void this.apply(); }, 150); }; // layout / data events come in bursts
     this.plugin.registerEvent(workspace.on("layout-change", refresh));
     this.plugin.register(this.plugin.bus.on(refresh));
     this.plugin.registerEvent(this.plugin.app.vault.on("create", f => { if (f instanceof TFile && f.extension === "base") refresh(); }));
@@ -97,7 +98,7 @@ export class NavShortcuts {
   }
 
   private teardown() {
-    this.run++;
+    this.run++; window.clearTimeout(this.timer);
     this.observers.forEach(o => o.disconnect()); this.observers = [];
     this.style?.remove(); this.style = null;
     document.querySelectorAll(".samaya-nav-shortcuts").forEach(e => e.remove());

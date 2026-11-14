@@ -177,10 +177,12 @@ export class SamayaSettingTab extends PluginSettingTab {
     await draw();
   }
 
+  /** Closing the settings writes what a text field left waiting. */
+  hide(): void { void this.plugin.saveSettings(); }
   display(): void {
     const { containerEl: c } = this; c.empty(); c.addClass("samaya-settings");
     const s = this.plugin.settings;
-    const save = async () => { await this.plugin.saveSettings(); };
+    const save = async (soft = false) => { await this.plugin.saveSettings(soft); };
     const refreshers: Array<() => void> = []; // status pills etc., re-run after any change
 
     // ---- tabs: one panel per module, only the active one is shown
@@ -203,7 +205,7 @@ export class SamayaSettingTab extends PluginSettingTab {
       });
       tabs.push({ id, btn, panel }); cur = panel; return btn;
     };
-    const changed = async () => { await save(); refreshers.forEach(f => f()); };
+    const changed = async (soft = false) => { await save(soft); refreshers.forEach(f => f()); };
 
     // ---- building blocks
     const label = (el: HTMLElement, text: string) => el.createDiv({ cls: "samaya-group-label", text });
@@ -236,7 +238,7 @@ export class SamayaSettingTab extends PluginSettingTab {
         t.onChange(async v => {
           v = v.trim();
           if (o.time && !HM.test(v)) { t.inputEl.addClass("is-invalid"); return; }
-          t.inputEl.removeClass("is-invalid"); set(v); await changed(); o.after?.();
+          t.inputEl.removeClass("is-invalid"); set(v); await changed(true); o.after?.();
         });
         if (o.secret) {
           t.inputEl.type = "password"; t.inputEl.autocomplete = "off";

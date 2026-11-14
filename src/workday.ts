@@ -47,7 +47,8 @@ export class WorkdayManager {
   private tick() {
     void this.rollover();
     const l = this.log; if (!l || !this.started) return;
-    l.seen = nowHm(); void this.plugin.saveData(this.plugin.data);
+    const hm = nowHm(); if (l.seen === hm) return; // `seen` has minute resolution: one write a minute, not two
+    l.seen = hm; void this.plugin.saveData(this.plugin.data);
   }
 
   /** A day that was never ended is closed at the last time we saw activity. */

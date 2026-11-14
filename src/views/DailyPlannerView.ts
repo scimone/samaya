@@ -1,4 +1,5 @@
 import { leftToDo } from "./place";
+import { Scheduler } from "./scheduler";
 import { Notice, TFile, setIcon } from "obsidian";
 import { safe } from "../safe";
 import type { CalendarEvent } from "../eventnotes";
@@ -26,8 +27,7 @@ export class DailyPlannerView extends PlannerPane {
   private root: HTMLElement;
   private date = today();
   private scope = new DndScope();
-  private pending = false;
-  private timer = 0;
+  private sched!: Scheduler;
   private token = 0;
   private leftScroll = 0;
   private infoScroll = 0;
@@ -49,7 +49,7 @@ export class DailyPlannerView extends PlannerPane {
     };
     this.root.addEventListener("mouseover", e => { light(e, true); if (!document.body.hasClass("samaya-focusing") && (e.target as HTMLElement).closest("[data-link]")) this.root.addClass("is-hovering-task"); }); // (while focusing, the focused task keeps its lit look)
     this.root.addEventListener("mouseout", e => { light(e, false); if (!(e.relatedTarget as HTMLElement | null)?.closest?.("[data-link]")) this.root.removeClass("is-hovering-task"); });
-    this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
+    this.sched = new Scheduler(this.scope, () => { void this.render(); }, () => !!this.host?.hidden());
     this.register(plugin.bus.on(() => this.schedule()));
     const evRef = plugin.app.metadataCache.on("changed", f => { if (inEventFolder(plugin.settings, f.path) || (this.plugin.guide && f.path.startsWith(prefixOf(plugin.settings.tasksPath)))) this.schedule(); });
     this.register(() => plugin.app.metadataCache.offref(evRef));
@@ -64,17 +64,11 @@ export class DailyPlannerView extends PlannerPane {
   onDataUpdated(): void { this.schedule(); }
   refresh() { this.schedule(); }
   goTo(date: string) { this.date = date; this.schedule(); }
-  onunload() { window.clearTimeout(this.timer); this.scope.dispose(); this.plugin.plannerGoTo = null; // (a closed view must not stay the target of "Open day")
+  onunload() { this.sched.cancel(); this.scope.dispose(); this.plugin.plannerGoTo = null; // (a closed view must not stay the target of "Open day")
     window.setTimeout(() => this.plugin.modeBus.emit(), 80); }
 
   /** Coalesce bursts of updates; never re-render in the middle of a drag. */
-  private schedule() {
-    if (this.host?.hidden()) return; // the Week pane is showing
-    if (this.scope.active && !document.querySelector(".samaya-ghost")) this.scope.active = false; // a drag that never ended must not freeze the view
-    if (this.scope.active) { this.pending = true; return; }
-    window.clearTimeout(this.timer);
-    this.timer = window.setTimeout(() => { void this.render(); }, 30);
-  }
+  private schedule() { this.sched.request(); }
 
   private async render() {
     const token = ++this.token;
@@ -82,7 +76,7 @@ export class DailyPlannerView extends PlannerPane {
     if (guide?.fresh) { guide.fresh = false; this.date = today(); }
     const events = this.showEvents && calendarEnabled(this.plugin.settings)
       ? await calendarEvents(this.plugin, parseYmd(this.date), parseYmd(addDays(this.date, 1))) : [];
-    if (token !== this.token || this.scope.active) { if (this.scope.active) this.pending = true; return; }
+    if (token !== this.token || this.scope.active) { if (this.scope.active) this.sched.defer(); return; }
 
     const lp = this.root.querySelector<HTMLElement>(".samaya-left"); if (lp) this.leftScroll = lp.scrollTop;
     const ip = this.root.querySelector<HTMLElement>(".samaya-info"); if (ip) this.infoScroll = ip.scrollTop;
@@ -100,7 +94,7 @@ export class DailyPlannerView extends PlannerPane {
     const notes = new Map<CalendarEvent, TFile>(); // meeting notes for the timeline
     const tlEvents = !calendarEnabled(s) ? [] : this.showEvents ? events : await calendarEvents(this.plugin, parseYmd(this.date), parseYmd(addDays(this.date, 1)));
     for (const ev of tlEvents.filter(e => !e.allDay)) { const f = eventNote(this.app, ev); if (f) notes.set(ev, f); }
-    if (token !== this.token || this.scope.active) { if (this.scope.active) this.pending = true; return; }
+    if (token !== this.token || this.scope.active) { if (this.scope.active) this.sched.defer(); return; }
 
     const g = isToday ? guide : null; const step = g?.step ?? -1;
     const sd = g?.kind === "shutdown"; const pg = sd ? null : g; const review = !sd && step === 0, pick = !sd && step === 1, check = !sd && step === 3;

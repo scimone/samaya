@@ -1,4 +1,5 @@
 import { leftToDo } from "./place";
+import { Scheduler } from "./scheduler";
 import type { PlannerHost } from "./plannerHost";
 import { safe } from "../safe";
 import { openFileSmart } from "../openfile";
@@ -26,8 +27,7 @@ export class WeeklyBoardView extends PlannerPane {
   private root: HTMLElement;
   private weekStart = startOfWeek(today());
   private scope = new DndScope();
-  private pending = false;
-  private timer = 0;
+  private sched!: Scheduler;
   private token = 0;
   private kbCollapsed = new Set<string>();
   private kbX = 0;
@@ -37,25 +37,21 @@ export class WeeklyBoardView extends PlannerPane {
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin, private host?: PlannerHost) {
     super(plugin);
     this.root = parentEl.createDiv("samaya-week");
-    this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
+    this.sched = new Scheduler(this.scope, () => { void this.render(); }, () => !!this.host?.hidden());
     this.register(plugin.bus.on(() => this.schedule()));
     this.registerInterval(window.setInterval(() => { if (!this.host?.hidden() && this.root.isConnected && !this.plugin.guide) this.schedule(); }, 60000)); // the ongoing task moves on
     const ref = plugin.app.metadataCache.on("changed", f => { if (!this.plugin.guide) return; if (inEventFolder(plugin.settings, f.path) || f.path.startsWith(prefixOf(plugin.settings.tasksPath))) this.schedule(); });
     this.register(() => plugin.app.metadataCache.offref(ref));
   }
-  onunload() { window.clearTimeout(this.timer); this.scope.dispose(); if (this.plugin.boardWeek === this.weekStart) { this.plugin.boardWeek = ""; this.plugin.modeBus.emit(); } }
+  onunload() { this.sched.cancel(); this.scope.dispose(); if (this.plugin.boardWeek === this.weekStart) { this.plugin.boardWeek = ""; this.plugin.modeBus.emit(); } }
   onDataUpdated(): void { this.schedule(); }
   refresh() { this.schedule(); }
   /** Drop what is drawn (the planner switches between the board and the guide; the next render fills it). */
-  clear() { window.clearTimeout(this.timer); this.token++; this.scope.clear(); this.root.empty(); }
+  clear() { this.sched.cancel(); this.token++; this.scope.clear(); this.root.empty(); }
   getWeek() { return this.weekStart; }
   /** Planner: show the week that contains `date`. */
   showWeekOf(date: string) { this.weekStart = startOfWeek(date); this.schedule(); }
-  private schedule() {
-    if (this.host?.hidden()) return; // the Day pane is showing
-    if (this.scope.active) { this.pending = true; return; }
-    window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { void this.render(); }, 30);
-  }
+  private schedule() { this.sched.request(); }
 
   private async render() {
     const token = ++this.token; const s = this.plugin.settings;
@@ -63,7 +59,7 @@ export class WeeklyBoardView extends PlannerPane {
     const from = parseYmd(this.weekStart);
     const events = calendarEnabled(s) ? await calendarEvents(this.plugin, from, parseYmd(addDays(this.weekStart, 7))).catch(() => [] as CalendarEvent[]) : [];
     if (token !== this.token) return;
-    if (this.scope.active) { this.pending = true; return; }
+    if (this.scope.active) { this.sched.defer(); return; }
     const wg = this.host && this.plugin.guide?.kind === "week" ? this.plugin.guide : null; // the guide runs in the Planner; the standalone board stays a board
     if (wg?.fresh) { wg.fresh = false; this.weekStart = wg.week ?? this.weekStart; }
     if (wg) { this.renderGuided(wg.step, events); return; }

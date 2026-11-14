@@ -1,4 +1,5 @@
 import { TFile } from "obsidian";
+import { Scheduler } from "./scheduler";
 import type { CalendarEvent } from "../eventnotes";
 import { safe } from "../safe";
 import { openFileSmart } from "../openfile";
@@ -22,8 +23,7 @@ export class WeeklyTimelineView extends PlannerPane {
   private root: HTMLElement;
   private weekStart = startOfWeek(today());
   private scope = new DndScope();
-  private pending = false;
-  private timer = 0;
+  private sched!: Scheduler;
   private token = 0;
   private scrollTop = 0;
   private scrolledFor = "";
@@ -35,7 +35,7 @@ export class WeeklyTimelineView extends PlannerPane {
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin, private host?: PlannerHost) {
     super(plugin);
     this.root = parentEl.createDiv("samaya-wtl");
-    this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
+    this.sched = new Scheduler(this.scope, () => { void this.render(); }, () => !!this.host?.hidden());
     const ro = new ResizeObserver(() => { if (!this.host?.flow?.() && this.root.clientHeight !== this.seenH) this.schedule(); });
     ro.observe(this.root); this.register(() => ro.disconnect());
     this.registerInterval(window.setInterval(() => this.updateNowLines(), 60000));
@@ -43,17 +43,13 @@ export class WeeklyTimelineView extends PlannerPane {
     const ref = plugin.app.metadataCache.on("changed", f => { if (inEventFolder(plugin.settings, f.path)) this.schedule(); });
     this.register(() => plugin.app.metadataCache.offref(ref));
   }
-  onunload() { window.clearTimeout(this.timer); this.scope.dispose(); if (this.plugin.boardWeek === this.weekStart) { this.plugin.boardWeek = ""; this.plugin.modeBus.emit(); } }
+  onunload() { this.sched.cancel(); this.scope.dispose(); if (this.plugin.boardWeek === this.weekStart) { this.plugin.boardWeek = ""; this.plugin.modeBus.emit(); } }
   onDataUpdated(): void { this.schedule(); }
   refresh() { this.schedule(); }
   getWeek() { return this.weekStart; }
   /** Planner: show the week that contains `date`. */
   showWeekOf(date: string) { this.weekStart = startOfWeek(date); this.scrolledFor = ""; this.schedule(); }
-  private schedule() {
-    if (this.host?.hidden()) return;
-    if (this.scope.active) { this.pending = true; return; }
-    window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { void this.render(); }, 30);
-  }
+  private schedule() { this.sched.request(); }
 
   private opt(k: string, d: number) { const raw = this.config.get(k); return raw == null || raw === "" || isNaN(Number(raw)) ? d : Number(raw); }
 
@@ -64,7 +60,7 @@ export class WeeklyTimelineView extends PlannerPane {
     const events = this.config.get("showEvents") !== false && calendarEnabled(s)
       ? (await calendarEvents(this.plugin, parseYmd(this.weekStart), parseYmd(addDays(this.weekStart, 7))).catch(() => [] as CalendarEvent[])) : [];
     if (token !== this.token) return;
-    if (this.scope.active) { this.pending = true; return; }
+    if (this.scope.active) { this.sched.defer(); return; }
 
     if (!this.host && this.plugin.guide?.kind === "week") { // the guide lives in the Weekly Board
       this.root.empty(); this.scope.clear();

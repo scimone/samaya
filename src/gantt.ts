@@ -48,3 +48,15 @@ export function granularityDayWidth(g: Granularity, avail: number): number {
   const fit = (n: number, min: number) => Math.max(min, Math.floor((avail > 0 ? avail : 900) / n * 10) / 10);
   return g === "month" ? fit(30.5, 14) : g === "quarter" ? fit(91.5, 5) : 4;
 }
+
+/** A task's bar: first to last planned day (several pieces span everything in between); null when it has no day. */
+export function taskSpan(dates: string[]): Span | null {
+  const ds = dates.filter(d => YMD.test(d)).sort();
+  return ds.length ? { start: ds[0], end: ds[ds.length - 1] } : null;
+}
+
+/** Rows to show for `n` tasks: all of them up to `max`; beyond that the first and last `edge`, with a `gap` of hidden ones between (unless `expanded`). */
+export function collapseTasks(n: number, expanded: boolean, max = 6, edge = 3): { head: number; gap: number; tail: number } {
+  if (n <= max || expanded) return { head: n, gap: 0, tail: 0 };
+  return { head: edge, gap: n - 2 * edge, tail: edge };
+}

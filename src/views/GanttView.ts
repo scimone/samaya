@@ -2,16 +2,16 @@ import { Menu, setIcon } from "obsidian";
 import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { openFileSmart, openFileBeside } from "../openfile";
-import { DragMode, GRANULARITIES, Granularity, daysBetween, dragSpan, ganttRange, granularityDayWidth, monthMarks } from "../gantt";
+import { DragMode, GRANULARITIES, Granularity, collapseTasks, daysBetween, taskSpan, dragSpan, ganttRange, granularityDayWidth, monthMarks } from "../gantt";
 import { DEFAULT_PROJECT_DAYS, Project, projectStats, readProject, createProject, projectPathOf, projectsPrefix } from "../projects";
-import { Ticket, allTickets, patchNote, prefixOf } from "../model";
+import { Task, Ticket, allTasks, allTickets, patchNote, prefixOf } from "../model";
 import { linkProject } from "../links";
 import { ConfirmDeleteModal, TextPromptModal, TicketTargetSuggestModal } from "../modals";
 import { renderHeadTitle } from "./plannerHead";
 import { renderResetPill } from "./dateNav";
 import { NoteText, matches, renderSearch } from "./search";
 
-const memory = { query: "", back: 0, fwd: 0 }; // extra weeks before / after the dates, grown by scrolling to either edge
+const memory = { query: "", back: 0, fwd: 0, open: new Set<string>(), all: new Set<string>() }; // extra weeks before / after the dates, grown by scrolling to either edge
 import { addDays, parseYmd, today } from "../util";
 
 const MIN_NAME_W = 120, MAX_NAME_W = 600, COLLAPSED_W = 36;
@@ -54,6 +54,17 @@ export class GanttView extends Panel {
     const q = memory.query.trim();
     if (q) this.texts.load(every.map(p => p.file), () => { if (this.root.isConnected && memory.query.trim()) this.onDataUpdated(); });
     const projects = (q ? every.filter(p => matches(p.name.toLowerCase() + " " + p.file.basename.toLowerCase() + " " + this.texts.get(p.file), q)) : every).sort((a, b) => (a.span?.start ?? "9").localeCompare(b.span?.start ?? "9") || a.name.localeCompare(b.name));
+    // tasks of each project, by first planned day (undated last); shown under an expanded project
+    const tasksOf = new Map<string, Array<{ t: Task; span: { start: string; end: string } | null }>>();
+    for (const t of allTasks(this.app, s)) {
+      const pp = projectPathOf(this.app, t.file); if (!pp) continue;
+      (tasksOf.get(pp) ?? tasksOf.set(pp, []).get(pp)!).push({ t, span: taskSpan(t.sessions.length ? t.sessions.map(x => x.date) : t.planned ? [t.planned] : []) });
+    }
+    for (const l of tasksOf.values()) l.sort((a, b) => (a.span?.start ?? "9").localeCompare(b.span?.start ?? "9") || a.t.title.localeCompare(b.t.title));
+    const shownRows = projects.reduce((n, p) => {
+      const l = tasksOf.get(p.file.path); if (!l || !memory.open.has(p.file.path)) return n + 1;
+      const c = collapseTasks(l.length, memory.all.has(p.file.path)); return n + 1 + c.head + c.tail + (c.gap ? 1 : 0);
+    }, 0);
     const stats = projectStats(this.app, prefixOf(s.tasksPath), prefixOf(s.ticketsPath));
     const prev = this.root.querySelector<HTMLElement>(".samaya-gantt-scroll");
     const keep = prev && !changed ? { x: prev.scrollLeft + this.shiftWeeks * 7 * dayW, y: prev.scrollTop } : null; this.shiftWeeks = 0; this.growing = false;
@@ -82,7 +93,7 @@ export class GanttView extends Panel {
 
     // a full-height backdrop behind the name column, so the today line and gridlines vanish under it from top to bottom (also in the row borders and below the last row)
     const backdrop = chart.createDiv("samaya-gantt-namebg").createDiv("samaya-gantt-namebg-fill");
-    backdrop.createDiv("samaya-gantt-namelines").style.height = `${(projects.length ? projects.length + 1 : 0) * 42}px`; // a line for each row of the chart, no more
+    backdrop.createDiv("samaya-gantt-namelines").style.height = `${(projects.length ? shownRows + 1 : 0) * 42}px`; // a line for each row of the chart, no more
     const fitBackdrop = () => { backdrop.style.height = `${chart.offsetHeight}px`; };
     const hdr = chart.createDiv("samaya-gantt-row samaya-gantt-hrow");
     const hName = hdr.createDiv("samaya-gantt-name");
@@ -106,9 +117,41 @@ export class GanttView extends Panel {
     const allTk = allTickets(this.app, s).length > 0;
     for (const t of allTickets(this.app, s)) { const pp = projectPathOf(this.app, t.file); if (pp) (byProject.get(pp) ?? byProject.set(pp, []).get(pp)!).push(t); }
     const navs: Array<{ track: HTMLElement; bar: HTMLElement; x0: number; x1: number; btn: HTMLElement | null }> = [];
+    const taskRows = (p: Project) => {
+      const l = tasksOf.get(p.file.path); if (!l || !memory.open.has(p.file.path)) return;
+      const expanded = memory.all.has(p.file.path); const c = collapseTasks(l.length, expanded);
+      const one = (e: { t: Task; span: { start: string; end: string } | null }) => {
+        const r = chart.createDiv("samaya-gantt-row samaya-gantt-task");
+        const nm = r.createDiv("samaya-gantt-name");
+        const lk = nm.createSpan({ cls: "samaya-gantt-link", text: e.t.title, attr: { "aria-label": e.t.title } });
+        lk.onclick = () => { openFileBeside(this.app, e.t.file); };
+        const tr = r.createDiv("samaya-gantt-track"); tr.style.width = `${width}px`;
+        if (!e.span) return;
+        const b = tr.createDiv({ cls: "samaya-gantt-bar is-task" + (e.t.status === "done" ? " is-done" : "") });
+        b.createSpan({ cls: "samaya-gantt-label", text: e.t.title });
+        b.style.left = `${daysBetween(from, e.span.start) * dayW}px`; b.style.width = `${(daysBetween(e.span.start, e.span.end) + 1) * dayW}px`;
+        b.onclick = () => { openFileBeside(this.app, e.t.file); };
+      };
+      const more = (text: string) => {
+        const r = chart.createDiv("samaya-gantt-row samaya-gantt-task");
+        const btn = r.createDiv("samaya-gantt-name").createEl("button", { cls: "samaya-gantt-more", text });
+        btn.onclick = () => { if (expanded) memory.all.delete(p.file.path); else memory.all.add(p.file.path); this.render(); };
+        r.createDiv("samaya-gantt-track").style.width = `${width}px`;
+      };
+      l.slice(0, c.head).forEach(one);
+      if (c.gap) more(`Show ${c.gap} more tasks`);
+      if (c.tail) l.slice(l.length - c.tail).forEach(one);
+      if (expanded && l.length > 6) more("Show fewer");
+    };
     for (const p of projects) {
       const row = chart.createDiv("samaya-gantt-row");
       const name = row.createDiv("samaya-gantt-name");
+      const myTasks = tasksOf.get(p.file.path) ?? [];
+      const isOpen = memory.open.has(p.file.path);
+      if (myTasks.length) {
+        const arrow = name.createSpan({ cls: "samaya-gantt-arrow", attr: { "aria-label": isOpen ? "Hide tasks" : "Show tasks" } }); setIcon(arrow, isOpen ? "chevron-down" : "chevron-right");
+        arrow.onclick = e => { e.stopPropagation(); if (isOpen) memory.open.delete(p.file.path); else memory.open.add(p.file.path); this.render(); };
+      } else name.createSpan("samaya-gantt-arrow is-empty");
       const link = name.createSpan({ cls: "samaya-gantt-link", text: p.name }); link.title = p.file.path;
       link.onclick = () => { openFileBeside(this.app, p.file); };
       const linked = byProject.get(p.file.path) ?? [];
@@ -148,6 +191,7 @@ export class GanttView extends Panel {
           const start = addDays(from, dayAt(e));
           void patchNote(this.app, p.file, { start, end: addDays(start, DEFAULT_PROJECT_DAYS - 1) });
         });
+        taskRows(p);
         continue;
       }
       const bar = track.createDiv({ cls: "samaya-gantt-bar" + (p.done ? " is-done" : "") });
@@ -158,6 +202,7 @@ export class GanttView extends Panel {
       bar.createDiv({ cls: "samaya-gantt-handle is-start" }); bar.createDiv({ cls: "samaya-gantt-handle is-end" });
       this.drag(bar, p, dayW, place);
       const x0 = daysBetween(from, p.span.start) * dayW; navs.push({ track, bar, x0, x1: x0 + (daysBetween(p.span.start, p.span.end) + 1) * dayW, btn: null });
+      taskRows(p);
     }
     if (projects.length) {
       const addRow = chart.createDiv("samaya-gantt-row samaya-gantt-addrow");

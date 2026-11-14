@@ -24,6 +24,13 @@ const { renderTicketPath, renderTicketFileName, renderTicketNote, pathRoot: path
   assert.equal(workedSince(480, 840, [720, 780], [[720, 780]]), 300); // a tracked lunch break is not subtracted twice
   assert.equal(workedSince(480, 840, [720, 780], [[700, 730], [600, 610]]), 270); // partial overlap counted once
   assert.equal(workedSince(480, 400, [720, 780], []), 0); }
+// ---- gantt task rows
+{ const { taskSpan, collapseTasks } = await import("./.gantt.mjs");
+  assert.deepEqual(taskSpan(["2026-11-12", "2026-11-10", "2026-11-12"]), { start: "2026-11-10", end: "2026-11-12" });
+  assert.equal(taskSpan([]), null);
+  assert.deepEqual(collapseTasks(6, false), { head: 6, gap: 0, tail: 0 });
+  assert.deepEqual(collapseTasks(10, false), { head: 3, gap: 4, tail: 3 });
+  assert.deepEqual(collapseTasks(10, true), { head: 10, gap: 0, tail: 0 }); }
 // ---- util
 assert.deepEqual(parseTitleEstimate("Write report 1h"), { title: "Write report", estimate: 60 });
 assert.deepEqual(parseTitleEstimate("Call mom"), { title: "Call mom" });

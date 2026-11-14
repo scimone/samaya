@@ -1632,3 +1632,12 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 .samaya-daily.is-review .samaya-tlpane { padding-right: 0; }
 .samaya-daily.is-review .samaya-tlpane .samaya-scroll { margin-right: 0; }
 .samaya-daily.is-review .samaya-tlpane .samaya-grid { margin-right: 0; }
+
+.samaya-gantt-arrow { flex: 0 0 18px; display: inline-flex; align-items: center; justify-content: center; margin-left: -4px; margin-right: -2px; color: var(--text-muted); cursor: pointer; }
+.samaya-gantt-arrow:hover { color: var(--text-normal); }
+.samaya-gantt-arrow svg { width: 14px; height: 14px; }
+.samaya-gantt-task .samaya-gantt-name { padding-left: 32px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.samaya-gantt-bar.is-task { top: 11px; height: 20px; cursor: pointer; background: color-mix(in srgb, var(--text-muted) 25%, var(--background-primary)); border-color: var(--text-muted); }
+.samaya-gantt-bar.is-task .samaya-gantt-label { line-height: 18px; }
+.samaya-gantt-more { background: none; box-shadow: none; border: none; height: auto; padding: 0; color: var(--text-faint); font-size: var(--font-ui-smaller); cursor: pointer; }
+.samaya-gantt-more:hover { color: var(--text-accent); }

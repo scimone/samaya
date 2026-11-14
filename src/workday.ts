@@ -51,8 +51,13 @@ export class WorkdayManager {
   }
 
   /** A day that was never ended is closed at the last time we saw activity. */
+  private rolling = false;
   private async rollover() {
-    const l = this.log; if (!l || l.date === today()) return;
+    const l = this.log; if (!l || l.date === today() || this.rolling) return; // the 30s tick must not start a second run while a slow write is in flight
+    this.rolling = true;
+    try { await this.rolloverNow(l); } finally { this.rolling = false; }
+  }
+  private async rolloverNow(l: DayLog) {
     if (l.start && !l.end) {
       // the last time we saw the day running; without one, the finish line of that day's timeline (never before the start)
       const winEnd = this.plugin.workWindowFor(l.date)[1];

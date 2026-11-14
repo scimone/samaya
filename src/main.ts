@@ -365,7 +365,7 @@ export default class SamayaPlugin extends Plugin {
   async openProjects() { await this.scaffoldProjects(false); await this.openSection("projects"); }
   /** Open the planner (in the current tab when asked) showing a section: "planner" or a module shown on its side rail. */
   async openSection(id: string) {
-    await this.openPlanner(id === "planner");
+    await this.openPlanner();
     const v = this.app.workspace.getLeavesOfType(PLANNER_VIEW_TYPE)[0]?.view as PlannerView | undefined;
     await v?.showSectionById(id);
   }
@@ -401,12 +401,16 @@ export default class SamayaPlugin extends Plugin {
     const v = this.app.workspace.getLeavesOfType(PLANNER_VIEW_TYPE)[0]?.view as PlannerView | undefined;
     if (kind === "day") v?.showDay(date); else v?.showWeek(date);
   }
-  /** Open (or focus) the planner in the MAIN area, even when called from a sidebar. */
-  async openPlanner(inCurrentTab = false) {
+  /** Open (or focus) the planner in the MAIN area, even when called from a sidebar. It always has a tab of its own: an existing planner tab is reused, otherwise a new tab opens (or an empty "new tab" page is taken); a tab that shows a note is never replaced. */
+  async openPlanner() {
     await this.scaffold(false);
     const ws = this.app.workspace;
     let leaf = ws.getLeavesOfType(PLANNER_VIEW_TYPE)[0];
-    if (!leaf) { leaf = inCurrentTab ? ws.getLeaf(false) : ws.getLeaf("tab"); await leaf.setViewState({ type: PLANNER_VIEW_TYPE, active: true }); }
+    if (!leaf) {
+      const active = ws.getMostRecentLeaf(ws.rootSplit);
+      leaf = active && active.getViewState().type === "empty" ? active : ws.getLeaf("tab");
+      await leaf.setViewState({ type: PLANNER_VIEW_TYPE, active: true });
+    }
     await ws.revealLeaf(leaf);
     ws.rightSplit?.collapse(); // the planner and its guides need no sidebar
     ws.setActiveLeaf(leaf, { focus: true });

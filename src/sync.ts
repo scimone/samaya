@@ -8,7 +8,14 @@ const http: Http = async o => {
   return { status: r.status, json: r.json, headers: r.headers };
 };
 
+let syncing = false;
+/** One sync at a time: a startup sync overlapping a manual one would create duplicate notes. */
 export async function syncTickets(plugin: SamayaPlugin, only?: "jira" | "gitlab"): Promise<void> {
+  if (syncing) { new Notice("Samaya: a ticket sync is already running."); return; }
+  syncing = true;
+  try { await syncNow(plugin, only); } finally { syncing = false; }
+}
+async function syncNow(plugin: SamayaPlugin, only?: "jira" | "gitlab"): Promise<void> {
   const s = plugin.settings; const app = plugin.app;
   const jobs: Array<["jira" | "gitlab", () => Promise<RawTicket[]>]> = [];
   if (!s.ticketsOn) return;
@@ -21,7 +28,7 @@ export async function syncTickets(plugin: SamayaPlugin, only?: "jira" | "gitlab"
   for (const [source, run] of jobs) {
     try {
       const tickets = await run();
-      const existing = new Map(allTickets(app, s).filter(t => t.source === source).map(t => [t.url, t]));
+      const existing = new Map(allTickets(app, s).filter(t => t.source === source && t.url).map(t => [t.url, t]));
       let created = 0, closed = 0;
       for (const t of tickets) {
         const fm = { ...ticketProps(source, varsOfRaw(t)), ...LEGACY_TICKET_PROPS };

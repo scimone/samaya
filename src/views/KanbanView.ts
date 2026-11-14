@@ -43,7 +43,7 @@ export class KanbanView extends Panel {
 
   private render() {
     const all = this.data.data.filter(e => e.file.extension === "md").map(e => readTicket(this.app, e.file))
-      .filter(t => this.config.get("hideDone") !== true || !/(done|closed|resolved)/i.test(t.state));
+      .filter(t => this.config.get("hideDone") !== true || !/^\s*(done|closed|resolved)\b/i.test(t.state));
     const q = memory.query.trim();
     if (q) this.texts.load(all.map(t => t.file), () => { if (this.root.isConnected && memory.query.trim()) this.onDataUpdated(); });
     const tickets = q ? all.filter(t => matches([t.key, t.summary, t.file.basename, t.project, t.assignee, t.issueType, t.state].filter(Boolean).join(" ").toLowerCase() + " " + this.texts.get(t.file), q)) : all;

@@ -82,7 +82,7 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   stat("Start", startAt !== null ? minToHm(startAt) : "–", `plan ${minToHm(winFrom)}`, startAt !== null ? gap(startAt - winFrom) : "", startAt !== null && startAt - winFrom > 0 ? "is-warn" : "");
   stat("Finish", endAt !== null ? minToHm(endAt) : "–", `plan ${minToHm(winTo)}`, endAt !== null ? gap(endAt - winTo) : "", endAt !== null && endAt - winTo > 0 ? "is-warn" : "");
   stat("Tasks done", `${done + addedDone}/${plannedItems.length}`, "", added.length ? `(${added.length} unplanned)` : "", "is-added");
-  stat("Time on tasks", fmtDur(focus), planned ? `plan ${fmtDur(planned)}` : "", planned ? signed(focus - planned, fmtDur) : "", focus > planned ? "is-warn" : "is-ok");
+  stat("Time on tasks", fmtDur(focus), planned ? `plan ${fmtDur(planned)}` : "", planned ? signed(focus - planned, fmtDur) : "", planned > 0 && focus > planned ? "is-warn" : "is-ok");
 
   // ---- every task of the day, the changes first: takes the height that is left and scrolls when it is too long
   const diff = rows.filter(r => r.changes.length); const same = rows.filter(r => !r.changes.length);

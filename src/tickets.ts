@@ -30,6 +30,9 @@ export function adfToText(n: any): string { // eslint-disable-line @typescript-e
   }
 }
 
+// a truncated result would make sync close every ticket it did not get back: fail instead
+const MAX_PAGES = 20;
+const TOO_MANY = `more than ${MAX_PAGES * 100} tickets match - narrow the query (JQL / scope)`;
 export async function fetchJira(cfg: JiraCfg, http: Http): Promise<RawTicket[]> {
   if (!cfg.url || !cfg.token) throw new Error("Jira: base URL and token are required");
   const auth = cfg.flavor === "cloud" ? `Basic ${b64(`${cfg.email}:${cfg.token}`)}` : `Bearer ${cfg.token}`;
@@ -42,20 +45,22 @@ export async function fetchJira(cfg: JiraCfg, http: Http): Promise<RawTicket[]> 
   });
   const fields = "summary,status,project,issuetype,assignee,description";
   if (cfg.flavor === "cloud") {
-    let token = "";
-    for (let page = 0; page < 20; page++) {
+    let token = ""; let complete = false;
+    for (let page = 0; page < MAX_PAGES; page++) {
       const q = `jql=${encodeURIComponent(cfg.jql)}&fields=${fields}&maxResults=100` + (token ? `&nextPageToken=${encodeURIComponent(token)}` : "");
       const r = await http({ url: `${cfg.url}/rest/api/3/search/jql?${q}`, headers });
       out.push(...(r.json.issues ?? []).map(map));
-      token = r.json.nextPageToken ?? ""; if (!token || r.json.isLast) break;
+      token = r.json.nextPageToken ?? ""; if (!token || r.json.isLast) { complete = true; break; }
     }
+    if (!complete) throw new Error(TOO_MANY);
   } else {
-    let start = 0;
-    for (let page = 0; page < 20; page++) {
+    let start = 0; let complete = false;
+    for (let page = 0; page < MAX_PAGES; page++) {
       const r = await http({ url: `${cfg.url}/rest/api/2/search?jql=${encodeURIComponent(cfg.jql)}&fields=${fields}&maxResults=100&startAt=${start}`, headers });
       const issues = r.json.issues ?? []; out.push(...issues.map(map)); start += issues.length;
-      if (!issues.length || start >= (r.json.total ?? 0)) break;
+      if (!issues.length || start >= (r.json.total ?? 0)) { complete = true; break; }
     }
+    if (!complete) throw new Error(TOO_MANY);
   }
   return out;
 }
@@ -63,7 +68,8 @@ export async function fetchJira(cfg: JiraCfg, http: Http): Promise<RawTicket[]> 
 export async function fetchGitlab(cfg: GitlabCfg, http: Http): Promise<RawTicket[]> {
   if (!cfg.url || !cfg.token) throw new Error("GitLab: base URL and token are required");
   const out: RawTicket[] = []; let page = "1";
-  for (let n = 0; n < 20 && page; n++) {
+  for (let n = 0; page; n++) {
+    if (n >= MAX_PAGES) throw new Error(TOO_MANY);
     const r = await http({ url: `${cfg.url}/api/v4/issues?scope=${cfg.scope}&state=opened&per_page=100&page=${page}`, headers: { "PRIVATE-TOKEN": cfg.token } });
     for (const i of r.json as any[]) { // eslint-disable-line @typescript-eslint/no-explicit-any
       const full: string = i.references?.full ?? `#${i.iid}`; // e.g. group/project#12

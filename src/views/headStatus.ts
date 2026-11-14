@@ -47,7 +47,7 @@ const workTimeIcon = (plugin: SamayaPlugin, host: HTMLElement) => viewIcon(host,
 
 /** Day heading: workday status, then the daily capacity grouped with Plan day; Break / End day (the workday's own buttons) and Daily note in the actions. */
 export function renderDayHeadStatus(plugin: SamayaPlugin, mid: HTMLElement, right: HTMLElement, o: { date: string; planned: number; meetings: number; free: number; what: string }): HTMLElement {
-  const s = plugin.settings; const isToday = o.date === today();
+  const isToday = o.date === today();
   const sg = mid.createDiv("samaya-hs-group is-status");
   renderWorkdayCard(plugin, sg.createDiv("samaya-hs-wd"), { part: "status", date: o.date });
   workTimeIcon(plugin, sg);

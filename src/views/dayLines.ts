@@ -1,7 +1,7 @@
 import type SamayaPlugin from "../main";
 import { trackPointer } from "./pointerDrag";
 import { safe } from "../safe";
-import { hmToMin, minToHm } from "../util";
+import { minToHm } from "../util";
 
 /** Draggable start and finish lines of the working day of ONE day (the settings hold the default; double-click a label to go back to it), with the hours outside shaded. */
 export function renderDayLines(plugin: SamayaPlugin, date: string, lane: HTMLElement, grid: HTMLElement, o: { startH: number; endH: number; slot: number }, hourH: number, minToPx: (m: number) => number) {

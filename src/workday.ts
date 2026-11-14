@@ -1,4 +1,4 @@
-import { App, Menu, Notice } from "obsidian";
+import { App, Notice } from "obsidian";
 import type SamayaPlugin from "./main";
 import { journalWants, setJournalProps } from "./journal";
 import { Break, BreakKind, DayLog, autoLunch, breakMinutes, fmtBreak, parseBreak, workedOn } from "./worktime";

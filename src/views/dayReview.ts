@@ -69,7 +69,7 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   if (!hasPlan) tl.createDiv({ cls: "samaya-rv-note", text: "No plan was saved when this day was planned, so today's list is used as the plan." });
 
   // ---- left: headline, the day in four numbers, how the time was spent
-  const v = verdict(planned, comparableActual, done, plannedItems.length);
+  const v = verdict(planned, comparableActual, plannedItems.length);
   const head = info.createDiv("samaya-rv-head");
   head.createDiv({ cls: "samaya-rv-vtitle", text: v.title });
   head.createDiv({ cls: "samaya-rv-vtext", text: v.text + (addedDone ? ` Plus ${addedDone} ${addedDone === 1 ? "task" : "tasks"} you added along the way.` : "") });

@@ -100,7 +100,7 @@ export function daySplit(worked: number, focus: number, meetings: number, breaks
 }
 
 /** A short, honest sentence about how the plan went. */
-export function verdict(planned: number, actual: number, done: number, count: number): { title: string; text: string } {
+export function verdict(planned: number, actual: number, count: number): { title: string; text: string } {
   if (!count && !actual) return { title: "A day without a plan", text: "Nothing was planned and no time was tracked." };
   if (!actual) return { title: "No time tracked", text: "Start the focus timer on a task to see how the day really went." };
   if (!planned) return { title: "Unplanned work", text: "You worked, but nothing was planned for today." };
@@ -125,7 +125,7 @@ export interface SummaryIn { items: ReviewItem[]; hasPlan: boolean; window: [num
 const LABEL: Record<Change, string> = { added: "Unplanned", skipped: "Not worked", open: "Not finished", over: "Over", under: "Under", moved: "Moved" };
 /** The review as a few markdown lines for the daily note: headline, the day in numbers, what changed, what was achieved per ticket / project. */
 export function reviewSummary(i: SummaryIn): string {
-  const t = dayTotals(i.items, i.hasPlan); const v = verdict(t.planned, t.comparableActual, t.done, t.plannedItems.length); const out: string[] = [];
+  const t = dayTotals(i.items, i.hasPlan); const v = verdict(t.planned, t.comparableActual, t.plannedItems.length); const out: string[] = [];
   out.push(`- **${v.title}.** ${v.text}`);
   if (i.start !== null) out.push(`- **Day:** ${minToHm(i.start)}–${i.end !== null ? minToHm(i.end) : "?"} (planned ${minToHm(i.window[0])}–${minToHm(i.window[1])}), worked ${fmtDur(i.worked)}`);
   out.push(`- **Tasks:** ${t.done} of ${t.plannedItems.length} planned done${t.added.length ? `, ${t.added.length} unplanned (${t.addedDone} done)` : ""}`);

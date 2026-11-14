@@ -9,7 +9,7 @@ import { assignProjectLinked, assignTicketLinked } from "../links";
 import { PROJECT_PROP, Project, allProjects, projectPathOf } from "../projects";
 import { sessionDays } from "../sessions";
 import { readProp } from "../taskprops";
-import { BACKLOG_COLS, BOARD_COLS, BacklogCol, Col, backlogOf, columnOf, doneThisWeek, lanes } from "../tasksboard";
+import { BACKLOG_COLS, BOARD_COLS, backlogOf, columnOf, doneThisWeek, lanes } from "../tasksboard";
 import { Horizon, fmtDur, horizonTarget, parseYmd, startOfWeek, today } from "../util";
 import { bindZone, renderTaskCard } from "./common";
 import { renderHeadTitle, renderSwitch } from "./plannerHead";

@@ -1,4 +1,4 @@
-import { TFile, setIcon } from "obsidian";
+import { TFile } from "obsidian";
 import type { CalendarEvent } from "../eventnotes";
 import { safe } from "../safe";
 import { openFileSmart } from "../openfile";
@@ -7,7 +7,7 @@ import type { PlannerHost } from "./plannerHost";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, allTasks, dropOnDay, onDay, setDone, sortTasks } from "../model";
-import { addDays, fmtDur, hmToMin, minToHm, nextDayMs, parseYmd, startOfWeek, today } from "../util";
+import { addDays, fmtDur, minToHm, nextDayMs, parseYmd, startOfWeek, today } from "../util";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { layoutItems } from "../timeline";
 import { bindZone, keyActivate, showTaskMenu } from "./common";
@@ -76,7 +76,6 @@ export class WeeklyTimelineView extends PlannerPane {
     const old = this.root.querySelector<HTMLElement>(".samaya-wtl-scroll"); if (old && !flow) this.scrollTop = old.scrollTop;
     this.root.empty(); this.scope.clear();
     const all = allTasks(this.app, this.plugin.settings);
-    const byPath = new Map(all.map(t => [t.file.path, t]));
 
     if (this.plugin.boardWeek !== this.weekStart) { this.plugin.boardWeek = this.weekStart; this.plugin.modeBus.emit(); }
     const head = this.root.createDiv("samaya-week-head");
@@ -210,7 +209,6 @@ export class WeeklyTimelineView extends PlannerPane {
     window.setTimeout(() => this.root.removeClass("is-fitting"), 520);
   }
 
-  private nowM() { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); }
   private updateNowLines() {
     const now = new Date();
     this.root.querySelectorAll<HTMLElement>(".samaya-now").forEach(nl => {

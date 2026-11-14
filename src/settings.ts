@@ -3,7 +3,7 @@ import type SamayaPlugin from "./main";
 import { ticketFolderFor, folderFor } from "./model";
 import { normalizeHex, resolveColor } from "./colors";
 import { TICKET_VARIABLES, renderTicketFileName, TicketVars } from "./taskbody";
-import { JournalLoc, JournalPart, PERIODIC_KINDS, PeriodicKind, JournalSource, PERIOD_DEFAULT_FORMAT, Period, journalLocation, journalPathFor, journalSources, pickJournalSource } from "./journal";
+import { JournalLoc, JournalPart, PERIODIC_KINDS, PeriodicKind, JournalSource, PERIOD_DEFAULT_FORMAT, Period, journalPathFor, journalSources, pickJournalSource } from "./journal";
 import { DEFAULT_EVENT_PATTERN, PATTERN_HELP, compilePattern } from "./eventnotes";
 
 export interface PeriodCfg { on: boolean; source: "auto" | JournalSource; folder: string; format: string; }

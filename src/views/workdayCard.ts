@@ -2,11 +2,11 @@ import type SamayaPlugin from "../main";
 import { fmtDur, hmToMin, minToHm, today } from "../util";
 import { safe } from "../safe";
 import { nowMin } from "../workday";
-import { breakMinutes, fmtSigned, workedMinutes, workedSince } from "../worktime";
+import { breakMinutes, fmtSigned, workedSince } from "../worktime";
 
 /** Workday status with actions: a minimal one-liner, or (`panel`) a card with the time worked in large type. Repaints itself until removed from the DOM. */
 export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { compact?: boolean; panel?: boolean; /** heading pieces: just the status chip, or just the buttons */ part?: "status" | "actions"; /** status chip of a past week: the average work time per working day instead of a live status */ average?: { avg: number; days: number } | null; /** another day than today: a read-only summary from its log */ date?: string } = {}) {
-  const wd = plugin.workday; const s = plugin.settings;
+  const wd = plugin.workday;
   let timer = 0; let off = () => {};
   const paint = () => {
     if (!host.isConnected) { off(); window.clearInterval(timer); return; }

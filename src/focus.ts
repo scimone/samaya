@@ -1,7 +1,7 @@
 import { Notice, TFile, setIcon } from "obsidian";
 import { bannerSlots } from "./bars";
 import type SamayaPlugin from "./main";
-import { closeSide, openFileSmart, openFull } from "./openfile";
+import { closeSide, openFull } from "./openfile";
 import { dayTask, patchTask, readTask } from "./model";
 import { roundCheck, trackedBefore } from "./views/place";
 import { applyTaskPatch } from "./taskprops";

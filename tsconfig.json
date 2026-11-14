@@ -11,6 +11,8 @@
     "importHelpers": true,
     "isolatedModules": true,
     "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "skipLibCheck": true,
     "lib": ["DOM", "ES2020"]
   },

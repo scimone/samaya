@@ -1,7 +1,7 @@
 import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { addDays, fmtDur, parseYmd, startOfWeek, today } from "../util";
-import { nowMin, readLogs } from "../workday";
+import { nowMin } from "../workday";
 import { DayLog, breakMinutes, fmtSigned, totalBalance, weekSummary } from "../worktime";
 
 export const DASHBOARD_VIEW_TYPE = "samaya-dashboard";

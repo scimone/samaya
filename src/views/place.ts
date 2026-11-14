@@ -5,7 +5,7 @@ import { MergeSegmentsModal } from "../modals";
 import { Seg, mergeOffer, planInWindow, segsTotal } from "../segments";
 import { NO_REST, Piece, Session, addMinutes, sessionsTotal, dayMinutes, dayPieces, pieceLength, replaceDay, sortSessions, splitPiece, takePiece, withoutDay } from "../sessions";
 import { calendarEnabled, calendarEvents } from "../calendar";
-import { Horizon, addDays, fmtDur, hmToMin, horizonTarget, parseYmd, startOfWeek, today } from "../util";
+import { Horizon, addDays, fmtDur, hmToMin, horizonTarget, parseYmd, today } from "../util";
 import { runMinutesFrom } from "../dayreview";
 import { nowMin } from "../workday";
 import { Notice, TFile, setIcon } from "obsidian";

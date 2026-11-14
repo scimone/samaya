@@ -82,12 +82,12 @@ export class WeeklyBoardView extends PlannerPane {
       const date = addDays(this.weekStart, i); const dayMs = parseYmd(date).getTime();
       const cap = capacityWindow(...this.plugin.workWindowFor(date), this.plugin.lunchFor(date),
         events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
-      this.column(cols2, parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }), "day", date, sortTasks(onDay(all, date)), date === today(), cap, events);
+      this.column(cols2, parseYmd(date).toLocaleDateString(undefined, { weekday: "short", day: "numeric" }), date, sortTasks(onDay(all, date)), date === today(), cap, events);
     }
     this.root.scrollLeft = scrollX; this.root.scrollTop = scrollY;
   }
 
-  private column(parent: HTMLElement, title: string, kind: "day", key: string, tasks: Task[], isToday: boolean, cap: Capacity, events: CalendarEvent[]) {
+  private column(parent: HTMLElement, title: string, key: string, tasks: Task[], isToday: boolean, cap: Capacity, events: CalendarEvent[]) {
     const col = parent.createDiv({ cls: "samaya-col" + (isToday ? " is-today" : "") });
     const top = col.createDiv("samaya-col-top"); // day heading, load bar and add box: they stay in view while the cards scroll
     { // (expanded week, under the timeline: CSS hides the heading and bar, the day is already named above)

@@ -1,4 +1,4 @@
-import { App, Notice, TFile, normalizePath, requestUrl } from "obsidian";
+import { App, Notice, TFile, normalizePath } from "obsidian";
 import type { SamayaSettings } from "./settings";
 import { Horizon, horizonTarget, isHorizon, minToHm, safeFileName, startOfWeek, today } from "./util";
 import { DEFAULT_TASK_TEMPLATE, ensureSubtasksHeading, insertSubtask, renderPath, pathRoot, renderTemplate, TicketVars, DEFAULT_TICKET_TEMPLATE, renderTicketNote, renderTicketFileName, renderTicketPath } from "./taskbody";

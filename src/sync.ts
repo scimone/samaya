@@ -1,4 +1,4 @@
-import { Notice, normalizePath, requestUrl } from "obsidian";
+import { Notice, requestUrl } from "obsidian";
 import type SamayaPlugin from "./main";
 import { Http, RawTicket, fetchGitlab, fetchJira } from "./tickets";
 import { LEGACY_TICKET_PROPS, allTickets, createTicketNote, ticketProps, patchNote, relocateTicket, varsOfRaw, varsOfTicket } from "./model";

@@ -3,7 +3,7 @@ import type SamayaPlugin from "../main";
 import { safe } from "../safe";
 import { openFileSmart } from "../openfile";
 import { DndScope, DropInfo } from "../dnd";
-import { Source, Task, addSubtask, patchTask, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
+import { Source, Task, addSubtask, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
 import { ConfirmDeleteModal, ProjectSuggestModal, TicketSuggestModal } from "../modals";
 import { focusButton, isCurrentTask, trackedBefore, joinParts, splitTitle } from "./place";
 import { openDayPicker } from "./dayPicker";
@@ -173,7 +173,7 @@ export function projectChip(parent: HTMLElement, name: string): HTMLElement {
 }
 /** Ticket entries of the task menu: assign / change / remove. */
 export function addTicketItems(m: Menu, plugin: SamayaPlugin, t: Task) {
-  const app = plugin.app; const tp = ticketPathOf(app, t); const ticketsOn = plugin.settings.ticketsOn;
+  const app = plugin.app; const ticketsOn = plugin.settings.ticketsOn;
   if (ticketsOn || t.ticket) m.addItem(i => i.setTitle(t.ticket ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void assignTicketLinked(app, plugin.settings, t.file, tk); }, tk => ticketFits(app, plugin.settings, t.file, tk)).open()));
   if (t.ticket) m.addItem(i => i.setTitle("Unlink ticket").setIcon("unlink").onClick(() => { void assignTicketLinked(app, plugin.settings, t.file, null); }));
 }

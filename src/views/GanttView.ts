@@ -240,7 +240,7 @@ export class GanttView extends Panel {
       });
       addRow.createDiv("samaya-gantt-track").style.width = `${width}px`;
     }
-    if (!hidden) for (const cell of Array.from(chart.querySelectorAll<HTMLElement>(".samaya-gantt-name"))) this.resizer(cell, chart, width, nw);
+    if (!hidden) for (const cell of Array.from(chart.querySelectorAll<HTMLElement>(".samaya-gantt-name"))) this.resizer(cell, chart, nw);
     fitBackdrop();
     const line = chart.createDiv("samaya-gantt-today"); line.style.left = `calc(var(--name) + ${todayX}px)`;
     if (keep) { scroll.scrollLeft = keep.x; scroll.scrollTop = keep.y; }
@@ -292,7 +292,7 @@ export class GanttView extends Panel {
   }
 
   /** The drag handle on a name cell's right border: resizes the whole column live, saves on release. */
-  private resizer(cell: HTMLElement, chart: HTMLElement, width: number, nw: number) {
+  private resizer(cell: HTMLElement, chart: HTMLElement, nw: number) {
     const h = cell.createDiv("samaya-gantt-resize"); h.setAttr("aria-label", "Drag to resize");
     h.addEventListener("pointerdown", e => {
       if (e.button !== 0) return; e.preventDefault();

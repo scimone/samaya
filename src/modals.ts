@@ -5,7 +5,7 @@ import { SOURCE_NAMES, Ticket, allTickets } from "./model";
 import { HORIZONS, Horizon, fmtDur, parseDuration } from "./util";
 
 export class TextPromptModal extends Modal {
-  constructor(private plugin: SamayaPlugin, private label: string, private onSubmit: (v: string) => void, private initial = "") { super(plugin.app); }
+  constructor(plugin: SamayaPlugin, private label: string, private onSubmit: (v: string) => void, private initial = "") { super(plugin.app); }
   onOpen() {
     this.contentEl.createEl("p", { text: this.label });
     const inp = this.contentEl.createEl("input", { type: "text" }); inp.style.width = "100%"; inp.value = this.initial; inp.focus();

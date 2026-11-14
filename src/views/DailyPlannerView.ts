@@ -1,5 +1,5 @@
 import { leftToDo } from "./place";
-import { Notice, TFile, WorkspaceLeaf, setIcon } from "obsidian";
+import { Notice, TFile, setIcon } from "obsidian";
 import { safe } from "../safe";
 import type { CalendarEvent } from "../eventnotes";
 import { PlannerPane } from "./plannerPane";
@@ -358,5 +358,4 @@ export class DailyPlannerView extends PlannerPane {
     }));
   }
 
-  private fileOf(path: string): TFile { return this.app.vault.getAbstractFileByPath(path) as TFile; }
 }

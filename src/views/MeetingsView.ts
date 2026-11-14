@@ -196,11 +196,11 @@ export class MeetingsView extends Panel {
       for (const i of items) this.meetingRow(g, i);
     }
 
-    const recent = all.filter(i => i.when === "past" && i.date >= addDays(td, -7)).sort((x, y) => byTime(y, x)).slice(0, 40); // only the last week
+    const recent = all.filter(i => i.when === "past").sort((x, y) => byTime(y, x)).slice(0, 40); // fit() hides what does not fit
     const rec = this.section(left, "Recent", "recent");
-    if (!recent.length) this.none(rec.body, "No meetings in the past 7 days.");
+    if (!recent.length) this.none(rec.body, "No past meetings yet.");
     for (const i of recent) this.meetingRow(rec.body, i, true);
-    this.fit(left, [next.sec, rec.sec]);
+    rec.body.addClass("is-fit"); this.fit(left, next.sec, rec.sec);
 
     const list = series.filter(s => this.matches(s)).sort((a, b) => (a.next ? a.next.date + hm(a.next.start ?? 0) : "9999").localeCompare(b.next ? b.next.date + hm(b.next.start ?? 0) : "9999") || a.title.localeCompare(b.title));
     const rc = this.section(right, "Recurring", "recurring", list.length || "");
@@ -208,8 +208,9 @@ export class MeetingsView extends Panel {
     for (const s of list) {
       const r = this.rowEl(rc.body, s);
       r.createSpan({ cls: "samaya-md-name", text: s.title });
-      if (s.held && !this.loading) { const n = r.createSpan({ cls: "samaya-md-noted", attr: { "aria-label": `${s.withNotes} of ${s.held} past meetings have notes` } }); setIcon(n.createSpan("samaya-md-noted-icon"), "file-text"); n.createSpan({ text: `${s.withNotes}/${s.held}` }); }
       r.createSpan({ cls: "samaya-md-sched", text: [s.cadence, s.days].filter(Boolean).join(" · ") });
+      const n = r.createSpan("samaya-md-noted"); // notes at the very right (an empty slot keeps the schedules aligned)
+      if (s.held && !this.loading) { n.setAttr("aria-label", `${s.withNotes} of ${s.held} past meetings have notes`); setIcon(n.createSpan("samaya-md-noted-icon"), "file-text"); n.createSpan({ text: `${s.withNotes}/${s.held}` }); }
       r.onclick = () => { memory.selected = s.key; memory.onlyNotes = false; this.rerender(); };
     }
   }
@@ -279,17 +280,21 @@ export class MeetingsView extends Panel {
     }
   }
 
-  /** Share the height of a column between its sections by what each needs: one that fits is shown whole, the other gets the rest (both only scroll when neither fits half). */
-  private fit(col: HTMLElement, secs: HTMLElement[]) {
+  /** Share the height of the left column: every meeting of Next is shown (it scrolls only when it alone is taller than the column, and then Recent is hidden); Recent gets the rest and shows only the meetings that fit, so nothing there scrolls. */
+  private fit(col: HTMLElement, next: HTMLElement, rec: HTMLElement) {
     const run = () => {
       if (!col.isConnected || !col.clientHeight) return;
-      const need = secs.map(sec => { // natural height: let the section take what its content needs, measure, restore
-        const b = sec.querySelector<HTMLElement>(".samaya-md-scroll")!; sec.style.flex = "none"; b.style.flex = "none"; const n = sec.offsetHeight; b.style.flex = ""; return n;
-      });
-      const gap = parseFloat(getComputedStyle(col).rowGap) || 0; const room = col.clientHeight - gap * (secs.length - 1); const half = room / secs.length;
-      const fixed = (n: number) => `0 0 ${Math.ceil(n)}px`; const rest = "1 1 0px";
-      if (need.reduce((a, b) => a + b, 0) <= room) { secs.forEach((sec, i) => { sec.style.flex = fixed(need[i]); }); return; }
-      secs.forEach((sec, i) => { sec.style.flex = need[i] <= half ? fixed(need[i]) : rest; });
+      const nb = next.querySelector<HTMLElement>(".samaya-md-scroll")!; const rb = rec.querySelector<HTMLElement>(".samaya-md-scroll")!;
+      const rows = Array.from(rb.children) as HTMLElement[];
+      rec.style.display = ""; rows.forEach(r => { r.style.display = ""; });
+      next.style.flex = "none"; nb.style.flex = "none"; const need = next.offsetHeight; nb.style.flex = "";
+      const gap = parseFloat(getComputedStyle(col).rowGap) || 0; const room = col.clientHeight;
+      if (need + gap >= room) { next.style.flex = "1 1 0"; rec.style.display = "none"; return; } // too many next meetings: they scroll, no room for Recent
+      next.style.flex = `0 0 ${Math.ceil(need)}px`;
+      rec.style.flex = "none"; rb.style.flex = "none"; const head = rec.offsetHeight - rb.offsetHeight; let free = room - need - gap - head; let shown = 0;
+      for (const r of rows) { const h = r.offsetHeight; if (h > free) break; free -= h; shown++; }
+      rows.forEach((r, i) => { r.style.display = i < shown ? "" : "none"; });
+      rb.style.flex = ""; if (!shown) rec.style.display = "none"; else rec.style.flex = "0 0 auto";
     };
     this.fitting = new ResizeObserver(run); this.fitting.observe(col); window.requestAnimationFrame(run);
   }

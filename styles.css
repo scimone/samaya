@@ -1643,3 +1643,5 @@ button.samaya-rp-clear:hover { color: var(--text-error); }
 
 /* the count and time pills of the meetings pages stay fully visible while focusing */
 body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
+
+.samaya-md-scroll.is-fit { overflow: hidden; }

@@ -31,7 +31,6 @@ async function go(plugin: SamayaPlugin, leaf: WorkspaceLeaf, p: Period, date: st
 }
 
 const KIND: Record<Period, string> = { daily: "Day", weekly: "Week", monthly: "Month", quarterly: "Quarter", yearly: "Year" };
-const ADJ: Record<Period, string> = { daily: "daily", weekly: "weekly", monthly: "monthly", quarterly: "quarterly", yearly: "yearly" };
 
 /** Show the note of another kind for the same time: the note that contains the date (see `retarget`), else the closest one that exists, and only when there is no note of that kind at all, a question whether to create it. */
 async function switchKind(plugin: SamayaPlugin, leaf: WorkspaceLeaf, from: Period, date: string, to: Period) {
@@ -40,7 +39,7 @@ async function switchKind(plugin: SamayaPlugin, leaf: WorkspaceLeaf, from: Perio
   if (info.file) { void leaf.openFile(info.file); return; }
   const near = nearestSpan(to, await listPeriodNotes(plugin.app, s, to), ref); if (near) { void leaf.openFile(near.file); return; }
   const t = journalBarTitle(to, ref); const label = to === "yearly" ? t.title : to === "daily" ? `${t.title}, ${t.sub}` : `${t.title} (${t.sub})`; // "Friday, Nov 13, 2026 · Week 46", "Week 46 (Nov 9 – 15)", "Q4 (Oct – Dec 2026)", "2026"
-  new ConfirmCreatePeriodModal(plugin, ADJ[to], label, () => { void openPeriodNote(plugin.app, s, to, ref).then(f => { if (f) void leaf.openFile(f); }); }).open();
+  new ConfirmCreatePeriodModal(plugin, to, label, () => { void openPeriodNote(plugin.app, s, to, ref).then(f => { if (f) void leaf.openFile(f); }); }).open();
 }
 
 /** The bar above a journal note, built like the planner's heading: title and dates on the left, on the right the pill back to now (only when elsewhere), then ‹ 📅 › (arrows step to the previous / next note that exists, the calendar picks any date). */

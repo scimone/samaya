@@ -117,7 +117,6 @@ export function splitTitle(t: Task): string {
   if (p.kind === "day" && p.rest) bits.push(`${fmtDur(p.rest)} not planned yet`);
   return bits.length ? `Split task. Also: ${bits.join(", ")}` : "Split task";
 }
-export const segLabel = (_k: number, _n: number): string => ""; // the piece number sits next to the scissors icon in the title
 
 /**
  * Drop on the timeline at `startMin`. A task flows around meetings and lunch (split into segments); a dragged segment of a

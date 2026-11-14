@@ -13,7 +13,7 @@ import { layoutItems } from "../timeline";
 import { bindZone, keyActivate, showTaskMenu } from "./common";
 import { addBands } from "./bands";
 import { renderWeekHead } from "./plannerHead";
-import { isCurrentTask, decorateSegment, dragLen, dropOnTimeline, remainingBlocks, segLabel, splitTitle } from "./place";
+import { isCurrentTask, decorateSegment, dragLen, dropOnTimeline, remainingBlocks, splitTitle } from "./place";
 
 const MIN_HOUR_H = 40;
 
@@ -116,7 +116,7 @@ export class WeeklyTimelineView extends PlannerPane {
 
       bindZone(this.scope, h, (path, i) => { // drop here = keep the day, remove the time slot
         const f = this.app.vault.getAbstractFileByPath(path);
-        if (f instanceof TFile) safe(dropOnDay(this.app, s, f, { ...i, fromTimeline: i.fromTimeline }, date, 9999), "moving the task");
+        if (f instanceof TFile) safe(dropOnDay(this.app, s, f, i, date, 9999), "moving the task");
       });
       const col = body.createDiv("samaya-wtl-col" + (isToday ? " is-today" : "")); col.style.height = L(endH - startH);
       for (let hr = startH; hr < endH; hr++) col.createDiv("samaya-wtl-hour").style.top = L(hr - startH);
@@ -175,7 +175,7 @@ export class WeeklyTimelineView extends PlannerPane {
         keyActivate(st, `Done: ${t.title}`, toggle, "checkbox"); st.setAttr("aria-checked", String(t.status === "done"));
         bt.createSpan({ text: t.title });
         b.dataset.day = date; b.dataset.date = date; b.dataset.s = String(it.s); b.dataset.dur = String(it.dur); b.dataset.done = t.status === "done" ? "1" : "";
-        b.createDiv({ cls: "samaya-block-time", text: `${minToHm(it.s)}–${minToHm(it.s + it.dur)} · ${fmtDur(it.dur)}${segLabel(it.seg!, it.n!)}` });
+        b.createDiv({ cls: "samaya-block-time", text: `${minToHm(it.s)}–${minToHm(it.s + it.dur)} · ${fmtDur(it.dur)}` });
         decorateSegment(b, t, it.seg!, it.n!, lane);
         keyActivate(b, `Task: ${t.title}, ${minToHm(it.s)}–${minToHm(it.s + it.dur)}. Press Enter to open`, () => open(t.file));
         b.addEventListener("dblclick", () => open(t.file));

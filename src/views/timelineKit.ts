@@ -11,7 +11,7 @@ import { minToHm, parseYmd, today } from "../util";
 import { PartsModal } from "./partsModal";
 import { canSplit, keyActivate, showTaskMenu } from "./common";
 import { renderDayLines } from "./dayLines";
-import { isCurrentTask, decorateSegment, dragLen, dropOnTimeline, remainingBlocks, resizeBlock, segLabel } from "./place";
+import { isCurrentTask, decorateSegment, dragLen, dropOnTimeline, remainingBlocks, resizeBlock } from "./place";
 import { addBands } from "./bands";
 
 const MIN_HOUR_H = 28;
@@ -98,7 +98,7 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
       }
       bt.createSpan({ text: it.ev ? it.ev.title : it.task!.title });
       const when = `${minToHm(it.s)} – ${minToHm(it.s + it.dur)}`;
-      b.createDiv({ cls: it.ev ? "samaya-event-time" : "samaya-block-time", text: `${when}${it.ev ? "" : segLabel(it.seg!, it.n!)}` });
+      b.createDiv({ cls: it.ev ? "samaya-event-time" : "samaya-block-time", text: when });
       if (it.ev) { const n = notes.get(it.ev); if (n) { b.title = "Open meeting note"; b.addEventListener("click", () => open(n)); keyActivate(b, `Meeting: ${it.ev.title}, ${when}. Open note`, () => open(n)); } return; }
       const t = it.task!;
       keyActivate(b, `Task: ${t.title}, ${when}. Press Enter to open`, () => open(t.file));

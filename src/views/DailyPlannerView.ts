@@ -9,13 +9,12 @@ import { Task, allTasks, createTask, dropOnDay, onDay, overdueParts, prefixOf, s
 import { addDays, fmtDur, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import type { PlannerHost } from "./plannerHost";
 import { bindCardDrop, bindZone, renderBacklogBuckets, renderTaskCard, richText } from "./common";
-import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
+import { calendarEnabled, calendarEvents, eventNote, inEventFolder } from "../calendar";
 import { celebrate, renderDoneBar } from "./doneBar";
 import { renderGuide } from "./guide";
 import { renderDayReview } from "./dayReview";
 import { renderLoadBar } from "./loadBar";
 import { renderTimeline, TimelineState } from "./timelineKit";
-import { ensureMeetingNote } from "../meetings";
 import { capacityWindow, Capacity } from "../worktime";
 import { bufferShare, loadLevel, trimToBuffer } from "../weekplan";
 import { renderDayHeadStatus, renderDayNoteIcon } from "./headStatus";
@@ -100,7 +99,7 @@ export class DailyPlannerView extends PlannerPane {
     const plannedAll = day.reduce((a, t) => a + leftToDo(this.plugin, t, this.date, 0), 0);
     const notes = new Map<CalendarEvent, TFile>(); // meeting notes for the timeline
     const tlEvents = !calendarEnabled(s) ? [] : this.showEvents ? events : await calendarEvents(this.plugin, parseYmd(this.date), parseYmd(addDays(this.date, 1)));
-    for (const ev of tlEvents.filter(e => !e.allDay)) { try { notes.set(ev, await ensureMeetingNote(this.app, ev)); } catch { /* ignore */ } }
+    for (const ev of tlEvents.filter(e => !e.allDay)) { const f = eventNote(this.app, ev); if (f) notes.set(ev, f); }
     if (token !== this.token || this.scope.active) { if (this.scope.active) this.pending = true; return; }
 
     const g = isToday ? guide : null; const step = g?.step ?? -1;

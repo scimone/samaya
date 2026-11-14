@@ -1,4 +1,4 @@
-import { normalizePath } from "obsidian";
+import { TFile, normalizePath, type App } from "obsidian";
 import type SamayaPlugin from "./main";
 import type { SamayaSettings } from "./settings";
 import { DEFAULT_EVENT_PATTERN, compilePattern, eventFromNote, type CalendarEvent } from "./eventnotes";
@@ -30,4 +30,10 @@ function allEvents(plugin: SamayaPlugin): CalendarEvent[] {
 /** Events overlapping [from, to) from the configured source (existing notes). */
 export async function calendarEvents(plugin: SamayaPlugin, from: Date, to: Date): Promise<CalendarEvent[]> {
   return allEvents(plugin).filter(ev => ev.end > from && ev.start < to).map(ev => ({ ...ev }));
+}
+
+/** The note of a calendar event (every event is an existing note, see eventnotes.ts), or null when it is gone. */
+export function eventNote(app: App, ev: CalendarEvent): TFile | null {
+  const f = ev.notePath ? app.vault.getAbstractFileByPath(ev.notePath) : null;
+  return f instanceof TFile ? f : null;
 }

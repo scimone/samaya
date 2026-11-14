@@ -23,9 +23,8 @@ import { promoteParked, allTasks, sortTasks, prefixOf, rootOf, ensureFolder, fol
 import { ConfirmOverwriteModal } from "./modals";
 import { renderTaskCard } from "./views/taskCard";
 import { DayPlan, LEGACY_WEEK_HEADINGS, readSection, WEEK_MEETINGS, WEEK_ORDER, WEEK_OVERVIEW, WEEK_TASKS, removeSection, upsertSection, weekMeetings, weekOverview, journalPath, journalWants, meetingLines, readJournalSection, sortByStart, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
-import { ensureMeetingNote } from "./meetings";
 import { MeetingBanner } from "./meetingbanner";
-import { calendarEnabled, calendarEvents, inEventFolder, invalidateCalendar } from "./calendar";
+import { calendarEnabled, calendarEvents, eventNote, inEventFolder, invalidateCalendar } from "./calendar";
 import { dayPieces } from "./sessions";
 import { Emitter, addDays, hmToMin, minToHm, parseTitleEstimate as parseTitleEstimateSafe, parseYmd, today } from "./util";
 import { WorkdayManager, nowMin } from "./workday";
@@ -313,7 +312,6 @@ export default class SamayaPlugin extends Plugin {
     const folder = rootOf(this.settings.ticketsPath);
     if (folder !== "/") await ensureFolder(this.app, folder);
   }
-  async scaffoldJournal(_announce: boolean) { /* the journal needs no files of its own */ }
   private marking = false; private markAgain = false;
   /** Per open note tab: mark journal notes with `samaya-journal-note` (hides their title and properties, styles.css) and show / remove the navigation bar. Runs one at a time. */
   async markJournalNotes() {
@@ -373,7 +371,7 @@ export default class SamayaPlugin extends Plugin {
   }
 
   async scaffold(announce: boolean) {
-    await this.scaffoldProjects(announce); await this.scaffoldTickets(announce); await this.scaffoldJournal(announce);
+    await this.scaffoldProjects(announce); await this.scaffoldTickets(announce);
     const folder = rootOf(this.settings.tasksPath);
     if (folder !== "/") await ensureFolder(this.app, folder);
     // Daily notes follow the core plugin; only seed its config when it has none
@@ -480,7 +478,7 @@ export default class SamayaPlugin extends Plugin {
       plans.push({ weekday, label: parseYmd(d).toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "short" }), note: (await journalPath(this.app, s, d)).split("/").pop()!.replace(/\.md$/, ""),
         planned: tasks.reduce((a, t) => a + (t.estimate || s.defaultEstimate), 0), meetings: cap.meetings, free: cap.free,
         tasks: (await toJournalTasks(this.app, tasks, false, true)).map(t => ({ ...t, day: weekday })),
-        events: wantMeet ? await Promise.all(dayEvents.map(async e => ({ ...e, note: e.allDay ? undefined : await ensureMeetingNote(this.app, e).then(f => f.basename, () => undefined) }))) : dayEvents });
+        events: wantMeet ? dayEvents.map(e => ({ ...e, note: e.allDay ? undefined : eventNote(this.app, e)?.basename })) : dayEvents });
     }
     const unscheduled = (await toJournalTasks(this.app, noDay)).map(t => ({ ...t, day: "no day" }));
     await this.app.vault.process(file, t => {
@@ -523,7 +521,7 @@ export default class SamayaPlugin extends Plugin {
     const write = !planned || (await this.askOverwrite("daily note")); // planned before: ask first
     if (write && s.journalOn && calendarEnabled(s)) {
       const from = parseYmd(td); const evs = await calendarEvents(this, from, parseYmd(addDays(td, 1))).catch(() => null);
-      if (evs) await writeSection(this.app, s, td, "Meetings", meetingLines(await Promise.all(evs.map(async e => ({ ...e, note: e.allDay ? undefined : await ensureMeetingNote(this.app, e).then(f => f.basename, () => undefined) })))));
+      if (evs) await writeSection(this.app, s, td, "Meetings", meetingLines(evs.map(e => ({ ...e, note: e.allDay ? undefined : eventNote(this.app, e)?.basename }))));
     }
     if (write && journalWants(s, "journalPlanned")) await writeSection(this.app, s, td, "Planned tasks", taskLines(await toJournalTasks(this.app, sortByStart(day), false, true)));
     const plans = (this.data.dayPlans ??= {}); // the first plan of the day stays as the baseline; planning again does not replace it

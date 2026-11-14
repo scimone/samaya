@@ -181,11 +181,11 @@ export class MeetingsView extends Panel {
     if (i.hasNotes) setIcon(r.createSpan({ cls: "samaya-md-hasnotes", attr: { "aria-label": "Has notes" } }), "file-text");
   }
   /** right-click on a meeting: assign it to a project and / or a ticket */
-  private linkMenu(el: HTMLElement, path: string) {
+  private linkMenu(el: HTMLElement, ...paths: string[]) { // several paths: a recurring meeting, the assignment goes to all its notes
     el.addEventListener("contextmenu", e => {
-      const f = this.app.vault.getAbstractFileByPath(path); if (!(f instanceof TFile)) return;
-      if (!this.plugin.settings.projectsOn && !this.plugin.settings.ticketsOn && !noteTicketPath(this.app, f)) return;
-      e.preventDefault(); const m = new Menu(); addMeetingLinkItems(m, this.plugin, f); m.showAtMouseEvent(e);
+      const fs = paths.map(p => this.app.vault.getAbstractFileByPath(p)).filter((f): f is TFile => f instanceof TFile); if (!fs.length) return;
+      if (!this.plugin.settings.projectsOn && !this.plugin.settings.ticketsOn && !noteTicketPath(this.app, fs[fs.length - 1])) return;
+      e.preventDefault(); const m = new Menu(); addMeetingLinkItems(m, this.plugin, fs); m.showAtMouseEvent(e);
     });
   }
   /** project and ticket chips of a meeting */
@@ -194,7 +194,7 @@ export class MeetingsView extends Panel {
     const tp = noteTicketPath(this.app, f); const tf = tp ? this.app.vault.getAbstractFileByPath(tp) : null;
     const pp = projectPathOf(this.app, f);
     if (!(tf instanceof TFile) && !pp) return;
-    const box = parent.createSpan("samaya-md-links");
+    const box = parent.createSpan("samaya-md-links samaya-card-meta");
     if (tf instanceof TFile) ticketChip(this.plugin, box, tf);
     if (pp) projectChip(box, pp.split("/").pop()!.replace(/\.md$/, ""));
   }
@@ -247,6 +247,8 @@ export class MeetingsView extends Panel {
       r.createSpan({ cls: "samaya-md-sched", text: [s.cadence, s.days].filter(Boolean).join(" · ") });
       const n = r.createSpan("samaya-md-noted"); // notes at the very right (an empty slot keeps the schedules aligned)
       if (s.held) { n.setAttr("aria-label", `${s.withNotes} of ${s.held} past meetings have notes`); setIcon(n.createSpan("samaya-md-noted-icon"), "file-text"); n.createSpan({ text: `${s.withNotes}/${s.held}` }); }
+      const last = s.instances[s.instances.length - 1]; if (last) this.chips(r, last.path);
+      this.linkMenu(r, ...s.instances.map(i => i.path));
       r.onclick = () => { memory.selected = s.key; memory.onlyNotes = false; this.rerender(); };
     }
   }

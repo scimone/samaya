@@ -1647,4 +1647,4 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-md-scroll.is-fit { overflow: hidden; }
 
 /* project / ticket chips of a meeting row */
-.samaya-md-links { display: inline-flex; gap: 4px; margin-left: 6px; flex-shrink: 0; }
+.samaya-md-links.samaya-card-meta { display: inline-flex; flex-wrap: nowrap; padding-left: 0; margin: 0 0 0 6px; flex-shrink: 0; } /* same pills as on a task card (.samaya-card-meta .samaya-chip) */

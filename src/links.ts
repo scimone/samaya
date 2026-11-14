@@ -73,13 +73,15 @@ export function meetingProjectFits(app: App, s: SamayaSettings, note: TFile, pro
   const owner = tk ? ownerProjectOf(app, s, tk) : "";
   return !owner || owner === project.file.path;
 }
-export async function assignMeetingTicket(app: App, s: SamayaSettings, note: TFile, ticket: Ticket | null): Promise<void> {
-  if (ticket && !meetingTicketFits(app, s, note, ticket)) { new Notice(`${ticket.key} belongs to another project than this meeting. Change the meeting's project first.`); return; }
+export async function assignMeetingTicket(app: App, s: SamayaSettings, note: TFile, ticket: Ticket | null): Promise<boolean> {
+  if (ticket && !meetingTicketFits(app, s, note, ticket)) { new Notice(`${ticket.key} belongs to another project than this meeting. Change the meeting's project first.`); return false; }
   await patchNote(app, note, { assigned_ticket: ticket ? `[[${ticket.file.basename}]]` : null });
   const pf = ticket && s.projectsOn ? fileAt(app, projectPathOf(app, ticket.file)) : null;
   if (pf) await assignProject(app, note, readProject(app, pf));
+  return true;
 }
-export async function assignMeetingProject(app: App, s: SamayaSettings, note: TFile, project: Project | null): Promise<void> {
-  if (project && !meetingProjectFits(app, s, note, project)) { new Notice("This meeting's ticket belongs to another project. Change or remove the ticket first."); return; }
+export async function assignMeetingProject(app: App, s: SamayaSettings, note: TFile, project: Project | null): Promise<boolean> {
+  if (project && !meetingProjectFits(app, s, note, project)) { new Notice("This meeting's ticket belongs to another project. Change or remove the ticket first."); return false; }
   await assignProject(app, note, project);
+  return true;
 }

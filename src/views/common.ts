@@ -291,14 +291,15 @@ export function bindCardDrop(scope: DndScope, card: HTMLElement, onDrop: (path: 
   });
 }
 
-/** Project / ticket entries of the menu of a meeting note (same wording as for tasks). */
-export function addMeetingLinkItems(m: Menu, plugin: SamayaPlugin, f: TFile) {
-  const app = plugin.app; const st = plugin.settings;
+/** Project / ticket entries of the menu of a meeting (same wording as for tasks). A recurring meeting passes all its notes: the assignment goes to each of them (the state shown is the last one's). */
+export function addMeetingLinkItems(m: Menu, plugin: SamayaPlugin, files: TFile[]) {
+  const app = plugin.app; const st = plugin.settings; const f = files[files.length - 1];
+  const each = async (run: (n: TFile) => Promise<boolean>) => { for (const n of files) if (!(await run(n))) break; };
   const tp = noteTicketPath(app, f);
-  if (st.ticketsOn || tp) m.addItem(i => i.setTitle(tp ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void assignMeetingTicket(app, st, f, tk); }, tk => meetingTicketFits(app, st, f, tk)).open()));
-  if (tp) m.addItem(i => i.setTitle("Unlink ticket").setIcon("unlink").onClick(() => { void assignMeetingTicket(app, st, f, null); }));
+  if (st.ticketsOn || tp) m.addItem(i => i.setTitle(tp ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void each(n => assignMeetingTicket(app, st, n, tk)); }, tk => files.every(n => meetingTicketFits(app, st, n, tk))).open()));
+  if (tp) m.addItem(i => i.setTitle("Unlink ticket").setIcon("unlink").onClick(() => { void each(n => assignMeetingTicket(app, st, n, null)); }));
   if (!st.projectsOn) return;
   const has = !!projectPathOf(app, f);
-  m.addItem(i => i.setTitle(has ? "Change project…" : "Assign project…").setIcon("folder-kanban").onClick(() => new ProjectSuggestModal(plugin, pr => { void assignMeetingProject(app, st, f, pr); }, pr => meetingProjectFits(app, st, f, pr)).open()));
-  if (has) m.addItem(i => i.setTitle("Remove project").setIcon("unlink").onClick(() => { void assignMeetingProject(app, st, f, null); }));
+  m.addItem(i => i.setTitle(has ? "Change project…" : "Assign project…").setIcon("folder-kanban").onClick(() => new ProjectSuggestModal(plugin, pr => { void each(n => assignMeetingProject(app, st, n, pr)); }, pr => files.every(n => meetingProjectFits(app, st, n, pr))).open()));
+  if (has) m.addItem(i => i.setTitle("Remove project").setIcon("unlink").onClick(() => { void each(n => assignMeetingProject(app, st, n, null)); }));
 }

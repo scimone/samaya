@@ -237,8 +237,15 @@ export async function addSubtask(app: App, file: TFile, text: string): Promise<v
 // ---------- tickets (Jira / GitLab / manual), stored as notes ----------
 export interface Ticket { file: TFile; id: string; key: string; source: string; summary: string; url: string; state: string; issueType: string; assignee: string; project: string; }
 
+const ticketMemo = new WeakMap<object, { base: string; ticket: Ticket }>(); // per frontmatter object, like taskMemo
 export function readTicket(app: App, file: TFile): Ticket {
-  const fm = (app.metadataCache.getFileCache(file)?.frontmatter ?? {}) as Record<string, unknown>;
+  const raw = app.metadataCache.getFileCache(file)?.frontmatter;
+  if (!raw) return parseTicket(file, {});
+  const hit = ticketMemo.get(raw); if (hit && hit.base === file.basename && hit.ticket.file === file) return hit.ticket;
+  const ticket = parseTicket(file, raw as Record<string, unknown>); ticketMemo.set(raw, { base: file.basename, ticket });
+  return ticket;
+}
+function parseTicket(file: TFile, fm: Record<string, unknown>): Ticket {
   // Notes written by versions <= 0.1.3 used key / summary / state / issue_type (and type: ticket); still understood.
   const type = str(fm.type);
   return { file, id: str(fm.id) || file.basename, key: str(fm.key) || str(fm.id) || file.basename, source: str(fm.source) || "manual",

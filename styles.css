@@ -1205,9 +1205,6 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-md-toggle:hover { color: var(--text-normal); background: var(--background-modifier-hover); }
 .samaya-md-toggle.is-on { color: var(--text-accent); background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); }
 
-.samaya-md-colhead { flex: none; display: flex; justify-content: space-between; padding: 0 var(--samaya-sp-2) var(--samaya-sp-1) calc(var(--samaya-sp-2) + 18px); font-size: var(--samaya-fs-label); letter-spacing: .1em; text-transform: uppercase; color: var(--text-faint); opacity: .8; }
-.samaya-md-colhead span:last-child { padding-right: var(--samaya-sp-2); }
-
 /* rows */
 .samaya-md-group + .samaya-md-group { margin-top: var(--samaya-sp-3); }
 .samaya-md-gl { color: var(--text-muted); font-size: var(--font-ui-smaller); padding: 2px var(--samaya-sp-2) var(--samaya-sp-1); }
@@ -1219,15 +1216,18 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-md-row.is-past { opacity: .6; }
 .samaya-md-row.is-live { --c: var(--samaya-meeting); }
 .samaya-md-row.is-live .samaya-md-name, .samaya-md-row.is-live .samaya-md-when { color: var(--samaya-meeting); }
-.samaya-md-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--c); opacity: .85; }
+.samaya-md-dot { flex: none; box-sizing: content-box; width: 6px; height: 6px; padding: 5px; margin: -5px; background-clip: content-box; border-radius: 50%; background: var(--c); opacity: .85; }
 .samaya-md-row.is-live .samaya-md-dot { animation: samaya-pulse 1.6s ease-in-out infinite; }
 .samaya-md-when { flex: none; width: 40px; color: var(--text-muted); font-size: var(--font-ui-small); font-variant-numeric: tabular-nums; }
 .samaya-md-when.is-date { width: 84px; }
 .samaya-md-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-ui-small); color: var(--text-normal); }
-.samaya-md-stack { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .samaya-md-sub { color: var(--text-faint); font-size: var(--font-ui-smaller); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
-.samaya-md-meta { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
-.samaya-md-next { color: var(--text-muted); font-size: var(--font-ui-small); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.samaya-md-sched { flex: none; width: 140px; text-align: right; color: var(--text-faint); font-size: var(--font-ui-smaller); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.samaya-md-noted { flex: none; display: inline-flex; align-items: center; gap: 4px; min-width: 44px; justify-content: flex-end; color: var(--text-faint); font-size: var(--font-ui-smaller); font-variant-numeric: tabular-nums; }
+.samaya-md-noted-icon, .samaya-md-hasnotes { display: inline-flex; flex: none; }
+.samaya-md-noted-icon svg, .samaya-md-hasnotes svg { width: 13px; height: 13px; }
+.samaya-md-hasnotes { color: var(--text-faint); }
+.samaya-md-row:hover .samaya-md-hasnotes { color: var(--text-muted); }
 .samaya-md-badge { flex: none; font-size: var(--samaya-fs-label); padding: 0 7px; border-radius: var(--samaya-r-pill); background: var(--background-modifier-hover); color: var(--text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .samaya-md-badge.is-open { background: color-mix(in srgb, var(--color-orange) 16%, transparent); color: var(--color-orange); }
 
@@ -1640,3 +1640,6 @@ button.samaya-rp-chip.is-on { background: var(--interactive-accent); color: var(
 button.samaya-rp-clear { background: none; box-shadow: none; border: none; padding: 0 4px; height: auto; font-size: var(--font-ui-smaller); color: var(--text-muted); cursor: pointer; }
 button.samaya-rp-clear:hover { color: var(--text-error); }
 .samaya-pp-head .samaya-pp-title { flex: 1; text-align: center; }
+
+/* the count and time pills of the meetings pages stay fully visible while focusing */
+body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }

@@ -1,4 +1,4 @@
-import { TFile, normalizePath } from "obsidian";
+import { TFile, normalizePath, setIcon } from "obsidian";
 import { Panel } from "./panel";
 import { openFileSmart } from "../openfile";
 import type SamayaPlugin from "../main";
@@ -112,6 +112,7 @@ export class MeetingsView extends Panel {
       if (this.week.length && !memory.query.trim()) { // the week's meeting count as a badge beside the title
         const h2 = box.querySelector("h2")!; const row = box.createDiv("samaya-md-titlerow"); box.prepend(row); row.append(h2);
         row.createSpan({ cls: "samaya-tasks-count samaya-md-count", text: plural(this.week.length) });
+        if (minutes(this.week)) row.createSpan({ cls: "samaya-tasks-count samaya-md-count", text: fmtDur(minutes(this.week)), attr: { "aria-label": "total meeting time" } });
       }
     } else renderHeadTitle(head, "Meetings", " "); // empty line: the bar keeps the height it has in the agenda
     const right = head.createDiv("samaya-planner-right");
@@ -129,11 +130,10 @@ export class MeetingsView extends Panel {
 
   // ---- shared pieces
   /** A section: the quiet small-caps heading (with an optional count and action on its right) over a box that scrolls on its own. */
-  private section(parent: HTMLElement, title: string, key: string, count?: number | string, cols?: [string, string]): { sec: HTMLElement; body: HTMLElement; head: HTMLElement } {
+  private section(parent: HTMLElement, title: string, key: string, count?: number | string): { sec: HTMLElement; body: HTMLElement; head: HTMLElement } {
     const sec = parent.createDiv("samaya-md-sec"); const head = sec.createDiv("samaya-md-sec-head");
     head.createDiv({ cls: "samaya-mt-h", text: title });
     if (count != null && count !== "") head.createSpan({ cls: "samaya-tasks-count samaya-md-count", text: String(count) });
-    if (cols) { const c = sec.createDiv("samaya-md-colhead"); c.createSpan({ text: cols[0] }); c.createSpan({ text: cols[1] }); }
     return { sec, head, body: this.scroller(sec, key, "samaya-md-scroll") };
   }
   private none(parent: HTMLElement, text: string) { parent.createDiv({ cls: "samaya-md-none", text }); }
@@ -150,13 +150,18 @@ export class MeetingsView extends Panel {
     return i.start <= m && m < (i.end ?? i.start + 60);
   }
   private rowEl(parent: HTMLElement, i: { title: string }) {
-    const r = parent.createDiv("samaya-md-row"); r.createSpan("samaya-md-dot");
-    if (!("path" in i) || this.recurring.has((i as Instance).path)) r.addClass("is-recurring"); // one colour for every recurring meeting, none for one-offs
+    const r = parent.createDiv("samaya-md-row"); const dot = r.createSpan("samaya-md-dot");
+    const rec = !("path" in i) || this.recurring.has((i as Instance).path); // one colour for every recurring meeting, none for one-offs
+    if (rec) r.addClass("is-recurring"); dot.setAttr("aria-label", rec ? "Recurring" : "Not recurring");
     if ("date" in i && this.isLive(i as Instance)) r.addClass("is-live");
     return r;
   }
-  /** a small note marker: the open action count, or "notes" */
-  private mark(r: HTMLElement, i: Instance) { if (this.loading) return; if (i.open) r.createSpan({ cls: "samaya-md-badge is-open", text: `${i.open} open` }); else if (i.hasNotes) r.createSpan({ cls: "samaya-md-badge", text: "notes" }); }
+  /** note markers: the open action count, then a notes icon for a meeting that has notes */
+  private mark(r: HTMLElement, i: Instance) {
+    if (this.loading) return;
+    if (i.open) r.createSpan({ cls: "samaya-md-badge is-open", text: `${i.open} open` });
+    if (i.hasNotes) setIcon(r.createSpan({ cls: "samaya-md-hasnotes", attr: { "aria-label": "Has notes" } }), "file-text");
+  }
   /** a meeting as a row: time (or date when `dated`), title, note marker */
   private meetingRow(parent: HTMLElement, i: Instance, dated = false) {
     const r = this.rowEl(parent, i); r.addClass("is-" + i.when);
@@ -191,23 +196,20 @@ export class MeetingsView extends Panel {
       for (const i of items) this.meetingRow(g, i);
     }
 
-    const recent = all.filter(i => i.when === "past").sort((x, y) => byTime(y, x)).slice(0, 40);
+    const recent = all.filter(i => i.when === "past" && i.date >= addDays(td, -7)).sort((x, y) => byTime(y, x)).slice(0, 40); // only the last week
     const rec = this.section(left, "Recent", "recent");
-    if (!recent.length) this.none(rec.body, "No past meetings yet.");
+    if (!recent.length) this.none(rec.body, "No meetings in the past 7 days.");
     for (const i of recent) this.meetingRow(rec.body, i, true);
     this.fit(left, [next.sec, rec.sec]);
 
     const list = series.filter(s => this.matches(s)).sort((a, b) => (a.next ? a.next.date + hm(a.next.start ?? 0) : "9999").localeCompare(b.next ? b.next.date + hm(b.next.start ?? 0) : "9999") || a.title.localeCompare(b.title));
-    const rc = this.section(right, "Recurring", "recurring", list.length || "", ["Meeting", "Next"]);
+    const rc = this.section(right, "Recurring", "recurring", list.length || "");
     if (!list.length) this.none(rc.body, "No recurring meetings match.");
     for (const s of list) {
       const r = this.rowEl(rc.body, s);
-      const text = r.createDiv("samaya-md-stack");
-      text.createSpan({ cls: "samaya-md-name", text: s.title });
-      text.createSpan({ cls: "samaya-md-sub", text: [s.cadence, s.days].filter(Boolean).join(" · ") });
-      const meta = r.createDiv("samaya-md-meta");
-      meta.createSpan({ cls: "samaya-md-next", text: s.next ? (s.next.date === td ? "today" : short(s.next.date)) : "" });
-      if (s.held && !this.loading) meta.createSpan({ cls: "samaya-md-sub", text: `${s.withNotes}/${s.held} noted`, attr: { "aria-label": "past meetings with notes" } });
+      r.createSpan({ cls: "samaya-md-name", text: s.title });
+      if (s.held && !this.loading) { const n = r.createSpan({ cls: "samaya-md-noted", attr: { "aria-label": `${s.withNotes} of ${s.held} past meetings have notes` } }); setIcon(n.createSpan("samaya-md-noted-icon"), "file-text"); n.createSpan({ text: `${s.withNotes}/${s.held}` }); }
+      r.createSpan({ cls: "samaya-md-sched", text: [s.cadence, s.days].filter(Boolean).join(" · ") });
       r.onclick = () => { memory.selected = s.key; memory.onlyNotes = false; this.rerender(); };
     }
   }

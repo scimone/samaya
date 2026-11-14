@@ -4,8 +4,8 @@ import type SamayaPlugin from "./main";
 import { closeSide, openFileSmart, openFull } from "./openfile";
 import { dayTask, patchTask, readTask } from "./model";
 import { roundCheck, trackedBefore } from "./views/place";
-import { today } from "./util";
-import { fmtDur, fmtHm } from "./util";
+import { applyTaskPatch } from "./taskprops";
+import { fmtDur, fmtHm, today } from "./util";
 
 /** the retired focus sidebar: leftovers of it in a saved layout are closed */
 export const FOCUS_VIEW_TYPE = "samaya-focus";
@@ -35,6 +35,10 @@ export class FocusManager {
     // checking the focused task off ends the focus and logs the time
     this.plugin.registerEvent(app.metadataCache.on("changed", f => {
       if (this.state && !this.stopping && f.path === this.state.path && app.metadataCache.getFileCache(f)?.frontmatter?.status === "done") void this.stop(false);
+    }));
+    // the focused task's note can be renamed or moved (filing by planned date): keep following it
+    this.plugin.registerEvent(app.vault.on("rename", (f, oldPath) => {
+      if (this.state && this.state.path === oldPath) { this.state.path = f.path; void this.persist(); }
     }));
     app.workspace.onLayoutReady(() => { app.workspace.detachLeavesOfType(FOCUS_VIEW_TYPE); this.refreshViews(); });
   }
@@ -144,10 +148,12 @@ export class FocusManager {
     const total = Math.round(s.accumulatedMs / 60000); const delta = total - (s.loggedMin ?? 0);
     const runs = (s.runs ?? []).filter(r => r[1] - r[0] >= 60000).map(fmtRun);
     if (delta <= 0 && !runs.length) return;
-    const app = this.plugin.app; const t = readTask(app, file);
-    await patchTask(app, file, {
-      ...(delta > 0 ? { actual: t.actual + delta } : {}),
-      ...(runs.length ? { focus_sessions: [...asList(app.metadataCache.getFileCache(file)?.frontmatter?.focus_sessions), ...runs] } : {}),
+    // increment inside the frontmatter callback: the metadata cache can lag a write that has just happened (quick pause/resume/stop)
+    await this.plugin.app.fileManager.processFrontMatter(file, fm => {
+      applyTaskPatch(fm, {
+        ...(delta > 0 ? { actual: (Number(fm.duration_actual) || 0) + delta } : {}),
+        ...(runs.length ? { focus_sessions: [...asList(fm.focus_sessions), ...runs] } : {}),
+      });
     });
     s.loggedMin = total; s.runs = [];
   }

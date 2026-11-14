@@ -1,5 +1,8 @@
-import { TFile, normalizePath, setIcon } from "obsidian";
+import { Menu, TFile, normalizePath, setIcon } from "obsidian";
 import { Panel } from "./panel";
+import { addMeetingLinkItems, projectChip, ticketChip } from "./common";
+import { noteTicketPath } from "../links";
+import { projectPathOf } from "../projects";
 import { openFileSmart } from "../openfile";
 import type SamayaPlugin from "../main";
 import { Instance, MeetingNote, Series, analyse, analyseCache, buildSeries, nextWorkday, parseNote, stripFrontmatter } from "../meetingseries";
@@ -177,11 +180,29 @@ export class MeetingsView extends Panel {
     if (i.open) r.createSpan({ cls: "samaya-md-badge is-open", text: `${i.open} open` });
     if (i.hasNotes) setIcon(r.createSpan({ cls: "samaya-md-hasnotes", attr: { "aria-label": "Has notes" } }), "file-text");
   }
+  /** right-click on a meeting: assign it to a project and / or a ticket */
+  private linkMenu(el: HTMLElement, path: string) {
+    el.addEventListener("contextmenu", e => {
+      const f = this.app.vault.getAbstractFileByPath(path); if (!(f instanceof TFile)) return;
+      if (!this.plugin.settings.projectsOn && !this.plugin.settings.ticketsOn && !noteTicketPath(this.app, f)) return;
+      e.preventDefault(); const m = new Menu(); addMeetingLinkItems(m, this.plugin, f); m.showAtMouseEvent(e);
+    });
+  }
+  /** project and ticket chips of a meeting */
+  private chips(parent: HTMLElement, path: string) {
+    const f = this.app.vault.getAbstractFileByPath(path); if (!(f instanceof TFile)) return;
+    const tp = noteTicketPath(this.app, f); const tf = tp ? this.app.vault.getAbstractFileByPath(tp) : null;
+    const pp = projectPathOf(this.app, f);
+    if (!(tf instanceof TFile) && !pp) return;
+    const box = parent.createSpan("samaya-md-links");
+    if (tf instanceof TFile) ticketChip(this.plugin, box, tf);
+    if (pp) projectChip(box, pp.split("/").pop()!.replace(/\.md$/, ""));
+  }
   /** a meeting as a row: time (or date when `dated`), title, note marker */
   private meetingRow(parent: HTMLElement, i: Instance, dated = false) {
     const r = this.rowEl(parent, i); r.addClass("is-" + i.when);
     r.createSpan({ cls: dated ? "samaya-md-when is-date" : "samaya-md-when", text: dated ? short(i.date) : time(i) });
-    r.createSpan({ cls: "samaya-md-name", text: i.title.trim() }); this.mark(r, i); r.onclick = e => this.open(i.path, e);
+    r.createSpan({ cls: "samaya-md-name", text: i.title.trim() }); this.chips(r, i.path); this.mark(r, i); r.onclick = e => this.open(i.path, e); this.linkMenu(r, i.path);
     return r;
   }
   private dayLabel(d: string, td: string, long = true): string {
@@ -272,7 +293,8 @@ export class MeetingsView extends Panel {
         if (i.hasNotes && i.excerpt.length) for (const t of i.excerpt) eb.createDiv({ cls: "samaya-md-eline", text: t });
         else eb.createDiv({ cls: "samaya-md-eline is-faint", text: i.hasNotes ? "…" : i.when === "past" ? "no notes" : span(i) }); // "…": the text is still being read
         if (i.open) eb.createSpan({ cls: "samaya-md-badge is-open", text: `${i.open} open` });
-        r.onclick = e => this.open(i.path, e);
+        this.chips(eb, i.path);
+        r.onclick = e => this.open(i.path, e); this.linkMenu(r, i.path);
       }
     };
     const up = items.filter(i => i.when !== "past").reverse(); const past = items.filter(i => i.when === "past");

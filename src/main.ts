@@ -6,7 +6,7 @@ import { renderSideBars } from "./views/sideBar";
 import { Editor, MarkdownView, Notice, Plugin, TFile, addIcon, normalizePath } from "obsidian";
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FocusManager, FocusState } from "./focus";
-import { assignTicketLinked, assignProjectLinked, projectFits, ticketFits } from "./links";
+import { assignTicketLinked, assignProjectLinked, projectFits, ticketFits, assignMeetingProject, assignMeetingTicket, meetingProjectFits, meetingsPrefix } from "./links";
 import { Ticket, allTickets, createTask } from "./model";
 import { PLANNER_VIEW_TYPE, PlannerView, SAMAYA_ICON, SAMAYA_ICON_SVG } from "./views/PlannerView";
 import { syncTickets } from "./sync";
@@ -119,9 +119,9 @@ export default class SamayaPlugin extends Plugin {
     gated("sync-tickets", "Sync Jira and GitLab tickets", () => this.settings.ticketsOn && (this.settings.jiraOn || this.settings.gitlabOn));
     gated("sync-jira", "Sync Jira tickets", () => this.settings.ticketsOn && this.settings.jiraOn, "jira");
     gated("sync-gitlab", "Sync GitLab issues", () => this.settings.ticketsOn && this.settings.gitlabOn, "gitlab");
-    this.addCommand({ id: "assign-ticket", name: "Assign current task note to a ticket", checkCallback: c => {
-      const f = this.app.workspace.getActiveFile(); const ok2 = this.settings.ticketsOn && !!f && f.path.startsWith(prefixOf(this.settings.tasksPath));
-      if (ok2 && !c && f) new TicketSuggestModal(this, t => { void assignTicketLinked(this.app, this.settings, f, t); }, t => ticketFits(this.app, this.settings, f, t)).open(); return ok2;
+    this.addCommand({ id: "assign-ticket", name: "Assign current task or meeting note to a ticket", checkCallback: c => {
+      const f = this.app.workspace.getActiveFile(); const meet = !!f && f.path.startsWith(meetingsPrefix(this.settings)); const ok2 = this.settings.ticketsOn && !!f && (meet || f.path.startsWith(prefixOf(this.settings.tasksPath)));
+      if (ok2 && !c && f) new TicketSuggestModal(this, t => { void (meet ? assignMeetingTicket : assignTicketLinked)(this.app, this.settings, f, t); }, t => ticketFits(this.app, this.settings, f, t)).open(); return ok2;
     } });
     // project commands only show while the module is switched on
     this.addCommand({ id: "new-project", name: "New project", checkCallback: c => {
@@ -136,10 +136,10 @@ export default class SamayaPlugin extends Plugin {
     } });
     this.addCommand({ id: "open-journal", name: "Open journal", checkCallback: c => { if (!this.settings.journalOn) return false; if (!c) void this.openSection("journal"); return true; } });
     this.addCommand({ id: "open-projects", name: "Open projects", checkCallback: c => { if (!this.settings.projectsOn) return false; if (!c) void this.openProjects(); return true; } });
-    this.addCommand({ id: "assign-project", name: "Assign current task or ticket note to a project", checkCallback: c => {
-      const f = this.app.workspace.getActiveFile();
-      const ok2 = this.settings.projectsOn && !!f && (f.path.startsWith(prefixOf(this.settings.tasksPath)) || f.path.startsWith(prefixOf(this.settings.ticketsPath)));
-      if (ok2 && !c && f) new ProjectSuggestModal(this, p => { void assignProjectLinked(this.app, this.settings, f, p); }, p => projectFits(this.app, this.settings, f, p)).open(); return ok2;
+    this.addCommand({ id: "assign-project", name: "Assign current task, meeting or ticket note to a project", checkCallback: c => {
+      const f = this.app.workspace.getActiveFile(); const meet = !!f && f.path.startsWith(meetingsPrefix(this.settings));
+      const ok2 = this.settings.projectsOn && !!f && (meet || f.path.startsWith(prefixOf(this.settings.tasksPath)) || f.path.startsWith(prefixOf(this.settings.ticketsPath)));
+      if (ok2 && !c && f) new ProjectSuggestModal(this, p => { void (meet ? assignMeetingProject : assignProjectLinked)(this.app, this.settings, f, p); }, p => (meet ? meetingProjectFits : projectFits)(this.app, this.settings, f, p)).open(); return ok2;
     } });
     this.addCommand({ id: "scaffold", name: "Create Samaya files", callback: () => this.scaffold(true) });
 

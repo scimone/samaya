@@ -1,8 +1,9 @@
 // Keeps tasks, tickets and projects consistent (a project linked to a whole ticket project never hands out one of its tickets on its own): a task assigned to a ticket that belongs to a project is assigned to that project too, and the other way round.
-import { App, Notice, TFile } from "obsidian";
+import { App, Notice, TFile, normalizePath } from "obsidian";
 import type { SamayaSettings } from "./settings";
 import { Ticket, allTasks, allTickets, assignTicket, readTask, ticketPathOf } from "./model";
 import { Project, allProjects, assignProject, linkTickets, projectPathOf, readProject } from "./projects";
+import { patchNote } from "./model";
 
 /** The Jira / GitLab project a project note is linked to as a whole ("" = none). */
 const ticketProjectOf = (app: App, project: TFile): string => String(app.metadataCache.getFileCache(project)?.frontmatter?.ticket_project ?? "");
@@ -53,4 +54,32 @@ export async function linkProject(app: App, s: SamayaSettings, project: TFile, t
     if (t.ticket && linked.has(ticketPathOf(app, t))) { if (projectPathOf(app, t.file) !== project.path) await assignProject(app, t.file, pr); }
     else if (!t.ticket && only && projectPathOf(app, t.file) === project.path) await assignTicket(app, t.file, only);
   }
+}
+
+// ---- meetings: a meeting note points at a project and / or a ticket with the same `assigned_project` / `assigned_ticket` properties as a task
+/** Path prefix of the meeting notes. */
+export const meetingsPrefix = (s: SamayaSettings): string => normalizePath(s.eventNotesFolder.trim() || "Meetings") + "/";
+/** Path of the ticket note a note points at via `assigned_ticket` ("" = none). */
+export function noteTicketPath(app: App, file: TFile): string {
+  const raw = app.metadataCache.getFileCache(file)?.frontmatter?.assigned_ticket;
+  const link = String(raw ?? "").replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0].trim();
+  return link ? app.metadataCache.getFirstLinkpathDest(link, file.path)?.path ?? "" : "";
+}
+/** A meeting may take this ticket unless it is in one project and the ticket belongs to another. */
+export const meetingTicketFits = ticketFits;
+/** A meeting may take this project unless its ticket belongs to another project. */
+export function meetingProjectFits(app: App, s: SamayaSettings, note: TFile, project: Project): boolean {
+  const tp = noteTicketPath(app, note); const tk = tp ? allTickets(app, s).find(t => t.file.path === tp) : undefined;
+  const owner = tk ? ownerProjectOf(app, s, tk) : "";
+  return !owner || owner === project.file.path;
+}
+export async function assignMeetingTicket(app: App, s: SamayaSettings, note: TFile, ticket: Ticket | null): Promise<void> {
+  if (ticket && !meetingTicketFits(app, s, note, ticket)) { new Notice(`${ticket.key} belongs to another project than this meeting. Change the meeting's project first.`); return; }
+  await patchNote(app, note, { assigned_ticket: ticket ? `[[${ticket.file.basename}]]` : null });
+  const pf = ticket && s.projectsOn ? fileAt(app, projectPathOf(app, ticket.file)) : null;
+  if (pf) await assignProject(app, note, readProject(app, pf));
+}
+export async function assignMeetingProject(app: App, s: SamayaSettings, note: TFile, project: Project | null): Promise<void> {
+  if (project && !meetingProjectFits(app, s, note, project)) { new Notice("This meeting's ticket belongs to another project. Change or remove the ticket first."); return; }
+  await assignProject(app, note, project);
 }

@@ -1645,3 +1645,6 @@ button.samaya-rp-clear:hover { color: var(--text-error); }
 body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 
 .samaya-md-scroll.is-fit { overflow: hidden; }
+
+/* project / ticket chips of a meeting row */
+.samaya-md-links { display: inline-flex; gap: 4px; margin-left: 6px; flex-shrink: 0; }

@@ -11,7 +11,7 @@ import { focusButton, isCurrentTask, trackedBefore, joinParts, splitTitle } from
 import { openDayPicker } from "./dayPicker";
 import { PartsModal } from "./partsModal";
 import { projectPathOf } from "../projects";
-import { assignProjectLinked, assignTicketLinked, projectFits, ticketFits } from "../links";
+import { assignProjectLinked, assignTicketLinked, projectFits, ticketFits, assignMeetingProject, assignMeetingTicket, meetingProjectFits, meetingTicketFits, noteTicketPath } from "../links";
 import { safeFileName, HORIZONS, Horizon, bucketOf, fmtDur, fmtHm, minToHm, parseDuration, parseYmd, startOfWeek, today } from "../util";
 
 export interface CardOpts {
@@ -38,7 +38,7 @@ export function richText(el: HTMLElement, text: string) {
 }
 
 /** Ticket id chip: click opens the ticket note, hover previews it (Page preview), otherwise shows the full ticket title. */
-function ticketChip(plugin: SamayaPlugin, host: HTMLElement, tf: TFile) {
+export function ticketChip(plugin: SamayaPlugin, host: HTMLElement, tf: TFile) {
   const app: App = plugin.app; const tk = readTicket(app, tf);
   const chip = host.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}` });
   setIcon(chip.createSpan({ cls: "samaya-chip-icon" }), "ticket"); chip.createSpan({ text: tk.key }); // the icon of the Tickets entry in the navigation
@@ -289,4 +289,16 @@ export function bindCardDrop(scope: DndScope, card: HTMLElement, onDrop: (path: 
     over: i => { const a = isAfter(i.y); card.toggleClass("drop-after", a); card.toggleClass("drop-before", !a); },
     leave: clear, drop: i => { const a = isAfter(i.y); clear(); onDrop(i.path, a, i); },
   });
+}
+
+/** Project / ticket entries of the menu of a meeting note (same wording as for tasks). */
+export function addMeetingLinkItems(m: Menu, plugin: SamayaPlugin, f: TFile) {
+  const app = plugin.app; const st = plugin.settings;
+  const tp = noteTicketPath(app, f);
+  if (st.ticketsOn || tp) m.addItem(i => i.setTitle(tp ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void assignMeetingTicket(app, st, f, tk); }, tk => meetingTicketFits(app, st, f, tk)).open()));
+  if (tp) m.addItem(i => i.setTitle("Unlink ticket").setIcon("unlink").onClick(() => { void assignMeetingTicket(app, st, f, null); }));
+  if (!st.projectsOn) return;
+  const has = !!projectPathOf(app, f);
+  m.addItem(i => i.setTitle(has ? "Change project…" : "Assign project…").setIcon("folder-kanban").onClick(() => new ProjectSuggestModal(plugin, pr => { void assignMeetingProject(app, st, f, pr); }, pr => meetingProjectFits(app, st, f, pr)).open()));
+  if (has) m.addItem(i => i.setTitle("Remove project").setIcon("unlink").onClick(() => { void assignMeetingProject(app, st, f, null); }));
 }

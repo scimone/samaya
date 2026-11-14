@@ -205,7 +205,7 @@ export function addPlanItems(m: Menu, plugin: SamayaPlugin, t: Task, seg: number
 export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent, seg: number | null = null, canCut = false) {
   const app: App = plugin.app;
   e.preventDefault(); const m = new Menu();
-  if (plugin.workday.started) m.addItem(i => i.setTitle("Start focus").setIcon("timer").onClick(() => { void plugin.focus.start(t.file); }));
+  if (plugin.workday.started && (t.planned === today() || t.sessions.some(g => g.date === today()))) m.addItem(i => i.setTitle("Start focus").setIcon("timer").onClick(() => { void plugin.focus.start(t.file); }));
   addTicketItems(m, plugin, t); addProjectItems(m, plugin, t);
   m.addSeparator();
   addPlanItems(m, plugin, t, seg, canCut);

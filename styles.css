@@ -381,7 +381,7 @@ body {
 .samaya-gantt-hrow .samaya-gantt-name { z-index: 5; }
 .samaya-gantt-link { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .samaya-gantt-link:hover { color: var(--text-accent); }
-.samaya-gantt-count { flex: 0 0 auto; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.samaya-gantt-count { flex: 0 0 auto; margin-left: auto; font-size: var(--font-ui-smaller); color: var(--text-muted); }
 .samaya-gantt-track { position: relative; flex: none; background-image: var(--weekend, none); background-size: var(--grid, calc(var(--day) * 7)) 100%; }
 .samaya-gantt-hrow .samaya-gantt-track { background-image: none; }
 .samaya-gantt-month, .samaya-gantt-week { position: absolute; font-size: var(--font-ui-smaller); color: var(--text-muted); white-space: nowrap; overflow: hidden; padding-left: 4px; }
@@ -1614,13 +1614,7 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 .samaya-gantt-pill-ticket { flex: 0 0 auto; cursor: pointer; white-space: nowrap; }
 .samaya-gantt-pill-ticket:hover { filter: brightness(1.15); }
 
-.samaya-gantt-del { flex: 0 0 auto; margin-left: auto; display: none; color: var(--text-muted); cursor: pointer; }
-.samaya-gantt-del svg { width: 14px; height: 14px; }
-.samaya-gantt-row:hover .samaya-gantt-del { display: inline-flex; }
-.samaya-gantt-del:hover { color: var(--text-normal); }
-.samaya-gantt-del:not(.samaya-gantt-linkbtn):hover { color: var(--text-error); }
-.samaya-gantt-del ~ .samaya-gantt-del { margin-left: 0; }
-
+.samaya-gantt-row:hover 
 .samaya-kb-card .samaya-card-meta, .samaya-kb-lanehead .samaya-card-meta { padding-left: 0; margin-top: 4px; display: flex; min-width: 0; max-width: 100%; }
 .samaya-kb-projectchip .samaya-chip { display: inline-flex; min-width: 0; max-width: 100%; }
 .samaya-kb-projectchip .samaya-chip > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1645,3 +1639,4 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 .samaya-gantt-more:hover { color: var(--text-accent); }
 
 .samaya-meet-bar.is-clickable { cursor: pointer; }
+.samaya-gantt-bar.is-task.is-period { border-style: dashed; background: color-mix(in srgb, var(--text-muted) 12%, var(--background-primary)); } /* a whole week / month / quarter, not exact days */

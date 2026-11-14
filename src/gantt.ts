@@ -1,5 +1,5 @@
 // Pure Gantt chart maths: date ranges, month marks, dragging. No Obsidian imports (unit-tested).
-import { addDays, parseYmd, startOfWeek } from "./util";
+import { addDays, parseYmd, startOfWeek, ymd } from "./util";
 
 export interface Span { start: string; end: string; }
 const YMD = /^\d{4}-\d{2}-\d{2}$/;
@@ -59,4 +59,17 @@ export function taskSpan(dates: string[]): Span | null {
 export function collapseTasks(n: number, expanded: boolean, max = 6, edge = 3): { head: number; gap: number; tail: number } {
   if (n <= max || expanded) return { head: n, gap: 0, tail: 0 };
   return { head: edge, gap: n - 2 * edge, tail: edge };
+}
+
+/** The period a task without a day is planned for: this week (`week` = its Monday), or the week / month / quarter / year that starts at `later`. null for someday, never and unplanned tasks. */
+export function taskPeriod(week: string, later: string, horizon: string): Span | null {
+  if (YMD.test(week)) return { start: week, end: addDays(week, 6) };
+  if (!YMD.test(later)) return null;
+  const d = parseYmd(later);
+  const lastOf = (months: number) => ymd(new Date(d.getFullYear(), d.getMonth() + months, 0)); // last day of the month before month + `months`
+  if (horizon === "week") return { start: later, end: addDays(later, 6) };
+  if (horizon === "month") return { start: later, end: lastOf(1) };
+  if (horizon === "quarter") return { start: later, end: lastOf(3) };
+  if (horizon === "year") return { start: later, end: ymd(new Date(d.getFullYear(), 11, 31)) };
+  return null;
 }

@@ -2,7 +2,7 @@ import { Menu, setIcon } from "obsidian";
 import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { openFileSmart, openFileBeside } from "../openfile";
-import { DragMode, GRANULARITIES, Granularity, collapseTasks, daysBetween, taskSpan, dragSpan, ganttRange, granularityDayWidth, monthMarks } from "../gantt";
+import { DragMode, GRANULARITIES, Granularity, collapseTasks, daysBetween, taskPeriod, taskSpan, dragSpan, ganttRange, granularityDayWidth, monthMarks } from "../gantt";
 import { DEFAULT_PROJECT_DAYS, Project, projectStats, readProject, createProject, projectPathOf, projectsPrefix } from "../projects";
 import { Task, Ticket, allTasks, allTickets, patchNote, prefixOf, setDone, ticketPathOf } from "../model";
 import { linkProject } from "../links";
@@ -13,7 +13,7 @@ import { renderResetPill } from "./dateNav";
 import { NoteText, matches, renderSearch } from "./search";
 
 const memory = { query: "", back: 0, fwd: 0, open: new Set<string>(), all: new Set<string>() }; // extra weeks before / after the dates, grown by scrolling to either edge
-import { addDays, parseYmd, today } from "../util";
+import { addDays, horizonOf, parseYmd, today } from "../util";
 
 const MIN_NAME_W = 120, MAX_NAME_W = 600, COLLAPSED_W = 36;
 export const GANTT_VIEW_TYPE = "samaya-gantt";
@@ -56,10 +56,13 @@ export class GanttView extends Panel {
     if (q) this.texts.load(every.map(p => p.file), () => { if (this.root.isConnected && memory.query.trim()) this.onDataUpdated(); });
     const projects = (q ? every.filter(p => matches(p.name.toLowerCase() + " " + p.file.basename.toLowerCase() + " " + this.texts.get(p.file), q)) : every).sort((a, b) => (a.span?.start ?? "9").localeCompare(b.span?.start ?? "9") || a.name.localeCompare(b.name));
     // tasks of each project, by first planned day (undated last); shown under an expanded project
-    const tasksOf = new Map<string, Array<{ t: Task; span: { start: string; end: string } | null }>>();
+    const tasksOf = new Map<string, Array<{ t: Task; span: { start: string; end: string } | null; period?: boolean }>>();
     for (const t of allTasks(this.app, s)) {
       const pp = projectPathOf(this.app, t.file); if (!pp) continue;
-      (tasksOf.get(pp) ?? tasksOf.set(pp, []).get(pp)!).push({ t, span: taskSpan(t.sessions.length ? t.sessions.map(x => x.date) : t.planned ? [t.planned] : []) });
+      const dates = t.sessions.length ? t.sessions.map(x => x.date) : t.planned ? [t.planned] : [];
+      const exact = taskSpan(dates);
+      const span = exact ?? taskPeriod(t.week, t.later, t.horizon || (t.later ? horizonOf(t.later, today()) : ""));
+      (tasksOf.get(pp) ?? tasksOf.set(pp, []).get(pp)!).push({ t, span, period: !exact && !!span });
     }
     for (const l of tasksOf.values()) l.sort((a, b) => (a.span?.start ?? "9").localeCompare(b.span?.start ?? "9") || a.t.title.localeCompare(b.t.title));
     const shownRows = projects.reduce((n, p) => {
@@ -122,7 +125,7 @@ export class GanttView extends Panel {
     const taskRows = (p: Project) => {
       const l = tasksOf.get(p.file.path); if (!l || !memory.open.has(p.file.path)) return;
       const expanded = memory.all.has(p.file.path); const c = collapseTasks(l.length, expanded);
-      const one = (e: { t: Task; span: { start: string; end: string } | null }) => {
+      const one = (e: { t: Task; span: { start: string; end: string } | null; period?: boolean }) => {
         const r = chart.createDiv("samaya-gantt-row samaya-gantt-task"); r.toggleClass("is-done", e.t.status === "done");
         const nm = r.createDiv("samaya-gantt-name");
         nm.addEventListener("contextmenu", ev => showTaskMenu(this.plugin, e.t, ev));
@@ -136,7 +139,7 @@ export class GanttView extends Panel {
         if (tk) nm.createSpan({ cls: `samaya-chip samaya-chip-ticket samaya-gantt-pill-ticket is-${tk.source}`, text: tk.key, attr: { "aria-label": tk.summary || tk.key } }).onclick = ev => { ev.stopPropagation(); openFileSmart(this.app, tk.file); };
         const tr = r.createDiv("samaya-gantt-track"); tr.style.width = `${width}px`;
         if (!e.span) return;
-        const b = tr.createDiv({ cls: "samaya-gantt-bar is-task" + (e.t.status === "done" ? " is-done" : "") });
+        const b = tr.createDiv({ cls: "samaya-gantt-bar is-task" + (e.t.status === "done" ? " is-done" : "") + (e.period ? " is-period" : "") });
         b.createSpan({ cls: "samaya-gantt-label", text: e.t.title });
         b.style.left = `${daysBetween(from, e.span.start) * dayW}px`; b.style.width = `${(daysBetween(e.span.start, e.span.end) + 1) * dayW}px`;
         b.onclick = () => { openFileBeside(this.app, e.t.file); };
@@ -175,16 +178,21 @@ export class GanttView extends Panel {
       for (const t of linked) if (!tp || t.project !== tp) pill(t.key, t.source, t.summary || t.key).onclick = e => { e.stopPropagation(); openFileSmart(this.app, t.file); };
       const st = stats.get(p.file.path) ?? { tasks: 0, done: 0, tickets: 0 };
       name.createSpan({ cls: "samaya-gantt-count", text: `${st.done}/${st.tasks}`, attr: { title: `${st.done} of ${st.tasks} tasks done${st.tickets ? `, ${st.tickets} ticket${st.tickets > 1 ? "s" : ""}` : ""}` } });
-      const nt = name.createSpan({ cls: "samaya-gantt-del", attr: { "aria-label": "Create a task for this project" } }); setIcon(nt, "circle-check");
-      nt.onclick = e => { e.stopPropagation(); this.plugin.newTaskForProject(p.file); };
-      if (s.jiraOn || s.gitlabOn || byProject.size || allTk) {
-        const lk = name.createSpan({ cls: "samaya-gantt-del samaya-gantt-linkbtn", attr: { "aria-label": "Link to a ticket or ticket project" } }); setIcon(lk, "ticket");
-        lk.onclick = e => { e.stopPropagation(); new TicketTargetSuggestModal(this.plugin, p.file.path, t => {
-          void (t.kind === "ticket" ? linkProject(this.app, s, p.file, [t.ticket]) : linkProject(this.app, s, p.file, t.tickets, t.name)).then(() => this.plugin.bus.emit());
-        }).open(); };
-      }
-      const del = name.createSpan({ cls: "samaya-gantt-del", attr: { "aria-label": "Delete project" } }); setIcon(del, "trash-2");
-      del.onclick = e => { e.stopPropagation(); new ConfirmDeleteModal(this.plugin, p.name, () => { void this.app.fileManager.trashFile(p.file).then(() => { window.setTimeout(() => this.plugin.bus.emit(), 150); }); }, "project").open(); };
+      row.addEventListener("contextmenu", e => { // the project's actions (they used to be buttons shown on hover)
+        e.preventDefault(); const m = new Menu();
+        m.addItem(i => i.setTitle("New task").setIcon("circle-check").onClick(() => { this.plugin.newTaskForProject(p.file); }));
+        if (s.jiraOn || s.gitlabOn || byProject.size || allTk) m.addItem(i => i.setTitle("Link to a ticket or ticket project").setIcon("ticket").onClick(() => {
+          new TicketTargetSuggestModal(this.plugin, p.file.path, t => {
+            void (t.kind === "ticket" ? linkProject(this.app, s, p.file, [t.ticket]) : linkProject(this.app, s, p.file, t.tickets, t.name)).then(() => this.plugin.bus.emit());
+          }).open();
+        }));
+        m.addSeparator();
+        m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { openFileBeside(this.app, p.file); }));
+        m.addItem(i => i.setTitle("Delete project").setIcon("trash").setWarning(true).onClick(() => {
+          new ConfirmDeleteModal(this.plugin, p.name, () => { void this.app.fileManager.trashFile(p.file).then(() => { window.setTimeout(() => this.plugin.bus.emit(), 150); }); }, "project").open();
+        }));
+        m.showAtMouseEvent(e);
+      });
       const track = row.createDiv("samaya-gantt-track"); track.style.width = `${width}px`;
       if (!p.span) {
         // not on the timeline yet: hovering shows where a default-length item would go, a click sets its dates

@@ -25,7 +25,13 @@ const { renderTicketPath, renderTicketFileName, renderTicketNote, pathRoot: path
   assert.equal(workedSince(480, 840, [720, 780], [[700, 730], [600, 610]]), 270); // partial overlap counted once
   assert.equal(workedSince(480, 400, [720, 780], []), 0); }
 // ---- gantt task rows
-{ const { taskSpan, collapseTasks } = await import("./.gantt.mjs");
+{ const { taskSpan, collapseTasks, taskPeriod } = await import("./.gantt.mjs");
+  assert.deepEqual(taskPeriod("2026-11-09", "", ""), { start: "2026-11-09", end: "2026-11-15" });
+  assert.deepEqual(taskPeriod("", "2026-11-16", "week"), { start: "2026-11-16", end: "2026-11-22" });
+  assert.deepEqual(taskPeriod("", "2026-12-01", "month"), { start: "2026-12-01", end: "2026-12-31" });
+  assert.deepEqual(taskPeriod("", "2027-01-01", "quarter"), { start: "2027-01-01", end: "2027-03-31" });
+  assert.deepEqual(taskPeriod("", "2027-01-01", "year"), { start: "2027-01-01", end: "2027-12-31" });
+  assert.equal(taskPeriod("", "", "someday"), null);
   assert.deepEqual(taskSpan(["2026-11-12", "2026-11-10", "2026-11-12"]), { start: "2026-11-10", end: "2026-11-12" });
   assert.equal(taskSpan([]), null);
   assert.deepEqual(collapseTasks(6, false), { head: 6, gap: 0, tail: 0 });

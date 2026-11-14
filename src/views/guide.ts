@@ -30,44 +30,59 @@ function addReminder(plugin: SamayaPlugin, box: HTMLElement) {
 
 export interface GuideCtx { overdue: number; /** Timebox: how many of today's tasks still lack a time slot, and how many there are */ toSchedule?: number; planned?: number; }
 
-/** Interactive "plan my day" guide: a vertical stepper (finished steps tick off, the current one opens with its instructions) with Back / Next underneath. The Review step only exists when something is overdue. */
+interface StepperCfg {
+  kicker: string; cancelLabel: string; steps: ReadonlyArray<{ title: string; text: string }>;
+  /** indices of `steps` that are shown (the Review step only exists when something is overdue ...) */
+  visible: number[]; doneLabel: string; finish: () => void; reminder: boolean;
+  /** extra content under the instructions of the active step */
+  extra?: (i: number, main: HTMLElement) => void;
+}
+const overdueAlert = (main: HTMLElement, n: number) =>
+  main.createDiv({ cls: "samaya-plan-alert" + (n ? "" : " is-clear"), text: n ? `There ${n === 1 ? "is 1 overdue task" : `are ${n} overdue tasks`} to review.` : "All overdue tasks have been handled." });
+
+/** The vertical stepper of the day, week and end-of-day guides: finished steps tick off, the current one opens with its instructions, Back / Next underneath. */
+function renderStepper(plugin: SamayaPlugin, host: HTMLElement, cfg: StepperCfg) {
+  const g = plugin.guide!; const vis = cfg.visible; const pos = vis.indexOf(g.step);
+  const go = (to: number) => { g.step = to; plugin.bus.emit(); };
+  const box = host.createDiv("samaya-plan");
+  const top = box.createDiv("samaya-plan-top");
+  top.createSpan({ cls: "samaya-plan-kicker", text: cfg.kicker });
+  const x = top.createEl("button", { cls: "samaya-plan-cancel clickable-icon", attr: { "aria-label": cfg.cancelLabel } });
+  setIcon(x, "x"); x.onclick = () => plugin.cancelGuide();
+
+  const list = box.createEl("ol", { cls: "samaya-plan-steps" });
+  cfg.steps.forEach((st, i) => {
+    if (!vis.includes(i)) return;
+    const li = list.createEl("li", { cls: `samaya-plan-step ${i === g.step ? "is-active" : i < g.step ? "is-done" : "is-todo"}` });
+    const marker = li.createDiv("samaya-plan-marker");
+    if (i < g.step) setIcon(marker, "check"); else marker.setText(String(vis.indexOf(i) + 1));
+    const main = li.createDiv("samaya-plan-main");
+    main.createDiv("samaya-plan-title").createSpan({ text: st.title });
+    if (i < g.step) { li.addClass("is-link"); li.onclick = () => go(i); li.setAttr("title", `Back to ${st.title}`); }
+    if (i === g.step) { richText(main.createDiv("samaya-plan-text"), st.text.replace("{done}", cfg.doneLabel)); cfg.extra?.(i, main); }
+  });
+
+  const nav = box.createDiv("samaya-plan-nav");
+  if (pos > 0) nav.createEl("button", { text: "Back", cls: "samaya-plan-back" }).onclick = () => go(vis[pos - 1]);
+  const last = pos === vis.length - 1;
+  nav.createEl("button", { text: last ? cfg.doneLabel : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) cfg.finish(); else go(vis[pos + 1]); };
+  if (cfg.reminder) addReminder(plugin, box);
+}
+const range = (from: number, n: number) => Array.from({ length: n - from }, (_, i) => from + i);
+
+/** Interactive "plan my day" guide (see renderStepper). The Review step only exists when something is overdue. */
 export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideCtx) {
   const g = plugin.guide; if (!g) return;
   if (g.kind === "shutdown") return renderShutdownGuide(plugin, host);
   if (g.kind === "week") return renderWeekGuide(plugin, host, ctx);
-  const first = g.review ? 0 : 1; // first visible step
-  const go = (to: number) => { g.step = to; plugin.bus.emit(); };
-  const doneLabel = plugin.workday.started ? "Finalize plan" : "Start my day";
-  const box = host.createDiv("samaya-plan");
-
-  const top = box.createDiv("samaya-plan-top");
-  top.createSpan({ cls: "samaya-plan-kicker", text: "Plan my day" });
-  const x = top.createEl("button", { cls: "samaya-plan-cancel clickable-icon", attr: { "aria-label": "Cancel planning" } });
-  setIcon(x, "x"); x.onclick = () => plugin.cancelGuide();
-
-  const list = box.createEl("ol", { cls: "samaya-plan-steps" });
-  GUIDE_STEPS.forEach((st, i) => {
-    if (i < first) return;
-    const state = i === g.step ? "is-active" : i < g.step ? "is-done" : "is-todo";
-    const li = list.createEl("li", { cls: `samaya-plan-step ${state}` });
-    const marker = li.createDiv("samaya-plan-marker");
-    if (i < g.step) setIcon(marker, "check"); else marker.setText(String(i + 1 - first));
-    const main = li.createDiv("samaya-plan-main");
-    const title = main.createDiv("samaya-plan-title"); title.createSpan({ text: st.title });
-    if (i < g.step) { li.addClass("is-link"); li.onclick = () => go(i); li.setAttr("title", `Back to ${st.title}`); }
-    if (i === g.step) {
-      richText(main.createDiv("samaya-plan-text"), st.text.replace("{done}", doneLabel));
-      if (i === 0) main.createDiv({ cls: "samaya-plan-alert" + (ctx.overdue ? "" : " is-clear"), text: ctx.overdue ? `There ${ctx.overdue === 1 ? "is 1 overdue task" : `are ${ctx.overdue} overdue tasks`} to review.` : "All overdue tasks have been handled." });
+  renderStepper(plugin, host, {
+    kicker: "Plan my day", cancelLabel: "Cancel planning", steps: GUIDE_STEPS, visible: range(g.review ? 0 : 1, GUIDE_STEPS.length),
+    doneLabel: plugin.workday.started ? "Finalize plan" : "Start my day", finish: () => safe(plugin.finishGuide(), "finishing the plan"), reminder: true,
+    extra: (i, main) => {
+      if (i === 0) overdueAlert(main, ctx.overdue);
       if (i === 2 && ctx.planned) { const n = ctx.toSchedule ?? 0; main.createDiv({ cls: "samaya-plan-alert" + (n ? "" : " is-clear"), text: n ? `There ${n === 1 ? "is 1 task" : `are ${n} tasks`} to schedule.` : "All tasks have been scheduled." }); }
-    }
+    },
   });
-
-  const nav = box.createDiv("samaya-plan-nav");
-  if (g.step > first) nav.createEl("button", { text: "Back", cls: "samaya-plan-back" }).onclick = () => go(g.step - 1);
-  const last = g.step === GUIDE_STEPS.length - 1;
-  nav.createEl("button", { text: last ? doneLabel : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) safe(plugin.finishGuide(), "finishing the plan"); else go(g.step + 1); };
-
-  addReminder(plugin, box);
 }
 
 export const SHUTDOWN_STEPS = [
@@ -77,57 +92,14 @@ export const SHUTDOWN_STEPS = [
 
 /** End of day, two steps: tick off forgotten tasks, then look back at how the day went (see views/dayReview.ts) and finalize. */
 function renderShutdownGuide(plugin: SamayaPlugin, host: HTMLElement) {
-  const g = plugin.guide!; const go = (to: number) => { g.step = to; plugin.bus.emit(); };
-  const box = host.createDiv("samaya-plan");
-  const top = box.createDiv("samaya-plan-top");
-  top.createSpan({ cls: "samaya-plan-kicker", text: "End my day" });
-  const x = top.createEl("button", { cls: "samaya-plan-cancel clickable-icon", attr: { "aria-label": "Cancel" } });
-  setIcon(x, "x"); x.onclick = () => plugin.cancelGuide();
-  const list = box.createEl("ol", { cls: "samaya-plan-steps" });
-  SHUTDOWN_STEPS.forEach((st, i) => {
-    const li = list.createEl("li", { cls: `samaya-plan-step ${i === g.step ? "is-active" : i < g.step ? "is-done" : "is-todo"}` });
-    const marker = li.createDiv("samaya-plan-marker"); if (i < g.step) setIcon(marker, "check"); else marker.setText(String(i + 1));
-    const main = li.createDiv("samaya-plan-main"); main.createDiv("samaya-plan-title").createSpan({ text: st.title });
-    if (i < g.step) { li.addClass("is-link"); li.onclick = () => go(i); li.setAttr("title", `Back to ${st.title}`); }
-    if (i === g.step) richText(main.createDiv("samaya-plan-text"), st.text);
-  });
-  const nav = box.createDiv("samaya-plan-nav");
-  if (g.step > 0) nav.createEl("button", { text: "Back", cls: "samaya-plan-back" }).onclick = () => go(g.step - 1);
-  const last = g.step === SHUTDOWN_STEPS.length - 1;
-  nav.createEl("button", { text: last ? "End my day" : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) safe(plugin.finishShutdown(), "ending the day"); else go(g.step + 1); };
+  renderStepper(plugin, host, { kicker: "End my day", cancelLabel: "Cancel", steps: SHUTDOWN_STEPS, visible: range(0, SHUTDOWN_STEPS.length), doneLabel: "End my day", finish: () => safe(plugin.finishShutdown(), "ending the day"), reminder: false });
 }
 
 /** "Plan my week": same stepper as the day guide, with the reminder to leave room for the unexpected under every step. */
 function renderWeekGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideCtx) {
-  const g = plugin.guide!; const vis = weekSteps(g.review, !!g.tickets); const pos = vis.indexOf(g.step);
-  const go = (to: number) => { g.step = to; plugin.bus.emit(); };
-  const doneLabel = "Finish week plan";
-  const box = host.createDiv("samaya-plan");
-  const top = box.createDiv("samaya-plan-top");
-  top.createSpan({ cls: "samaya-plan-kicker", text: "Plan my week" });
-  const x = top.createEl("button", { cls: "samaya-plan-cancel clickable-icon", attr: { "aria-label": "Cancel planning" } });
-  setIcon(x, "x"); x.onclick = () => plugin.cancelGuide();
-
-  const list = box.createEl("ol", { cls: "samaya-plan-steps" });
-  WEEK_GUIDE_STEPS.forEach((st, i) => {
-    if (!vis.includes(i)) return;
-    const state = i === g.step ? "is-active" : i < g.step ? "is-done" : "is-todo";
-    const li = list.createEl("li", { cls: `samaya-plan-step ${state}` });
-    const marker = li.createDiv("samaya-plan-marker");
-    if (i < g.step) setIcon(marker, "check"); else marker.setText(String(vis.indexOf(i) + 1));
-    const main = li.createDiv("samaya-plan-main");
-    const title = main.createDiv("samaya-plan-title"); title.createSpan({ text: st.title });
-    if (i < g.step) { li.addClass("is-link"); li.onclick = () => go(i); li.setAttr("title", `Back to ${st.title}`); }
-    if (i === g.step) {
-      richText(main.createDiv("samaya-plan-text"), st.text.replace("{done}", doneLabel));
-      if (i === 0) main.createDiv({ cls: "samaya-plan-alert" + (ctx.overdue ? "" : " is-clear"), text: ctx.overdue ? `There ${ctx.overdue === 1 ? "is 1 overdue task" : `are ${ctx.overdue} overdue tasks`} to review.` : "All overdue tasks have been handled." });
-    }
+  const g = plugin.guide!;
+  renderStepper(plugin, host, {
+    kicker: "Plan my week", cancelLabel: "Cancel planning", steps: WEEK_GUIDE_STEPS, visible: weekSteps(g.review, !!g.tickets), doneLabel: "Finish week plan",
+    finish: () => safe(plugin.finishWeekGuide(), "finishing the week plan"), reminder: true, extra: (i, main) => { if (i === 0) overdueAlert(main, ctx.overdue); },
   });
-
-  const nav = box.createDiv("samaya-plan-nav");
-  if (pos > 0) nav.createEl("button", { text: "Back", cls: "samaya-plan-back" }).onclick = () => go(vis[pos - 1]);
-  const last = pos === vis.length - 1;
-  nav.createEl("button", { text: last ? doneLabel : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) safe(plugin.finishWeekGuide(), "finishing the week plan"); else go(vis[pos + 1]); };
-
-  addReminder(plugin, box);
 }

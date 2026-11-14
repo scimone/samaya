@@ -4,7 +4,7 @@ import type SamayaPlugin from "../main";
 import { openFileSmart, openFileBeside } from "../openfile";
 import { DragMode, GRANULARITIES, Granularity, collapseTasks, daysBetween, taskSpan, dragSpan, ganttRange, granularityDayWidth, monthMarks } from "../gantt";
 import { DEFAULT_PROJECT_DAYS, Project, projectStats, readProject, createProject, projectPathOf, projectsPrefix } from "../projects";
-import { Task, Ticket, allTasks, allTickets, patchNote, prefixOf } from "../model";
+import { Task, Ticket, allTasks, allTickets, patchNote, prefixOf, setDone, ticketPathOf } from "../model";
 import { linkProject } from "../links";
 import { ConfirmDeleteModal, TextPromptModal, TicketTargetSuggestModal } from "../modals";
 import { renderHeadTitle } from "./plannerHead";
@@ -117,14 +117,20 @@ export class GanttView extends Panel {
     const allTk = allTickets(this.app, s).length > 0;
     for (const t of allTickets(this.app, s)) { const pp = projectPathOf(this.app, t.file); if (pp) (byProject.get(pp) ?? byProject.set(pp, []).get(pp)!).push(t); }
     const navs: Array<{ track: HTMLElement; bar: HTMLElement; x0: number; x1: number; btn: HTMLElement | null }> = [];
+    const ticketByPath = new Map(allTickets(this.app, s).map(t => [t.file.path, t] as const));
     const taskRows = (p: Project) => {
       const l = tasksOf.get(p.file.path); if (!l || !memory.open.has(p.file.path)) return;
       const expanded = memory.all.has(p.file.path); const c = collapseTasks(l.length, expanded);
       const one = (e: { t: Task; span: { start: string; end: string } | null }) => {
         const r = chart.createDiv("samaya-gantt-row samaya-gantt-task");
         const nm = r.createDiv("samaya-gantt-name");
-        const lk = nm.createSpan({ cls: "samaya-gantt-link", text: e.t.title, attr: { "aria-label": e.t.title } });
+        const cb = nm.createEl("input", { type: "checkbox", cls: "samaya-check", attr: { "aria-label": e.t.status === "done" ? "Mark as not done" : "Mark as done" } });
+        cb.checked = e.t.status === "done";
+        cb.onclick = ev => { ev.stopPropagation(); void setDone(this.app, e.t, cb.checked); };
+        const lk = nm.createSpan({ cls: "samaya-gantt-link", text: e.t.title });
         lk.onclick = () => { openFileBeside(this.app, e.t.file); };
+        const tk = e.t.ticket ? ticketByPath.get(ticketPathOf(this.app, e.t)) : undefined;
+        if (tk) nm.createSpan({ cls: `samaya-chip samaya-chip-ticket samaya-gantt-pill-ticket is-${tk.source}`, text: tk.key, attr: { "aria-label": tk.summary || tk.key } }).onclick = ev => { ev.stopPropagation(); openFileSmart(this.app, tk.file); };
         const tr = r.createDiv("samaya-gantt-track"); tr.style.width = `${width}px`;
         if (!e.span) return;
         const b = tr.createDiv({ cls: "samaya-gantt-bar is-task" + (e.t.status === "done" ? " is-done" : "") });

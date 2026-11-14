@@ -184,6 +184,10 @@ export function addProjectItems(m: Menu, plugin: SamayaPlugin, t: Task) {
   if (has) m.addItem(i => i.setTitle("Remove project").setIcon("unlink").onClick(() => { void assignProjectLinked(app, plugin.settings, t.file, null); }));
 }
 /** Planning entries of the task menu: split / move, plan for today or this week, back to the timeline's edge, backlog buckets. `seg`: the piece of a split day that was clicked (timeline blocks). */
+/** Where the last right-click happened (the menu's own item click carries no usable position). */
+const lastMenuAt = { x: 200, y: 200 };
+document.addEventListener("contextmenu", e => { lastMenuAt.x = e.clientX; lastMenuAt.y = e.clientY; }, true);
+
 export function addPlanItems(m: Menu, plugin: SamayaPlugin, t: Task, seg: number | null = null, canCut = false) {
   const app: App = plugin.app; const st = plugin.settings;
   const from: Source = { day: t.planned, seg };
@@ -195,10 +199,10 @@ export function addPlanItems(m: Menu, plugin: SamayaPlugin, t: Task, seg: number
     if (part) m.addItem(i => i.setTitle("Join all parts here").setIcon("combine").onClick(() => { void joinParts(plugin, t.file, t.planned); }));
   }
   m.addItem(i => i.setTitle(part ? "Do this part today" : "Plan for today").setIcon("sun").onClick(() => send({ day: today() })));
-  m.addItem(i => i.setTitle("Plan for…").setIcon("calendar").onClick(ev => {
-    // a native date picker at the spot that was clicked; picking a day plans the task (or this part of it) there
-    const at = ev as MouseEvent; const input = document.body.createEl("input", { type: "date", cls: "samaya-plan-date", attr: { "aria-label": "Plan for" } });
-    input.value = t.planned || today(); input.style.left = `${at.clientX || window.innerWidth / 2}px`; input.style.top = `${at.clientY || window.innerHeight / 3}px`;
+  m.addItem(i => i.setTitle("Plan for…").setIcon("calendar").onClick(() => {
+    // a native date picker where the right-click happened; picking a day plans the task (or this part of it) there
+    const input = document.body.createEl("input", { type: "date", cls: "samaya-plan-date", attr: { "aria-label": "Plan for" } });
+    input.value = t.planned || today(); input.style.left = `${lastMenuAt.x}px`; input.style.top = `${lastMenuAt.y}px`;
     const done = () => window.setTimeout(() => input.remove(), 0);
     input.addEventListener("change", () => { if (/^\d{4}-\d{2}-\d{2}$/.test(input.value)) send({ day: input.value }); done(); });
     input.addEventListener("blur", done); input.addEventListener("cancel", done);

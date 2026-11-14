@@ -1640,4 +1640,4 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 
 .samaya-meet-bar.is-clickable { cursor: pointer; }
 .samaya-gantt-bar.is-task.is-period { border-style: dashed; background: color-mix(in srgb, var(--text-muted) 12%, var(--background-primary)); } /* a whole week / month / quarter, not exact days */
-.samaya-plan-date { position: fixed; z-index: 1000; width: 0; height: 0; padding: 0; border: 0; opacity: 0; }
+.samaya-plan-date { position: fixed; z-index: 1000; width: 2px; height: 2px; padding: 0; border: 0; opacity: 0; pointer-events: none; }

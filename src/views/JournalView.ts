@@ -41,6 +41,7 @@ export class JournalView extends Panel {
   }
   onunload() { window.clearTimeout(this.timer); this.seq++; }
   /** The first call lists and draws at once (no waiting for the vault to go quiet); later ones, which come in bursts from every note change and planner update, are bundled. */
+  protected visibleEl(): HTMLElement { return this.root; }
   onDataUpdated(): void {
     window.clearTimeout(this.timer);
     if (!this.ready) { this.ready = true; this.on = this.periods(); this.render(); void this.reload(); return; } // the frame first, the dots and states follow

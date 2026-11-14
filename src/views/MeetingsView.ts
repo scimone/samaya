@@ -35,6 +35,7 @@ export class MeetingsView extends Panel {
     this.tick = window.setInterval(() => { if (this.root.isShown() && !this.root.querySelector("input:focus")) this.rerender(); }, 60000); // a meeting that ends moves from next to recent
   }
   onunload() { window.clearTimeout(this.timer); window.clearInterval(this.tick); }
+  protected visibleEl(): HTMLElement { return this.root; }
   onDataUpdated(): void { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { this.render(); }, 30); }
 
   /** Notes from what Obsidian already has in memory (front matter and any body read before), plus the files whose body still has to be read. Nothing here waits for the disk. */

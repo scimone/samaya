@@ -38,6 +38,7 @@ export class KanbanView extends Panel {
   private newProject(initial: string, tickets: Ticket[], ticketProject?: string) {
     new TextPromptModal(this.plugin, "New project name", n => { safe(createProject(this.app, this.plugin.settings, n).then(f => linkProject(this.app, this.plugin.settings, f, tickets, ticketProject)).then(() => this.plugin.bus.emit()), "creating the project"); }, initial).open();
   }
+  protected visibleEl(): HTMLElement { return this.root; }
   onDataUpdated(): void {
     if (this.scope.active) { this.pending = true; return; }
     window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.render(), 30); }

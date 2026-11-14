@@ -49,6 +49,7 @@ export class TasksView extends Panel {
     this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.schedule(); } };
   }
   onunload() { window.clearTimeout(this.timer); this.scope.dispose(); }
+  protected visibleEl(): HTMLElement { return this.root; }
   onDataUpdated(): void { this.schedule(); }
   private schedule() {
     if (this.scope.active) { this.pending = true; return; }

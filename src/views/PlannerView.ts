@@ -85,7 +85,7 @@ export class PlannerView extends ItemView {
     hro.observe(this.headEl); this.register(() => hro.disconnect());
     this.shown = this.mode(); this.shownLayout = plugin.weekLayout; this.applyMode(false);
     const mc = plugin.app.metadataCache, vault = plugin.app.vault; let tm = 0; // tasks changed, created, moved or deleted: the panes read them from the vault
-    const touched = () => { window.clearTimeout(tm); tm = window.setTimeout(() => this.onDataUpdated(), 150); };
+    const touched = () => { window.clearTimeout(tm); tm = window.setTimeout(() => { if (!this.rootEl.isShown()) this.stale = true; else this.onDataUpdated(); }, 150); };
     this.registerEvent(mc.on("changed", touched)); this.registerEvent(mc.on("deleted", touched));
     this.registerEvent(vault.on("create", touched)); this.registerEvent(vault.on("rename", touched)); this.registerEvent(vault.on("delete", touched));
     this.register(() => window.clearTimeout(tm));

@@ -41,6 +41,7 @@ export class GanttView extends Panel {
   }
   private ro?: ResizeObserver;
   onunload() { this.ro?.disconnect(); window.clearTimeout(this.timer); }
+  protected visibleEl(): HTMLElement { return this.root; }
   onDataUpdated(): void {
     if (this.dragging) { this.pending = true; return; }
     window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.render(), 30);

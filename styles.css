@@ -1690,3 +1690,10 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-rv-r.is-clickable, .samaya-rv-blk.is-clickable, .samaya-rv-lg.is-clickable, .samaya-rv-ring-seg.is-clickable { cursor: pointer; }
 .samaya-rv-r.is-clickable:hover { background: var(--background-modifier-hover); }
 .samaya-rv-lg.is-empty { opacity: 0.6; }
+
+/* End my day, review: when the pane is narrow (a side pane is open beside it) the timeline column is hidden, so the tasks keep their room; it comes back when the pane is wide again */
+.samaya-left.is-review-col { container-type: inline-size; container-name: samaya-review; }
+@container samaya-review (max-width: 760px) {
+  .samaya-rv { grid-template-columns: minmax(0, 1fr); }
+  .samaya-rv-col.is-tl { display: none; }
+}

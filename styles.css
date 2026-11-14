@@ -1637,7 +1637,7 @@ button.samaya-pp-cell.is-selected .samaya-pp-sub { color: inherit; opacity: .8; 
 .samaya-gantt-arrow:hover { color: var(--text-normal); }
 .samaya-gantt-arrow svg { width: 14px; height: 14px; }
 .samaya-gantt-task .samaya-gantt-name { padding-left: 28px; } /* the checkbox lines up with the project names (arrow column) */
-.samaya-gantt-task .samaya-gantt-check { margin-right: -3px; }
+.samaya-gantt-task .samaya-gantt-check { margin-right: -1px; }
 .samaya-gantt-task.is-done .samaya-gantt-name > :not(.samaya-gantt-resize) { opacity: 0.5; } /* like a checked task card */
 .samaya-gantt-bar.is-task { cursor: pointer; background: color-mix(in srgb, var(--text-muted) 25%, var(--background-primary)); border-color: var(--text-muted); }
 .samaya-gantt-task .samaya-check { flex: none; }

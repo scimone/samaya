@@ -7,6 +7,7 @@ import { DEFAULT_PROJECT_DAYS, Project, projectStats, readProject, createProject
 import { Task, Ticket, allTasks, allTickets, patchNote, prefixOf, setDone, ticketPathOf } from "../model";
 import { linkProject } from "../links";
 import { ConfirmDeleteModal, TextPromptModal, TicketTargetSuggestModal } from "../modals";
+import { showTaskMenu } from "./common";
 import { renderHeadTitle } from "./plannerHead";
 import { renderResetPill } from "./dateNav";
 import { NoteText, matches, renderSearch } from "./search";
@@ -124,6 +125,7 @@ export class GanttView extends Panel {
       const one = (e: { t: Task; span: { start: string; end: string } | null }) => {
         const r = chart.createDiv("samaya-gantt-row samaya-gantt-task"); r.toggleClass("is-done", e.t.status === "done");
         const nm = r.createDiv("samaya-gantt-name");
+        nm.addEventListener("contextmenu", ev => showTaskMenu(this.plugin, e.t, ev));
         const cb = nm.createEl("input", { type: "checkbox", cls: "samaya-check", attr: { "aria-label": e.t.status === "done" ? "Mark as not done" : "Mark as done" } });
         cb.checked = e.t.status === "done";
         cb.onclick = ev => { ev.stopPropagation(); void setDone(this.app, e.t, cb.checked); };
@@ -138,6 +140,7 @@ export class GanttView extends Panel {
         b.createSpan({ cls: "samaya-gantt-label", text: e.t.title });
         b.style.left = `${daysBetween(from, e.span.start) * dayW}px`; b.style.width = `${(daysBetween(e.span.start, e.span.end) + 1) * dayW}px`;
         b.onclick = () => { openFileBeside(this.app, e.t.file); };
+        b.addEventListener("contextmenu", ev => showTaskMenu(this.plugin, e.t, ev));
       };
       const more = (text: string) => {
         const r = chart.createDiv("samaya-gantt-row samaya-gantt-task");

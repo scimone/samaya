@@ -50,10 +50,8 @@ export function closeSide(app: App): void { const l = sideLeaf(app); side = null
 const SIDE_KEY = "samaya-side-leaf";
 /** Leaf ids are saved in the workspace layout, so a side pane left open when Obsidian quit can be recognised on the next start. */
 function rememberSide(app: App, leaf: WorkspaceLeaf): void { const id = (leaf as unknown as { id?: string }).id; if (id) app.saveLocalStorage(SIDE_KEY, id); }
-/** Close Samaya's side pane when Obsidian quits, so it does not reopen next time; and sweep one that survived a crash. Other panes are left alone. */
-export function setupSideCleanup(app: App, register: (fn: () => void) => void): void {
-  const onQuit = () => closeSide(app);
-  window.addEventListener("beforeunload", onQuit); register(() => window.removeEventListener("beforeunload", onQuit));
+/** On start, close the side pane Samaya left open when Obsidian quit (found by its saved leaf id) so it does not come back. Nothing else is touched, and nothing is closed while quitting. */
+export function setupSideCleanup(app: App): void {
   app.workspace.onLayoutReady(() => {
     const id = app.loadLocalStorage(SIDE_KEY) as string | null; if (!id) return;
     app.workspace.iterateRootLeaves(l => { if ((l as unknown as { id?: string }).id === id && !l.view.getViewType().startsWith("samaya-")) l.detach(); });

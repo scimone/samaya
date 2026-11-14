@@ -1669,4 +1669,4 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-rv-tl > .samaya-rv-legend { margin-top: 2px; }
 .samaya-daily.is-end-review { scrollbar-gutter: auto; }
 .samaya-daily.is-end-review .samaya-left.is-review-col { padding-right: 0; padding-bottom: 0; }
-.samaya-daily.is-end-review .samaya-left.is-review-col > .samaya-rv { padding-right: 0; padding-bottom: 4px; }
+.samaya-daily.is-end-review .samaya-left.is-review-col > .samaya-rv { padding-right: 5px; padding-bottom: 4px; }

@@ -61,7 +61,7 @@ const CHANGE: Record<Change, { label: string; cls: string }> = {
 /** Second step of "End my day": the planned day set against the day as it really went - a timeline of both, what changed task by task, and what was achieved per ticket / project. */
 export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { date: string; all: Task[]; meetings: number; events: ReviewEvent[] }) {
   anim = Date.now() - lastShown > 4000; lastShown = Date.now();
-  const grid = host.createDiv("samaya-rv"); const info = grid.createDiv("samaya-rv-col is-info"); const tl = grid.createDiv("samaya-rv-col is-tl"); const { items, hasPlan } = reviewItems(plugin, o.all, o.date);
+  const grid = host.createDiv("samaya-rv"); const info = grid.createDiv("samaya-rv-col is-info"); const tl = grid.createDiv("samaya-rv-col is-tl"); const { items, hasPlan } = reviewItems(plugin, o.all, o.date); ringLinks = new Map(items.map(i => [i.key, { ticket: i.ticket, project: i.project }]));
   const now = nowMin(); const log = plugin.workday.log; const [winFrom, winTo] = plugin.workWindowFor(o.date); const lunch = plugin.lunchFor(o.date);
   const worked = workedOn(log, now, plugin.dayRules); const breaks = log ? breakMinutes(log) + (log.open ? Math.max(0, now - hmToMin(log.open.start)) : 0) : 0;
   const { plannedItems, planned, comparableActual, focus } = dayTotals(items, hasPlan);
@@ -129,10 +129,19 @@ function drawRow(table: HTMLElement, r: Row, root: HTMLElement) {
   if (!r.unplanned) nums.createDiv({ cls: "samaya-rv-r-plan", text: `plan ${when(r.plannedAt, r.planned)}` });
 }
 
-/** Hovering a task anywhere (timeline block or table row) lights up the same task everywhere else. */
+/** The ticket / project of each task of the review, by task key: hovering the task lights up its part of the rings. */
+let ringLinks = new Map<string, { ticket: string; project: string }>();
+function hotRings(root: HTMLElement, key: string | null) {
+  const l = key ? ringLinks.get(key) : undefined;
+  root.closest(".samaya-daily")?.querySelectorAll<HTMLElement>(".samaya-rv-ring").forEach(box => {
+    const label = !l ? null : box.dataset.by === "ticket" ? l.ticket || "No ticket" : l.project || "No project";
+    box.dispatchEvent(new CustomEvent("samaya-hot", { detail: label }));
+  });
+}
+/** Hovering a task anywhere (timeline block or table row) lights up the same task everywhere else, and its ticket / project in the rings. */
 function linkHover(el: HTMLElement, root: HTMLElement, key: string) {
-  el.addEventListener("mouseenter", () => { root.addClass("is-linking"); root.querySelectorAll<HTMLElement>("[data-k]").forEach(x => x.toggleClass("is-linked", x.dataset.k === key)); });
-  el.addEventListener("mouseleave", () => { root.removeClass("is-linking"); root.querySelectorAll(".is-linked").forEach(x => x.removeClass("is-linked")); });
+  el.addEventListener("mouseenter", () => { root.addClass("is-linking"); root.querySelectorAll<HTMLElement>("[data-k]").forEach(x => x.toggleClass("is-linked", x.dataset.k === key)); hotRings(root, key); });
+  el.addEventListener("mouseleave", () => { root.removeClass("is-linking"); root.querySelectorAll(".is-linked").forEach(x => x.removeClass("is-linked")); hotRings(root, null); });
 }
 
 interface TimelineIn { items: ReviewItem[]; events: ReviewEvent[]; window: [number, number]; lunch: [number, number]; start: number | null; end: number | null; breaks: Array<[number, number]>; hasPlan: boolean; linkRoot: HTMLElement; cap: CapIn; }
@@ -214,6 +223,11 @@ function drawRings(host: HTMLElement, items: ReviewItem[], meetings: MeetingLink
     const svg = box.createSvg("svg", { attr: { viewBox: "0 0 100 100", role: "img" } }); srName(svg, `Time per ${by}`, box);
     svg.createSvg("circle", { attr: { class: "samaya-rv-ring-bg", cx: "50", cy: "50", r: String(RING_R) } });
     const time = box.createDiv("samaya-rv-ring-mid").createSpan("samaya-rv-ring-n"); // the time of the part under the pointer
+    box.dataset.by = by; const handlers = new Map<string, [() => void, () => void]>(); let lit: string | null = null;
+    box.addEventListener("samaya-hot", e => { // a task is hovered somewhere else: light up its part (null: none)
+      const label = (e as CustomEvent<string | null>).detail; if (lit) handlers.get(lit)?.[1](); lit = null;
+      if (label && handlers.has(label)) { lit = label; handlers.get(label)![0](); }
+    });
     const legend = card.createDiv("samaya-rv-ringlegend"); // minimal: colour, name, time
     const gapLen = groups.length > 1 ? 1.6 : 0; let at = 0; const arcs: Array<[SVGElement, number, number]> = [];
     groups.forEach((g, n) => {
@@ -223,6 +237,7 @@ function drawRings(host: HTMLElement, items: ReviewItem[], meetings: MeetingLink
       row.createSpan({ cls: "samaya-rv-lg-name", text: g.label, attr: { "aria-label": g.label } });
       const on = () => { time.setText(fmtDur(Math.round(g.actual))); box.addClass("is-hover"); c.addClass("is-hot"); row.addClass("is-hot"); };
       const off = () => { time.setText(""); box.removeClass("is-hover"); c.removeClass("is-hot"); row.removeClass("is-hot"); };
+      handlers.set(g.label, [on, off]);
       for (const el of [c, row]) { el.addEventListener("mouseenter", on); el.addEventListener("mouseleave", off); }
     });
     settle(() => arcs.forEach(([c, shown]) => c.setAttribute("stroke-dasharray", `${shown} ${RING_C - shown}`)));

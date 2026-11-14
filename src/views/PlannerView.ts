@@ -105,6 +105,7 @@ export class PlannerView extends ItemView {
     }));
     this.registerDomEvent(document, "keydown", e => { // Esc folds the expanded week back
       if (e.key !== "Escape" || (this.mode() !== "expanded" && this.mode() !== "worktime") || e.defaultPrevented) return;
+      if (this.app.workspace.getActiveViewOfType(ItemView) !== this) return; // only while this page is the one in use, not from another tab
       const t = e.target as HTMLElement | null; if (t && (t.closest("input, textarea, [contenteditable=true]") || document.querySelector(".modal-container"))) return;
       if (this.mode() === "worktime") plugin.hideWorkTime(); else plugin.collapseTimeline();
     });

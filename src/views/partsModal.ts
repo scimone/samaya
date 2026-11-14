@@ -51,7 +51,7 @@ export class PartsModal extends Modal {
         a.style.flexGrow = String(this.first); b.style.flexGrow = String(dur - this.first); bar.setAttr("aria-valuenow", String(this.first));
       };
       const at = (x: number) => { const r = bar.getBoundingClientRect(); this.first = Math.min(hi, Math.max(lo, Math.round(((x - r.left) / Math.max(1, r.width)) * dur / step) * step)); paint(); };
-      bar.addEventListener("pointerdown", e => { bar.setPointerCapture(e.pointerId); at(e.clientX); const mv = (ev: PointerEvent) => at(ev.clientX); bar.addEventListener("pointermove", mv); bar.addEventListener("pointerup", () => bar.removeEventListener("pointermove", mv), { once: true }); });
+      bar.addEventListener("pointerdown", e => { bar.setPointerCapture(e.pointerId); at(e.clientX); const mv = (ev: PointerEvent) => at(ev.clientX); bar.addEventListener("pointermove", mv); const stop = () => { bar.removeEventListener("pointermove", mv); bar.removeEventListener("pointerup", stop); bar.removeEventListener("pointercancel", stop); }; bar.addEventListener("pointerup", stop); bar.addEventListener("pointercancel", stop); });
       bar.addEventListener("keydown", e => { const d = e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0; if (!d) return; e.preventDefault(); this.first = Math.min(hi, Math.max(lo, this.first + d)); paint(); });
       this.contentEl.createDiv({ cls: "samaya-parts-hint", text: "Drag the line to set where to cut" });
     }

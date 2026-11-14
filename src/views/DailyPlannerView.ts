@@ -65,7 +65,8 @@ export class DailyPlannerView extends PlannerPane {
   onDataUpdated(): void { this.schedule(); }
   refresh() { this.schedule(); }
   goTo(date: string) { this.date = date; this.schedule(); }
-  onunload() { window.clearTimeout(this.timer); this.scope.dispose(); window.setTimeout(() => this.plugin.modeBus.emit(), 80); }
+  onunload() { window.clearTimeout(this.timer); this.scope.dispose(); this.plugin.plannerGoTo = null; // (a closed view must not stay the target of "Open day")
+    window.setTimeout(() => this.plugin.modeBus.emit(), 80); }
 
   /** Coalesce bursts of updates; never re-render in the middle of a drag. */
   private schedule() {

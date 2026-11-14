@@ -1,4 +1,5 @@
 import { TFile, setIcon } from "obsidian";
+import { trackPointer } from "./pointerDrag";
 import type { CalendarEvent } from "../eventnotes";
 import { safe } from "../safe";
 import { openFileSmart } from "../openfile";
@@ -119,11 +120,10 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
           nd = Math.max(slot, Math.round((dur0 + ((ev.clientY - startY) / HOUR_H) * 60) / slot) * slot);
           b.style.height = `${Math.max(22, (nd / 60) * HOUR_H - 2)}px`;
         };
-        const up = () => {
-          window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
+        trackPointer(move, cancelled => {
+          if (cancelled) { plugin.bus.emit(); return; } // put the block back to its saved height
           if (nd !== dur0) void resizeBlock(plugin, t, it.seg!, nd + (it.cut ?? 0));
-        };
-        window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+        });
       });
     });
 

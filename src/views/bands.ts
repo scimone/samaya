@@ -1,4 +1,6 @@
 import type SamayaPlugin from "../main";
+import { trackPointer } from "./pointerDrag";
+import { safe } from "../safe";
 import { hmToMin, minToHm } from "../util";
 import { nowMin } from "../workday";
 
@@ -35,12 +37,11 @@ export function addBands(plugin: SamayaPlugin, lane: HTMLElement, date: string, 
         else { ne = Math.min(hi, Math.max(ls + slot, le + dm)); ns = ls; }
         el.style.top = `${px(ns)}px`; el.style.height = `${px(ne) - px(ns)}px`; lbl.setText(`Lunch ${minToHm(ns)}–${minToHm(ne)}`);
       };
-      const up = async () => {
-        window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
+      trackPointer(move, cancelled => {
+        if (cancelled) { plugin.bus.emit(); return; } // put the band back
         if (ns === ls && ne === le) return;
-        await plugin.setLunch(date, minToHm(ns), minToHm(ne)); // this day only; the default in the settings is untouched
-      };
-      window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+        safe(plugin.setLunch(date, minToHm(ns), minToHm(ne)), "moving lunch"); // this day only; the default in the settings is untouched
+      });
     });
   }
 

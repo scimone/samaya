@@ -1,4 +1,5 @@
 import { setIcon } from "obsidian";
+import { safe } from "../safe";
 import type SamayaPlugin from "../main";
 import { richText } from "./common";
 import { weekSteps } from "./../weekplan";
@@ -64,7 +65,7 @@ export function renderGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideC
   const nav = box.createDiv("samaya-plan-nav");
   if (g.step > first) nav.createEl("button", { text: "Back", cls: "samaya-plan-back" }).onclick = () => go(g.step - 1);
   const last = g.step === GUIDE_STEPS.length - 1;
-  nav.createEl("button", { text: last ? doneLabel : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) void plugin.finishGuide(); else go(g.step + 1); };
+  nav.createEl("button", { text: last ? doneLabel : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) safe(plugin.finishGuide(), "finishing the plan"); else go(g.step + 1); };
 
   addReminder(plugin, box);
 }
@@ -93,7 +94,7 @@ function renderShutdownGuide(plugin: SamayaPlugin, host: HTMLElement) {
   const nav = box.createDiv("samaya-plan-nav");
   if (g.step > 0) nav.createEl("button", { text: "Back", cls: "samaya-plan-back" }).onclick = () => go(g.step - 1);
   const last = g.step === SHUTDOWN_STEPS.length - 1;
-  nav.createEl("button", { text: last ? "End my day" : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) void plugin.finishShutdown(); else go(g.step + 1); };
+  nav.createEl("button", { text: last ? "End my day" : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) safe(plugin.finishShutdown(), "ending the day"); else go(g.step + 1); };
 }
 
 /** "Plan my week": same stepper as the day guide, with the reminder to leave room for the unexpected under every step. */
@@ -126,7 +127,7 @@ function renderWeekGuide(plugin: SamayaPlugin, host: HTMLElement, ctx: GuideCtx)
   const nav = box.createDiv("samaya-plan-nav");
   if (pos > 0) nav.createEl("button", { text: "Back", cls: "samaya-plan-back" }).onclick = () => go(vis[pos - 1]);
   const last = pos === vis.length - 1;
-  nav.createEl("button", { text: last ? doneLabel : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) void plugin.finishWeekGuide(); else go(vis[pos + 1]); };
+  nav.createEl("button", { text: last ? doneLabel : "Next", cls: "mod-cta samaya-plan-next" }).onclick = () => { if (last) safe(plugin.finishWeekGuide(), "finishing the week plan"); else go(vis[pos + 1]); };
 
   addReminder(plugin, box);
 }

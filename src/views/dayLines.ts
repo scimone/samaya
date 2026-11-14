@@ -1,4 +1,6 @@
 import type SamayaPlugin from "../main";
+import { trackPointer } from "./pointerDrag";
+import { safe } from "../safe";
 import { hmToMin, minToHm } from "../util";
 
 /** Draggable start and finish lines of the working day of ONE day (the settings hold the default; double-click a label to go back to it), with the hours outside shaded. */
@@ -26,11 +28,10 @@ export function renderDayLines(plugin: SamayaPlugin, date: string, lane: HTMLEle
         val[key] = key === "start" ? Math.max(lo, Math.min(val.end - o.slot, m)) : Math.min(hi, Math.max(val.start + o.slot, m));
         paints.forEach(f => f());
       };
-      const up = () => {
-        window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up);
-        void plugin.setWorkWindow(date, [minToHm(val.start), minToHm(val.end)]); // free capacity depends on the lines
-      };
-      window.addEventListener("pointermove", move); window.addEventListener("pointerup", up);
+      trackPointer(move, cancelled => {
+        if (cancelled) { plugin.bus.emit(); return; } // put the line back
+        safe(plugin.setWorkWindow(date, [minToHm(val.start), minToHm(val.end)]), "moving the day line"); // free capacity depends on the lines
+      });
     });
     lab.addEventListener("dblclick", () => { void plugin.setWorkWindow(date, null); });
     paints.push(paint);

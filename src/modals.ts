@@ -1,7 +1,7 @@
 import { isDoneState } from "./kanban";
-import { FuzzySuggestModal, Modal } from "obsidian";
+import { FuzzySuggestModal, Modal, SuggestModal, prepareFuzzySearch } from "obsidian";
 import type SamayaPlugin from "./main";
-import { Project, allProjects, projectPathOf } from "./projects";
+import { Project, allProjects, createProject, projectPathOf, readProject } from "./projects";
 import { SOURCE_NAMES, Ticket, allTickets } from "./model";
 import { HORIZONS, Horizon, fmtDur, parseDuration } from "./util";
 
@@ -85,11 +85,25 @@ export class TicketTargetSuggestModal extends FuzzySuggestModal<TicketTarget> {
   onChooseItem(t: TicketTarget) { this.choose(t); }
 }
 
-export class ProjectSuggestModal extends FuzzySuggestModal<Project> {
-  constructor(private plugin: SamayaPlugin, private choose: (p: Project) => void, private fits: (p: Project) => boolean = () => true) { super(plugin.app); this.setPlaceholder("Assign to project…"); }
-  getItems() { return allProjects(this.app, this.plugin.settings).filter(p => !p.done && this.fits(p)); }
-  getItemText(p: Project) { return p.name; }
-  onChooseItem(p: Project) { this.choose(p); }
+/** Pick a project, or type a name that matches none and create it on the spot (the new project is what `choose` receives). */
+type ProjectChoice = { project: Project } | { create: string };
+export class ProjectSuggestModal extends SuggestModal<ProjectChoice> {
+  constructor(private plugin: SamayaPlugin, private choose: (p: Project) => void, private fits: (p: Project) => boolean = () => true) { super(plugin.app); this.setPlaceholder("Assign to project… (type a new name to create one)"); }
+  getSuggestions(query: string): ProjectChoice[] {
+    const q = query.trim(); const match = q ? prepareFuzzySearch(q) : null;
+    const scored = allProjects(this.app, this.plugin.settings).filter(p => !p.done && this.fits(p))
+      .map(p => ({ p, score: match ? match(p.name)?.score : 0 })).filter((x): x is { p: Project; score: number } => x.score != null)
+      .sort((a, b) => b.score - a.score);
+    const out: ProjectChoice[] = scored.map(x => ({ project: x.p }));
+    const exact = allProjects(this.app, this.plugin.settings).some(p => p.name.toLowerCase() === q.toLowerCase());
+    if (q && !exact) out.push({ create: q });
+    return out;
+  }
+  renderSuggestion(c: ProjectChoice, el: HTMLElement) { el.setText("project" in c ? c.project.name : `Create project “${c.create}”`); }
+  onChooseSuggestion(c: ProjectChoice) {
+    if ("project" in c) { this.choose(c.project); return; }
+    void createProject(this.app, this.plugin.settings, c.create).then(f => { this.plugin.bus.emit(); this.choose(readProject(this.app, f)); });
+  }
 }
 
 /** Asked when moving a segment of a split task makes it possible to join the pieces again. */

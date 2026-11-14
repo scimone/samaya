@@ -177,13 +177,19 @@ function parseNoteDateUncached(file: TFile, loc: JournalLoc, root: string): stri
 export async function listPeriodNotes(app: App, s: SamayaSettings, p: Period): Promise<Array<{ file: TFile; date: string }>> {
   const loc = await periodLocation(app, s, p); if (!loc) return [];
   const root = loc.pattern ? rootOf(loc.folder) : normalizePath(loc.folder || "/"); const prefix = root === "/" ? "" : root + "/";
+  const key = `${p}|${loc.folder}|${loc.format}|${!!loc.pattern}`; const hit = periodCache.get(key); if (hit) return hit;
   const items: Array<{ file: TFile; date: string }> = [];
   for (const f of app.vault.getMarkdownFiles()) {
     if (!f.path.startsWith(prefix)) continue;
     const date = parseNoteDate(f, loc, root); if (date) items.push({ file: f, date });
   }
-  return items.sort((a, b) => a.date.localeCompare(b.date));
+  items.sort((a, b) => a.date.localeCompare(b.date));
+  periodCache.set(key, items);
+  return items;
 }
+/** The note lists, kept until a note is created, deleted or renamed (dates come from the path, so edits do not matter). Callers must not modify a list. */
+const periodCache = new Map<string, Array<{ file: TFile; date: string }>>();
+export function invalidatePeriodNotes(): void { periodCache.clear(); }
 /** The most recent existing note of a kind up to today. */
 export async function findLatestPeriodNote(app: App, s: SamayaSettings, p: Period): Promise<TFile | null> {
   return latestOnOrBefore(await listPeriodNotes(app, s, p), today())?.file ?? null;

@@ -15,7 +15,7 @@ import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
 import { ConfirmCreateModal, ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "./modals";
 import type { Period } from "./journal";
 import { renderJournalBar } from "./views/journalBar";
-import { PERIODIC_KINDS, PERIOD_UI, identifyNote, findLatestPeriodNote, listPeriodNotes, neighbours, journalLocation, openPeriodNote, periodNotePath } from "./journal";
+import { PERIODIC_KINDS, PERIOD_UI, identifyNote, invalidatePeriodNotes, findLatestPeriodNote, listPeriodNotes, neighbours, journalLocation, openPeriodNote, periodNotePath } from "./journal";
 import { affectsTaskLists, syncTaskLists } from "./tasklinks";
 import { createProject, projectPathOf } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
@@ -156,6 +156,8 @@ export default class SamayaPlugin extends Plugin {
     this.register(this.bus.on(marks));
     this.registerEvent(this.app.metadataCache.on("changed", f => { if (f.path.startsWith(prefixOf(this.settings.tasksPath)) || (sideLeaf(this.app)?.view as { file?: TFile } | undefined)?.file === f) marks(); })); // the side pane's note changed (e.g. a meeting's title): redraw its bar
     this.registerEvent(this.app.vault.on("rename", () => marks()));
+    const periodChanged = () => invalidatePeriodNotes();
+    this.registerEvent(this.app.vault.on("create", periodChanged)); this.registerEvent(this.app.vault.on("delete", periodChanged)); this.registerEvent(this.app.vault.on("rename", periodChanged));
     const calChanged = (f: { path: string }) => { if (inEventFolder(this.settings, f.path)) invalidateCalendar(); };
     this.registerEvent(this.app.metadataCache.on("changed", calChanged));
     this.registerEvent(this.app.vault.on("create", calChanged)); this.registerEvent(this.app.vault.on("delete", calChanged));

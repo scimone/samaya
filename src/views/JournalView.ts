@@ -52,7 +52,7 @@ export class JournalView extends Panel {
   /** Find the notes (names only, nothing is read), then draw. */
   private async reload() {
     const seq = ++this.seq; const s = this.plugin.settings; const ps = this.periods();
-    const found = await Promise.all(ps.map(async p => [p, (await listPeriodNotes(this.app, s, p)).reverse()] as const)); // the five kinds in parallel
+    const found = await Promise.all(ps.map(async p => [p, [...(await listPeriodNotes(this.app, s, p))].reverse()] as const)); // the five kinds in parallel
     if (seq !== this.seq) return; // a newer load is under way
     const sig = ps.join() + "|" + found.map(([, l]) => l.map(n => n.file.path).join(",")).join("|") + "|" + todayYmd();
     this.lists = new Map(found); this.has = new Map(found.map(([p, l]) => [p, new Set(l.map(n => spanKey(p, n.date)))] as const)); this.on = ps;

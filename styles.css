@@ -1038,7 +1038,7 @@ input.is-invalid { border-color: var(--text-error); }
 /* headline and the day in four numbers */
 .samaya-rv-vtitle { font-size: calc(var(--font-ui-large) * 1.35); font-weight: 700; }
 .samaya-rv-vtext { margin-top: 4px; color: var(--text-muted); font-size: var(--font-ui-medium); }
-.samaya-rv-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.samaya-rv-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .samaya-rv-stat { padding: 10px 14px 9px; min-width: 0; border-radius: var(--samaya-r-l); background: var(--background-primary-alt); border: 1px solid var(--background-modifier-border); }
 .samaya-rv-stat-l { font-size: var(--samaya-fs-label); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 600; }
 .samaya-rv-stat-v { font-size: calc(var(--font-ui-large) * 1.5); line-height: 1.15; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -1118,16 +1118,18 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-rv-delta.is-over { color: var(--rv-over); } .samaya-rv-delta.is-under { color: var(--rv-ok); }
 
 /* per ticket / project: a ring each, the list beside it scrolls when long */
-.samaya-rv-rings { display: flex; justify-content: center; align-items: flex-start; gap: 16px 40px; }
+.samaya-rv-rings { display: flex; justify-content: center; align-items: flex-start; gap: 16px 56px; padding: 14px 16px 12px; border-radius: var(--samaya-r-l); background: var(--background-primary-alt); border: 1px solid var(--background-modifier-border); }
 .samaya-rv-ringcard { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+.samaya-rv-ring-t { font-size: var(--samaya-fs-label); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+.samaya-rv-ring-name { height: 1.4em; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-ui-small); font-weight: 600; text-align: center; }
 .samaya-rv-ringbody { display: flex; align-items: center; gap: 16px; min-width: 0; }
-.samaya-rv-ring { position: relative; width: 124px; height: 124px; flex: none; }
+.samaya-rv-ring { position: relative; width: 112px; height: 112px; flex: none; }
 .samaya-rv-ring.is-hover .samaya-rv-ring-seg:not(.is-hot) { opacity: 0.45; }
 .samaya-rv-ring svg { display: block; width: 100%; height: 100%; }
 .samaya-rv-ring-bg { fill: none; stroke: var(--background-modifier-border); stroke-width: 14; }
 .samaya-rv-ring-seg { fill: none; stroke-width: 14; transition: stroke-dasharray 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
 .samaya-rv-ring-mid { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-.samaya-rv-ring-n { font-size: var(--font-ui-small); font-weight: 700; font-variant-numeric: tabular-nums; }
+.samaya-rv-ring-n { font-size: var(--font-ui-medium); font-weight: 700; font-variant-numeric: tabular-nums; }
 .samaya-rv-glist { display: flex; flex-direction: column; flex: 1; min-width: 0; max-height: 112px; }
 .samaya-rv-g { display: flex; align-items: center; gap: 8px; padding: 4px 2px; font-size: var(--font-ui-small); min-width: 0; }
 .samaya-rv-dot { width: 10px; height: 10px; border-radius: 3px; flex: none; }
@@ -1147,7 +1149,7 @@ input.is-invalid { border-color: var(--text-error); }
 
 .samaya-rv-row-act { font-weight: 700; }
 @media (max-width: 1000px) { .samaya-left.is-review-col > .samaya-rv { grid-template-rows: none; flex: none; grid-template-columns: 1fr; height: auto; gap: 28px; padding: 16px 20px 28px; } .samaya-left.is-review-col { overflow-y: auto; } .samaya-rv-sec.is-grow { flex: none; } .samaya-rv-table.samaya-rv-scroll { flex: none; } }
-@media (max-width: 1400px) { .samaya-rv-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
 @media (max-width: 640px) { .samaya-rv-stats { grid-template-columns: repeat(2, 1fr); } .samaya-rv-r { grid-template-columns: 16px minmax(0, 1fr) 60px; } .samaya-rv-r > .samaya-rv-c { display: none; } }
 @media (prefers-reduced-motion: reduce) { .samaya-rv-ring-seg, .samaya-rv-cap-seg, .samaya-rv-blk { transition: none; } }
 

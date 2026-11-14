@@ -82,20 +82,18 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   if (untimed) tl.createDiv({ cls: "samaya-rv-note", text: `${untimed} planned ${untimed === 1 ? "task" : "tasks"} had no time slot, so ${untimed === 1 ? "it is" : "they are"} not on the planned timeline.` });
   if (!hasPlan) tl.createDiv({ cls: "samaya-rv-note", text: "No plan was saved when this day was planned, so today's list is used as the plan." });
 
-  // ---- left: headline, the day in four numbers, how the time was spent
-  const v = verdict(planned, comparableActual, plannedItems.length);
+  // ---- left: a headline, three numbers (the day, the tasks, the focus time), then where the time went
+  const v = verdict(planned, comparableActual, plannedItems.length, focus);
   const head = info.createDiv("samaya-rv-head");
   head.createDiv({ cls: "samaya-rv-vtitle", text: v.title });
-  head.createDiv({ cls: "samaya-rv-vtext", text: v.text + (addedDone ? ` Plus ${addedDone} ${addedDone === 1 ? "task" : "tasks"} you added along the way.` : "") });
+  head.createDiv({ cls: "samaya-rv-vtext", text: v.text });
   const stats = info.createDiv("samaya-rv-stats");
-  const stat = (label: string, value: string, plan: string, delta: string, tone = "") => {
+  const stat = (label: string, value: string, sub: string, delta = "", tone = "") => {
     const t = stats.createDiv("samaya-rv-stat"); t.createDiv({ cls: "samaya-rv-stat-l", text: label }); t.createDiv({ cls: "samaya-rv-stat-v", text: value });
-    const s = t.createDiv("samaya-rv-stat-s"); if (plan) s.createSpan({ text: plan }); if (delta) s.createSpan({ cls: `samaya-rv-stat-d ${tone}`, text: delta });
+    const s = t.createDiv("samaya-rv-stat-s"); if (sub) s.createSpan({ text: sub }); if (delta) s.createSpan({ cls: `samaya-rv-stat-d ${tone}`, text: delta });
   };
-  const gap = (d: number) => (Math.abs(d) < 1 ? "on time" : signed(d, fmtDur));
-  stat("Start", startAt !== null ? minToHm(startAt) : "–", `plan ${minToHm(winFrom)}`, startAt !== null ? gap(startAt - winFrom) : "", startAt !== null && startAt - winFrom > 0 ? "is-warn" : "");
-  stat("Finish", endAt !== null ? minToHm(endAt) : "–", `plan ${minToHm(winTo)}`, endAt !== null ? gap(endAt - winTo) : "", endAt !== null && endAt - winTo > 0 ? "is-warn" : "");
-  stat("Tasks done", `${done + addedDone}/${plannedItems.length}`, "", added.length ? `(${added.length} unplanned)` : "", "is-added");
+  stat("Worked", fmtDur(worked), startAt !== null ? `${minToHm(startAt)}–${endAt !== null ? minToHm(endAt) : "?"}` : "");
+  stat("Tasks done", `${done + addedDone} of ${plannedItems.length + added.length}`, added.length ? `${added.length} unplanned` : "");
   stat("Time on tasks", fmtDur(focus), planned ? `plan ${fmtDur(planned)}` : "", planned ? signed(focus - planned, fmtDur) : "", planned > 0 && focus > planned ? "is-warn" : "is-ok");
 
   // ---- time per ticket and per project, when those are in use
@@ -209,17 +207,18 @@ function drawRings(host: HTMLElement, items: ReviewItem[], meetings: MeetingLink
   for (const { by, groups } of kinds) {
     const none = by === "ticket" ? "No ticket" : "No project";
     const total = groups.reduce((a, g) => a + g.actual, 0); const colour = (label: string, n: number) => (label === none ? "var(--rv-other)" : hueOf(n));
-    const card = wrap.createDiv("samaya-rv-ringcard"); card.createDiv({ cls: "samaya-rv-h", text: by === "ticket" ? "Time per ticket" : "Time per project" });
+    const card = wrap.createDiv("samaya-rv-ringcard"); card.createDiv({ cls: "samaya-rv-ring-t", text: by === "ticket" ? "Tickets" : "Projects" });
     const box = card.createDiv("samaya-rv-ring");
     const svg = box.createSvg("svg", { attr: { viewBox: "0 0 100 100", role: "img" } }); srName(svg, `Time per ${by}`, box);
     svg.createSvg("circle", { attr: { class: "samaya-rv-ring-bg", cx: "50", cy: "50", r: String(RING_R) } });
-    const mid = box.createDiv("samaya-rv-ring-mid"); const label = mid.createSpan("samaya-rv-ring-n"); // the time of the part under the pointer
+    const time = box.createDiv("samaya-rv-ring-mid").createSpan("samaya-rv-ring-n"); // the time of the part under the pointer
+    const name = card.createDiv("samaya-rv-ring-name"); // and its name below (SVG parts get no tooltip of their own)
     const gapLen = groups.length > 1 ? 1.6 : 0; let at = 0; const arcs: Array<[SVGElement, number, number]> = [];
     groups.forEach((g, n) => {
       const len = (g.actual / total) * RING_C; const c = svg.createSvg("circle", { attr: { class: "samaya-rv-ring-seg", cx: "50", cy: "50", r: String(RING_R), transform: "rotate(-90 50 50)", "stroke-dasharray": `0 ${RING_C}`, "stroke-dashoffset": String(-at) } });
-      c.style.stroke = colour(g.label, n); c.setAttribute("aria-label", g.label); arcs.push([c, Math.max(0.5, len - gapLen), len]); at += len;
-      c.addEventListener("mouseenter", () => { label.setText(fmtDur(Math.round(g.actual))); box.addClass("is-hover"); c.addClass("is-hot"); });
-      c.addEventListener("mouseleave", () => { label.setText(""); box.removeClass("is-hover"); c.removeClass("is-hot"); });
+      c.style.stroke = colour(g.label, n); arcs.push([c, Math.max(0.5, len - gapLen), len]); at += len;
+      c.addEventListener("mouseenter", () => { time.setText(fmtDur(Math.round(g.actual))); name.setText(g.label); box.addClass("is-hover"); c.addClass("is-hot"); });
+      c.addEventListener("mouseleave", () => { time.setText(""); name.setText(""); box.removeClass("is-hover"); c.removeClass("is-hot"); });
     });
     settle(() => arcs.forEach(([c, shown]) => c.setAttribute("stroke-dasharray", `${shown} ${RING_C - shown}`)));
   }

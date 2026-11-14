@@ -495,7 +495,7 @@ await bundle("src/dayreview.ts", "test/.dayreview.mjs");
   }
   assert.equal(taskRows([...items, it({ title: "D", wasPlanned: false, done: true })]).some(r => r.label === "D"), true);
   const d = daySplit(120, 100, 40, 15); assert.equal(d.focus, 80); assert.equal(d.other, 0); assert.equal(d.total, 135);
-  assert.equal(verdict(60, 62, 1).title, "Right on plan"); assert.equal(verdict(60, 90, 1).title, "More than planned");
+  assert.equal(verdict(60, 0, 1, 45).title, "Off the plan"); assert.equal(verdict(60, 0, 1, 0).title, "No time tracked"); assert.equal(verdict(60, 62, 1).title, "Right on plan"); assert.equal(verdict(60, 90, 1).title, "More than planned");
   assert.deepEqual(hourRange([545, 1050]), [9, 18]); assert.deepEqual(hourRange([600, 630]), [7, 13]); assert.deepEqual(hourRange([]), [8, 14]);
   { const txt = reviewSummary({ items: [...items, it({ title: "H", planned: 30, actual: 30, done: true, ticket: "T-1" })], hasPlan: true, window: [540, 1050], start: 560, end: 1020, worked: 400, ref: t => `[[${t}]]` }).split("\n");
     assert.ok(txt[0].startsWith("- **")); assert.ok(txt.some(l => l.startsWith("- **Day:** 09:20–17:00 (planned 09:00–17:30)")));

@@ -64,7 +64,7 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   const grid = host.createDiv("samaya-rv"); const info = grid.createDiv("samaya-rv-col is-info"); const tl = grid.createDiv("samaya-rv-col is-tl"); const { items, hasPlan } = reviewItems(plugin, o.all, o.date);
   const now = nowMin(); const log = plugin.workday.log; const [winFrom, winTo] = plugin.workWindowFor(o.date); const lunch = plugin.lunchFor(o.date);
   const worked = workedOn(log, now, plugin.dayRules); const breaks = log ? breakMinutes(log) + (log.open ? Math.max(0, now - hmToMin(log.open.start)) : 0) : 0;
-  const { plannedItems, added, planned, comparableActual, focus, done, addedDone } = dayTotals(items, hasPlan);
+  const { plannedItems, planned, comparableActual, focus } = dayTotals(items, hasPlan);
   const sp = daySplit(worked, focus, o.meetings, breaks);
   const startAt = log?.start ? hmToMin(log.start) : null; const endAt = log?.start ? (log.end ? hmToMin(log.end) : now) : null;
 
@@ -93,7 +93,6 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
     const s = t.createDiv("samaya-rv-stat-s"); if (sub) s.createSpan({ text: sub }); if (delta) s.createSpan({ cls: `samaya-rv-stat-d ${tone}`, text: delta });
   };
   stat("Worked", fmtDur(worked), startAt !== null ? `${minToHm(startAt)}–${endAt !== null ? minToHm(endAt) : "?"}` : "");
-  stat("Tasks done", `${done + addedDone} of ${plannedItems.length + added.length}`, added.length ? `${added.length} unplanned` : "");
   stat("Time on tasks", fmtDur(focus), planned ? `plan ${fmtDur(planned)}` : "", planned ? signed(focus - planned, fmtDur) : "", planned > 0 && focus > planned ? "is-warn" : "is-ok");
 
   // ---- every task of the day, the changes first: takes the height that is left and scrolls when it is too long
@@ -215,13 +214,16 @@ function drawRings(host: HTMLElement, items: ReviewItem[], meetings: MeetingLink
     const svg = box.createSvg("svg", { attr: { viewBox: "0 0 100 100", role: "img" } }); srName(svg, `Time per ${by}`, box);
     svg.createSvg("circle", { attr: { class: "samaya-rv-ring-bg", cx: "50", cy: "50", r: String(RING_R) } });
     const time = box.createDiv("samaya-rv-ring-mid").createSpan("samaya-rv-ring-n"); // the time of the part under the pointer
-    const name = card.createDiv("samaya-rv-ring-name"); // and its name below (SVG parts get no tooltip of their own)
+    const legend = card.createDiv("samaya-rv-legend"); // minimal: colour, name, time
     const gapLen = groups.length > 1 ? 1.6 : 0; let at = 0; const arcs: Array<[SVGElement, number, number]> = [];
     groups.forEach((g, n) => {
       const len = (g.actual / total) * RING_C; const c = svg.createSvg("circle", { attr: { class: "samaya-rv-ring-seg", cx: "50", cy: "50", r: String(RING_R), transform: "rotate(-90 50 50)", "stroke-dasharray": `0 ${RING_C}`, "stroke-dashoffset": String(-at) } });
       c.style.stroke = colour(g.label, n); arcs.push([c, Math.max(0.5, len - gapLen), len]); at += len;
-      c.addEventListener("mouseenter", () => { time.setText(fmtDur(Math.round(g.actual))); name.setText(g.label); box.addClass("is-hover"); c.addClass("is-hot"); });
-      c.addEventListener("mouseleave", () => { time.setText(""); name.setText(""); box.removeClass("is-hover"); c.removeClass("is-hot"); });
+      const row = legend.createDiv("samaya-rv-lg"); row.createSpan("samaya-rv-dot").style.background = colour(g.label, n);
+      row.createSpan({ cls: "samaya-rv-lg-name", text: g.label, attr: { "aria-label": g.label } }); row.createSpan({ cls: "samaya-rv-lg-time", text: fmtDur(Math.round(g.actual)) });
+      const on = () => { time.setText(fmtDur(Math.round(g.actual))); box.addClass("is-hover"); c.addClass("is-hot"); row.addClass("is-hot"); };
+      const off = () => { time.setText(""); box.removeClass("is-hover"); c.removeClass("is-hot"); row.removeClass("is-hot"); };
+      for (const el of [c, row]) { el.addEventListener("mouseenter", on); el.addEventListener("mouseleave", off); }
     });
     settle(() => arcs.forEach(([c, shown]) => c.setAttribute("stroke-dasharray", `${shown} ${RING_C - shown}`)));
   }

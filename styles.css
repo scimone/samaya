@@ -1026,7 +1026,7 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-left.is-review-col { overflow-y: auto; flex: 1 1 0; min-width: 0; }
 .samaya-rv { --rv-focus: var(--samaya-task); --rv-meet: var(--samaya-meeting); --rv-over: var(--color-orange); --rv-add: var(--interactive-accent); --rv-miss: var(--color-red); --rv-ok: var(--samaya-task);
   --rv-other: color-mix(in srgb, var(--text-muted) 45%, var(--background-primary)); --rv-break: color-mix(in srgb, var(--text-faint) 25%, var(--background-primary));
-  display: grid; grid-template-columns: minmax(0, 5fr) minmax(340px, 4fr); gap: 56px; align-items: start; padding: 20px 36px 24px; width: 100%; box-sizing: border-box; }
+  display: grid; grid-template-columns: minmax(0, 10fr) minmax(340px, 9fr); gap: 56px; align-items: start; padding: 20px 36px 24px; width: 100%; box-sizing: border-box; }
 .samaya-rv-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .samaya-rv-col.is-info { gap: 20px; }
 .samaya-rv-sec { display: flex; flex-direction: column; gap: 12px; }
@@ -1038,7 +1038,7 @@ input.is-invalid { border-color: var(--text-error); }
 /* headline and the day in four numbers */
 .samaya-rv-vtitle { font-size: calc(var(--font-ui-large) * 1.35); font-weight: 700; }
 .samaya-rv-vtext { margin-top: 4px; color: var(--text-muted); font-size: var(--font-ui-medium); }
-.samaya-rv-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.samaya-rv-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .samaya-rv-stat { padding: 10px 14px 9px; min-width: 0; border-radius: var(--samaya-r-l); background: var(--background-primary-alt); border: 1px solid var(--background-modifier-border); }
 .samaya-rv-stat-l { font-size: var(--samaya-fs-label); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); font-weight: 600; }
 .samaya-rv-stat-v { font-size: calc(var(--font-ui-large) * 1.5); line-height: 1.15; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -1118,10 +1118,16 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-rv-delta.is-over { color: var(--rv-over); } .samaya-rv-delta.is-under { color: var(--rv-ok); }
 
 /* per ticket / project: a ring each, the list beside it scrolls when long */
-.samaya-rv-rings { --rv-other: color-mix(in srgb, var(--text-muted) 45%, var(--background-primary)); display: flex; flex-direction: column; align-items: center; gap: 22px; margin-top: 28px; padding: 16px 16px 14px; border-radius: var(--samaya-r-l); background: var(--background-primary-alt); border: 1px solid var(--background-modifier-border); }
+.samaya-rv-rings { --rv-other: color-mix(in srgb, var(--text-muted) 45%, var(--background-primary)); display: flex; flex-direction: column; align-items: center; gap: 22px; margin-top: 28px; }
 .samaya-rv-ringcard { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
 .samaya-rv-ring-t { font-size: var(--samaya-fs-label); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
-.samaya-rv-ring-name { height: 1.4em; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-ui-small); font-weight: 600; text-align: center; }
+.samaya-rv-ringcard { width: 100%; }
+.samaya-rv-legend { display: flex; flex-direction: column; gap: 1px; width: 100%; max-width: 240px; }
+.samaya-rv-lg { display: flex; align-items: center; gap: 7px; padding: 2px 4px; border-radius: var(--samaya-r-s); font-size: var(--font-ui-smaller); color: var(--text-muted); min-width: 0; transition: background .15s; }
+.samaya-rv-lg.is-hot { background: var(--background-modifier-hover); color: var(--text-normal); }
+.samaya-rv-lg .samaya-rv-dot { width: 8px; height: 8px; }
+.samaya-rv-lg-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.samaya-rv-lg-time { flex: none; font-variant-numeric: tabular-nums; font-weight: 600; }
 .samaya-rv-ringbody { display: flex; align-items: center; gap: 16px; min-width: 0; }
 .samaya-rv-ring { position: relative; width: 112px; height: 112px; flex: none; }
 .samaya-rv-ring.is-hover .samaya-rv-ring-seg:not(.is-hot) { opacity: 0.45; }

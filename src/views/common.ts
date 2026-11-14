@@ -196,6 +196,15 @@ export function addPlanItems(m: Menu, plugin: SamayaPlugin, t: Task, seg: number
   }
   m.addItem(i => i.setTitle(part ? "Do this part today" : "Plan for today").setIcon("sun").onClick(() => send({ day: today() })));
   m.addItem(i => i.setTitle(part ? "Move this part to this week" : "Plan for this week").setIcon("calendar-range").onClick(() => send({ week: startOfWeek(today()) })));
+  m.addItem(i => i.setTitle("Plan for…").setIcon("calendar").onClick(ev => {
+    // a native date picker at the spot that was clicked; picking a day plans the task (or this part of it) there
+    const at = ev as MouseEvent; const input = document.body.createEl("input", { type: "date", cls: "samaya-plan-date", attr: { "aria-label": "Plan for" } });
+    input.value = t.planned || today(); input.style.left = `${at.clientX || window.innerWidth / 2}px`; input.style.top = `${at.clientY || window.innerHeight / 3}px`;
+    const done = () => window.setTimeout(() => input.remove(), 0);
+    input.addEventListener("change", () => { if (/^\d{4}-\d{2}-\d{2}$/.test(input.value)) send({ day: input.value }); done(); });
+    input.addEventListener("blur", done); input.addEventListener("cancel", done);
+    try { input.showPicker(); } catch { input.focus(); input.click(); }
+  }));
   if (t.start) m.addItem(i => i.setTitle("Remove from timeline").setIcon("x").onClick(() => { void unscheduleDay(app, t.file, t.planned); }));
   if (t.planned || t.week) m.addItem(i => i.setTitle(part ? "Move this part to backlog" : "Move to backlog").setIcon("inbox").onClick(() => send({ backlog: "someday" })));
   HORIZONS.filter(([h]) => h !== "someday" && h !== "never").forEach(([h, label]) => m.addItem(i => i.setTitle(`Backlog: ${label.toLowerCase()}`).setIcon("calendar-clock").onClick(() => send({ backlog: h }))));

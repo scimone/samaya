@@ -89,7 +89,7 @@ export class GanttView extends Panel {
     right.createEl("button", { text: "Add project", cls: "mod-cta" }).onclick = addProject;
 
     const td = today();
-    const { from, days } = ganttRange(projects.flatMap(p => (p.span ? [p.span] : [])), td, memory.back, memory.fwd);
+    const { from, days } = ganttRange(projects.flatMap(p => [...(p.span ? [p.span] : []), ...(tasksOf.get(p.file.path) ?? []).flatMap(e => (e.span ? [e.span] : []))]), td, memory.back, memory.fwd);
     const width = days * dayW; const todayX = daysBetween(from, td) * dayW + dayW / 2;
     const chart = scroll.createDiv("samaya-gantt-chart"); chart.style.setProperty("--day", `${dayW}px`); chart.style.setProperty("--name", `${nw}px`); chart.style.width = `calc(var(--name) + ${width}px)`; chart.toggleClass("is-collapsed", hidden); chart.style.setProperty("--grid", `${7 * dayW}px`);
     // month: no gridlines, weekends shaded like the sidebars; quarter and year: only a line between months (below)

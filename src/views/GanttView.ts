@@ -280,7 +280,7 @@ export class GanttView extends Panel {
             n.bar.removeClass("is-flash"); void n.bar.offsetWidth; n.bar.addClass("is-flash");
           };
         }
-        n.btn.removeClass("is-hidden"); n.btn.dataset.side = side; n.btn.empty(); setIcon(n.btn, side === "left" ? "arrow-left" : "arrow-right");
+        n.btn.removeClass("is-hidden"); if (n.btn.dataset.side !== side) { n.btn.dataset.side = side; n.btn.empty(); setIcon(n.btn, side === "left" ? "arrow-left" : "arrow-right"); } // (the icon only when the side changes, not on every scroll event)
         n.btn.style.left = `${side === "left" ? scroll.scrollLeft + 6 : scroll.scrollLeft + vis - 30}px`;
       }
       const lo = scroll.scrollLeft, hi = scroll.scrollLeft + scroll.clientWidth - nw;
@@ -288,7 +288,7 @@ export class GanttView extends Panel {
       if (out === pillSlot.dataset.out) return; pillSlot.dataset.out = out ?? ""; pillSlot.empty();
       if (out) renderResetPill(pillSlot, "Today", "Scroll back to today", out, () => { scroll.scrollLeft = Math.max(0, todayX - scroll.clientWidth / 3); });
     };
-    scroll.addEventListener("scroll", sync, { passive: true }); this.syncEdges = () => { fitBackdrop(); sync(); }; sync();
+    let frame = 0; scroll.addEventListener("scroll", () => { if (!frame) frame = window.requestAnimationFrame(() => { frame = 0; sync(); }); }, { passive: true }); // at most once per frame; this.syncEdges = () => { fitBackdrop(); sync(); }; sync();
   }
 
   /** The drag handle on a name cell's right border: resizes the whole column live, saves on release. */

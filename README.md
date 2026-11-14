@@ -1,8 +1,35 @@
 # Samaya
 
-An Obsidian plugin for planning your day: tasks, timeboxing, meetings, work time, and Jira / GitLab tickets as notes.
+An Obsidian plugin for planning your day: tasks as notes, timeboxing, a week board, a focus timer, work-time tracking, meetings, a journal, and Jira / GitLab tickets as notes.
 
-Install by copying `main.js`, `manifest.json` and `styles.css` from a [release](https://github.com/scimone/samaya/releases) into `<vault>/.obsidian/plugins/samaya/`, or via BRAT using `scimone/samaya`.
+Install by copying `main.js`, `manifest.json` and `styles.css` from a [release](https://github.com/scimone/samaya/releases) into `<vault>/.obsidian/plugins/samaya/`, or via BRAT using `scimone/samaya`. Open it with the **Open Samaya** command or the ribbon icon.
+
+## What it does
+
+- **Planner.** One page with a **Day** view (the task list next to a timeline you drag tasks onto) and a **Week** view (a board of days, plus an expanded week timeline). Tasks can be split into parts over several days; unplanned work waits in the backlog (next week, month, quarter, year, someday).
+- **Guided planning.** *Plan my day* walks through Review (overdue tasks), Pick, Timebox and Check; *Plan my week* adds Tickets, Backlog and Schedule steps; *End my day* ticks off forgotten tasks and shows a day review (plan vs. reality). Each guide keeps a buffer reminder so you do not plan 100% of your time.
+- **Focus timer.** Start a focus on a task; the tracked time is written to the task note (`duration_actual`, `focus_sessions`), shown on cards and in a banner.
+- **Work time.** Start and end the workday, take breaks, set per-day start/finish lines and lunch; a dashboard shows balance against your weekly hours.
+- **Meetings.** Calendar events are notes in a folder (the file name and frontmatter describe them); the planner shows them on the timeline and a banner counts down to the next one. A Meetings page groups recurring meetings into series.
+- **Tasks, tickets, projects.** A task board, a ticket Kanban board (grouped by Jira / GitLab project), and a projects Gantt chart. Tasks link to tickets and projects.
+- **Journal.** Daily, weekly, monthly, quarterly and yearly notes (your core Daily notes or Periodic Notes settings, or Samaya's own) get a navigation bar, and the guides can write sections into them (planned tasks, meetings, finished tasks, a productivity review, work times and breaks).
+
+Everything is plain Markdown: a task is a note with frontmatter (`status`, `planned_sessions`, `duration_estimate`, `duration_actual`, `assigned_ticket`, `assigned_project`, `day_completed`, ...), so it works with search, Bases and sync.
+
+## Commands
+
+Plan my day / week (guided), Start shutdown ritual, Review my week, Toggle week timeline, Start workday now, Start / End break, Open work time dashboard, New task, Focus on current note's task, Convert checkbox line to task note, Assign current task note to a ticket / project, New project, Open ticket board / journal / projects, Create Samaya files.
+
+## Development
+
+```
+npm ci
+npm run dev     # watch build
+npm run build   # typecheck + production bundle (main.js)
+npm test        # typecheck + unit tests (test/run.mjs)
+```
+
+Releases are built by GitHub Actions when a tag equal to the `manifest.json` version is pushed.
 
 ## Jira / GitLab tickets
 

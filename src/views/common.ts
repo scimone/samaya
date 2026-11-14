@@ -5,13 +5,14 @@ import { safe } from "../safe";
 import { openFileSmart } from "../openfile";
 import { DndScope, DropInfo } from "../dnd";
 import { Source, Task, addSubtask, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
-import { ConfirmDeleteModal, ProjectSuggestModal, TicketSuggestModal } from "../modals";
+import { ConfirmDeleteModal, ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "../modals";
+import { Notice } from "obsidian";
 import { focusButton, isCurrentTask, trackedBefore, joinParts, splitTitle } from "./place";
 import { openDayPicker } from "./dayPicker";
 import { PartsModal } from "./partsModal";
 import { projectPathOf } from "../projects";
 import { assignProjectLinked, assignTicketLinked, projectFits, ticketFits } from "../links";
-import { HORIZONS, Horizon, bucketOf, fmtDur, fmtHm, minToHm, parseDuration, parseYmd, startOfWeek, today } from "../util";
+import { safeFileName, HORIZONS, Horizon, bucketOf, fmtDur, fmtHm, minToHm, parseDuration, parseYmd, startOfWeek, today } from "../util";
 
 export interface CardOpts {
   scope: DndScope; showTime?: boolean; /** show the actions under the estimate on the right instead of below the title */ actionsSide?: boolean; /** hide subtasks (sidebar) */ compact?: boolean;
@@ -208,6 +209,16 @@ export function addPlanItems(m: Menu, plugin: SamayaPlugin, t: Task, seg: number
   HORIZONS.filter(([h]) => h !== "someday" && h !== "never").forEach(([h, label]) => m.addItem(i => i.setTitle(`Backlog: ${label.toLowerCase()}`).setIcon("calendar-clock").onClick(() => send({ backlog: h }))));
 }
 
+/** Asks for a new name and renames the note (tasks and projects are named by their file). */
+export function promptRename(plugin: SamayaPlugin, file: TFile, current: string) {
+  new TextPromptModal(plugin, "Rename", name => {
+    const base = safeFileName(name); if (!base || base === file.basename) return;
+    const dir = file.parent && !file.parent.isRoot() ? file.parent.path + "/" : ""; const path = `${dir}${base}.${file.extension}`;
+    if (plugin.app.vault.getAbstractFileByPath(path)) { new Notice(`"${base}" already exists`); return; }
+    safe(plugin.app.fileManager.renameFile(file, path).then(() => { window.setTimeout(() => plugin.bus.emit(), 150); }), "renaming");
+  }, current).open();
+}
+
 /** The right-click menu shared by task cards and timeline blocks. `seg`: the piece of a split day that was clicked (timeline blocks). */
 export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent, seg: number | null = null, canCut = false) {
   const app: App = plugin.app;
@@ -218,6 +229,7 @@ export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent, seg: 
   addPlanItems(m, plugin, t, seg, canCut);
   m.addSeparator();
   m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { void openFileSmart(app, t.file, "tab"); }));
+  m.addItem(i => i.setTitle("Rename").setIcon("pencil").onClick(() => promptRename(plugin, t.file, t.file.basename)));
   m.addItem(i => i.setTitle("Delete task").setIcon("trash").setWarning(true).onClick(() => { // asks first; then follows the vault's "deleted files" setting (system trash, .trash or permanent)
     new ConfirmDeleteModal(plugin, t.title, () => { void app.fileManager.trashFile(t.file).then(() => { window.setTimeout(() => plugin.bus.emit(), 150); }); }).open();
   }));

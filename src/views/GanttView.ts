@@ -8,7 +8,7 @@ import { DEFAULT_PROJECT_DAYS, Project, projectStats, readProject, createProject
 import { Task, Ticket, allTasks, allTickets, patchNote, prefixOf, setDone, ticketPathOf } from "../model";
 import { linkProject } from "../links";
 import { ConfirmDeleteModal, TextPromptModal, TicketTargetSuggestModal } from "../modals";
-import { showTaskMenu } from "./common";
+import { promptRename, showTaskMenu } from "./common";
 import { openRangePicker } from "./rangePicker";
 import { renderHeadTitle } from "./plannerHead";
 import { renderResetPill } from "./dateNav";
@@ -196,6 +196,7 @@ export class GanttView extends Panel {
         }));
         m.addSeparator();
         m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { openFileBeside(this.app, p.file); }));
+        m.addItem(i => i.setTitle("Rename").setIcon("pencil").onClick(() => promptRename(this.plugin, p.file, p.file.basename)));
         m.addItem(i => i.setTitle("Delete project").setIcon("trash").setWarning(true).onClick(() => {
           new ConfirmDeleteModal(this.plugin, p.name, () => { void this.app.fileManager.trashFile(p.file).then(() => { window.setTimeout(() => this.plugin.bus.emit(), 150); }); }, "project").open();
         }));

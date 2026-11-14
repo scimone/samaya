@@ -61,7 +61,7 @@ export class FocusManager {
       const here = (leaf?.view as { file?: TFile } | undefined)?.file?.path === this.state.path;
       const variant = here ? "current" : "elsewhere";
       const have = host.querySelector<HTMLElement>(":scope > .samaya-focus-bar");
-      if (have && have.dataset.variant === variant) return;
+      if (have && have.dataset.variant === variant) continue;
       have?.remove();
       const bar = createDiv("samaya-focus-bar"); bar.dataset.variant = variant; bar.toggleClass("is-current", here);
       bar.addEventListener("click", e => { if (!(e.target as HTMLElement).closest("button, a, .samaya-rcheck")) this.openNote(); }); // the bar itself: the task in a full page (its open tab, or a new one)

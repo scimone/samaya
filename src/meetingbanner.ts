@@ -47,7 +47,7 @@ export class MeetingBanner {
     if (!ev) { document.querySelectorAll(".samaya-meet-bar").forEach(el => el.remove()); return; }
     let added = false;
     for (const { host, span } of bannerSlots(this.plugin.app)) {
-      if (host.querySelector(":scope > .samaya-meet-bar")) return;
+      if (host.querySelector(":scope > .samaya-meet-bar")) continue;
       const bar = createDiv("samaya-meet-bar");
       const note = ev.notePath;
       if (note) { // anywhere in the bar (but a button) opens the meeting note in a full page

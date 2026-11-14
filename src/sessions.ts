@@ -17,7 +17,7 @@ export function parseSession(x: unknown): Session | null {
   return { date: m[1], s: null, dur: m[4] ? Number(m[4]) : 0 };
 }
 export function formatSession(g: Session): string {
-  if (g.s !== null) return `${g.date} ${minToHm(g.s)}-${minToHm(g.s + g.dur)}`;
+  if (g.s !== null) { const e = g.s + g.dur; return `${g.date} ${minToHm(g.s)}-${e >= 1440 ? "24:00" : minToHm(e)}`; } // a block may end at midnight: 24:00, not 23:59
   return g.dur > 0 ? `${g.date} ${g.dur}m` : g.date;
 }
 /** By day, then by time (a piece without a time after the timed ones). */

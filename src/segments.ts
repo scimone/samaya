@@ -39,7 +39,7 @@ export function planSegments(start: number, dur: number, busy: Array<[number, nu
     t = next![1];
   }
   if (left > 0) return null;
-  const last = out[out.length - 1]; return last.s + last.dur > limit ? null : out;
+  const last = out[out.length - 1]; return !last ? out : last.s + last.dur > limit ? null : out; // nothing to place: no segments
 }
 
 /**
@@ -75,10 +75,10 @@ export function planInWindow(start: number, dur: number, busy: Array<[number, nu
   const out: Seg[] = []; let t = Math.max(start, from), left = dur;
   for (let guard = 0; guard < 100 && left > 0 && t < to; guard++) {
     const inside = bz.find(([a, b]) => t >= a && t < b); if (inside) { t = inside[1]; if (t >= to) break; }
-    const next = bz.find(([a]) => a > t)!; const room = next[0] - t; // [to, 1440] is busy, so there is always a next
+    const next = bz.find(([a]) => a > t); const room = (next ? next[0] : to) - t; // normally [to, 1440] is busy; at to = 1440 that range is empty
     if (room >= left) { out.push({ s: t, dur: left }); left = 0; break; }
     if (room >= minSeg) { out.push({ s: t, dur: room }); left -= room; }
-    t = next[1];
+    if (!next) break; t = next[1];
   }
   if (left > 0) { // free gaps before the drop point, latest first, filled from their end
     const taken = mergeBusy([...bz, ...out.map((g): [number, number] => [g.s, g.s + g.dur])]);

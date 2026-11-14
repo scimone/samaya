@@ -292,6 +292,8 @@ assert.ok(upsertSection("# My day\nfree text\n", "Planned tasks", "- x").startsW
   assert.equal(P.parseSession("nonsense"), null);
   assert.equal(P.formatSession({ date: "2026-11-12", s: null, dur: 90 }), "2026-11-12 90m");
   assert.equal(P.formatSession({ date: "2026-11-12", s: 570, dur: 45 }), "2026-11-12 09:30-10:15");
+  assert.equal(P.formatSession({ date: "2026-11-12", s: 1380, dur: 60 }), "2026-11-12 23:00-24:00"); // ends at midnight, not 23:59
+  assert.equal(P.parseSession("2026-11-12 23:00-24:00").dur, 60);
   const ss = [{ date: "2026-11-11", s: 600, dur: 60 }, { date: "2026-11-11", s: 780, dur: 60 }, { date: "2026-11-12", s: null, dur: 30 }];
   assert.equal(P.dayMinutes(ss, "2026-11-11"), 120); assert.deepEqual(P.sessionDays(ss), ["2026-11-11", "2026-11-12"]);
   // a piece taken off a day, or the whole day
@@ -320,6 +322,7 @@ assert.ok(upsertSection("# My day\nfree text\n", "Planned tasks", "- x").startsW
   assert.deepEqual(S.parseSegments(["13:00-13:45", "10:15-11:00", "bad"]), [{ s: 615, dur: 45 }, { s: 780, dur: 45 }]);
   assert.deepEqual(S.fmtSegments([{ s: 615, dur: 45 }]), ["10:15-11:00"]);
   const busy = [[660, 720], [720, 780]]; // meeting 11:00-12:00 + lunch 12:00-13:00
+  assert.deepEqual(S.planSegments(600, 0, busy, 1200, 15), []); // nothing to place: no crash
   assert.deepEqual(S.planSegments(600, 120, busy, 1200, 15), [{ s: 600, dur: 60 }, { s: 780, dur: 60 }]); // 10:00 task of 2h: 1h before, 1h after
   assert.deepEqual(S.planSegments(600, 30, busy, 1200, 15), [{ s: 600, dur: 30 }]); // fits before the conflict: no split
   assert.deepEqual(S.planSegments(670, 30, busy, 1200, 15), [{ s: 780, dur: 30 }]); // dropped on the meeting: moves behind it

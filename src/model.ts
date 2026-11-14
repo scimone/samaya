@@ -206,11 +206,6 @@ export async function createTask(app: App, s: SamayaSettings, title: string, fm:
   return file;
 }
 
-export async function subtaskProgress(app: App, file: TFile): Promise<{ done: number; total: number }> {
-  const cache = app.metadataCache.getFileCache(file);
-  const items = cache?.listItems?.filter(l => l.task !== undefined) ?? [];
-  return { done: items.filter(l => l.task !== " ").length, total: items.length };
-}
 
 // ---------- subtasks (checkbox lines inside the task note) ----------
 export interface Subtask { text: string; done: boolean; line: number; indent: number; }

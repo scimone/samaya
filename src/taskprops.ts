@@ -42,8 +42,6 @@ function buildPrimary(p: Planning, estimate: number, explicit: boolean): Session
   if (p.start) return [{ date: p.planned, s: hmToMin(p.start), dur: Math.max(estimate, 1) }];
   return [{ date: p.planned, s: null, dur: explicit ? Math.max(estimate, 0) : 0 }];
 }
-/** The `planned_sessions` list of a planning. Empty without a day. */
-export function buildSessions(p: Planning, estimate: number): string[] { return buildPrimary(p, estimate, false).map(formatSession); }
 
 /** Planning of a note's frontmatter: the new `planned_sessions`, or the old planned / start / segments. */
 export function readPlanning(fm: Record<string, unknown>): Planning {

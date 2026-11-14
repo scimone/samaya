@@ -26,8 +26,6 @@ export function capacityOf(plugin: SamayaPlugin, date: string, events: CalendarE
     events.filter(e => !e.allDay && e.end.getTime() > dayMs && e.start.getTime() < end).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]));
 }
 
-/** Free minutes of the first `days` days of the week: work time - lunch - meetings. */
-export async function weekFreeTime(plugin: SamayaPlugin, wk: string, days: number): Promise<number> { return (await weekCapacity(plugin, wk, days)).free; }
 /** Free and meeting minutes of the first `days` days of the week. */
 export async function weekCapacity(plugin: SamayaPlugin, wk: string, days: number): Promise<{ free: number; meetings: number }> {
   const s = plugin.settings;

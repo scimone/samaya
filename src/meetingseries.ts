@@ -108,16 +108,6 @@ export function parseNote(path: string, fm: Record<string, unknown> | undefined,
   return { path, title: String(fm.title ?? basename).trim() || basename, date, start: parseClock(fm.start), end: parseClock(fm.end), recurring, body: stripFrontmatter(body) };
 }
 
-/** "in 25 min", "in 3 h", "Tomorrow", "Thu 12 Nov" for the up-next strip. */
-export function untilLabel(date: string, startMin: number | null, today: string, nowMin: number, weekdayDate: (d: string) => string): string {
-  if (date === today) {
-    if (startMin == null) return "Today";
-    const d = startMin - nowMin;
-    return d <= 0 ? "Now" : d < 60 ? `in ${d} min` : `in ${Math.round(d / 60)} h`;
-  }
-  if (date === addDays(today, 1)) return "Tomorrow";
-  return weekdayDate(date);
-}
 
 /** The next working day after `today` (Friday and the weekend: Monday): the second day of the "Next" list. */
 export function nextWorkday(today: string): string {

@@ -3,7 +3,7 @@ import { App, TFile, normalizePath } from "obsidian";
 import type { SamayaSettings } from "./settings";
 import { renderPath, renderTemplate } from "./taskbody";
 import { Task, ensureFolder, loadTemplate, momentFmt, readSubtasks, rootOf } from "./model";
-import { hmToMin, minToHm, today } from "./util";
+import { hmToMin, minToHm } from "./util";
 import { fmtSegments } from "./segments";
 import { BUFFER_SHARE, loadLevel } from "./weekplan";
 
@@ -190,10 +190,6 @@ export async function listPeriodNotes(app: App, s: SamayaSettings, p: Period): P
 /** The note lists, kept until a note is created, deleted or renamed (dates come from the path, so edits do not matter). Callers must not modify a list. */
 const periodCache = new Map<string, Array<{ file: TFile; date: string }>>();
 export function invalidatePeriodNotes(): void { periodCache.clear(); }
-/** The most recent existing note of a kind up to today. */
-export async function findLatestPeriodNote(app: App, s: SamayaSettings, p: Period): Promise<TFile | null> {
-  return latestOnOrBefore(await listPeriodNotes(app, s, p), today())?.file ?? null;
-}
 /** The items just before and after `date` in a list sorted by date. Pure. */
 export function neighbours<T extends { date: string }>(items: T[], date: string): { prev: T | null; next: T | null } {
   let prev: T | null = null, next: T | null = null;
@@ -237,10 +233,6 @@ export async function journalPath(app: App, s: SamayaSettings, date: string): Pr
 export async function readJournalSection(app: App, s: SamayaSettings, date: string, h: Section): Promise<string[]> {
   const f = app.vault.getAbstractFileByPath(await journalPath(app, s, date));
   return f instanceof TFile ? readSection(await app.vault.read(f), h) : [];
-}
-/** Write a section into an existing note (the weekly note), keeping the order of `order`. */
-export async function writeFileSection(app: App, f: TFile, heading: string, body: string, order: readonly string[]): Promise<void> {
-  await app.vault.process(f, t => upsertSection(t, heading, body, order));
 }
 /** One day of the week plan, for the weekly note. */
 export interface DayPlan { /** weekday name, e.g. "Monday" */ weekday: string; label: string; /** basename of the day's daily note: the weekday links to it */ note?: string; /** minutes of planned tasks */ planned: number; meetings: number; /** free minutes: work time - lunch - meetings */ free: number; tasks: JournalTask[]; events: Array<{ title: string; start: Date; end: Date; allDay: boolean; /** meeting note to link to */ note?: string }>; }

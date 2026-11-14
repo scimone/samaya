@@ -73,11 +73,6 @@ export function pieceLength(ss: Session[], rest: number, estimate: number, fromD
   return estimate || dflt;
 }
 
-/** Where a day's pieces stand among all of the task's pieces (for "2/3" labels). */
-export function pieceOrder(ss: Session[], date: string): { nth: number; count: number } {
-  const first = ss.findIndex(g => g.date === date);
-  return { nth: first < 0 ? 0 : first, count: ss.length };
-}
 
 /** The properties that say where the rest of a task lives. */
 export interface RestPlace { week: string | null; later: string | null; horizon: string | null; }

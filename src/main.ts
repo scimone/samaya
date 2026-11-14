@@ -553,12 +553,13 @@ export default class SamayaPlugin extends Plugin {
     }, t.summary).open();
   }
 
-  /** New task assigned to a project (and to its only ticket, if it has exactly one); left unplanned so it lands in the backlog. */
+  /** New task assigned to a project (and to its only ticket, if it is linked to exactly one single ticket; a project linked to a whole ticket project gives its tasks no ticket); left unplanned so it lands in the backlog. */
   newTaskForProject(project: TFile) {
     new TextPromptModal(this, `New task for ${project.basename} (append 30m / 1h for an estimate)`, raw => {
       const p = parseTitleEstimateSafe(raw);
       const tickets = allTickets(this.app, this.settings).filter(t => projectPathOf(this.app, t.file) === project.path);
-      void createTask(this.app, this.settings, p.title, { estimate: p.estimate ?? this.settings.defaultEstimate, samaya_project: `[[${project.basename}]]`, ...(tickets.length === 1 ? { ticket: `[[${tickets[0].file.basename}]]` } : {}) }).then(() => this.bus.emit());
+      const project_tp = !!this.app.metadataCache.getFileCache(project)?.frontmatter?.ticket_project; // linked to a whole ticket project
+      void createTask(this.app, this.settings, p.title, { estimate: p.estimate ?? this.settings.defaultEstimate, samaya_project: `[[${project.basename}]]`, ...(tickets.length === 1 && !project_tp ? { ticket: `[[${tickets[0].file.basename}]]` } : {}) }).then(() => this.bus.emit());
     }).open();
   }
 

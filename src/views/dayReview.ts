@@ -76,7 +76,6 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   const capPlan: CapSeg[] = [{ cls: "is-meet", m: cap.meetings, tip: `Meetings: ${fmtDur(cap.meetings)}` }, { cls: `is-task is-${level}`, m: planTasks, tip: `Planned tasks: ${fmtDur(planned)}${level === "ok" ? "" : level === "tight" ? " (into the buffer)" : " (more than there is time for)"}` }];
   const capAct: CapSeg[] = [{ cls: "is-meet", m: sp.meetings, tip: `Meetings: ${fmtDur(sp.meetings)}` }, { cls: "is-task", m: sp.focus, tip: `Focused on tasks: ${fmtDur(sp.focus)}` }, { cls: "is-other", m: sp.other, tip: `Other work: ${fmtDur(sp.other)}` }];
   const capIn = { scale, buffer: bufferMin > 0 ? [cap.total - cap.lunch - bufferMin, cap.total - cap.lunch] as [number, number] : null, bufferTip: `Buffer: ${fmtDur(bufferMin)} kept free for the unforeseen`, plan: capPlan, act: capAct };
-  tl.createDiv({ cls: "samaya-rv-h", text: "Plan vs. reality" });
   drawTimeline(tl, { items, events: o.events, window: [winFrom, winTo], lunch, start: startAt, end: endAt, breaks: (log?.breaks ?? []).map((b): [number, number] => [hmToMin(b.start), hmToMin(b.end)]), hasPlan, linkRoot: grid, cap: capIn });
   const untimed = hasPlan ? plannedItems.filter(i => !i.slots.length).length : 0;
   if (untimed) tl.createDiv({ cls: "samaya-rv-note", text: `${untimed} planned ${untimed === 1 ? "task" : "tasks"} had no time slot, so ${untimed === 1 ? "it is" : "they are"} not on the planned timeline.` });
@@ -103,7 +102,6 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   if (!rows.length) sec.createDiv({ cls: "samaya-empty", text: "Nothing was planned or done today." });
   else {
     const table = sec.createDiv("samaya-rv-table samaya-rv-scroll");
-    const hd = table.createDiv("samaya-rv-r is-head"); hd.createSpan(); hd.createSpan({ text: "Task" }); hd.createSpan({ cls: "samaya-rv-c", text: "Planned" }); hd.createSpan({ cls: "samaya-rv-c", text: "Actual" }); hd.createSpan();
     for (const r of diff) drawRow(table, r, grid);
     if (diff.length && same.length) table.createDiv({ cls: "samaya-rv-sep", text: "As planned" });
     for (const r of same) drawRow(table, r, grid);
@@ -121,12 +119,15 @@ export function renderReviewRings(plugin: SamayaPlugin, host: HTMLElement, o: { 
 function drawRow(table: HTMLElement, r: Row, root: HTMLElement) {
   const row = table.createDiv("samaya-rv-r" + (r.changes.length ? " has-change" : "")); row.dataset.k = r.key; linkHover(row, root, r.key);
   const ic = row.createSpan("samaya-rv-row-ic" + (r.done ? " is-done" : "")); if (r.done) { setIcon(ic, ICON_OK); ic.setAttr("aria-label", "Done"); }
-  const name = row.createDiv("samaya-rv-r-name"); name.createSpan({ cls: "samaya-rv-row-name", text: r.label, attr: { "aria-label": r.label } });
-  for (const c of r.changes) name.createSpan({ cls: `samaya-rv-chip ${CHANGE[c].cls}`, text: CHANGE[c].label });
-  row.createSpan({ cls: "samaya-rv-c samaya-rv-r-plan", text: r.unplanned ? "–" : when(r.plannedAt, r.planned) });
-  row.createSpan({ cls: "samaya-rv-c samaya-rv-r-act", text: r.actual ? fmtDur(r.actual) : r.done ? "checked off" : "–" });
-  const d = r.planned && r.actual ? r.actual - r.planned : 0; const dl = row.createSpan("samaya-rv-delta" + (d >= 5 ? " is-over" : d <= -5 ? " is-under" : ""));
-  if (Math.abs(d) >= 5) { setIcon(dl.createSpan(), d > 0 ? ICON_UP : ICON_DOWN); dl.createSpan({ text: fmtDur(Math.abs(d)) }); }
+  // the name gets the room (it wraps instead of being cut off), what differs as chips under it
+  const name = row.createDiv("samaya-rv-r-name"); name.createDiv({ cls: "samaya-rv-r-title", text: r.label });
+  if (r.changes.length) { const chips = name.createDiv("samaya-rv-r-chips"); for (const c of r.changes) chips.createSpan({ cls: `samaya-rv-chip ${CHANGE[c].cls}`, text: CHANGE[c].label }); }
+  // on the right: the time it took, with the plan under it
+  const nums = row.createDiv("samaya-rv-r-nums");
+  const d = r.planned && r.actual ? r.actual - r.planned : 0; const top = nums.createDiv("samaya-rv-r-top");
+  if (Math.abs(d) >= 5) { const dl = top.createSpan("samaya-rv-delta" + (d > 0 ? " is-over" : " is-under")); setIcon(dl.createSpan(), d > 0 ? ICON_UP : ICON_DOWN); dl.createSpan({ text: fmtDur(Math.abs(d)) }); }
+  top.createSpan({ cls: "samaya-rv-r-act", text: r.actual ? fmtDur(r.actual) : r.done ? "checked off" : "–" });
+  if (!r.unplanned) nums.createDiv({ cls: "samaya-rv-r-plan", text: `plan ${when(r.plannedAt, r.planned)}` });
 }
 
 /** Hovering a task anywhere (timeline block or table row) lights up the same task everywhere else. */
@@ -214,7 +215,7 @@ function drawRings(host: HTMLElement, items: ReviewItem[], meetings: MeetingLink
     const svg = box.createSvg("svg", { attr: { viewBox: "0 0 100 100", role: "img" } }); srName(svg, `Time per ${by}`, box);
     svg.createSvg("circle", { attr: { class: "samaya-rv-ring-bg", cx: "50", cy: "50", r: String(RING_R) } });
     const time = box.createDiv("samaya-rv-ring-mid").createSpan("samaya-rv-ring-n"); // the time of the part under the pointer
-    const legend = card.createDiv("samaya-rv-legend"); // minimal: colour, name, time
+    const legend = card.createDiv("samaya-rv-ringlegend"); // minimal: colour, name, time
     const gapLen = groups.length > 1 ? 1.6 : 0; let at = 0; const arcs: Array<[SVGElement, number, number]> = [];
     groups.forEach((g, n) => {
       const len = (g.actual / total) * RING_C; const c = svg.createSvg("circle", { attr: { class: "samaya-rv-ring-seg", cx: "50", cy: "50", r: String(RING_R), transform: "rotate(-90 50 50)", "stroke-dasharray": `0 ${RING_C}`, "stroke-dashoffset": String(-at) } });

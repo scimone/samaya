@@ -189,8 +189,7 @@ export const prefixOf = (pattern: string): string => { const r = rootOf(pattern)
 export async function createTask(app: App, s: SamayaSettings, title: string, fm: Record<string, string | number>, body?: string): Promise<TFile> {
   const now = new Date(); const folder = folderFor(s.tasksPath, now);
   await ensureFolder(app, folder);
-  const base = safeFileName(title); let path = `${folder}/${base}.md`; let i = 2;
-  while (app.vault.getAbstractFileByPath(path)) path = `${folder}/${base} ${i++}.md`;
+  const base = safeFileName(title);
   const tpl = body ?? renderTemplate(await loadTemplate(app, s.taskTemplate, DEFAULT_TASK_TEMPLATE), { title, date: now }, momentFmt);
   const props: Record<string, string | number> = { status: "todo", ...fm };
   const body2 = ensureSubtasksHeading(tpl);
@@ -198,13 +197,22 @@ export async function createTask(app: App, s: SamayaSettings, title: string, fm:
   // handler move it to Unscheduled in between, and the properties (day, estimate) could get lost.
   if (!body2.trimStart().startsWith("---")) {
     const out: Record<string, unknown> = {}; applyTaskPatch(out, props);
-    const scalar = (v: unknown) => (typeof v === "number" || /^[\w.:-]+$/.test(String(v)) ? String(v) : JSON.stringify(v));
+    // a string that YAML would read as another type (true, null, 1e3 ...) is quoted
+    const scalar = (v: unknown) => (typeof v === "number" || (/^[\w.:-]+$/.test(String(v)) && !/^(true|false|null|yes|no|on|off|~)$/i.test(String(v)) && !/^[-+]?[\d.]+(e[-+]?\d+)?$/i.test(String(v))) ? String(v) : JSON.stringify(v));
     const yaml = Object.entries(out).map(([k, v]) => Array.isArray(v) ? `${k}:\n${v.map(x => `  - ${/^[\w.: -]+$/.test(String(x)) ? x : JSON.stringify(x)}`).join("\n")}` : `${k}: ${scalar(v)}`).join("\n");
-    return app.vault.create(path, `---\n${yaml}\n---\n${body2}`);
+    return createFree(`---\n${yaml}\n---\n${body2}`);
   }
-  const file = await app.vault.create(path, body2);
+  const file = await createFree(body2);
   await patchTask(app, file, props);
   return file;
+  /** Creates the note under the first free name; a name taken in the meantime (another create, a sync) just moves on to the next one. */
+  async function createFree(content: string): Promise<TFile> {
+    for (let i = 1; ; i++) {
+      const path = `${folder}/${base}${i > 1 ? ` ${i}` : ""}.md`;
+      if (app.vault.getAbstractFileByPath(path)) continue;
+      try { return await app.vault.create(path, content); } catch (e) { if (!app.vault.getAbstractFileByPath(path) || i > 50) throw e; }
+    }
+  }
 }
 
 

@@ -5,7 +5,7 @@ import type SamayaPlugin from "../main";
 import { Task, onDay, readTicket } from "../model";
 import { projectPathOf } from "../projects";
 import { dayPieces } from "../sessions";
-import { Change, Grouping, MeetingLink, ReviewItem, Row, Span, dayTotals, daySplit, when, timeGroups, hasGroups, hourRange, runSpansOn, signed, taskRows, verdict } from "../dayreview";
+import { Grouping, MeetingLink, ReviewItem, Row, Span, dayTotals, daySplit, when, timeGroups, hasGroups, hourRange, runSpansOn, signed, taskRows, verdict } from "../dayreview";
 import { breakMinutes, capacityWindow, workedOn } from "../worktime";
 import { bufferShare, loadLevel } from "../weekplan";
 import { fmtDur, hmToMin, minToHm } from "../util";
@@ -53,10 +53,6 @@ let lastShown = 0; let anim = true;
 const settle = (fn: () => void) => { if (anim) requestAnimationFrame(() => requestAnimationFrame(fn)); else fn(); };
 
 const ICON_OK = "check", ICON_UP = "trending-up", ICON_DOWN = "trending-down";
-const CHANGE: Record<Change, { label: string; cls: string }> = {
-  added: { label: "Unplanned", cls: "is-added" }, skipped: { label: "Not worked", cls: "is-skipped" }, open: { label: "Not finished", cls: "is-open" },
-  over: { label: "Over", cls: "is-over" }, under: { label: "Under", cls: "is-under" }, moved: { label: "Moved", cls: "is-moved" },
-};
 
 /** Second step of "End my day": the planned day set against the day as it really went - a timeline of both, what changed task by task, and what was achieved per ticket / project. */
 export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { date: string; all: Task[]; meetings: number; events: ReviewEvent[] }) {
@@ -95,17 +91,30 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   stat("Time on tasks", fmtDur(focus), planned ? `plan ${fmtDur(planned)}` : "", planned ? signed(focus - planned, fmtDur) : "", planned > 0 && focus > planned ? "is-warn" : "is-ok");
 
   // ---- every task of the day, the changes first: takes the height that is left and scrolls when it is too long
-  const planned1 = rows.filter(r => !r.unplanned); const unplanned = rows.filter(r => r.unplanned); const diff = rows.filter(r => r.changes.length); // everything that differs from the plan, unplanned tasks included
+  // ---- the tasks of the day in three tabs: what was done as planned, what stayed open, what nobody planned
+  const tabs: Array<{ id: TaskTab; label: string; tip: string; empty: string; rows: Row[] }> = [
+    { id: "done", label: "Done", tip: "Planned and checked off", empty: "Nothing from the plan was checked off.", rows: rows.filter(r => !r.unplanned && r.done) },
+    { id: "open", label: "Open", tip: "Planned, but not checked off", empty: "Everything that was planned got done.", rows: rows.filter(r => !r.unplanned && !r.done) },
+    { id: "extra", label: "Unplanned", tip: "Not on the plan: tracked or checked off anyway", empty: "No unplanned work.", rows: rows.filter(r => r.unplanned) },
+  ];
+  if (!tabs.some(t => t.id === memory.tab && t.rows.length)) memory.tab = (tabs.find(t => t.id === "open" && t.rows.length) ?? tabs.find(t => t.rows.length) ?? tabs[0]).id; // open on what needs a look, else the first with tasks
   const sec = info.createDiv("samaya-rv-sec is-grow");
-  const h = sec.createDiv({ cls: "samaya-rv-h samaya-rv-h-row" }); h.createSpan({ text: "Tasks" });
-  if (rows.length) h.createSpan({ cls: "samaya-rv-row-tag", text: `${rows.length} ${rows.length === 1 ? "task" : "tasks"} · ${diff.length ? `${diff.length} differ from the plan` : "all as planned"}` });
   if (!rows.length) sec.createDiv({ cls: "samaya-empty", text: "Nothing was planned or done today." });
   else {
-    const table = sec.createDiv("samaya-rv-table samaya-rv-scroll");
-    if (planned1.length) { table.createDiv({ cls: "samaya-rv-sep is-first", text: "As planned" }); for (const r of [...planned1.filter(r => r.changes.length), ...planned1.filter(r => !r.changes.length)]) drawRow(table, r, grid); }
-    if (unplanned.length) { table.createDiv({ cls: "samaya-rv-sep" + (planned1.length ? "" : " is-first"), text: "Unplanned" }); for (const r of unplanned) drawRow(table, r, grid); }
+    const bar = sec.createDiv({ cls: "samaya-rv-tabs", attr: { role: "tablist" } }); const table = sec.createDiv("samaya-rv-table samaya-rv-scroll");
+    const show = () => {
+      bar.querySelectorAll<HTMLElement>(".samaya-rv-tab").forEach(b => { const on = b.dataset.tab === memory.tab; b.toggleClass("is-on", on); b.setAttr("aria-selected", String(on)); });
+      table.empty(); const t = tabs.find(x => x.id === memory.tab)!;
+      if (!t.rows.length) table.createDiv({ cls: "samaya-rv-empty", text: t.empty });
+      for (const r of t.rows) drawRow(table, r, grid);
+    };
+    for (const t of tabs) {
+      const b = bar.createEl("button", { cls: "samaya-rv-tab", attr: { role: "tab", "aria-label": t.tip } }); b.dataset.tab = t.id;
+      b.createSpan({ text: t.label }); b.createSpan({ cls: "samaya-rv-tab-n" + (t.rows.length ? "" : " is-zero"), text: String(t.rows.length) });
+      b.onclick = () => { memory.tab = t.id; show(); };
+    }
+    show();
   }
-
 }
 
 /** Time per ticket and per project, one ring under the other (drawn in the guide column, under the End my day button). Nothing is drawn when neither is in use. */
@@ -116,19 +125,18 @@ export function renderReviewRings(plugin: SamayaPlugin, host: HTMLElement, o: { 
 
 /** One task of the comparison table: its planned and actual start and length, what differs as chips, the gap in tracked time. */
 function drawRow(table: HTMLElement, r: Row, root: HTMLElement) {
-  const row = table.createDiv("samaya-rv-r" + (r.changes.length ? " has-change" : "")); row.dataset.k = r.key; linkHover(row, root, r.key);
+  const row = table.createDiv("samaya-rv-r"); row.dataset.k = r.key; linkHover(row, root, r.key);
   const ic = row.createSpan("samaya-rv-row-ic" + (r.done ? " is-done" : "")); if (r.done) { setIcon(ic, ICON_OK); ic.setAttr("aria-label", "Done"); }
-  // the name gets the room (it wraps instead of being cut off), what differs as chips under it
-  const name = row.createDiv("samaya-rv-r-name"); name.createDiv({ cls: "samaya-rv-r-title", text: r.label });
-  if (r.changes.some(c => c !== "added")) { const chips = name.createDiv("samaya-rv-r-chips"); for (const c of r.changes.filter(c => c !== "added")) chips.createSpan({ cls: `samaya-rv-chip ${CHANGE[c].cls}`, text: CHANGE[c].label }); }
-  // on the right: the time it took, with the plan under it
-  const nums = row.createDiv("samaya-rv-r-nums");
-  const d = r.planned && r.actual ? r.actual - r.planned : 0; const top = nums.createDiv("samaya-rv-r-top");
-  if (Math.abs(d) >= 5) { const dl = top.createSpan("samaya-rv-delta" + (d > 0 ? " is-over" : " is-under")); setIcon(dl.createSpan(), d > 0 ? ICON_UP : ICON_DOWN); dl.createSpan({ text: fmtDur(Math.abs(d)) }); }
-  top.createSpan({ cls: "samaya-rv-r-act", text: r.actual ? fmtDur(r.actual) : r.done ? "untracked" : "–" });
-  if (!r.unplanned) nums.createDiv({ cls: "samaya-rv-r-plan", text: `plan ${when(r.plannedAt, r.planned)}` });
+  const name = row.createDiv("samaya-rv-r-name"); name.createDiv({ cls: "samaya-rv-r-title", text: r.label }); // the name wraps instead of being cut off
+  if (!r.unplanned) name.createDiv({ cls: "samaya-rv-r-plan", text: `planned ${when(r.plannedAt, r.planned)}` });
+  const nums = row.createDiv("samaya-rv-r-nums"); // what it really took, and how that compares to the plan
+  nums.createDiv({ cls: "samaya-rv-r-act" + (r.actual ? "" : " is-none"), text: r.actual ? fmtDur(r.actual) : r.done ? "untracked" : r.unplanned ? "–" : "not worked" });
+  const d = r.planned && r.actual ? r.actual - r.planned : 0;
+  if (Math.abs(d) >= 5) { const dl = nums.createDiv("samaya-rv-delta" + (d > 0 ? " is-over" : " is-under")); setIcon(dl.createSpan(), d > 0 ? ICON_UP : ICON_DOWN); dl.createSpan({ text: fmtDur(Math.abs(d)) }); }
 }
 
+type TaskTab = "done" | "open" | "extra";
+const memory = { tab: "open" as TaskTab }; // the tab stays while the planner redraws
 /** The ticket / project of each task of the review, by task key: hovering the task lights up its part of the rings. */
 let ringLinks = new Map<string, { ticket: string; project: string }>();
 function hotRings(root: HTMLElement, key: string | null) {

@@ -1670,3 +1670,18 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-daily.is-end-review { scrollbar-gutter: auto; }
 .samaya-daily.is-end-review .samaya-left.is-review-col { padding-right: 0; padding-bottom: 0; }
 .samaya-daily.is-end-review .samaya-left.is-review-col > .samaya-rv { padding-right: 5px; padding-bottom: 4px; }
+
+/* tasks: three tabs (done, open, unplanned), one calm list under them */
+.samaya-rv-tabs { display: flex; gap: 2px; padding: 3px; border-radius: var(--samaya-r-l); background: var(--background-primary-alt); border: 1px solid var(--background-modifier-border); }
+.samaya-rv-tab { all: unset; box-sizing: border-box; flex: 1 1 0; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 5px 8px; border-radius: var(--samaya-r-m); cursor: pointer; font-size: var(--font-ui-small); font-weight: 600; color: var(--text-muted); white-space: nowrap; transition: background .15s, color .15s; }
+.samaya-rv-tab:hover { color: var(--text-normal); }
+.samaya-rv-tab.is-on { background: var(--background-primary); color: var(--text-normal); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+.samaya-rv-tab-n { font-size: var(--samaya-fs-label); font-weight: 700; line-height: 1.5; padding: 0 7px; border-radius: var(--samaya-r-pill); background: var(--background-modifier-hover); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.samaya-rv-tab.is-on .samaya-rv-tab-n { background: color-mix(in srgb, var(--interactive-accent) 16%, transparent); color: var(--interactive-accent); }
+.samaya-rv-tab-n.is-zero { opacity: 0.5; }
+.samaya-rv-empty { padding: 18px 6px; text-align: center; font-size: var(--font-ui-small); color: var(--text-faint); }
+.samaya-rv-r { border-bottom: 0; padding: 8px 6px; }
+.samaya-rv-r:not(.has-change):not(.is-head) { color: var(--text-normal); }
+.samaya-rv-r-plan { font-size: var(--samaya-fs-label); color: var(--text-faint); }
+.samaya-rv-r-act { font-weight: 600; } .samaya-rv-r-act.is-none { font-weight: 400; color: var(--text-faint); }
+.samaya-rv-r-nums .samaya-rv-delta { font-size: var(--samaya-fs-label); }

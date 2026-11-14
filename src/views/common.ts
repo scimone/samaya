@@ -247,10 +247,23 @@ export async function renderSubtasks(plugin: SamayaPlugin, host: HTMLElement, fi
     });
   }
   await paint();
-  const ref = app.metadataCache.on("changed", f => {
-    if (!host.isConnected) { app.metadataCache.offref(ref); return; }
-    if (f.path === file.path) void paint();
-  });
+  watchSubtasks(plugin, file.path, host, paint);
+}
+/** One metadata listener for all subtask lists (not one per card): note path -> the lists showing it. Lists whose DOM is gone are dropped as they are met. */
+const subWatchers = new Map<string, Set<{ host: HTMLElement; paint: () => Promise<void> }>>();
+let subListening: SamayaPlugin | null = null;
+function watchSubtasks(plugin: SamayaPlugin, path: string, host: HTMLElement, paint: () => Promise<void>) {
+  if (subListening !== plugin) {
+    subListening = plugin;
+    plugin.registerEvent(plugin.app.metadataCache.on("changed", f => {
+      const set = subWatchers.get(f.path); if (!set) return;
+      for (const w of [...set]) { if (!w.host.isConnected) set.delete(w); else void w.paint(); }
+      if (!set.size) subWatchers.delete(f.path);
+    }));
+  }
+  let set = subWatchers.get(path); if (!set) subWatchers.set(path, set = new Set());
+  for (const w of set) if (!w.host.isConnected) set.delete(w); // a re-render adds a new list for the same card: forget the old ones
+  set.add({ host, paint });
 }
 
 /** Highlight a container while hovered by a drag. */

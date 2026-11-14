@@ -1,4 +1,4 @@
-import { App, ItemView, PaneType, TFile, WorkspaceLeaf } from "obsidian";
+import { App, ItemView, PaneType, TFile, ViewState, WorkspaceLeaf } from "obsidian";
 
 /** Path of the note a tab shows; falls back to the saved state for tabs whose view is not loaded yet (deferred after a restart). */
 export function leafPath(l: WorkspaceLeaf): string | undefined {
@@ -60,12 +60,35 @@ export function setupSideCleanup(app: App): void {
 }
 /** Show a note in a full page: the tab that already shows it, else a new tab. A side pane that shows the same note closes. */
 export async function openFull(app: App, file: TFile): Promise<void> {
+  internal++; window.setTimeout(() => internal--, 300); // our own opens must not trigger the auto-close below
   const l = sideLeaf(app); if (l && leafPath(l) === file.path) closeSide(app);
   let found: WorkspaceLeaf | null = null;
   app.workspace.iterateRootLeaves(x => { if (!found && leafPath(x) === file.path) found = x; });
   const leaf: WorkspaceLeaf = found ?? app.workspace.getLeaf("tab");
   if (!found) await leaf.openFile(file);
   void app.workspace.revealLeaf(leaf); app.workspace.setActiveLeaf(leaf, { focus: true });
+}
+let internal = 0;
+/**
+ * A note opened from outside Samaya (quick switcher, link, file explorer, another tab) while Samaya's side pane is open: the side pane closes and the note
+ * shows in a full tab (an existing tab of it, else a new one). If the note took over one of Samaya's own pages, that page is put back.
+ */
+export function setupSideAutoClose(app: App, reg: (ev: ReturnType<typeof app.workspace.on>) => void): void {
+  const ws = app.workspace; const mine = new Map<WorkspaceLeaf, ViewState>(); let busy = false;
+  const isOurs = (l: WorkspaceLeaf) => l.view.getViewType().startsWith("samaya-");
+  const track = () => ws.iterateRootLeaves(l => { if (isOurs(l)) mine.set(l, l.getViewState()); });
+  track();
+  reg(ws.on("layout-change", track));
+  reg(ws.on("file-open", async file => {
+    if (busy || internal > 0 || !file || !sideLeaf(app)) return;
+    const l = ws.getMostRecentLeaf(ws.rootSplit); if (!l || l === side || l.getRoot() !== ws.rootSplit || isOurs(l)) return;
+    busy = true;
+    try {
+      const saved = mine.get(l);
+      closeSide(app);
+      if (saved) { mine.delete(l); await l.setViewState(saved); await openFull(app, file); } // it replaced one of our pages: restore that, show the note in its own tab
+    } finally { busy = false; }
+  }));
 }
 /** Close the side pane and show its note in a full page. */
 export async function expandSide(app: App): Promise<void> {

@@ -33,13 +33,15 @@ export interface ReviewItem {
   /** ticket key or project name, "" = none */ ticket: string; project: string; /** note name of the ticket (for a link), "" = none */ ticketNote?: string;
 }
 export type Grouping = "ticket" | "project";
+/** A meeting of the day with the tickets / projects it is assigned to (note names for the links). Its time is shared equally among them; a meeting with none of a kind stays out of that breakdown. */
+export interface MeetingLink { minutes: number; tickets: Array<{ label: string; note: string }>; projects: string[]; }
 /** How a task's day differs from its plan. */
 export type Change = "added" | "skipped" | "open" | "over" | "under" | "moved";
 export interface Row {
   key: string; label: string; planned: number; actual: number; done: boolean; /** tracked or checked off, but not planned for the day */ unplanned: boolean;
   /** planned / actual start (minutes of the day), null = no time */ plannedAt: number | null; actualAt: number | null; changes: Change[];
 }
-export interface GroupRow { /** note to link the group to, "" = none */ target: string; label: string; planned: number; actual: number; tasks: number; done: number; added: number; }
+export interface GroupRow { /** note to link the group to, "" = none */ target: string; label: string; planned: number; actual: number; tasks: number; done: number; added: number; /** meetings that count towards it (their time is in `actual`) */ meetings: number; }
 
 /** Moving a task by this much counts as a difference; so does a gap of this size between planned and tracked time (and 10%). */
 export const MOVED_MIN = 30, GAP_MIN = 5;
@@ -64,17 +66,25 @@ export function taskRows(items: ReviewItem[]): Row[] {
   })).sort((a, b) => Number(!a.changes.length) - Number(!b.changes.length) || (a.plannedAt ?? a.actualAt ?? 1e9) - (b.plannedAt ?? b.actualAt ?? 1e9) || a.label.localeCompare(b.label));
 }
 /** Time per ticket or project, and how much of it got done; what has none is gathered in "No ticket" / "No project" (always last). */
-export function groupRows(items: ReviewItem[], by: Grouping): GroupRow[] {
+export function groupRows(items: ReviewItem[], by: Grouping, meetings: MeetingLink[] = []): GroupRow[] {
   const none = by === "ticket" ? "No ticket" : "No project"; const m = new Map<string, GroupRow>();
   for (const i of items) {
     if (!i.planned && !i.actual && !i.done) continue;
     const label = (by === "ticket" ? i.ticket : i.project) || none;
-    const g = m.get(label) ?? { target: (by === "ticket" ? i.ticketNote : i.project) || "", label, planned: 0, actual: 0, tasks: 0, done: 0, added: 0 };
+    const g = m.get(label) ?? { target: (by === "ticket" ? i.ticketNote : i.project) || "", label, planned: 0, actual: 0, tasks: 0, done: 0, added: 0, meetings: 0 };
     g.planned += i.planned; g.actual += i.actual; g.tasks++; if (i.done) g.done++; if (!i.wasPlanned) g.added++; m.set(label, g);
+  }
+  for (const mt of meetings) {
+    const list = by === "ticket" ? mt.tickets : mt.projects.map(p => ({ label: p, note: p })); if (!list.length || mt.minutes <= 0) continue;
+    for (const t of list) {
+      const g = m.get(t.label) ?? { target: t.note, label: t.label, planned: 0, actual: 0, tasks: 0, done: 0, added: 0, meetings: 0 };
+      g.actual += mt.minutes / list.length; g.meetings++; m.set(t.label, g);
+    }
   }
   return [...m.values()].sort((a, b) => Number(a.label === none) - Number(b.label === none) || Math.max(b.planned, b.actual) - Math.max(a.planned, a.actual) || a.label.localeCompare(b.label));
 }
-export const hasGroups = (items: ReviewItem[], by: Grouping): boolean => items.some(i => (i.planned || i.actual || i.done) && (by === "ticket" ? i.ticket : i.project));
+export const hasGroups = (items: ReviewItem[], by: Grouping, meetings: MeetingLink[] = []): boolean =>
+  items.some(i => (i.planned || i.actual || i.done) && (by === "ticket" ? i.ticket : i.project)) || meetings.some(mt => mt.minutes > 0 && (by === "ticket" ? mt.tickets : mt.projects).length > 0);
 
 /** The hours the timeline compare shows: everything that happened or was planned, rounded out to whole hours, at least `min` hours long. */
 export function hourRange(points: number[], min = 6): [number, number] {
@@ -116,7 +126,7 @@ export function dayTotals(items: ReviewItem[], hasPlan: boolean): Totals {
     done: plannedItems.filter(i => i.done).length, addedDone: added.filter(i => i.done).length };
 }
 
-export interface SummaryIn { items: ReviewItem[]; hasPlan: boolean; window: [number, number]; start: number | null; end: number | null; worked: number; /** how a task is written, e.g. a link */ ref: (title: string) => string; }
+export interface SummaryIn { items: ReviewItem[]; hasPlan: boolean; window: [number, number]; start: number | null; end: number | null; worked: number; /** how a task is written, e.g. a link */ ref: (title: string) => string; /** the day's meetings with their tickets / projects */ meetings?: MeetingLink[]; }
 const LABEL: Record<Change, string> = { added: "Unplanned", skipped: "Not worked", open: "Not finished", over: "Over", under: "Under", moved: "Moved" };
 /** The review as a few markdown lines for the daily note: headline, the day in numbers, what changed, what was achieved per ticket / project. */
 export function reviewSummary(i: SummaryIn): string {
@@ -135,9 +145,9 @@ export function reviewSummary(i: SummaryIn): string {
     }
   } else if (t.plannedItems.length) out.push("- **What changed:** nothing, the day went as planned");
   for (const by of ["ticket", "project"] as Grouping[]) {
-    if (!hasGroups(i.items, by)) continue;
+    if (!hasGroups(i.items, by, i.meetings)) continue;
     out.push(`- **By ${by}:**`);
-    for (const g of groupRows(i.items, by)) out.push(`  - ${!g.target ? g.label : g.target === g.label ? `[[${g.label}]]` : `[[${g.target}|${g.label}]]`}: ${fmtDur(g.actual)}${g.planned ? ` of ${fmtDur(g.planned)} planned` : ""}, ${g.done}/${g.tasks} done${g.added ? `, ${g.added} unplanned` : ""}`);
+    for (const g of groupRows(i.items, by, i.meetings)) out.push(`  - ${!g.target ? g.label : g.target === g.label ? `[[${g.label}]]` : `[[${g.target}|${g.label}]]`}: ${fmtDur(Math.round(g.actual))}${g.planned ? ` of ${fmtDur(g.planned)} planned` : ""}${g.tasks ? `, ${g.done}/${g.tasks} done` : ""}${g.added ? `, ${g.added} unplanned` : ""}${g.meetings ? `, ${g.meetings} ${g.meetings === 1 ? "meeting" : "meetings"}` : ""}`);
   }
   return out.join("\n");
 }

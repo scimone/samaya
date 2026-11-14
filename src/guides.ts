@@ -1,5 +1,5 @@
 import { isDoneState } from "./kanban";
-import { reviewItems } from "./views/dayReview";
+import { meetingLinksOf, reviewItems } from "./views/dayReview";
 import { reviewSummary } from "./dayreview";
 import { Notice, TFile } from "obsidian";
 import { allTickets } from "./model";
@@ -146,6 +146,13 @@ export class GuideController {
        review: false, fresh: true, kind: "shutdown" };
     await this.p.openPlanner(); this.p.bus.emit();
   }
+  /** The meetings of a day with their projects / tickets, for the review summary. */
+  private async meetingLinksOn(date: string) {
+    if (!calendarEnabled(this.p.settings)) return [];
+    const d0 = parseYmd(date); const d1 = new Date(d0.getTime() + 86400000);
+    const evs = await calendarEvents(this.p, d0, d1).catch(() => []);
+    return meetingLinksOf(this.p, evs.filter(e => !e.allDay).map(e => ({ title: e.title, notePath: e.notePath, s: Math.max(0, (e.start.getTime() - d0.getTime()) / 60000), e: Math.min(1440, (e.end.getTime() - d0.getTime()) / 60000) })).filter(e => e.e > e.s));
+  }
   /** Closing a day (by hand or automatically, because it was forgotten) writes its finished tasks and a summary of its review into that day's note. */
   async writeDayClose(date: string) {
     const s = this.p.settings;
@@ -155,7 +162,7 @@ export class GuideController {
     if (journalWants(s, "journalReview")) {
       const { items, hasPlan } = reviewItems(this.p, all, date); const log = this.p.workday.allLogs().find(l => l.date === date) ?? null; const now = nowMin();
       const body = reviewSummary({ items, hasPlan, window: this.p.workWindowFor(date), start: log?.start ? hmToMin(log.start) : null, end: log?.start ? (log.end ? hmToMin(log.end) : date === today() ? now : null) : null,
-        worked: workedOn(log, now, this.p.dayRules), ref: t => `[[${t}]]` });
+        worked: workedOn(log, now, this.p.dayRules), ref: t => `[[${t}]]`, meetings: await this.meetingLinksOn(date) });
       await writeSection(this.p.app, s, date, "Productivity review", body);
     }
   }

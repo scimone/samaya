@@ -1,17 +1,29 @@
-import { setIcon } from "obsidian";
+import { TFile, setIcon } from "obsidian";
+import { meetingLinks } from "../links";
 import { srName } from "./srname";
 import type SamayaPlugin from "../main";
 import { Task, onDay, readTicket } from "../model";
 import { projectPathOf } from "../projects";
 import { dayPieces } from "../sessions";
-import { Change, Grouping, ReviewItem, Row, Span, dayTotals, daySplit, when, groupRows, hasGroups, hourRange, runSpansOn, signed, taskRows, verdict } from "../dayreview";
+import { Change, Grouping, MeetingLink, ReviewItem, Row, Span, dayTotals, daySplit, when, groupRows, hasGroups, hourRange, runSpansOn, signed, taskRows, verdict } from "../dayreview";
 import { breakMinutes, capacityWindow, workedOn } from "../worktime";
 import { bufferShare, loadLevel } from "../weekplan";
 import { fmtDur, hmToMin, minToHm } from "../util";
 import { nowMin } from "../workday";
 
 /** A meeting of the day, in minutes of the day. */
-export interface ReviewEvent { title: string; s: number; e: number; }
+export interface ReviewEvent { title: string; s: number; e: number; /** the meeting's note, when it has one */ notePath?: string; }
+/** The day's meetings with the tickets / projects their notes are assigned to. */
+export function meetingLinksOf(plugin: SamayaPlugin, events: ReviewEvent[]): MeetingLink[] {
+  const app = plugin.app; const base = (p: string) => p.split("/").pop()!.replace(/\.md$/, ""); const out: MeetingLink[] = [];
+  for (const e of events) {
+    const f = e.notePath ? app.vault.getAbstractFileByPath(e.notePath) : null; if (!(f instanceof TFile)) continue;
+    const tickets = plugin.settings.ticketsOn ? meetingLinks(app, f, "assigned_ticket").map(p => app.vault.getAbstractFileByPath(p)).filter((x): x is TFile => x instanceof TFile).map(x => ({ label: readTicket(app, x).key || base(x.path), note: x.basename })) : [];
+    const projects = plugin.settings.projectsOn ? meetingLinks(app, f, "assigned_project").map(base) : [];
+    if (tickets.length || projects.length) out.push({ minutes: Math.max(0, e.e - e.s), tickets, projects });
+  }
+  return out;
+}
 
 /** Everything the review needs. The baseline is the plan saved when the day was first planned (tasks, lengths, time slots); without one, today's list as it is now (`hasPlan` false). */
 export function reviewItems(plugin: SamayaPlugin, all: Task[], date: string): { items: ReviewItem[]; hasPlan: boolean } {
@@ -100,7 +112,7 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   }
 
   // ---- time per ticket and per project, when those are in use
-  drawRings(info, items);
+  drawRings(info, items, meetingLinksOf(plugin, o.events));
 }
 
 /** One task of the comparison table: its planned and actual start and length, what differs as chips, the gap in tracked time. */
@@ -188,8 +200,8 @@ function drawCap(host: HTMLElement, segs: CapSeg[], c: CapIn) {
 const hueOf = (n: number) => `hsl(${(n * 137.5 + 150) % 360} 48% 58%)`;
 const RING_R = 38, RING_C = 2 * Math.PI * RING_R;
 /** One ring per grouping in use (tickets, projects): how the tracked time divides up, with the biggest first in a list beside it. */
-function drawRings(host: HTMLElement, items: ReviewItem[]) {
-  const kinds = (["ticket", "project"] as Grouping[]).map(by => ({ by, groups: hasGroups(items, by) ? groupRows(items, by).filter(g => g.actual > 0) : [] })).filter(k => k.groups.length);
+function drawRings(host: HTMLElement, items: ReviewItem[], meetings: MeetingLink[]) {
+  const kinds = (["ticket", "project"] as Grouping[]).map(by => ({ by, groups: hasGroups(items, by, meetings) ? groupRows(items, by, meetings).filter(g => g.actual > 0) : [] })).filter(k => k.groups.length);
   if (!kinds.length) return;
   const wrap = host.createDiv("samaya-rv-rings");
   for (const { by, groups } of kinds) {

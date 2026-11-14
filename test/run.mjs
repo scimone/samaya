@@ -484,6 +484,11 @@ await bundle("src/dayreview.ts", "test/.dayreview.mjs");
   assert.deepEqual(taskRows(items).map(r => r.label), ["A", "E", "F", "C", "B", "G"]); // differences first, by time (untimed last); as planned at the end
   assert.deepEqual(changesOf(it({ planned: 60, actual: 63, done: true })), []); // within the margin
   assert.deepEqual(groupRows(items, "ticket").map(g => [g.label, g.planned, g.actual, g.tasks, g.done, g.added]), [["T-1", 60, 110, 2, 1, 1], ["No ticket", 180, 90, 4, 2, 0]]);
+  { // meetings: time is shared among their tickets / projects; a meeting without one of that kind stays out
+    const ms = [{ minutes: 60, tickets: [{ label: "T-1", note: "T-1" }, { label: "T-9", note: "T-9" }], projects: [] }, { minutes: 30, tickets: [], projects: ["P"] }];
+    assert.deepEqual(groupRows(items, "ticket", ms).map(g => [g.label, g.actual, g.meetings]), [["T-1", 140, 1], ["T-9", 30, 1], ["No ticket", 90, 0]]);
+    assert.deepEqual(groupRows([], "project", ms).map(g => [g.label, g.actual, g.meetings]), [["P", 30, 1]]);
+  }
   assert.equal(taskRows([...items, it({ title: "D", wasPlanned: false, done: true })]).some(r => r.label === "D"), true);
   const d = daySplit(120, 100, 40, 15); assert.equal(d.focus, 80); assert.equal(d.other, 0); assert.equal(d.total, 135);
   assert.equal(verdict(60, 62, 1).title, "Right on plan"); assert.equal(verdict(60, 90, 1).title, "More than planned");

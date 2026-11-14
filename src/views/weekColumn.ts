@@ -1,6 +1,7 @@
 import { leftToDo } from "./place";
 // The "This week" column of the week guide. It is the last column of the Weekly Board's guide.
 import { Notice, TFile } from "obsidian";
+import { safe } from "../safe";
 import type { CalendarEvent } from "../eventnotes";
 import type SamayaPlugin from "../main";
 import type { DndScope } from "../dnd";
@@ -76,5 +77,5 @@ export function renderWeekColumn(plugin: SamayaPlugin, scope: DndScope, host: HT
   if (!shown.length) list.createDiv({ cls: "samaya-empty", text: schedule ? "Every task has a day." : "Nothing planned for this week yet." });
   shown.forEach(t => renderTaskCard(plugin, list, t, { scope, dayLabel: t.planned ? parseYmd(t.planned).toLocaleDateString(undefined, { weekday: "long" }) : undefined }));
   list.scrollTop = o.keepScroll ?? 0; list.addEventListener("scroll", () => o.onScroll?.(list.scrollTop));
-  bindZone(scope, col, (path, i) => { const f = plugin.app.vault.getAbstractFileByPath(path); if (f instanceof TFile) void sendPiece(plugin.app, s, f, i, { week: wk }); });
+  bindZone(scope, col, (path, i) => { const f = plugin.app.vault.getAbstractFileByPath(path); if (f instanceof TFile) safe(sendPiece(plugin.app, s, f, i, { week: wk }), "moving the task"); });
 }

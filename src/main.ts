@@ -1,5 +1,6 @@
 import { hooks, openNote, resetOpenFile, sideLeaf, setupSideCleanup, setupSideAutoClose } from "./openfile";
 import { lastMenuAt } from "./views/common";
+import { safe } from "./safe";
 import { renderSideBars } from "./views/sideBar";
 import { reviewItems } from "./views/dayReview";
 import { reviewSummary } from "./dayreview";
@@ -131,7 +132,7 @@ export default class SamayaPlugin extends Plugin {
     // project commands only show while the module is switched on
     this.addCommand({ id: "new-project", name: "New project", checkCallback: c => {
       if (!this.settings.projectsOn) return false;
-      if (!c) new TextPromptModal(this, "New project name", n => { void createProject(this.app, this.settings, n).then(() => this.bus.emit()); }).open();
+      if (!c) new TextPromptModal(this, "New project name", n => { safe(createProject(this.app, this.settings, n).then(() => this.bus.emit()), "creating the project"); }).open();
       return true;
     } });
     this.addCommand({ id: "open-tickets", name: "Open ticket board", checkCallback: c => {
@@ -557,7 +558,7 @@ export default class SamayaPlugin extends Plugin {
   quickAdd() {
     new TextPromptModal(this, "New task (append 30m / 1h for an estimate)", raw => {
       const p = parseTitleEstimateSafe(raw);
-      void createTask(this.app, this.settings, p.title, { planned: today(), estimate: p.estimate ?? this.settings.defaultEstimate });
+      safe(createTask(this.app, this.settings, p.title, { planned: today(), estimate: p.estimate ?? this.settings.defaultEstimate }), "creating the task");
     }).open();
   }
 
@@ -566,7 +567,7 @@ export default class SamayaPlugin extends Plugin {
     new TextPromptModal(this, `New task for ${t.key} (append 30m / 1h for an estimate)`, raw => {
       const p = parseTitleEstimateSafe(raw);
       const pf = this.settings.projectsOn ? this.app.vault.getAbstractFileByPath(projectPathOf(this.app, t.file)) : null;
-      void createTask(this.app, this.settings, p.title, { estimate: p.estimate ?? this.settings.defaultEstimate, ticket: `[[${t.file.basename}]]`, ...(pf instanceof TFile ? { samaya_project: `[[${pf.basename}]]` } : {}) }).then(() => this.bus.emit());
+      safe(createTask(this.app, this.settings, p.title, { estimate: p.estimate ?? this.settings.defaultEstimate, ticket: `[[${t.file.basename}]]`, ...(pf instanceof TFile ? { samaya_project: `[[${pf.basename}]]` } : {}) }).then(() => this.bus.emit()), "creating the task");
     }, t.summary).open();
   }
 
@@ -576,7 +577,7 @@ export default class SamayaPlugin extends Plugin {
       const p = parseTitleEstimateSafe(raw);
       const tickets = allTickets(this.app, this.settings).filter(t => projectPathOf(this.app, t.file) === project.path);
       const project_tp = !!this.app.metadataCache.getFileCache(project)?.frontmatter?.ticket_project; // linked to a whole ticket project
-      void createTask(this.app, this.settings, p.title, { estimate: p.estimate ?? this.settings.defaultEstimate, samaya_project: `[[${project.basename}]]`, ...(tickets.length === 1 && !project_tp ? { ticket: `[[${tickets[0].file.basename}]]` } : {}) }).then(() => this.bus.emit());
+      safe(createTask(this.app, this.settings, p.title, { estimate: p.estimate ?? this.settings.defaultEstimate, samaya_project: `[[${project.basename}]]`, ...(tickets.length === 1 && !project_tp ? { ticket: `[[${tickets[0].file.basename}]]` } : {}) }).then(() => this.bus.emit()), "creating the task");
     }).open();
   }
 

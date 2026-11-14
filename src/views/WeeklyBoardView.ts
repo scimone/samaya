@@ -1,5 +1,6 @@
 import { leftToDo } from "./place";
 import type { PlannerHost } from "./plannerHost";
+import { safe } from "../safe";
 import { openFileSmart } from "../openfile";
 import type { CalendarEvent } from "../eventnotes";
 import { Notice, TFile, setIcon } from "obsidian";
@@ -104,7 +105,7 @@ export class WeeklyBoardView extends PlannerPane {
     add.addEventListener("keydown", e => {
       if (e.key !== "Enter" || e.isComposing || !add.value.trim()) return;
       const p = parseTitleEstimate(add.value); add.value = "";
-      void createTask(this.app, this.plugin.settings, p.title, { planned: key, estimate: p.estimate ?? this.plugin.settings.defaultEstimate, order: tasks.length });
+      safe(createTask(this.app, this.plugin.settings, p.title, { planned: key, estimate: p.estimate ?? this.plugin.settings.defaultEstimate, order: tasks.length }), "creating the task");
     });
     const body = col.createDiv("samaya-col-body");
     tasks.forEach((t, idx) => {
@@ -116,10 +117,10 @@ export class WeeklyBoardView extends PlannerPane {
 
   /** A card or block dropped on a day: the task (or the piece that was grabbed) goes into that day's list at `index`. */
   private dropOn(path: string, i: DropInfo, date: string, index: number) {
-    const f = this.app.vault.getAbstractFileByPath(path); if (f instanceof TFile) void dropOnDay(this.app, this.plugin.settings, f, i, date, index);
+    const f = this.app.vault.getAbstractFileByPath(path); if (f instanceof TFile) safe(dropOnDay(this.app, this.plugin.settings, f, i, date, index), "moving the task");
   }
   /** Where a card's piece can go from a button: the same piece for every destination. */
-  private send(t: Task, dest: Parameters<typeof sendPiece>[4]) { void sendPiece(this.app, this.plugin.settings, t.file, { day: t.planned, seg: null }, dest); }
+  private send(t: Task, dest: Parameters<typeof sendPiece>[4]) { safe(sendPiece(this.app, this.plugin.settings, t.file, { day: t.planned, seg: null }, dest), "moving the task"); }
 
   // ---------------------------------------------------------------- Plan my week
 
@@ -205,7 +206,7 @@ export class WeeklyBoardView extends PlannerPane {
         const ts = bl.filter(t => bucketOf(t.horizon, t.later, td) === h);
         hd.createDiv({ cls: "samaya-kb-colhead", text: `${label} (${ts.length})` });
         const cell = row.createDiv("samaya-kb-cell");
-        bindZone(this.scope, cell, (path, i) => { const f = this.app.vault.getAbstractFileByPath(path); if (f instanceof TFile) void sendPiece(this.app, s, f, i, { backlog: h }); });
+        bindZone(this.scope, cell, (path, i) => { const f = this.app.vault.getAbstractFileByPath(path); if (f instanceof TFile) safe(sendPiece(this.app, s, f, i, { backlog: h }), "moving the task"); });
         addBox(cell, "+ Add task", () => ({ horizon: h, ...(horizonTarget(h, td) ? { later: horizonTarget(h, td) } : {}) }));
         ts.forEach(t => renderTaskCard(this.plugin, cell, t, { scope: this.scope, compact: true, actions: [["This week", () => { this.send(t, { week: wk }); }]] }));
       }

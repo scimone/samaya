@@ -1,5 +1,6 @@
 import { Menu, TFile, setIcon } from "obsidian";
 import { Panel } from "./panel";
+import { safe } from "../safe";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { openFileSmart } from "../openfile";
@@ -150,7 +151,7 @@ export class TasksView extends Panel {
 
   private boardHooks(td: string): Hooks {
     const s = this.plugin.settings, app = this.app;
-    const go = (t: Task) => { void sendPiece(app, s, t.file, this.from(t), { day: td }); };
+    const go = (t: Task) => { safe(sendPiece(app, s, t.file, this.from(t), { day: td }), "moving the task"); };
     const day = (d: string) => parseYmd(d).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
     return {
       tones: { overdue: "warn", today: "accent", done: "done" },
@@ -172,7 +173,7 @@ export class TasksView extends Panel {
   }
   private backlogHooks(td: string): Hooks {
     const s = this.plugin.settings, app = this.app, wk = startOfWeek(td);
-    const go = (t: Task, dest: Parameters<typeof sendPiece>[4]) => { void sendPiece(app, s, t.file, this.from(t), dest); };
+    const go = (t: Task, dest: Parameters<typeof sendPiece>[4]) => { safe(sendPiece(app, s, t.file, this.from(t), dest), "moving the task"); };
     const day = (d: string) => parseYmd(d).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
     return {
       tones: {},

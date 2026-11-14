@@ -1,5 +1,6 @@
 import { leftToDo } from "./place";
 import { Notice, TFile, WorkspaceLeaf, setIcon } from "obsidian";
+import { safe } from "../safe";
 import type { CalendarEvent } from "../eventnotes";
 import { PlannerPane } from "./plannerPane";
 import type SamayaPlugin from "../main";
@@ -160,7 +161,7 @@ export class DailyPlannerView extends PlannerPane {
     shown.forEach(t => {
       const idx = day.indexOf(t);
       const c = renderTaskCard(this.plugin, list, t, { scope: this.scope, showTime: true, focus: pg || sd ? undefined : "today", split: step === 2,
-        ...(pick ? { actionsSide: true, actions: [["This week", () => { void sendPiece(this.app, this.plugin.settings, t.file, { day: t.planned, seg: null }, { week: startOfWeek(today()) }); }] as [string, () => void]] } : {}) });
+        ...(pick ? { actionsSide: true, actions: [["This week", () => { safe(sendPiece(this.app, this.plugin.settings, t.file, { day: t.planned, seg: null }, { week: startOfWeek(today()) }), "moving the task"); }] as [string, () => void]] } : {}) });
       c.toggleClass("is-timed", !!t.start);
       bindCardDrop(this.scope, c, (path, after, i) => { void this.place(path, idx + (after ? 1 : 0), i); });
     });
@@ -228,7 +229,7 @@ export class DailyPlannerView extends PlannerPane {
     if (f instanceof TFile) await dropOnDay(this.app, this.plugin.settings, f, i, this.date, index);
   }
   /** "Today" button of a card: its piece (or the whole task) goes into the list of the day on show. */
-  private toThisDay(t: Task) { void sendPiece(this.app, this.plugin.settings, t.file, { day: t.planned, seg: null }, { day: this.date, index: 9999 }); }
+  private toThisDay(t: Task) { safe(sendPiece(this.app, this.plugin.settings, t.file, { day: t.planned, seg: null }, { day: this.date, index: 9999 }), "moving the task"); }
 
   private colHead(host: HTMLElement, title: string, count: number, hint: string) {
     const h = host.createDiv("samaya-colhead");
@@ -260,7 +261,7 @@ export class DailyPlannerView extends PlannerPane {
       tasks.forEach(t => renderTaskCard(this.plugin, list, t, { scope: this.scope, actionsSide: true, actions: [["Today", () => { this.toThisDay(t); }]] }));
       bindZone(this.scope, col, (path, i) => {
         const f = this.app.vault.getAbstractFileByPath(path);
-        if (f instanceof TFile) void sendPiece(this.app, s, f, i, { week: wk });
+        if (f instanceof TFile) safe(sendPiece(this.app, s, f, i, { week: wk }), "moving the task");
       });
     } else {
       renderBacklogBuckets(this.plugin, list, tasks, this.scope, { actionsSide: true, actions: t => [["Today", () => { this.toThisDay(t); }]] }, { label: "samaya-colhead-count", list: "samaya-bucket-list", empty: "samaya-empty" });
@@ -348,10 +349,10 @@ export class DailyPlannerView extends PlannerPane {
     overdue.forEach(t => renderTaskCard(this.plugin, list, t, {
       scope: this.scope,
       actions: [
-        ["Today", () => { void sendPiece(this.app, s, t.file, { day: t.planned, seg: null }, { day: today() }); }],
-        ["Tomorrow", () => { void sendPiece(this.app, s, t.file, { day: t.planned, seg: null }, { day: tomorrow }); }],
-        ["This week", () => { void sendPiece(this.app, s, t.file, { day: t.planned, seg: null }, { week: startOfWeek(today()) }); }],
-        ["Backlog", () => { void sendPiece(this.app, s, t.file, { day: t.planned, seg: null }, { backlog: "someday" }); }],
+        ["Today", () => { safe(sendPiece(this.app, s, t.file, { day: t.planned, seg: null }, { day: today() }), "moving the task"); }],
+        ["Tomorrow", () => { safe(sendPiece(this.app, s, t.file, { day: t.planned, seg: null }, { day: tomorrow }), "moving the task"); }],
+        ["This week", () => { safe(sendPiece(this.app, s, t.file, { day: t.planned, seg: null }, { week: startOfWeek(today()) }), "moving the task"); }],
+        ["Backlog", () => { safe(sendPiece(this.app, s, t.file, { day: t.planned, seg: null }, { backlog: "someday" }), "moving the task"); }],
       ],
     }));
   }

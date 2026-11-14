@@ -1,5 +1,6 @@
 import { FileSystemAdapter, Menu, Notice, TFile, normalizePath, setIcon } from "obsidian";
 import type SamayaPlugin from "./main";
+import { safe } from "./safe";
 import { rootOf } from "./model";
 import { journalLocation } from "./journal";
 import { TextPromptModal } from "./modals";
@@ -43,7 +44,7 @@ export class NavShortcuts {
     }
     if (s.projectsOn) {
       const dir = normalizePath(s.projectsPath.trim() || "Projects"); // a plain folder, not a path pattern
-      out.push({ id: "projects", name: "Projects", icon: "folder-kanban", open: () => p.openSection("projects"), folders: [dir], folder: dir, create: { label: "New project", icon: "folder-kanban", run: () => new TextPromptModal(p, "New project name", n => { void createProject(p.app, s, n).then(() => p.bus.emit()); }).open() } });
+      out.push({ id: "projects", name: "Projects", icon: "folder-kanban", open: () => p.openSection("projects"), folders: [dir], folder: dir, create: { label: "New project", icon: "folder-kanban", run: () => new TextPromptModal(p, "New project name", n => { safe(createProject(p.app, s, n).then(() => p.bus.emit()), "creating the project"); }).open() } });
     }
     const tdir = root(s.ticketsPath);
     if (s.ticketsOn || (tdir && p.app.vault.getAbstractFileByPath(normalizePath(tdir)))) { // also while only the ticket notes exist
@@ -58,7 +59,7 @@ export class NavShortcuts {
   private dayItems(m: Menu) {
     const p = this.plugin, wd = p.workday;
     if (!p.focus.state) m.addItem(i => i.setTitle("Plan day").setIcon("list-todo").onClick(() => { void p.startGuide(); }));
-    if (!wd.started) m.addItem(i => i.setTitle("Start day").setIcon("play").onClick(() => { void wd.startDay(); }));
+    if (!wd.started) m.addItem(i => i.setTitle("Start day").setIcon("play").onClick(() => { safe(wd.startDay(), "starting the day"); }));
     else if (!p.focus.state) m.addItem(i => i.setTitle("End day").setIcon("moon").onClick(() => { void p.startShutdown(); }));
     if (!p.focus.state) m.addItem(i => i.setTitle("Plan week").setIcon("calendar-range").onClick(() => { void p.startWeekGuide(); }));
     if (p.focus.state) return; // while focusing: no review, no dashboard

@@ -1,5 +1,6 @@
 import { App, Menu, TFile, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
+import { safe } from "../safe";
 import { openFileSmart } from "../openfile";
 import { DndScope, DropInfo } from "../dnd";
 import { Source, Task, addSubtask, patchTask, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
@@ -75,7 +76,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   if (time || o.dayLabel) { const eb = body.createDiv("samaya-card-eyebrow"); if (o.dayLabel) eb.createSpan({ cls: "samaya-card-day", text: o.dayLabel }); if (time) eb.createSpan({ cls: "samaya-card-time", text: time }); }
   const line = body.createDiv("samaya-card-line");
   const cb = line.createEl("input", { type: "checkbox", cls: "samaya-check" }); cb.checked = t.status === "done";
-  cb.addEventListener("change", () => { void setDone(app, t, cb.checked); });
+  cb.addEventListener("change", () => { safe(setDone(app, t, cb.checked), "updating the task"); });
   const title = line.createDiv({ cls: "samaya-card-title", text: t.title });
   // the whole card opens the note, except its buttons, inputs, chips and the subtasks (the title's click bubbles up to here)
   el.addEventListener("click", e => {
@@ -162,7 +163,7 @@ export function renderBacklogBuckets(plugin: SamayaPlugin, host: HTMLElement, ta
     const list = box.createDiv(cls.list);
     if (!ts.length) list.createDiv({ cls: cls.empty, text: "Drop a task here" });
     ts.forEach(t => renderTaskCard(plugin, list, t, { compact: o.compact, actionsSide: o.actionsSide, actions: o.actions?.(t), scope }));
-    bindZone(scope, box, (path, i) => { const f = plugin.app.vault.getAbstractFileByPath(path); if (f instanceof TFile) void sendPiece(plugin.app, plugin.settings, f, i, { backlog: h }); });
+    bindZone(scope, box, (path, i) => { const f = plugin.app.vault.getAbstractFileByPath(path); if (f instanceof TFile) safe(sendPiece(plugin.app, plugin.settings, f, i, { backlog: h }), "moving the task"); });
   }
 }
 
@@ -192,7 +193,7 @@ export function addPlanItems(m: Menu, plugin: SamayaPlugin, t: Task, seg: number
   const app: App = plugin.app; const st = plugin.settings;
   const from: Source = { day: t.planned, seg };
   const part = !!t.part || t.segments.length > 1; // planned in parts: the buttons below act on this part
-  const send = (dest: Parameters<typeof sendPiece>[4]) => { void sendPiece(app, st, t.file, from, dest); };
+  const send = (dest: Parameters<typeof sendPiece>[4]) => { safe(sendPiece(app, st, t.file, from, dest), "moving the task"); };
   if (canSplit(t)) {
     if (canCut) m.addItem(i => i.setTitle("Split task…").setIcon("scissors").onClick(() => new PartsModal(plugin, t, "split", seg).open()));
     m.addItem(i => i.setTitle(part ? "Move this part to another day…" : "Move to another day…").setIcon("calendar-days").onClick(() => new PartsModal(plugin, t, "move", seg).open()));

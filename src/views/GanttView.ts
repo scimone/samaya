@@ -1,5 +1,6 @@
 import { Menu, setIcon } from "obsidian";
 import { Panel } from "./panel";
+import { safe } from "../safe";
 import type SamayaPlugin from "../main";
 import { openFileSmart, openFileBeside } from "../openfile";
 import { DragMode, GRANULARITIES, Granularity, collapseTasks, daysBetween, taskPeriod, taskSpan, dragSpan, ganttRange, granularityDayWidth, monthMarks } from "../gantt";
@@ -85,7 +86,7 @@ export class GanttView extends Panel {
     for (const g of GRANULARITIES) sel.createEl("option", { text: g[0].toUpperCase() + g.slice(1), value: g });
     sel.value = gran; sel.onchange = () => { s.projectsScale = sel.value as Granularity; void this.plugin.saveSettings(); this.render(); };
     const addProject = () => new TextPromptModal(this.plugin, "New project name", name => {
-      void createProject(this.app, s, name).then(() => this.plugin.bus.emit());
+      safe(createProject(this.app, s, name).then(() => this.plugin.bus.emit()), "creating the project");
     }).open();
     right.createEl("button", { text: "Add project", cls: "mod-cta" }).onclick = addProject;
 
@@ -132,7 +133,7 @@ export class GanttView extends Panel {
         nm.addEventListener("contextmenu", ev => showTaskMenu(this.plugin, e.t, ev));
         const cb = nm.createEl("input", { type: "checkbox", cls: "samaya-check", attr: { "aria-label": e.t.status === "done" ? "Mark as not done" : "Mark as done" } });
         cb.checked = e.t.status === "done";
-        cb.onclick = ev => { ev.stopPropagation(); void setDone(this.app, e.t, cb.checked); };
+        cb.onclick = ev => { ev.stopPropagation(); safe(setDone(this.app, e.t, cb.checked), "updating the task"); };
         cb.addClass("samaya-gantt-check");
         const lk = nm.createSpan({ cls: "samaya-gantt-link", text: e.t.title });
         lk.onclick = () => { openFileBeside(this.app, e.t.file); };
@@ -189,8 +190,8 @@ export class GanttView extends Panel {
           }).open();
         }));
         m.addItem(i => i.setTitle("Plan for…").setIcon("calendar-range").onClick(() => {
-          openRangePicker({ x: e.clientX, y: e.clientY, start: p.span?.start, end: p.span?.end }, (start, end) => { void patchNote(this.app, p.file, { start, end }); },
-            p.span ? () => { void patchNote(this.app, p.file, { start: null, end: null }); } : undefined);
+          openRangePicker({ x: e.clientX, y: e.clientY, start: p.span?.start, end: p.span?.end }, (start, end) => { safe(patchNote(this.app, p.file, { start, end }), "saving the note"); },
+            p.span ? () => { safe(patchNote(this.app, p.file, { start: null, end: null }), "saving the note"); } : undefined);
         }));
         m.addSeparator();
         m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { openFileBeside(this.app, p.file); }));
@@ -213,7 +214,7 @@ export class GanttView extends Panel {
         track.addEventListener("click", e => {
           if ((e.target as HTMLElement).closest(".samaya-gantt-nav")) return;
           const start = addDays(from, dayAt(e));
-          void patchNote(this.app, p.file, { start, end: addDays(start, DEFAULT_PROJECT_DAYS - 1) });
+          safe(patchNote(this.app, p.file, { start, end: addDays(start, DEFAULT_PROJECT_DAYS - 1) }), "saving the note");
         });
         taskRows(p);
         continue;
@@ -234,7 +235,7 @@ export class GanttView extends Panel {
       const add = an.createEl("input", { type: "text", cls: "samaya-sub-add samaya-gantt-add", attr: { placeholder: "+ New project" } });
       add.addEventListener("keydown", e => {
         if (e.key !== "Enter" || e.isComposing || !add.value.trim()) return;
-        const v = add.value.trim(); add.value = ""; void createProject(this.app, s, v).then(() => this.plugin.bus.emit());
+        const v = add.value.trim(); add.value = ""; safe(createProject(this.app, s, v).then(() => this.plugin.bus.emit()), "creating the project");
       });
       addRow.createDiv("samaya-gantt-track").style.width = `${width}px`;
     }
@@ -327,7 +328,7 @@ export class GanttView extends Panel {
         bar.removeEventListener("pointermove", onMove); bar.removeEventListener("pointerup", onUp); bar.removeEventListener("pointercancel", onUp);
         bar.removeClass("is-dragging"); this.dragging = false; tip?.remove();
         const next = dragSpan(base, mode, delta);
-        if (moved && (next.start !== base.start || next.end !== base.end)) void patchNote(this.app, p.file, { start: next.start, end: next.end });
+        if (moved && (next.start !== base.start || next.end !== base.end)) safe(patchNote(this.app, p.file, { start: next.start, end: next.end }), "saving the note");
         else if (moved) place(base);
         else if (mode === "move") openFileBeside(this.app, p.file);
         if (this.pending) { this.pending = false; this.onDataUpdated(); }

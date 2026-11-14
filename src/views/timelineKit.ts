@@ -1,5 +1,6 @@
 import { TFile, setIcon } from "obsidian";
 import type { CalendarEvent } from "../eventnotes";
+import { safe } from "../safe";
 import { openFileSmart } from "../openfile";
 import type SamayaPlugin from "../main";
 import type { DndScope } from "../dnd";
@@ -90,7 +91,7 @@ export function renderTimeline(plugin: SamayaPlugin, dnd: DndScope, c: HTMLEleme
       if (!it.ev) {
         const task = it.task!;
         const st = bt.createSpan({ cls: "samaya-block-state", attr: { title: task.status === "done" ? "Mark as not done" : "Mark as done" } });
-        const toggle = () => { void setDone(plugin.app, task, task.status !== "done"); };
+        const toggle = () => { safe(setDone(plugin.app, task, task.status !== "done"), "updating the task"); };
         st.addEventListener("click", e => { e.stopPropagation(); toggle(); });
         keyActivate(st, `Done: ${task.title}`, toggle, "checkbox"); st.setAttr("aria-checked", String(task.status === "done"));
       }

@@ -1,5 +1,6 @@
 import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
+import { safe } from "../safe";
 import { openFileSmart } from "../openfile";
 import { NO_PROJECT, groupTickets } from "../kanban";
 import { DndScope } from "../dnd";
@@ -35,7 +36,7 @@ export class KanbanView extends Panel {
   }
   /** Ask for a name (pre-filled), create a project and link the given tickets to it. */
   private newProject(initial: string, tickets: Ticket[], ticketProject?: string) {
-    new TextPromptModal(this.plugin, "New project name", n => { void createProject(this.app, this.plugin.settings, n).then(f => linkProject(this.app, this.plugin.settings, f, tickets, ticketProject)).then(() => this.plugin.bus.emit()); }, initial).open();
+    new TextPromptModal(this.plugin, "New project name", n => { safe(createProject(this.app, this.plugin.settings, n).then(f => linkProject(this.app, this.plugin.settings, f, tickets, ticketProject)).then(() => this.plugin.bus.emit()), "creating the project"); }, initial).open();
   }
   onDataUpdated(): void {
     if (this.scope.active) { this.pending = true; return; }
@@ -89,7 +90,7 @@ export class KanbanView extends Panel {
       const row = box.createDiv("samaya-kb-row");
       for (const c of columns) {
         const cell = row.createDiv("samaya-kb-cell");
-        bindZone(this.scope, cell, path => { void this.setStatus(path, c); });
+        bindZone(this.scope, cell, path => { safe(this.setStatus(path, c), "changing the status"); });
         for (const t of lane.cells.get(c) ?? []) {
           const card = cell.createDiv("samaya-kb-card");
           card.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${t.source}`, text: t.key });

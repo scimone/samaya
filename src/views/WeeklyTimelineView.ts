@@ -1,5 +1,6 @@
 import { TFile, setIcon } from "obsidian";
 import type { CalendarEvent } from "../eventnotes";
+import { safe } from "../safe";
 import { openFileSmart } from "../openfile";
 import { PlannerPane } from "./plannerPane";
 import type { PlannerHost } from "./plannerHost";
@@ -116,7 +117,7 @@ export class WeeklyTimelineView extends PlannerPane {
 
       bindZone(this.scope, h, (path, i) => { // drop here = keep the day, remove the time slot
         const f = this.app.vault.getAbstractFileByPath(path);
-        if (f instanceof TFile) void dropOnDay(this.app, s, f, { ...i, fromTimeline: i.fromTimeline }, date, 9999);
+        if (f instanceof TFile) safe(dropOnDay(this.app, s, f, { ...i, fromTimeline: i.fromTimeline }, date, 9999), "moving the task");
       });
       const col = body.createDiv("samaya-wtl-col" + (isToday ? " is-today" : "")); col.style.height = L(endH - startH);
       for (let hr = startH; hr < endH; hr++) col.createDiv("samaya-wtl-hour").style.top = L(hr - startH);
@@ -170,7 +171,7 @@ export class WeeklyTimelineView extends PlannerPane {
         if (isToday && t.status !== "done" && isCurrentTask(this.plugin, t)) { const nd = new Date(); const nm = nd.getHours() * 60 + nd.getMinutes(); if (this.plugin.focus.state || (nm >= it.s && nm < it.s + it.dur)) b.addClass("is-current"); } // the focused task (else the one running by the clock) is lit
         const bt = b.createDiv("samaya-block-title");
         const st = bt.createSpan({ cls: "samaya-block-state", attr: { title: t.status === "done" ? "Mark as not done" : "Mark as done" } });
-        const toggle = () => { void setDone(this.app, t, t.status !== "done"); };
+        const toggle = () => { safe(setDone(this.app, t, t.status !== "done"), "updating the task"); };
         st.addEventListener("click", e => { e.stopPropagation(); toggle(); });
         keyActivate(st, `Done: ${t.title}`, toggle, "checkbox"); st.setAttr("aria-checked", String(t.status === "done"));
         bt.createSpan({ text: t.title });

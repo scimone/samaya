@@ -143,7 +143,8 @@ export class GanttView extends Panel {
         const b = tr.createDiv({ cls: "samaya-gantt-bar is-task" + (e.t.status === "done" ? " is-done" : "") + (e.period ? " is-period" : "") });
         b.createSpan({ cls: "samaya-gantt-label", text: e.t.title });
         b.style.left = `${daysBetween(from, e.span.start) * dayW}px`; b.style.width = `${(daysBetween(e.span.start, e.span.end) + 1) * dayW}px`;
-        const x0 = daysBetween(from, e.span.start) * dayW; navs.push({ track: tr, bar: b, x0, x1: x0 + (daysBetween(e.span.start, e.span.end) + 1) * dayW, btn: null }); // jump arrows and a sticky name, like a project        b.onclick = () => { openFileBeside(this.app, e.t.file); };
+        const x0 = daysBetween(from, e.span.start) * dayW; navs.push({ track: tr, bar: b, x0, x1: x0 + (daysBetween(e.span.start, e.span.end) + 1) * dayW, btn: null }); // jump arrows and a sticky name, like a project
+        b.onclick = () => { openFileBeside(this.app, e.t.file); };
         b.addEventListener("contextmenu", ev => showTaskMenu(this.plugin, e.t, ev));
       };
       const more = (text: string) => {

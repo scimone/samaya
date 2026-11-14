@@ -146,7 +146,7 @@ export async function promoteParked(app: App, s: SamayaSettings): Promise<number
 }
 
 export async function setDone(app: App, t: Task, done: boolean): Promise<void> {
-  await patchTask(app, t.file, { status: done ? "done" : "todo", completed: done ? new Date().toISOString().slice(0, 10) : null });
+  await patchTask(app, t.file, { status: done ? "done" : "todo", completed: done ? today() : null });
 }
 
 export async function ensureFolder(app: App, path: string): Promise<void> {

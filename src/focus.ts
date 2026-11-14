@@ -164,7 +164,7 @@ export class FocusManager {
     this.state = null; await this.persist();
     this.refreshViews();
     if (file) {
-      if (markDone) await patchTask(this.plugin.app, file, { status: "done", completed: new Date().toISOString().slice(0, 10) });
+      if (markDone) await patchTask(this.plugin.app, file, { status: "done", completed: today() });
       new Notice(`Logged ${fmtDur(minutes)} on "${file.basename}"${markDone || readTask(this.plugin.app, file).status === "done" ? " - done" : ""}`);
     }
   }

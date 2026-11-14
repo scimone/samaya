@@ -8,7 +8,7 @@ import { focusButton, isCurrentTask, trackedBefore, joinParts, splitTitle } from
 import { openDayPicker } from "./dayPicker";
 import { PartsModal } from "./partsModal";
 import { projectPathOf } from "../projects";
-import { assignProjectLinked, assignTicketLinked } from "../links";
+import { assignProjectLinked, assignTicketLinked, projectFits, ticketFits } from "../links";
 import { HORIZONS, Horizon, bucketOf, fmtDur, fmtHm, minToHm, parseDuration, parseYmd, startOfWeek, today } from "../util";
 
 export interface CardOpts {
@@ -173,7 +173,7 @@ export function projectChip(parent: HTMLElement, name: string): HTMLElement {
 /** Ticket entries of the task menu: assign / change / remove. */
 export function addTicketItems(m: Menu, plugin: SamayaPlugin, t: Task) {
   const app = plugin.app; const tp = ticketPathOf(app, t); const ticketsOn = plugin.settings.jiraOn || plugin.settings.gitlabOn;
-  if (ticketsOn || tp) m.addItem(i => i.setTitle(tp ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void assignTicketLinked(app, plugin.settings, t.file, tk); }).open()));
+  if (ticketsOn || tp) m.addItem(i => i.setTitle(tp ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void assignTicketLinked(app, plugin.settings, t.file, tk); }, tk => ticketFits(app, plugin.settings, t.file, tk)).open()));
   if (tp && ticketsOn) m.addItem(i => i.setTitle("Remove ticket").setIcon("unlink").onClick(() => { void assignTicketLinked(app, plugin.settings, t.file, null); }));
 }
 /** Project entries of the task menu: assign / change / remove. */
@@ -181,7 +181,7 @@ export function addProjectItems(m: Menu, plugin: SamayaPlugin, t: Task) {
   const app = plugin.app;
   if (!plugin.settings.projectsOn) return;
   const has = !!projectPathOf(app, t.file);
-  m.addItem(i => i.setTitle(has ? "Change project…" : "Assign project…").setIcon("folder-kanban").onClick(() => new ProjectSuggestModal(plugin, pr => { void assignProjectLinked(app, plugin.settings, t.file, pr); }).open()));
+  m.addItem(i => i.setTitle(has ? "Change project…" : "Assign project…").setIcon("folder-kanban").onClick(() => new ProjectSuggestModal(plugin, pr => { void assignProjectLinked(app, plugin.settings, t.file, pr); }, pr => projectFits(app, plugin.settings, t.file, pr)).open()));
   if (has) m.addItem(i => i.setTitle("Remove project").setIcon("unlink").onClick(() => { void assignProjectLinked(app, plugin.settings, t.file, null); }));
 }
 /** Planning entries of the task menu: split / move, plan for today or this week, back to the timeline's edge, backlog buckets. `seg`: the piece of a split day that was clicked (timeline blocks). */

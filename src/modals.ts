@@ -62,10 +62,10 @@ export class ConfirmDeleteModal extends Modal {
 }
 
 export class TicketSuggestModal extends FuzzySuggestModal<Ticket | null> {
-  constructor(private plugin: SamayaPlugin, private choose: (t: Ticket | null) => void) {
+  constructor(private plugin: SamayaPlugin, private choose: (t: Ticket | null) => void, private fits: (t: Ticket) => boolean = () => true) {
     super(plugin.app); this.setPlaceholder("Assign to ticket…");
   }
-  getItems() { return allTickets(this.app, this.plugin.settings).filter(t => t.state !== "closed"); }
+  getItems() { return allTickets(this.app, this.plugin.settings).filter(t => t.state !== "closed" && this.fits(t)); }
   getItemText(t: Ticket | null) { return t ? `${t.key}  ${t.summary}` : "(no ticket)"; }
   onChooseItem(t: Ticket | null) { this.choose(t); }
 }
@@ -85,8 +85,8 @@ export class TicketTargetSuggestModal extends FuzzySuggestModal<TicketTarget> {
 }
 
 export class ProjectSuggestModal extends FuzzySuggestModal<Project> {
-  constructor(private plugin: SamayaPlugin, private choose: (p: Project) => void) { super(plugin.app); this.setPlaceholder("Assign to project…"); }
-  getItems() { return allProjects(this.app, this.plugin.settings).filter(p => !p.done); }
+  constructor(private plugin: SamayaPlugin, private choose: (p: Project) => void, private fits: (p: Project) => boolean = () => true) { super(plugin.app); this.setPlaceholder("Assign to project…"); }
+  getItems() { return allProjects(this.app, this.plugin.settings).filter(p => !p.done && this.fits(p)); }
   getItemText(p: Project) { return p.name; }
   onChooseItem(p: Project) { this.choose(p); }
 }

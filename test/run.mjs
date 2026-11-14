@@ -158,7 +158,9 @@ assert.equal(W.fmtSigned(-18), "-0:18"); assert.equal(W.fmtSigned(75), "+1:15");
 
 // ---- kanban
 {
-  const { orderStatuses, groupTickets } = await import("./.kanban.mjs");
+  const { orderStatuses, groupTickets, isDoneState } = await import("./.kanban.mjs");
+  for (const d of ["Done", "Closed", "Resolved", "Cancelled", "Won't fix"]) assert.equal(isDoneState(d), true, d);
+  for (const o of ["To Do", "In Progress", "Not done", "Unresolved", "Incomplete", "Review"]) assert.equal(isDoneState(o), false, o);
   assert.deepEqual(orderStatuses(["Done", "In Progress", "To Do", "Review", "Blocked"]), ["To Do", "Blocked", "In Progress", "Review", "Done"]);
   const g = groupTickets([{ state: "Done", project: "B" }, { state: "To Do", project: "" }, { state: "To Do", project: "A" }, { state: "Done", project: "A" }]);
   assert.deepEqual(g.columns, ["To Do", "Done"]); assert.deepEqual(g.lanes.map(l => l.project), ["A", "B", "No project"]);

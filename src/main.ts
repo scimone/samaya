@@ -1,3 +1,4 @@
+import { isDoneState } from "./kanban";
 import { hooks, openNote, resetOpenFile, sideLeaf, setupSideCleanup, setupSideAutoClose } from "./openfile";
 import { lastMenuAt } from "./views/common";
 import { safe } from "./safe";
@@ -21,7 +22,7 @@ import { createProject, projectPathOf } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { promoteParked, allTasks, sortTasks, prefixOf, rootOf, ensureFolder, folderFor, readTask, isOverdue, onDay } from "./model";
 import { ConfirmOverwriteModal } from "./modals";
-import { renderTaskCard } from "./views/taskCard";
+import { decorateTaskNote } from "./views/taskCard";
 import { DayPlan, LEGACY_WEEK_HEADINGS, readSection, WEEK_MEETINGS, WEEK_ORDER, WEEK_OVERVIEW, WEEK_TASKS, removeSection, upsertSection, weekMeetings, weekOverview, journalPath, journalWants, meetingLines, readJournalSection, sortByStart, setJournalProps, taskLines, toJournalTasks, writeSection } from "./journal";
 import { MeetingBanner } from "./meetingbanner";
 import { calendarEnabled, calendarEvents, eventNote, inEventFolder, invalidateCalendar } from "./calendar";
@@ -335,7 +336,7 @@ export default class SamayaPlugin extends Plugin {
     const id = s.journalOn && !!file && !other ? await identifyNote(this.app, s, file) : null;
     el.toggleClass("samaya-journal-note", s.journalHideProps && !!id);
     el.toggleClass("samaya-task-note", isTask); // hides the properties; the task card shows them instead
-    renderTaskCard(this, el, isTask ? file! : null, leaf === sideLeaf(this.app));
+    decorateTaskNote(this, el, isTask ? file! : null, leaf === sideLeaf(this.app));
     await this.renderJournalBar(leaf, el, s.journalNavBar && file && id ? { file, ...id } : null);
   }
   /** The note in the side pane, dressed at once (its own tab only, not every open note) and shown. */
@@ -442,7 +443,7 @@ export default class SamayaPlugin extends Plugin {
     if (this.collapseTimeline(true)) this.leftCollapsedByGuide = true;
     const ws = this.app.workspace; const now = new Date(); const wk = weekToPlan(today(), now.getDay());
     const leftover = allTasks(this.app, this.settings).some(t => isLeftover(t, today(), wk));
-    const tickets = this.settings.ticketsOn && allTickets(this.app, this.settings).some(t => !/(done|closed|resolved|complete|finished|released|cancel)/i.test(t.state));
+    const tickets = this.settings.ticketsOn && allTickets(this.app, this.settings).some(t => !isDoneState(t.state));
     this.guide = { step: weekSteps(leftover, tickets)[0], review: leftover, fresh: true, kind: "week", week: wk, tickets };
     await this.openPlanner();
     if (ws.leftSplit && !ws.leftSplit.collapsed) { ws.leftSplit.collapse(); this.leftCollapsedByGuide = true; }

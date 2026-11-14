@@ -15,7 +15,7 @@ import { renderWeekHead } from "./plannerHead";
 import { renderCapBar } from "./capBar";
 import { addTaskInput, capacityOf, weekBuckets, renderWeekColumn } from "./weekColumn";
 import { TicketTaskModal } from "../modals";
-import { groupTickets, statusRank } from "../kanban";
+import { groupTickets, isDoneState } from "../kanban";
 import { HORIZONS, addDays, bucketOf, fmtDur, horizonTarget, minToHm, nextDayMs, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { Capacity, capacityWindow } from "../worktime";
@@ -170,7 +170,7 @@ export class WeeklyBoardView extends PlannerPane {
     } else if (step === 1) {
       // the ticket board scrolls on its own; This week is the last column, so new tasks are always in sight
       const cols = main.createDiv("samaya-wg-cols is-board");
-      const tickets = allTickets(this.app, s).filter(tk => statusRank(tk.state) < 3);
+      const tickets = allTickets(this.app, s).filter(tk => !isDoneState(tk.state));
       const area = cols.createDiv("samaya-plancol samaya-wg-col");
       head(area, "Tickets", tickets.length, "Press `New task` on a ticket to plan work for it.");
       const sc = scroller(area, "kb", "samaya-wg-kb");

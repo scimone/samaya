@@ -1,3 +1,4 @@
+import { isDoneState } from "./kanban";
 import { FuzzySuggestModal, Modal } from "obsidian";
 import type SamayaPlugin from "./main";
 import { Project, allProjects, projectPathOf } from "./projects";
@@ -65,7 +66,7 @@ export class TicketSuggestModal extends FuzzySuggestModal<Ticket | null> {
   constructor(private plugin: SamayaPlugin, private choose: (t: Ticket | null) => void, private fits: (t: Ticket) => boolean = () => true) {
     super(plugin.app); this.setPlaceholder("Assign to ticket…");
   }
-  getItems() { return allTickets(this.app, this.plugin.settings).filter(t => t.state !== "closed" && this.fits(t)); }
+  getItems() { return allTickets(this.app, this.plugin.settings).filter(t => !isDoneState(t.state) && this.fits(t)); }
   getItemText(t: Ticket | null) { return t ? `${t.key}  ${t.summary}` : "(no ticket)"; }
   onChooseItem(t: Ticket | null) { this.choose(t); }
 }

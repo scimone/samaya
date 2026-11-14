@@ -4,12 +4,14 @@ export const NO_PROJECT = "No project";
 /** Rank of a status in a typical workflow: open / to do first, done / closed last, anything else between. */
 export function statusRank(status: string): number {
   const s = status.toLowerCase();
-  if (/(done|closed|resolved|complete|finished|released|cancel|won'?t)/.test(s)) return 3;
+  if (/(done|closed|resolved|complete|finished|released|cancel|won'?t)/.test(s) && !/\b(not|un)\s?(done|resolved|complete|finished|released)|incomplete/.test(s)) return 3;
   if (/(review|test|verif|qa|accept)/.test(s)) return 2;
   if (/(progress|doing|develop|started|active)/.test(s)) return 1.5;
   if (/(backlog|open|todo|to do|new|ready|selected|reopen)/.test(s)) return 0;
   return 1;
 }
+/** A finished ticket (done / closed / resolved / cancelled ...), the one definition for hiding and filtering. */
+export const isDoneState = (status: string): boolean => statusRank(status) === 3;
 export function orderStatuses(statuses: string[]): string[] {
   return [...new Set(statuses)].sort((a, b) => statusRank(a) - statusRank(b) || a.localeCompare(b));
 }

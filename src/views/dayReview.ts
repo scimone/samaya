@@ -95,16 +95,15 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   stat("Time on tasks", fmtDur(focus), planned ? `plan ${fmtDur(planned)}` : "", planned ? signed(focus - planned, fmtDur) : "", planned > 0 && focus > planned ? "is-warn" : "is-ok");
 
   // ---- every task of the day, the changes first: takes the height that is left and scrolls when it is too long
-  const diff = rows.filter(r => r.changes.length); const same = rows.filter(r => !r.changes.length);
+  const planned1 = rows.filter(r => !r.unplanned); const unplanned = rows.filter(r => r.unplanned); const diff = planned1.filter(r => r.changes.length);
   const sec = info.createDiv("samaya-rv-sec is-grow");
   const h = sec.createDiv({ cls: "samaya-rv-h samaya-rv-h-row" }); h.createSpan({ text: "Tasks" });
   if (rows.length) h.createSpan({ cls: "samaya-rv-row-tag", text: `${rows.length} ${rows.length === 1 ? "task" : "tasks"} · ${diff.length ? `${diff.length} differ from the plan` : "all as planned"}` });
   if (!rows.length) sec.createDiv({ cls: "samaya-empty", text: "Nothing was planned or done today." });
   else {
     const table = sec.createDiv("samaya-rv-table samaya-rv-scroll");
-    for (const r of diff) drawRow(table, r, grid);
-    if (diff.length && same.length) table.createDiv({ cls: "samaya-rv-sep", text: "As planned" });
-    for (const r of same) drawRow(table, r, grid);
+    if (planned1.length) { table.createDiv({ cls: "samaya-rv-sep is-first", text: "As planned" }); for (const r of [...planned1.filter(r => r.changes.length), ...planned1.filter(r => !r.changes.length)]) drawRow(table, r, grid); }
+    if (unplanned.length) { table.createDiv({ cls: "samaya-rv-sep" + (planned1.length ? "" : " is-first"), text: "Unplanned" }); for (const r of unplanned) drawRow(table, r, grid); }
   }
 
 }
@@ -121,12 +120,12 @@ function drawRow(table: HTMLElement, r: Row, root: HTMLElement) {
   const ic = row.createSpan("samaya-rv-row-ic" + (r.done ? " is-done" : "")); if (r.done) { setIcon(ic, ICON_OK); ic.setAttr("aria-label", "Done"); }
   // the name gets the room (it wraps instead of being cut off), what differs as chips under it
   const name = row.createDiv("samaya-rv-r-name"); name.createDiv({ cls: "samaya-rv-r-title", text: r.label });
-  if (r.changes.length) { const chips = name.createDiv("samaya-rv-r-chips"); for (const c of r.changes) chips.createSpan({ cls: `samaya-rv-chip ${CHANGE[c].cls}`, text: CHANGE[c].label }); }
+  if (r.changes.some(c => c !== "added")) { const chips = name.createDiv("samaya-rv-r-chips"); for (const c of r.changes.filter(c => c !== "added")) chips.createSpan({ cls: `samaya-rv-chip ${CHANGE[c].cls}`, text: CHANGE[c].label }); }
   // on the right: the time it took, with the plan under it
   const nums = row.createDiv("samaya-rv-r-nums");
   const d = r.planned && r.actual ? r.actual - r.planned : 0; const top = nums.createDiv("samaya-rv-r-top");
   if (Math.abs(d) >= 5) { const dl = top.createSpan("samaya-rv-delta" + (d > 0 ? " is-over" : " is-under")); setIcon(dl.createSpan(), d > 0 ? ICON_UP : ICON_DOWN); dl.createSpan({ text: fmtDur(Math.abs(d)) }); }
-  top.createSpan({ cls: "samaya-rv-r-act", text: r.actual ? fmtDur(r.actual) : r.done ? "checked off" : "–" });
+  top.createSpan({ cls: "samaya-rv-r-act", text: r.actual ? fmtDur(r.actual) : r.done ? "untracked" : "–" });
   if (!r.unplanned) nums.createDiv({ cls: "samaya-rv-r-plan", text: `plan ${when(r.plannedAt, r.planned)}` });
 }
 
@@ -221,7 +220,7 @@ function drawRings(host: HTMLElement, items: ReviewItem[], meetings: MeetingLink
       const len = (g.actual / total) * RING_C; const c = svg.createSvg("circle", { attr: { class: "samaya-rv-ring-seg", cx: "50", cy: "50", r: String(RING_R), transform: "rotate(-90 50 50)", "stroke-dasharray": `0 ${RING_C}`, "stroke-dashoffset": String(-at) } });
       c.style.stroke = colour(g.label, n); arcs.push([c, Math.max(0.5, len - gapLen), len]); at += len;
       const row = legend.createDiv("samaya-rv-lg"); row.createSpan("samaya-rv-dot").style.background = colour(g.label, n);
-      row.createSpan({ cls: "samaya-rv-lg-name", text: g.label, attr: { "aria-label": g.label } }); row.createSpan({ cls: "samaya-rv-lg-time", text: fmtDur(Math.round(g.actual)) });
+      row.createSpan({ cls: "samaya-rv-lg-name", text: g.label, attr: { "aria-label": g.label } });
       const on = () => { time.setText(fmtDur(Math.round(g.actual))); box.addClass("is-hover"); c.addClass("is-hot"); row.addClass("is-hot"); };
       const off = () => { time.setText(""); box.removeClass("is-hover"); c.removeClass("is-hot"); row.removeClass("is-hot"); };
       for (const el of [c, row]) { el.addEventListener("mouseenter", on); el.addEventListener("mouseleave", off); }

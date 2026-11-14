@@ -1126,11 +1126,11 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-rv-ringcard { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
 .samaya-rv-ring-t { font-size: var(--samaya-fs-label); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
 .samaya-rv-ringcard { width: 100%; }
-.samaya-rv-ringlegend { display: flex; flex-direction: column; gap: 1px; width: 100%; max-width: 240px; }
+.samaya-rv-ringlegend { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 10px; width: 100%; }
 .samaya-rv-lg { display: flex; align-items: center; gap: 7px; padding: 2px 4px; border-radius: var(--samaya-r-s); font-size: var(--font-ui-smaller); color: var(--text-muted); min-width: 0; transition: background .15s; }
 .samaya-rv-lg.is-hot { background: var(--background-modifier-hover); color: var(--text-normal); }
 .samaya-rv-lg .samaya-rv-dot { width: 8px; height: 8px; }
-.samaya-rv-lg-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.samaya-rv-lg-name { min-width: 0; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .samaya-rv-lg-time { flex: none; font-variant-numeric: tabular-nums; font-weight: 600; }
 .samaya-rv-ringbody { display: flex; align-items: center; gap: 16px; min-width: 0; }
 .samaya-rv-ring { position: relative; width: 112px; height: 112px; flex: none; }
@@ -1662,3 +1662,7 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 /* project / ticket chips of a meeting row */
 .samaya-md-links.samaya-card-meta { display: inline-flex; flex-wrap: nowrap; padding-left: 0; margin: 0 0 0 6px; flex-shrink: 0; } /* same pills as on a task card (.samaya-card-meta .samaya-chip) */
 .has-links > .samaya-md-name { flex: 0 1 auto; } .has-links > .samaya-md-links { margin-right: auto; } /* pills sit right after the title, the markers stay at the right edge */
+/* End my day, review: the review runs to the right edge (the usual 1280px limit of the Today view does not apply) */
+.samaya-daily.is-end-review > .samaya-day-head, .samaya-daily.is-end-review > .samaya-daily-cols { max-width: none; }
+.samaya-rv-sep.is-first { margin-top: 0; }
+.samaya-rv-tl { gap: 4px; }

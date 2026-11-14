@@ -103,7 +103,7 @@ export class DailyPlannerView extends PlannerPane {
     const cols = this.root.createDiv("samaya-daily-cols"); // everything else sits below the title bar
     const info = sd ? cols.createDiv("samaya-info") : null; // End day: the shutdown guide takes the first column; otherwise tasks and timeline, status lives in the heading (Plan my day: guide and tasks)
     const left = cols.createDiv("samaya-left");
-    const reviewDay = sd && step === 1; // End day, step 2: the review spans both columns, no timeline
+    const reviewDay = sd && step === 1; this.root.toggleClass("is-end-review", reviewDay); // the review takes the full width // End day, step 2: the review spans both columns, no timeline
     if (!reviewDay) this.renderPane(cols.createDiv("samaya-today samaya-tlpane"), day, tlEvents, notes, pg); // the timeline is the last column (Plan my day: read-only until Timebox, on the sidebar's background)
     let body = left; // where today's planned list goes
     if (reviewDay) { // the review replaces the task list and the timeline; the guide stays on the left

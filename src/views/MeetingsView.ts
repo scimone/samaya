@@ -2,7 +2,7 @@ import { TFile, normalizePath, setIcon } from "obsidian";
 import { Panel } from "./panel";
 import { openFileSmart } from "../openfile";
 import type SamayaPlugin from "../main";
-import { Instance, MeetingNote, Series, analyse, buildSeries, nextWorkday, parseNote, stripFrontmatter } from "../meetingseries";
+import { Instance, MeetingNote, Series, analyse, analyseCache, buildSeries, nextWorkday, parseNote, stripFrontmatter } from "../meetingseries";
 import { addDays, fmtDur, parseYmd, startOfWeek, today as todayYmd } from "../util";
 import { weekValue, weekValueDate } from "../journaldigest";
 import { renderDateNav, renderResetPill } from "./dateNav";
@@ -31,50 +31,53 @@ const memory = { mode: "series" as Mode, week: 0, selected: null as string | nul
 export class MeetingsView extends Panel {
   private root: HTMLElement;
   private timer = 0;
-  private loading = false; // note bodies still being read: counts and excerpts would be wrong, so they stay hidden
   private inflight = new Set<string>();
   private cache = new Map<string, { mtime: number; body: string; a: ReturnType<typeof analyse> }>(); // body without front matter, analysed once per change of the file
 
   private tick = 0;
   private recurring = new Set<string>(); // paths of the meetings that belong to a recurring series
   private fitting?: ResizeObserver;
+  private queue: TFile[] = []; private workers = 0; private drawn = 0;
   private week: Instance[] = []; // the meetings of the shown week (the agenda's heading counts them)
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
     super(plugin, () => normalizePath(plugin.settings.eventNotesFolder.trim() || "Meetings") + "/"); this.root = parentEl.createDiv("samaya-mt samaya-md");
     this.tick = window.setInterval(() => { if (this.root.isShown() && !this.root.querySelector("input:focus")) this.rerender(); }, 60000); // a meeting that ends moves from next to recent
   }
-  onunload() { this.fitting?.disconnect(); window.clearTimeout(this.timer); window.clearInterval(this.tick); }
+  onunload() { this.fitting?.disconnect(); window.clearTimeout(this.timer); window.clearInterval(this.tick); this.queue = []; }
   protected visibleEl(): HTMLElement { return this.root; }
   onDataUpdated(): void { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { this.render(); }, 30); }
 
-  /** Notes from what Obsidian already has in memory (front matter and any body read before), plus the files whose body still has to be read. Nothing here waits for the disk. */
-  private collect(): { notes: MeetingNote[]; missing: TFile[] } {
-    const notes: MeetingNote[] = []; const missing: TFile[] = [];
+  /** Notes from what Obsidian already has in memory (its index of the front matter, headings, lists and tasks, and any text read before). Nothing here waits for the disk. */
+  private collect(): MeetingNote[] {
+    const notes: MeetingNote[] = [];
     for (const e of this.data.data) {
       const f = e.file; if (f.extension !== "md") continue;
+      const meta = this.app.metadataCache.getFileCache(f);
+      const n = parseNote(f.path, meta?.frontmatter, f.basename, ""); if (!n) continue;
       const c = this.cache.get(f.path);
-      if (!c || c.mtime !== f.stat.mtime) missing.push(f);
-      const n = parseNote(f.path, this.app.metadataCache.getFileCache(f)?.frontmatter, f.basename, ""); if (!n) continue;
-      if (c) { n.body = c.body; n.analysis = c.a; } notes.push(n);
+      if (c && c.mtime === f.stat.mtime) { n.body = c.body; n.analysis = c.a; } else n.analysis = analyseCache(meta);
+      notes.push(n);
     }
-    return { notes, missing };
+    return notes;
   }
-  /** Read bodies in the background, a few at a time so the rest of Obsidian stays responsive, then draw once more with the notes' text. */
+  /**
+   * Read the text of some notes in the background. Every read of a file queues behind the others (about 90 ms each here) and holds back whatever else wants to read files,
+   * so only the notes that need their text are read (a series being open, a search), newest first, two at a time, and the rest is dropped when the page changes.
+   */
   private fill(files: TFile[]) {
-    const todo = files.filter(f => !this.inflight.has(f.path)); if (!todo.length) return;
-    for (const f of todo) this.inflight.add(f.path);
-    void (async () => {
-      for (let n = 0; n < todo.length; n += 25) {
-        if (!this.root.isConnected) { for (const f of todo.slice(n)) this.inflight.delete(f.path); return; } // the view was closed: stop reading
-        await Promise.all(todo.slice(n, n + 25).map(async f => {
-          const mtime = f.stat.mtime; let body = "";
-          try { body = stripFrontmatter(await this.app.vault.cachedRead(f)); } catch { /* unreadable: counts as empty */ }
-          this.cache.set(f.path, { mtime, body, a: analyse(body) }); this.inflight.delete(f.path);
-        }));
-        await new Promise<void>(r => window.setTimeout(r, 0)); // let the UI breathe between batches
+    this.queue = files.filter(f => !this.inflight.has(f.path));
+    while (this.workers < 2 && this.queue.length) { this.workers++; void this.work(); }
+  }
+  private async work() {
+    try {
+      while (this.root.isConnected) {
+        const f = this.queue.shift(); if (!f) break;
+        this.inflight.add(f.path); const mtime = f.stat.mtime; let body = "";
+        try { body = stripFrontmatter(await this.app.vault.cachedRead(f)); } catch { /* unreadable: counts as empty */ }
+        this.cache.set(f.path, { mtime, body, a: analyse(body) }); this.inflight.delete(f.path);
+        if (this.root.isConnected && (!this.queue.length || Date.now() - this.drawn > 400)) this.render(); // the page fills in as the texts arrive
       }
-      if (this.root.isConnected) this.render();
-    })();
+    } finally { this.workers--; }
   }
   private open(path: string, e: MouseEvent) {
     const f = this.app.vault.getAbstractFileByPath(path);
@@ -84,8 +87,7 @@ export class MeetingsView extends Panel {
 
   private render() {
     if (!this.root.isShown()) { this.stale = true; return; } // another tab or section: nothing is read or drawn until it is shown again
-    const { notes, missing } = this.collect();
-    this.loading = missing.length > 0;
+    const notes = this.collect(); this.drawn = Date.now();
     const td = todayYmd(); const now = new Date();
     const { series, oneOffs } = buildSeries(notes, td, now.getHours() * 60 + now.getMinutes());
     const keep = Array.from(this.root.querySelectorAll<HTMLElement>("[data-keep]")).map(el => [el.dataset.keep!, el.scrollTop, el.scrollLeft] as const); // every scroller keeps its place across a redraw
@@ -99,7 +101,11 @@ export class MeetingsView extends Panel {
     const page = this.root.createDiv("samaya-md-page");
     if (sel) this.detail(page, sel, td); else this.overview(page, series, oneOffs, td, notes.length);
     for (const [k, top, left] of keep) { const el = this.root.querySelector<HTMLElement>(`[data-keep="${k}"]`); if (el) { el.scrollTop = top; el.scrollLeft = left; } }
-    this.fill(missing);
+    // the notes whose text is needed: the open series, or every note while searching (the text is searched too)
+    const need = sel ? sel.instances.filter(i => i.hasNotes).map(i => i.path) : memory.query.trim() ? notes.map(n => n.path) : [];
+    const files = need.map(path => this.app.vault.getAbstractFileByPath(path)).filter((f): f is TFile => f instanceof TFile && this.cache.get(f.path)?.mtime !== f.stat.mtime)
+      .sort((x, y) => y.basename.localeCompare(x.basename));
+    this.fill(files);
   }
 
   /** A scroller that remembers its position across redraws. */
@@ -168,7 +174,6 @@ export class MeetingsView extends Panel {
   }
   /** note markers: the open action count, then a notes icon for a meeting that has notes */
   private mark(r: HTMLElement, i: Instance) {
-    if (this.loading) return;
     if (i.open) r.createSpan({ cls: "samaya-md-badge is-open", text: `${i.open} open` });
     if (i.hasNotes) setIcon(r.createSpan({ cls: "samaya-md-hasnotes", attr: { "aria-label": "Has notes" } }), "file-text");
   }
@@ -220,7 +225,7 @@ export class MeetingsView extends Panel {
       r.createSpan({ cls: "samaya-md-name", text: s.title });
       r.createSpan({ cls: "samaya-md-sched", text: [s.cadence, s.days].filter(Boolean).join(" · ") });
       const n = r.createSpan("samaya-md-noted"); // notes at the very right (an empty slot keeps the schedules aligned)
-      if (s.held && !this.loading) { n.setAttr("aria-label", `${s.withNotes} of ${s.held} past meetings have notes`); setIcon(n.createSpan("samaya-md-noted-icon"), "file-text"); n.createSpan({ text: `${s.withNotes}/${s.held}` }); }
+      if (s.held) { n.setAttr("aria-label", `${s.withNotes} of ${s.held} past meetings have notes`); setIcon(n.createSpan("samaya-md-noted-icon"), "file-text"); n.createSpan({ text: `${s.withNotes}/${s.held}` }); }
       r.onclick = () => { memory.selected = s.key; memory.onlyNotes = false; this.rerender(); };
     }
   }
@@ -241,8 +246,8 @@ export class MeetingsView extends Panel {
     const w = startOfWeek(td); const wk = all.filter(i => i.date >= w && i.date <= addDays(w, 6));
     card("This week", String(wk.length), `Week ${isoWeek(parseYmd(w))}`, "meet", wk.length ? wk.filter(i => i.when === "past").length / wk.length : undefined);
     const past = all.filter(i => i.when === "past"); const noted = past.filter(i => i.hasNotes).length; const open = all.reduce((s, i) => s + i.open, 0);
-    card("Open actions", this.loading ? "…" : String(open), this.loading ? "" : open ? `in ${all.filter(i => i.open).length} meeting${all.filter(i => i.open).length === 1 ? "" : "s"}` : "all clear", open && !this.loading ? "warn" : "");
-    card("With notes", this.loading || !past.length ? "…" : `${Math.round(noted / past.length * 100)}%`, this.loading || !past.length ? "" : `${noted} of ${past.length} past meetings`, "", this.loading || !past.length ? undefined : noted / past.length);
+    card("Open actions", String(open), open ? `in ${all.filter(i => i.open).length} meeting${all.filter(i => i.open).length === 1 ? "" : "s"}` : "all clear", open ? "warn" : "");
+    card("With notes", !past.length ? "…" : `${Math.round(noted / past.length * 100)}%`, !past.length ? "" : `${noted} of ${past.length} past meetings`, "", !past.length ? undefined : noted / past.length);
   }
 
   // ---- one series
@@ -253,8 +258,8 @@ export class MeetingsView extends Panel {
       const c = row.createDiv("samaya-md-card" + (tone ? " is-" + tone : "")); c.createDiv({ cls: "samaya-md-card-kicker", text: kicker }); c.createDiv({ cls: "samaya-md-card-value", text: value }); c.createDiv({ cls: "samaya-md-card-sub", text: sub || " " });
     };
     card("Held", String(s.held), s.last ? `last ${short(s.last.date)}` : "", "meet");
-    card("With notes", this.loading ? "…" : String(s.withNotes), this.loading || !s.held ? "" : `${Math.round(s.withNotes / s.held * 100)}% of held`);
-    card("Open actions", this.loading ? "…" : String(s.open), s.open && !this.loading ? "to follow up" : this.loading ? "" : "all clear", s.open && !this.loading ? "warn" : "");
+    card("With notes", String(s.withNotes), !s.held ? "" : `${Math.round(s.withNotes / s.held * 100)}% of held`);
+    card("Open actions", String(s.open), s.open ? "to follow up" : "all clear", s.open ? "warn" : "");
     card("Next", s.next ? (s.next.date === td ? "Today" : short(s.next.date)) : "—", s.next ? span(s.next) : "none planned", "meet");
 
     const items = [...s.instances].reverse().filter(i => !memory.onlyNotes || i.hasNotes);
@@ -264,8 +269,8 @@ export class MeetingsView extends Panel {
         const r = box.createDiv({ cls: `samaya-md-entry is-${i.when}` });
         r.createDiv({ cls: "samaya-md-edate", text: short(i.date) + (i.date === td ? " · today" : "") });
         const eb = r.createDiv("samaya-md-ebody");
-        if (i.hasNotes) for (const t of i.excerpt) eb.createDiv({ cls: "samaya-md-eline", text: t });
-        else eb.createDiv({ cls: "samaya-md-eline is-faint", text: this.loading ? "…" : i.when === "past" ? "no notes" : span(i) });
+        if (i.hasNotes && i.excerpt.length) for (const t of i.excerpt) eb.createDiv({ cls: "samaya-md-eline", text: t });
+        else eb.createDiv({ cls: "samaya-md-eline is-faint", text: i.hasNotes ? "…" : i.when === "past" ? "no notes" : span(i) }); // "…": the text is still being read
         if (i.open) eb.createSpan({ cls: "samaya-md-badge is-open", text: `${i.open} open` });
         r.onclick = e => this.open(i.path, e);
       }

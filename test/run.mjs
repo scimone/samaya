@@ -500,7 +500,19 @@ await bundle("src/dayreview.ts", "test/.dayreview.mjs");
 // ---- meeting series
 await bundle("src/meetingseries.ts", "test/.meetingseries.mjs");
 {
-  const { nextWorkday, buildSeries, cadenceOf, analyse, parseNote, seriesKey, stripFrontmatter } = await import("./.meetingseries.mjs");
+  const { nextWorkday, buildSeries, cadenceOf, analyse, analyseCache, parseNote, seriesKey, stripFrontmatter } = await import("./.meetingseries.mjs");
+  { // notes and actions from Obsidian's index alone (no file reads)
+    const pos = (line, len) => ({ start: { line, offset: line * 100 }, end: { line, offset: line * 100 + len } });
+    const tpl = { sections: [{ type: "yaml", position: pos(0, 50) }, { type: "heading", position: pos(8, 12) }, { type: "heading", position: pos(10, 18) }] };
+    assert.deepEqual(analyseCache(tpl), { excerpt: [], open: 0, done: 0, hasNotes: false }); // front matter and headings only
+    assert.equal(analyseCache(null).hasNotes, false);
+    const emptyBullets = { sections: [...tpl.sections, { type: "list", position: { start: { line: 11, offset: 1100 }, end: { line: 12, offset: 1205 } } }], listItems: [{ position: pos(11, 1) }, { task: " ", position: pos(12, 5) }] };
+    assert.equal(analyseCache(emptyBullets).hasNotes, false); assert.equal(analyseCache(emptyBullets).open, 0); // empty bullet and empty task
+    const real = { sections: [...tpl.sections, { type: "list", position: { start: { line: 11, offset: 1100 }, end: { line: 13, offset: 1320 } } }], listItems: [{ task: " ", position: pos(11, 20) }, { task: "x", position: pos(12, 20) }, { position: pos(13, 12) }] };
+    assert.deepEqual(analyseCache(real), { excerpt: [], open: 1, done: 1, hasNotes: true });
+    assert.equal(analyseCache({ sections: [{ type: "paragraph", position: pos(9, 30) }] }).hasNotes, true);
+    assert.equal(buildSeries([{ path: "a", title: "T", date: "2026-11-01", start: null, end: null, recurring: true, body: "", analysis: analyseCache(real) }], "2026-11-12").series[0].withNotes, 1); // the index answer is used for the series
+  }
   assert.deepEqual(["2026-11-12", "2026-11-13", "2026-11-14", "2026-11-15"].map(nextWorkday), ["2026-11-13", "2026-11-16", "2026-11-16", "2026-11-16"]);
   assert.equal(seriesKey("  AI Next  Daily "), "ai next daily");
   assert.deepEqual(cadenceOf(["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06", "2026-11-09"]), { label: "Daily", days: "Mon–Fri" });

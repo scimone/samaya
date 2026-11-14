@@ -2,7 +2,7 @@
 import { addDays, parseYmd } from "./util";
 import { parseClock } from "./eventnotes";
 
-export interface MeetingNote { path: string; title: string; date: string; start: number | null; end: number | null; /** the `is_recurring` property; undefined when the note has none */ recurring?: boolean; /** note text without frontmatter */ body: string; /** what `analyse` found in the body, when already known (saves doing it again on every redraw) */ analysis?: { excerpt: string[]; open: number; done: number }; }
+export interface MeetingNote { path: string; title: string; date: string; start: number | null; end: number | null; /** the `is_recurring` property; undefined when the note has none */ recurring?: boolean; /** note text without frontmatter */ body: string; /** what `analyse` found in the body, when already known (saves doing it again on every redraw) */ analysis?: { excerpt: string[]; open: number; done: number; /** set when the answer came from Obsidian's index instead of the text */ hasNotes?: boolean }; }
 export type When = "past" | "today" | "upcoming";
 export interface Instance extends MeetingNote { when: When; /** the first lines worth showing, without headings and empty bullets */ excerpt: string[]; hasNotes: boolean; open: number; done: number; }
 export interface Series {
@@ -35,6 +35,25 @@ export function analyse(body: string, maxLines = 3): { excerpt: string[]; open: 
     if (excerpt.length < maxLines) excerpt.push(text.length > 160 ? text.slice(0, 157) + "…" : text);
   }
   return { excerpt, open, done };
+}
+
+interface Pos { start: { line: number; offset: number }; end: { line: number; offset: number } }
+/** The parts of Obsidian's index (`CachedMetadata`) that tell whether a note has notes in it. */
+export interface CacheLike { sections?: Array<{ type: string; position: Pos }>; listItems?: Array<{ task?: string; position: Pos }> }
+
+/**
+ * What a meeting note holds, from Obsidian's index alone: reading the files is slow (they queue up and hold back everything else that reads files), the index is already in memory.
+ * Notes = anything but headings, rules, comments and the front matter; empty bullets and empty `- [ ]` items do not count. The excerpt needs the text, so it stays empty until the file is read.
+ */
+export function analyseCache(c: CacheLike | null | undefined): { excerpt: string[]; open: number; done: number; hasNotes: boolean } {
+  const items = (c?.listItems ?? []).filter(li => li.position.end.offset - li.position.start.offset > (li.task !== undefined ? 6 : 2)); // "- [ ]" or "-" and nothing after
+  const open = items.filter(li => li.task === " ").length, done = items.filter(li => li.task !== undefined && li.task !== " ").length;
+  const hasNotes = (c?.sections ?? []).some(sec => {
+    if (["yaml", "heading", "thematicBreak", "comment", "html"].includes(sec.type)) return false;
+    if (sec.type !== "list") return true;
+    return items.some(li => li.position.start.line >= sec.position.start.line && li.position.start.line <= sec.position.end.line);
+  });
+  return { excerpt: [], open, done, hasNotes };
 }
 
 const DAY = 86400000;
@@ -73,8 +92,8 @@ export function whenOf(n: Pick<MeetingNote, "date" | "start" | "end">, today: st
 }
 
 export function toInstance(n: MeetingNote, today: string, nowMin = -1): Instance {
-  const a = n.analysis ?? analyse(n.body);
-  return { ...n, when: whenOf(n, today, nowMin), excerpt: a.excerpt, hasNotes: a.excerpt.length > 0, open: a.open, done: a.done };
+  const a: NonNullable<MeetingNote["analysis"]> = n.analysis ?? analyse(n.body);
+  return { ...n, when: whenOf(n, today, nowMin), excerpt: a.excerpt, hasNotes: a.hasNotes ?? a.excerpt.length > 0, open: a.open, done: a.done };
 }
 
 /** Recurring notes (`is_recurring: true`) form a series per title; one-offs stay single. Without the property, a title that occurs more than once counts as recurring. */

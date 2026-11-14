@@ -33,8 +33,18 @@ export interface Part {
 const str = (v: unknown): string => (v == null ? "" : String(v));
 const num = (v: unknown): number => { const n = Number(v); return isNaN(n) ? 0 : n; };
 
+/** Parsed tasks, remembered per frontmatter object: Obsidian hands out the same object until the note is parsed again, so an edit invalidates by itself. The day is part of the key (due / week depend on today). Treat a Task as read-only. */
+const taskMemo = new WeakMap<object, { day: string; base: string; task: Task }>();
 export function readTask(app: App, file: TFile): Task {
-  const fm = (app.metadataCache.getFileCache(file)?.frontmatter ?? {}) as Record<string, unknown>;
+  const raw = app.metadataCache.getFileCache(file)?.frontmatter;
+  if (!raw) return parseTask(file, {});
+  const day = today(); const hit = taskMemo.get(raw);
+  if (hit && hit.day === day && hit.base === file.basename && hit.task.file === file) return hit.task;
+  const task = parseTask(file, raw as Record<string, unknown>);
+  taskMemo.set(raw, { day, base: file.basename, task });
+  return task;
+}
+function parseTask(file: TFile, fm: Record<string, unknown>): Task {
   const planning = readPlanning(fm); const { planned, start, segments } = planning;
   const ymdOf = (v: unknown) => (/^\d{4}-\d{2}-\d{2}$/.test(str(v).slice(0, 10)) ? str(v).slice(0, 10) : "");
   const estimate = num(readProp(fm, "estimate")); const sessions = sessionsOf(planning, estimate);

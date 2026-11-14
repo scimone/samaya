@@ -15,7 +15,7 @@ import { renderCapBar } from "./capBar";
 import { addTaskInput, capacityOf, weekBuckets, renderWeekColumn } from "./weekColumn";
 import { TicketTaskModal } from "../modals";
 import { groupTickets, statusRank } from "../kanban";
-import { HORIZONS, addDays, bucketOf, fmtDur, horizonTarget, minToHm, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
+import { HORIZONS, addDays, bucketOf, fmtDur, horizonTarget, minToHm, nextDayMs, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { Capacity, capacityWindow } from "../worktime";
 import { bindCardDrop, bindZone, keyActivate, renderTaskCard, richText } from "./common";
@@ -344,7 +344,7 @@ export class WeeklyBoardView extends PlannerPane {
 /** A day's meetings as a compact agenda (all-day first, then by start; the times in the meeting colour). */
 function renderAgenda(parent: HTMLElement, events: CalendarEvent[], date: string) {
   const dayMs = parseYmd(date).getTime();
-  const evs = events.filter(e => e.end.getTime() > dayMs && e.start.getTime() < dayMs + 86400000).sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.getTime() - b.start.getTime());
+  const evs = events.filter(e => e.end.getTime() > dayMs && e.start.getTime() < nextDayMs(dayMs)).sort((a, b) => Number(b.allDay) - Number(a.allDay) || a.start.getTime() - b.start.getTime());
   const ag = parent.createDiv("samaya-agenda");
   if (!evs.length) ag.createDiv({ cls: "samaya-agenda-empty", text: "No meetings" });
   evs.forEach(e => {

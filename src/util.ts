@@ -1,6 +1,8 @@
 export function pad(n: number): string { return n < 10 ? "0" + n : String(n); }
 export function ymd(d: Date): string { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
 export function parseYmd(s: string): Date { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); }
+/** Local midnight of the following day (a day is 23 or 25 hours long on DST changes, so not + 86400000). */
+export function nextDayMs(dayMs: number): number { const d = new Date(dayMs); d.setDate(d.getDate() + 1); return d.getTime(); }
 export function today(): string { return ymd(new Date()); }
 export function addDays(s: string, n: number): string { const d = parseYmd(s); d.setDate(d.getDate() + n); return ymd(d); }
 export function startOfWeek(s: string, mondayFirst = true): string {

@@ -6,7 +6,7 @@ import type { PlannerHost } from "./plannerHost";
 import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, allTasks, dropOnDay, onDay, setDone, sortTasks } from "../model";
-import { addDays, fmtDur, hmToMin, minToHm, parseYmd, startOfWeek, today } from "../util";
+import { addDays, fmtDur, hmToMin, minToHm, nextDayMs, parseYmd, startOfWeek, today } from "../util";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { layoutItems } from "../timeline";
 import { bindZone, keyActivate, showTaskMenu } from "./common";
@@ -98,7 +98,7 @@ export class WeeklyTimelineView extends PlannerPane {
 
     for (let i = 0; i < days; i++) {
       const date = addDays(this.weekStart, i); const dayMs = parseYmd(date).getTime(); const isToday = date === today();
-      const dayEvents = events.filter(e => e.end.getTime() > dayMs && e.start.getTime() < dayMs + 86400000);
+      const dayEvents = events.filter(e => e.end.getTime() > dayMs && e.start.getTime() < nextDayMs(dayMs));
       const dayTasks = sortTasks(onDay(all, date));
 
       // header: weekday, all-day events, tasks without a time slot

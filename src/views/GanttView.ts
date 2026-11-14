@@ -122,11 +122,12 @@ export class GanttView extends Panel {
       const l = tasksOf.get(p.file.path); if (!l || !memory.open.has(p.file.path)) return;
       const expanded = memory.all.has(p.file.path); const c = collapseTasks(l.length, expanded);
       const one = (e: { t: Task; span: { start: string; end: string } | null }) => {
-        const r = chart.createDiv("samaya-gantt-row samaya-gantt-task");
+        const r = chart.createDiv("samaya-gantt-row samaya-gantt-task"); r.toggleClass("is-done", e.t.status === "done");
         const nm = r.createDiv("samaya-gantt-name");
         const cb = nm.createEl("input", { type: "checkbox", cls: "samaya-check", attr: { "aria-label": e.t.status === "done" ? "Mark as not done" : "Mark as done" } });
         cb.checked = e.t.status === "done";
         cb.onclick = ev => { ev.stopPropagation(); void setDone(this.app, e.t, cb.checked); };
+        cb.addClass("samaya-gantt-check");
         const lk = nm.createSpan({ cls: "samaya-gantt-link", text: e.t.title });
         lk.onclick = () => { openFileBeside(this.app, e.t.file); };
         const tk = e.t.ticket ? ticketByPath.get(ticketPathOf(this.app, e.t)) : undefined;

@@ -64,7 +64,7 @@ export class FocusManager {
       if (have && have.dataset.variant === variant) return;
       have?.remove();
       const bar = createDiv("samaya-focus-bar"); bar.dataset.variant = variant; bar.toggleClass("is-current", here);
-      if (!here) bar.addEventListener("click", e => { if (!(e.target as HTMLElement).closest("button, a, .samaya-rcheck")) this.openNote(); }); // the bar itself: back to the task in a full page
+      bar.addEventListener("click", e => { if (!(e.target as HTMLElement).closest("button, a, .samaya-rcheck")) this.openNote(); }); // the bar itself: the task in a full page (its open tab, or a new one)
       const header = host.querySelector(":scope > .view-header");
       const meet = host.querySelector(":scope > .samaya-meet-bar"); // a meeting banner stays on top
       if (meet) meet.after(bar); else if (header && !span) header.after(bar); else host.prepend(bar);

@@ -3,6 +3,8 @@ import { calendarEnabled, calendarEvents } from "./calendar";
 import type { CalendarEvent } from "./eventnotes";
 import { fmtDur } from "./util";
 import { bannerSlots, removeBarStacks } from "./bars";
+import { openFull } from "./openfile";
+import { TFile } from "obsidian";
 
 const hm = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 
@@ -47,6 +49,14 @@ export class MeetingBanner {
     for (const { host, span } of bannerSlots(this.plugin.app)) {
       if (host.querySelector(":scope > .samaya-meet-bar")) return;
       const bar = createDiv("samaya-meet-bar");
+      const note = ev.notePath;
+      if (note) { // anywhere in the bar (but a button) opens the meeting note in a full page
+        bar.addClass("is-clickable");
+        bar.addEventListener("click", e => {
+          if ((e.target as HTMLElement).closest("button, a")) return;
+          const f = this.plugin.app.vault.getAbstractFileByPath(note); if (f instanceof TFile) void openFull(this.plugin.app, f);
+        });
+      }
       const status = bar.createDiv("samaya-meet-status");
       status.createSpan({ cls: "samaya-meet-dot" }); status.createSpan({ cls: "samaya-meet-state", text: "In meeting" });
       bar.createSpan({ cls: "samaya-meet-title", text: ev.title });

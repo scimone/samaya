@@ -11,7 +11,7 @@ export function celebrate(anchor: HTMLElement) {
   const r = anchor.getBoundingClientRect(); if (!r.width && !r.height) return;
   const host = document.body.createDiv("samaya-sparks");
   host.style.left = `${r.left + r.width / 2}px`; host.style.top = `${r.top + r.height / 2}px`;
-  const colors = ["var(--samaya-green)", "#f5c542", "#ffffff", "#7be0a0", "#ff9f5a"];
+  const colors = ["var(--samaya-task)", "#f5c542", "#ffffff", "var(--samaya-task)", "#ff9f5a"];
   const n = 26;
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2 + Math.random() * 0.5; const d = 40 + Math.random() * 70;

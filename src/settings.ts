@@ -20,7 +20,7 @@ export interface SamayaSettings {
   syncOnStartup: boolean;
   lunchStart: string; lunchEnd: string; weeklyHours: number; workDays: number; /** all-day events with this word in the title mark vacation days ("" = off) */ vacationKeyword: string; /** % of every day's free time to keep unplanned */ bufferPercent: number; /** hex colour of tasks everywhere ("" = theme accent) */ taskColor: string; /** hex colour of meetings everywhere ("" = cyan) */ meetingColor: string; autoLunch: boolean;
   /** optional modules; off by default for new installs */
-  calendarOn: boolean; jiraOn: boolean; gitlabOn: boolean;
+  calendarOn: boolean; ticketsOn: boolean; jiraOn: boolean; gitlabOn: boolean;
   /** journal module: write into the daily note, and which parts */
   journalOn: boolean; journalPlanned: boolean; journalFinished: boolean; journalReview: boolean;
   journalWorkTimes: boolean; journalBreaks: boolean; journalTracked: boolean;
@@ -47,7 +47,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   jiraJql: "assignee = currentUser() AND resolution = Unresolved ORDER BY updated DESC",
   gitlabUrl: "https://gitlab.com", gitlabToken: "", gitlabScope: "assigned_to_me", syncOnStartup: false,
   lunchStart: "12:00", lunchEnd: "13:00", weeklyHours: 40, workDays: 5, vacationKeyword: "Urlaub", bufferPercent: 20, taskColor: "#8fcfa6", meetingColor: "#8db8f0", autoLunch: true,
-  calendarOn: false, jiraOn: false, gitlabOn: false,
+  calendarOn: false, ticketsOn: false, jiraOn: false, gitlabOn: false,
   journalOn: false, journalPlanned: true, journalFinished: true, journalReview: true,
   journalWorkTimes: true, journalBreaks: true, journalTracked: true, journalWeekPlan: true, journalWeekMeetings: true, journalWeekTasks: true,
   journalHideProps: true, journalOpenAfterPlan: false, journalNavBar: true,
@@ -72,6 +72,7 @@ export function migrateSettings(saved: Record<string, unknown>): Partial<SamayaS
   if (o.calendarOn == null) o.calendarOn = !!o.eventNotesFolder;
   if (o.jiraOn == null) o.jiraOn = !!(o.jiraUrl && o.jiraToken);
   if (o.gitlabOn == null) o.gitlabOn = !!o.gitlabToken;
+  if (o.ticketsOn == null) o.ticketsOn = !!(o.jiraOn || o.gitlabOn); // the tickets module is on wherever an integration was
   if (o.journalOn == null) o.journalOn = Object.keys(saved).length > 0; // the journal was always on for existing installs
   // ticket variables were called TASK_* before
   for (const k of ["ticketsPath", "ticketFileName"]) if (typeof o[k] === "string") o[k] = (o[k] as string).replace(/\bTASK_/g, "TICKET_");
@@ -421,10 +422,27 @@ export class SamayaSettingTab extends PluginSettingTab {
       new Setting(el).setName("Import now").setDesc(`Fetch your ${name} issues into the tickets path.`).addButton(bt => bt.setButtonText(`Sync ${name}`).setCta().onClick(async () => { bt.setDisabled(true); try { await this.plugin.syncTickets(which); } finally { bt.setDisabled(false); } }));
 
     tabDivider();
-    tab("jira", "Jira", "ticket");
+    tab("tickets", "Tickets", "ticket");
+    {
+      const b = card("Tickets", "Ticket notes in your vault, with a kanban board in the planner. Works on its own; Jira and GitLab below can import tickets into it.", {
+        enabled: { get: () => s.ticketsOn, set: v => { s.ticketsOn = v; if (v) { void this.plugin.scaffoldTickets(false); this.plugin.scheduleTaskLists(); } this.plugin.bus.emit(); } },
+        status: () => s.ticketsPath.trim() ? ["On", "ok"] : ["Needs a folder", "warn"],
+      });
+      note(b, "A kanban board of all tickets (columns: status, rows: project) is the Tickets entry of the planner.");
+      label(b, "Notes & templates");
+      pathText(b, "Tickets path", "Where ticket notes are stored.", "ticketsPath", `May contain ticket variables (${vars(TICKET_VARIABLES)}), e.g. [Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}} ({{TICKET_SOURCE}} is JIRA or GITLAB). With {{TICKET_STATUS}}, notes move when the ticket's status changes.`);
+      const fn = new Setting(b).setName("Ticket file name").setDesc("Ticket variables in double braces, plus {{TICKET_TITLE_SLUG}} (the title as a slug). Leave out “.md”.");
+      const fnPreview = fn.descEl.createDiv({ cls: "samaya-path-preview" });
+      const showFn = () => fnPreview.setText("Example: " + renderTicketFileName(s.ticketFileName, SAMPLE_TICKET) + ".md");
+      fn.addText(t => t.setValue(s.ticketFileName).setPlaceholder(DEFAULT_SETTINGS.ticketFileName).onChange(async v => { s.ticketFileName = v.trim() || DEFAULT_SETTINGS.ticketFileName; await changed(); showFn(); })); showFn();
+      template(b, "Ticket note template", `Path of a template note. Variables: ${vars(TICKET_VARIABLES)} {{date}}.`, "ticketTemplate");
+      label(b, "Sync");
+      toggle(b, "Sync on startup", "Import tickets from the enabled Jira / GitLab integrations when Obsidian starts.", () => s.syncOnStartup, v => (s.syncOnStartup = v));
+    }
+
     {
       const b = card("Jira", "Import the issues assigned to you as ticket notes.", {
-        enabled: { get: () => s.jiraOn, set: v => { s.jiraOn = v; if (v) { void this.plugin.scaffoldTickets(false); this.plugin.scheduleTaskLists(); } } },
+        enabled: { get: () => s.jiraOn, set: v => { s.jiraOn = v; } },
         status: () => (s.jiraUrl && s.jiraToken && (s.jiraFlavor === "server" || s.jiraEmail)) ? ["Configured", "ok"] : ["Needs setup", "warn"],
       });
       label(b, "Connection");
@@ -441,10 +459,9 @@ export class SamayaSettingTab extends PluginSettingTab {
       refreshers.push(() => { if (!!emailBox.firstChild !== (s.jiraFlavor === "cloud")) renderEmail(); });
     }
 
-    tab("gitlab", "GitLab", "git-merge");
     {
       const b = card("GitLab", "Import GitLab issues as ticket notes.", {
-        enabled: { get: () => s.gitlabOn, set: v => { s.gitlabOn = v; if (v) void this.plugin.scaffoldTickets(false); } },
+        enabled: { get: () => s.gitlabOn, set: v => { s.gitlabOn = v; } },
         status: () => (s.gitlabUrl && s.gitlabToken) ? ["Configured", "ok"] : ["Needs setup", "warn"],
       });
       label(b, "Connection");
@@ -454,21 +471,6 @@ export class SamayaSettingTab extends PluginSettingTab {
       label(b, "Import");
       dropdown(b, "Issues to import", "", { assigned_to_me: "Assigned to me", created_by_me: "Created by me", all: "All I can see" }, () => s.gitlabScope, v => { s.gitlabScope = v; });
       syncBtn(b, "gitlab", "GitLab");
-    }
-
-    tab("tickets", "Tickets", "list-checks");
-    {
-      const b = card("Tickets", "Ticket notes imported from Jira and GitLab. Both share these settings. Appears when either is on.", { activeWhen: () => s.jiraOn || s.gitlabOn });
-      note(b, "A kanban board of all tickets (columns: status, rows: Jira / GitLab project) is the Tickets entry of the planner.");
-      label(b, "Notes & templates");
-      pathText(b, "Tickets path", "Where ticket notes are stored.", "ticketsPath", `May contain ticket variables (${vars(TICKET_VARIABLES)}), e.g. [Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}} ({{TICKET_SOURCE}} is JIRA or GITLAB). With {{TICKET_STATUS}}, notes move when the ticket's status changes.`);
-      const fn = new Setting(b).setName("Ticket file name").setDesc("Ticket variables in double braces, plus {{TICKET_TITLE_SLUG}} (the title as a slug). Leave out “.md”.");
-      const fnPreview = fn.descEl.createDiv({ cls: "samaya-path-preview" });
-      const showFn = () => fnPreview.setText("Example: " + renderTicketFileName(s.ticketFileName, SAMPLE_TICKET) + ".md");
-      fn.addText(t => t.setValue(s.ticketFileName).setPlaceholder(DEFAULT_SETTINGS.ticketFileName).onChange(async v => { s.ticketFileName = v.trim() || DEFAULT_SETTINGS.ticketFileName; await changed(); showFn(); })); showFn();
-      template(b, "Ticket note template", `Path of a template note. Variables: ${vars(TICKET_VARIABLES)} {{date}}.`, "ticketTemplate");
-      label(b, "Sync");
-      toggle(b, "Sync on startup", "Import tickets from the enabled integrations when Obsidian starts.", () => s.syncOnStartup, v => (s.syncOnStartup = v));
     }
     tab("navigation", "Navigation", "compass");
     {

@@ -132,7 +132,7 @@ export function renderTaskCard(plugin: SamayaPlugin, el: HTMLElement, file: TFil
     };
     const ticketPath = t.ticket ? plugin.app.metadataCache.getFirstLinkpathDest(t.ticket, file!.path)?.path ?? "" : "";
     if (plugin.settings.projectsOn || projectPath) relation("Project", "folder-kanban", projectPath, f => f.basename, m => addProjectItems(m, plugin, t));
-    if (plugin.settings.jiraOn || plugin.settings.gitlabOn || ticketPath) relation("Ticket", "ticket", ticketPath, f => { const k = readTicket(plugin.app, f); return k.summary ? `${k.key} • ${k.summary}` : k.key; }, m => addTicketItems(m, plugin, t));
+    if (plugin.settings.ticketsOn || ticketPath) relation("Ticket", "ticket", ticketPath, f => { const k = readTicket(plugin.app, f); return k.summary ? `${k.key} • ${k.summary}` : k.key; }, m => addTicketItems(m, plugin, t));
     return card;
   }
 }

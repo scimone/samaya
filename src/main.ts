@@ -120,11 +120,11 @@ export default class SamayaPlugin extends Plugin {
     // sync commands only show while their module is switched on
     const gated = (id: string, name: string, on: () => boolean, only?: "jira" | "gitlab") =>
       this.addCommand({ id, name, checkCallback: c => { if (!on()) return false; if (!c) void this.syncTickets(only); return true; } });
-    gated("sync-tickets", "Sync Jira and GitLab tickets", () => this.settings.jiraOn || this.settings.gitlabOn);
-    gated("sync-jira", "Sync Jira tickets", () => this.settings.jiraOn, "jira");
-    gated("sync-gitlab", "Sync GitLab issues", () => this.settings.gitlabOn, "gitlab");
+    gated("sync-tickets", "Sync Jira and GitLab tickets", () => this.settings.ticketsOn && (this.settings.jiraOn || this.settings.gitlabOn));
+    gated("sync-jira", "Sync Jira tickets", () => this.settings.ticketsOn && this.settings.jiraOn, "jira");
+    gated("sync-gitlab", "Sync GitLab issues", () => this.settings.ticketsOn && this.settings.gitlabOn, "gitlab");
     this.addCommand({ id: "assign-ticket", name: "Assign current task note to a ticket", checkCallback: c => {
-      const f = this.app.workspace.getActiveFile(); const ok2 = (this.settings.jiraOn || this.settings.gitlabOn) && !!f && f.path.startsWith(prefixOf(this.settings.tasksPath));
+      const f = this.app.workspace.getActiveFile(); const ok2 = this.settings.ticketsOn && !!f && f.path.startsWith(prefixOf(this.settings.tasksPath));
       if (ok2 && !c && f) new TicketSuggestModal(this, t => { void assignTicketLinked(this.app, this.settings, f, t); }, t => ticketFits(this.app, this.settings, f, t)).open(); return ok2;
     } });
     // project commands only show while the module is switched on
@@ -134,7 +134,7 @@ export default class SamayaPlugin extends Plugin {
       return true;
     } });
     this.addCommand({ id: "open-tickets", name: "Open ticket board", checkCallback: c => {
-      if (!this.settings.jiraOn && !this.settings.gitlabOn) return false;
+      if (!this.settings.ticketsOn) return false;
       if (!c) void this.scaffoldTickets(false).then(() => this.openSection("tickets"));
       return true;
     } });
@@ -172,7 +172,7 @@ export default class SamayaPlugin extends Plugin {
       this.scanLunch();
       void this.markJournalNotes();
       await this.scaffold(false);
-      if (this.settings.syncOnStartup && (this.settings.jiraOn || this.settings.gitlabOn)) void this.syncTickets();
+      if (this.settings.syncOnStartup && this.settings.ticketsOn && (this.settings.jiraOn || this.settings.gitlabOn)) void this.syncTickets();
       if (this.settings.openOnStartup) await this.openPlanner();
       this.registerInterval(window.setInterval(() => this.shutdownNudge(), 60000));
       const promote = () => { void promoteParked(this.app, this.settings); };
@@ -277,7 +277,7 @@ export default class SamayaPlugin extends Plugin {
 
   /** Tickets folder (only while Jira or GitLab is on). */
   async scaffoldTickets(_announce: boolean) {
-    if (!this.settings.jiraOn && !this.settings.gitlabOn) return;
+    if (!this.settings.ticketsOn) return;
     const folder = rootOf(this.settings.ticketsPath);
     if (folder !== "/") await ensureFolder(this.app, folder);
   }
@@ -412,7 +412,7 @@ export default class SamayaPlugin extends Plugin {
     if (this.collapseTimeline(true)) this.leftCollapsedByGuide = true;
     const ws = this.app.workspace; const now = new Date(); const wk = weekToPlan(today(), now.getDay());
     const leftover = allTasks(this.app, this.settings).some(t => isLeftover(t, today(), wk));
-    const tickets = (this.settings.jiraOn || this.settings.gitlabOn) && allTickets(this.app, this.settings).some(t => !/(done|closed|resolved|complete|finished|released|cancel)/i.test(t.state));
+    const tickets = this.settings.ticketsOn && allTickets(this.app, this.settings).some(t => !/(done|closed|resolved|complete|finished|released|cancel)/i.test(t.state));
     this.guide = { step: weekSteps(leftover, tickets)[0], review: leftover, fresh: true, kind: "week", week: wk, tickets };
     await this.openPlanner();
     if (ws.leftSplit && !ws.leftSplit.collapsed) { ws.leftSplit.collapse(); this.leftCollapsedByGuide = true; }

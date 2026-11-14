@@ -54,7 +54,7 @@ export class KanbanView extends Panel {
     const s = this.plugin.settings;
     const right = head0.createDiv("samaya-planner-right");
     if (all.length) renderSearch(right, "Search tickets", memory.query, v => { memory.query = v; }, () => this.render(), id => { this.timer = id; });
-    if (s.jiraOn || s.gitlabOn || all.length) {
+    if (s.ticketsOn || all.length) {
       const b = right.createEl("button", { cls: "samaya-hd-icon", attr: { "aria-label": "Sync Jira / GitLab tickets" } });
       setIcon(b, "refresh-cw"); b.onclick = () => { void this.plugin.syncTickets(); };
     }

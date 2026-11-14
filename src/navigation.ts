@@ -46,7 +46,7 @@ export class NavShortcuts {
       out.push({ id: "projects", name: "Projects", icon: "folder-kanban", open: () => p.openSection("projects"), folders: [dir], folder: dir, create: { label: "New project", icon: "folder-kanban", run: () => new TextPromptModal(p, "New project name", n => { void createProject(p.app, s, n).then(() => p.bus.emit()); }).open() } });
     }
     const tdir = root(s.ticketsPath);
-    if (s.jiraOn || s.gitlabOn || (tdir && p.app.vault.getAbstractFileByPath(normalizePath(tdir)))) { // also while only the ticket notes exist
+    if (s.ticketsOn || (tdir && p.app.vault.getAbstractFileByPath(normalizePath(tdir)))) { // also while only the ticket notes exist
       const dir = tdir;
       out.push({ id: "tickets", name: "Tickets", icon: "ticket", open: () => p.openSection("tickets"), folders: dir ? [dir] : [], folder: dir ?? "/" });
     }

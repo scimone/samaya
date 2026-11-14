@@ -182,7 +182,7 @@ export class GanttView extends Panel {
       row.addEventListener("contextmenu", e => { // the project's actions (they used to be buttons shown on hover)
         e.preventDefault(); const m = new Menu();
         m.addItem(i => i.setTitle("New task").setIcon("circle-check").onClick(() => { this.plugin.newTaskForProject(p.file); }));
-        if (s.jiraOn || s.gitlabOn || byProject.size || allTk) m.addItem(i => i.setTitle("Link to a ticket or ticket project").setIcon("ticket").onClick(() => {
+        if (s.ticketsOn || byProject.size || allTk) m.addItem(i => i.setTitle("Link to a ticket or ticket project").setIcon("ticket").onClick(() => {
           new TicketTargetSuggestModal(this.plugin, p.file.path, t => {
             void (t.kind === "ticket" ? linkProject(this.app, s, p.file, [t.ticket]) : linkProject(this.app, s, p.file, t.tickets, t.name)).then(() => this.plugin.bus.emit());
           }).open();

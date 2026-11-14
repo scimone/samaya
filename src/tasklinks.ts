@@ -16,7 +16,7 @@ export function taskListBody(tasks: Task[]): string {
 
 /** Notes (path -> tasks) that get a Tasks section: projects while projects are on, tickets while Jira or GitLab is on. */
 export async function syncTaskLists(app: App, s: SamayaSettings): Promise<void> {
-  const projectsOn = s.projectsOn, ticketsOn = s.jiraOn || s.gitlabOn;
+  const projectsOn = s.projectsOn, ticketsOn = s.ticketsOn;
   if (!projectsOn && !ticketsOn) return;
   const byNote = new Map<string, Task[]>();
   if (projectsOn) for (const p of allProjects(app, s)) byNote.set(p.file.path, []);

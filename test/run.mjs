@@ -384,7 +384,7 @@ console.log("all tests passed");
 // ---- settings migration: optional modules that were already set up stay on
 {
   const { migrateSettings, DEFAULT_SETTINGS } = await import("./.settings.mjs");
-  assert.equal(DEFAULT_SETTINGS.jiraOn, false);
+  assert.equal(DEFAULT_SETTINGS.jiraOn, false); assert.equal(DEFAULT_SETTINGS.ticketsOn, false); assert.equal(migrateSettings({ jiraOn: true }).ticketsOn, true);
   const m = migrateSettings({ jiraUrl: "https://x.atlassian.net", jiraToken: "t", gitlabToken: "", eventNotesFolder: "Meetings" });
   assert.deepEqual([m.jiraOn, m.gitlabOn, m.calendarOn], [true, false, true]);
   assert.equal(migrateSettings({ calendarSource: "notes", eventNotesFolder: "Meetings" }).calendarOn, true);

@@ -62,7 +62,7 @@ export class TasksView extends Panel {
 
     const tickets = new Map<string, Ticket>(allTickets(app, s).map(t => [t.file.path, t]));
     const projects = new Map<string, Project>(allProjects(app, s).map(p => [p.file.path, p]));
-    const canTicket = s.jiraOn || s.gitlabOn || tickets.size > 0, canProject = s.projectsOn;
+    const canTicket = s.ticketsOn || tickets.size > 0, canProject = s.projectsOn;
     if ((memory.group === "ticket" && !canTicket) || (memory.group === "project" && !canProject)) memory.group = "none";
     const laneOf = (t: Task) => memory.group === "ticket" ? ticketPathOf(app, t) : memory.group === "project" ? projectPathOf(app, t.file) : "";
     const laneLabel = (k: string) => memory.group === "ticket" ? tickets.get(k)?.key ?? k : projects.get(k)?.name ?? k;
@@ -77,7 +77,7 @@ export class TasksView extends Panel {
     const q = memory.query.trim().toLowerCase();
     if (q) { this.readTicketNotes([...tickets.values()]); items = items.filter(it => this.text(it.t, tickets, projects).includes(q)); }
 
-    this.head(items, canTicket, canProject, tickets.size > 0 || s.jiraOn || s.gitlabOn);
+    this.head(items, canTicket, canProject, tickets.size > 0 || s.ticketsOn);
     const scroll = this.root.createDiv("samaya-tk-scroll" + (memory.group === "none" ? " is-flat" : "")); const grid = scroll.createDiv("samaya-tk-grid"); grid.style.setProperty("--cols", String(cols.length));
     const hooks = memory.mode === "board" ? this.boardHooks(td) : this.backlogHooks(td);
 

@@ -1138,7 +1138,9 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-rv-ring svg { display: block; width: 100%; height: 100%; }
 .samaya-rv-ring-bg { fill: none; stroke: var(--background-modifier-border); stroke-width: 14; }
 .samaya-rv-ring-seg { fill: none; stroke-width: 14; transition: stroke-dasharray 0.8s cubic-bezier(0.22, 1, 0.36, 1); }
-.samaya-rv-ring-mid { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.samaya-rv-ring-mid { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; pointer-events: none; }
+.samaya-rv-ring-d { font-size: var(--samaya-fs-label); color: var(--text-muted); }
+.samaya-rv-ring:not(.is-hover) .samaya-rv-ring-mid:has(.samaya-rv-ring-n:empty) { display: none; }
 .samaya-rv-ring-n { font-size: var(--font-ui-medium); font-weight: 700; font-variant-numeric: tabular-nums; }
 .samaya-rv-glist { display: flex; flex-direction: column; flex: 1; min-width: 0; max-height: 112px; }
 .samaya-rv-g { display: flex; align-items: center; gap: 8px; padding: 4px 2px; font-size: var(--font-ui-small); min-width: 0; }

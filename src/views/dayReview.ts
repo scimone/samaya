@@ -56,14 +56,28 @@ const settle = (fn: () => void) => { if (anim) requestAnimationFrame(() => reque
 /** Clicking a task, meeting, ticket or project of the review opens its note in the side pane. */
 let appRef: App | null = null;
 function setOpener(plugin: SamayaPlugin) { appRef = plugin.app; }
+/** Put every hover state of the review back: the lit task, and the lit part (and its time) of the rings. */
+function resetHover(from: Element | null) {
+  const daily = from?.closest(".samaya-daily"); if (!daily) return;
+  daily.querySelectorAll(".samaya-rv-ring").forEach(b => b.dispatchEvent(new CustomEvent("samaya-hot", { detail: null })));
+  daily.querySelectorAll(".samaya-rv.is-linking").forEach(x => x.classList.remove("is-linking")); daily.querySelectorAll(".is-linked").forEach(x => x.classList.remove("is-linked"));
+}
+let dropHoverGuard: (() => void) | null = null;
+/** Switching to another window (or tab) and back leaves hover states behind: no mouseleave arrives for what the pointer left meanwhile. Reset them whenever the window loses or regains focus. */
+function guardHover(root: HTMLElement) {
+  dropHoverGuard?.();
+  const win = root.ownerDocument.defaultView ?? window; const doc = root.ownerDocument;
+  const reset = () => { if (!root.isConnected) { dropHoverGuard?.(); return; } resetHover(root); };
+  const vis = () => reset();
+  win.addEventListener("blur", reset); win.addEventListener("focus", reset); doc.addEventListener("visibilitychange", vis);
+  dropHoverGuard = () => { win.removeEventListener("blur", reset); win.removeEventListener("focus", reset); doc.removeEventListener("visibilitychange", vis); dropHoverGuard = null; };
+}
 function clickable(el: Element, path: string) {
   el.classList.add("is-clickable");
   el.addEventListener("click", e => {
     e.stopPropagation();
-    // the page changes under the pointer (a side pane opens), so no mouseleave may follow: put every hover state back now, or the rings keep their lit part and its time
-    el.dispatchEvent(new MouseEvent("mouseleave")); const daily = el.closest(".samaya-daily");
-    daily?.querySelectorAll(".samaya-rv-ring").forEach(b => b.dispatchEvent(new CustomEvent("samaya-hot", { detail: null })));
-    daily?.querySelectorAll(".samaya-rv.is-linking").forEach(x => x.classList.remove("is-linking")); daily?.querySelectorAll(".is-linked").forEach(x => x.classList.remove("is-linked"));
+    // the page changes under the pointer (a side pane opens), so no mouseleave may follow: put every hover state back now
+    el.dispatchEvent(new MouseEvent("mouseleave")); resetHover(el);
     const f = appRef?.vault.getAbstractFileByPath(path); if (appRef && f instanceof TFile) openFileSmart(appRef, f);
   });
 }
@@ -72,7 +86,7 @@ const ICON_OK = "check", ICON_UP = "trending-up", ICON_DOWN = "trending-down";
 /** Second step of "End my day": the planned day set against the day as it really went - a timeline of both, what changed task by task, and what was achieved per ticket / project. */
 export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { date: string; all: Task[]; meetings: number; events: ReviewEvent[] }) {
   anim = Date.now() - lastShown > 4000; lastShown = Date.now(); setOpener(plugin);
-  const grid = host.createDiv("samaya-rv"); const info = grid.createDiv("samaya-rv-col is-info"); const tl = grid.createDiv("samaya-rv-col is-tl"); const { items, hasPlan } = reviewItems(plugin, o.all, o.date); ringLinks = new Map(items.map(i => [i.key, { ticket: i.ticket, project: i.project }]));
+  const grid = host.createDiv("samaya-rv"); guardHover(grid); const info = grid.createDiv("samaya-rv-col is-info"); const tl = grid.createDiv("samaya-rv-col is-tl"); const { items, hasPlan } = reviewItems(plugin, o.all, o.date); ringLinks = new Map(items.map(i => [i.key, { ticket: i.ticket, project: i.project }]));
   const now = nowMin(); const log = plugin.workday.log; const [winFrom, winTo] = plugin.workWindowFor(o.date); const lunch = plugin.lunchFor(o.date);
   const worked = workedOn(log, now, plugin.dayRules); const breaks = log ? breakMinutes(log) + (log.open ? Math.max(0, now - hmToMin(log.open.start)) : 0) : 0;
   const { plannedItems, planned, comparableActual, focus } = dayTotals(items, hasPlan);
@@ -245,7 +259,7 @@ export function drawRings(host: HTMLElement, items: ReviewItem[], meetings: Meet
     const box = card.createDiv("samaya-rv-ring");
     const svg = box.createSvg("svg", { attr: { viewBox: "0 0 100 100", role: "img" } }); srName(svg, `Time per ${by}`, box);
     svg.createSvg("circle", { attr: { class: "samaya-rv-ring-bg", cx: "50", cy: "50", r: String(RING_R) } });
-    const time = box.createDiv("samaya-rv-ring-mid").createSpan("samaya-rv-ring-n"); // the time of the part under the pointer
+    const mid = box.createDiv("samaya-rv-ring-mid"); const time = mid.createSpan("samaya-rv-ring-n"); const doneEl = mid.createSpan("samaya-rv-ring-d"); // the time of the part under the pointer, and how many of its tasks are checked off
     box.dataset.by = by; const handlers = new Map<string, [() => void, () => void]>(); let lit: string | null = null;
     box.addEventListener("samaya-hot", e => { // a task is hovered somewhere else: light up its part (null: none)
       const label = (e as CustomEvent<string | null>).detail; if (lit) handlers.get(lit)?.[1](); lit = null;
@@ -262,8 +276,8 @@ export function drawRings(host: HTMLElement, items: ReviewItem[], meetings: Meet
       }
       const row = legend.createDiv("samaya-rv-lg" + (g.actual > 0 ? "" : " is-empty")); row.createSpan("samaya-rv-dot").style.background = colour(g.label, n);
       row.createSpan({ cls: "samaya-rv-lg-name", text: g.label, attr: { "aria-label": g.label } });
-      const on = () => { time.setText(fmtDur(Math.round(g.actual))); if (c) { box.addClass("is-hover"); c.classList.add("is-hot"); } row.addClass("is-hot"); };
-      const off = () => { time.setText(""); box.removeClass("is-hover"); c?.classList.remove("is-hot"); row.removeClass("is-hot"); };
+      const on = () => { time.setText(fmtDur(Math.round(g.actual))); doneEl.setText(g.tasks ? `${g.done} done` : ""); if (c) { box.addClass("is-hover"); c.classList.add("is-hot"); } row.addClass("is-hot"); };
+      const off = () => { time.setText(""); doneEl.setText(""); box.removeClass("is-hover"); c?.classList.remove("is-hot"); row.removeClass("is-hot"); };
       handlers.set(g.label, [on, off]);
       const note = g.target ? appRef?.metadataCache.getFirstLinkpathDest(g.target, "") : null; // the ticket / project note: click opens it
       for (const el of [c, row]) if (el) { el.addEventListener("mouseenter", on); el.addEventListener("mouseleave", off); if (note) clickable(el, note.path); }

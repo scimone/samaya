@@ -121,10 +121,10 @@ export class GanttView extends Panel {
 
     if (!projects.length) chart.createDiv({ cls: "samaya-empty", text: q ? "No projects match." : "No projects yet. Use “Add project”." });
     const byProject = new Map<string, Ticket[]>(); // tickets linked to each project (by note path)
-    const allTk = allTickets(this.app, s).length > 0;
-    for (const t of allTickets(this.app, s)) { const pp = projectPathOf(this.app, t.file); if (pp) (byProject.get(pp) ?? byProject.set(pp, []).get(pp)!).push(t); }
+    const tickets = allTickets(this.app, s); const allTk = tickets.length > 0;
+    for (const t of tickets) { const pp = projectPathOf(this.app, t.file); if (pp) (byProject.get(pp) ?? byProject.set(pp, []).get(pp)!).push(t); }
     const navs: Array<{ track: HTMLElement; bar: HTMLElement; x0: number; x1: number; btn: HTMLElement | null }> = [];
-    const ticketByPath = new Map(allTickets(this.app, s).map(t => [t.file.path, t] as const));
+    const ticketByPath = new Map(tickets.map(t => [t.file.path, t] as const));
     const taskRows = (p: Project) => {
       const l = tasksOf.get(p.file.path); if (!l || !memory.open.has(p.file.path)) return;
       const expanded = memory.all.has(p.file.path); const c = collapseTasks(l.length, expanded);

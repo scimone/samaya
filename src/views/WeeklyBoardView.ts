@@ -176,10 +176,12 @@ export class WeeklyBoardView extends PlannerPane {
       const sc = scroller(area, "kb", "samaya-wg-kb");
       if (!tickets.length) sc.createDiv({ cls: "samaya-empty", text: "No open tickets." });
       const { columns, lanes } = groupTickets(tickets);
+      const byTicket = new Map<string, Task[]>(); for (const t of all) { const tp = ticketPathOf(this.app, t); if (tp) (byTicket.get(tp) ?? byTicket.set(tp, []).get(tp)!).push(t); } // once, not per ticket
+      const perState = new Map<string, number>(); for (const t of tickets) { const k = t.state || "No status"; perState.set(k, (perState.get(k) ?? 0) + 1); }
       if (tickets.length) {
         const grid = sc.createDiv("samaya-kb-grid"); grid.style.setProperty("--cols", String(columns.length));
         const hd = grid.createDiv("samaya-kb-cols");
-        for (const c of columns) hd.createDiv({ cls: "samaya-kb-colhead", text: `${c} (${tickets.filter(t => (t.state || "No status") === c).length})` });
+        for (const c of columns) hd.createDiv({ cls: "samaya-kb-colhead", text: `${c} (${perState.get(c) ?? 0})` });
         for (const lane of lanes) {
           const box = grid.createDiv("samaya-kb-lane"); const closed = this.kbCollapsed.has(lane.project);
           const title = box.createDiv({ cls: "samaya-kb-lanehead" + (closed ? " is-collapsed" : "") });
@@ -189,7 +191,7 @@ export class WeeklyBoardView extends PlannerPane {
           const row = box.createDiv("samaya-kb-row");
           for (const c of columns) {
             const cell = row.createDiv("samaya-kb-cell");
-            for (const tk of lane.cells.get(c) ?? []) this.ticketCard(cell, tk, all.filter(t => ticketPathOf(this.app, t) === tk.file.path), wk);
+            for (const tk of lane.cells.get(c) ?? []) this.ticketCard(cell, tk, byTicket.get(tk.file.path) ?? [], wk);
           }
         }
       }

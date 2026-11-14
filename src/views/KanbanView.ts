@@ -61,27 +61,31 @@ export class KanbanView extends Panel {
       setIcon(b, "refresh-cw"); b.onclick = () => { void this.plugin.syncTickets(); };
     }
     if (!all.length) { this.root.createDiv({ cls: "samaya-empty", text: "No tickets yet. Import them from Jira or GitLab (Sync tickets)." }); return; }
-    const projectOf0 = (t: Ticket): TFile | null => { const f = this.app.vault.getAbstractFileByPath(projectPathOf(this.app, t.file)); return f instanceof TFile ? f : null; };
-    const linked = (t: { file: TFile }) => !!projectPathOf(this.app, t.file);
+    const ppCache = new Map<string, string>(); // the project of each ticket, resolved once per draw
+    const ppath = (f: TFile): string => { let v = ppCache.get(f.path); if (v === undefined) ppCache.set(f.path, v = projectPathOf(this.app, f)); return v; };
+    const projectOf0 = (t: Ticket): TFile | null => { const f = this.app.vault.getAbstractFileByPath(ppath(t.file)); return f instanceof TFile ? f : null; };
+    const linked = (t: { file: TFile }) => !!ppath(t.file);
+    const perLane = new Map<string, Ticket[]>(); for (const t of all) (perLane.get(t.project) ?? perLane.set(t.project, []).get(t.project)!).push(t);
+    const perState = new Map<string, number>(); for (const t of tickets) { const k = t.state || "No status"; perState.set(k, (perState.get(k) ?? 0) + 1); }
     const { columns } = groupTickets(all); const { lanes } = groupTickets(tickets); // the columns stay whatever the search finds
     if (!tickets.length) this.root.createDiv({ cls: "samaya-empty", text: "No tickets match." });
     const scroll = this.root.createDiv("samaya-kb-scroll");
     const grid = scroll.createDiv("samaya-kb-grid"); grid.style.setProperty("--cols", String(columns.length));
     const head = grid.createDiv("samaya-kb-cols");
-    for (const c of columns) head.createDiv({ cls: "samaya-kb-colhead", text: `${c} (${tickets.filter(t => (t.state || "No status") === c).length})` });
+    for (const c of columns) head.createDiv({ cls: "samaya-kb-colhead", text: `${c} (${perState.get(c) ?? 0})` });
     for (const lane of lanes) {
       const box = grid.createDiv("samaya-kb-lane");
       const title = box.createDiv({ cls: "samaya-kb-lanehead" + (this.collapsed.has(lane.project) ? " is-collapsed" : "") });
       title.createSpan({ cls: "samaya-kb-chevron", text: "▾" }); title.createSpan({ text: lane.project }); title.createSpan({ cls: "samaya-kb-count", text: String(lane.count) });
-      const projectOf = (t: Ticket) => projectPathOf(this.app, t.file);
-      const laneProjects = new Set(all.filter(t => t.project === lane.project).map(projectOf).filter(Boolean));
+      const laneAll = perLane.get(lane.project) ?? [];
+      const laneProjects = new Set(laneAll.map(t => ppath(t.file)).filter(Boolean));
       for (const pp of laneProjects) { // projects created from this Jira / GitLab project
         const pf = this.app.vault.getAbstractFileByPath(pp); if (!(pf instanceof TFile)) continue;
         if (String(this.app.metadataCache.getFileCache(pf)?.frontmatter?.ticket_project ?? "") !== lane.project) continue;
         const chip = projectChip(title.createSpan("samaya-card-meta samaya-kb-projectchip"), pf.basename); chip.addClass("is-link");
         chip.onclick = e => { e.stopPropagation(); openFileSmart(this.app, pf); };
       }
-      const open = all.filter(t => t.project === lane.project && !linked(t));
+      const open = laneAll.filter(t => !linked(t));
       if (s.projectsOn && lane.project !== NO_PROJECT && open.length) {
         const add = title.createSpan({ cls: "samaya-kb-addproject", attr: { "aria-label": `Create a project from ${lane.project}` } }); setIcon(add, "folder-plus");
         add.onclick = e => { e.stopPropagation(); this.newProject(lane.project, open, lane.project); };

@@ -468,6 +468,7 @@ await bundle("src/dayreview.ts", "test/.dayreview.mjs");
   const runs = ["2026-11-11 09:05–09:40", "2026-11-11 10:00-10:30", "2026-11-10 09:00–10:00", "2026-11-11 23:30–2026-11-12 00:20", "junk"];
   assert.equal(runMinutesOn(runs, "2026-11-11"), 35 + 30 + 30);
   assert.deepEqual(runSpansOn(runs, "2026-11-11"), [{ s: 545, e: 580 }, { s: 600, e: 630 }, { s: 1410, e: 1440 }]);
+  assert.deepEqual(runSpansOn(runs, "2026-11-12"), [{ s: 0, e: 20 }]); // the rest of the run that crossed midnight
   const it = (o) => ({ key: o.title, wasPlanned: true, planned: 0, actual: 0, done: false, slots: [], spans: [], ticket: "", project: "", ...o });
   const sp = (s, e) => ({ s, e });
   const items = [

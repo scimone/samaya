@@ -7,10 +7,12 @@ export function runSpansOn(runs: unknown[], date: string): Span[] {
   const out: Span[] = [];
   for (const r of runs) {
     const m = String(r).match(/^\s*(\d{4}-\d{2}-\d{2})\s+(\d{1,2}):(\d{2})\s*[–-]\s*(?:(\d{4}-\d{2}-\d{2})\s+)?(\d{1,2}):(\d{2})\s*$/);
-    if (!m || m[1] !== date) continue;
+    if (!m) continue;
     const a = +m[2] * 60 + +m[3]; let b = +m[5] * 60 + +m[6];
-    if (m[4] && m[4] !== m[1]) b = 1440; // crossed midnight: only the part up to midnight belongs to this day
-    if (b > a) out.push({ s: a, e: b });
+    if (m[1] === date) {
+      if (m[4] && m[4] !== m[1]) b = 1440; // crossed midnight: only the part up to midnight belongs to this day
+      if (b > a) out.push({ s: a, e: b });
+    } else if (m[4] === date && b > 0) out.push({ s: 0, e: b }); // the part of last night's run after midnight
   }
   return out.sort((x, y) => x.s - y.s);
 }

@@ -96,9 +96,6 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   stat("Tasks done", `${done + addedDone} of ${plannedItems.length + added.length}`, added.length ? `${added.length} unplanned` : "");
   stat("Time on tasks", fmtDur(focus), planned ? `plan ${fmtDur(planned)}` : "", planned ? signed(focus - planned, fmtDur) : "", planned > 0 && focus > planned ? "is-warn" : "is-ok");
 
-  // ---- time per ticket and per project, when those are in use
-  drawRings(info, items, meetingLinksOf(plugin, o.events), worked);
-
   // ---- every task of the day, the changes first: takes the height that is left and scrolls when it is too long
   const diff = rows.filter(r => r.changes.length); const same = rows.filter(r => !r.changes.length);
   const sec = info.createDiv("samaya-rv-sec is-grow");
@@ -113,6 +110,12 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
     for (const r of same) drawRow(table, r, grid);
   }
 
+}
+
+/** Time per ticket and per project, one ring under the other (drawn in the guide column, under the End my day button). Nothing is drawn when neither is in use. */
+export function renderReviewRings(plugin: SamayaPlugin, host: HTMLElement, o: { date: string; all: Task[]; events: ReviewEvent[] }) {
+  const { items } = reviewItems(plugin, o.all, o.date); const log = plugin.workday.log;
+  drawRings(host, items, meetingLinksOf(plugin, o.events), workedOn(log, nowMin(), plugin.dayRules));
 }
 
 /** One task of the comparison table: its planned and actual start and length, what differs as chips, the gap in tracked time. */

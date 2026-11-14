@@ -13,7 +13,7 @@ import { bindCardDrop, bindZone, renderBacklogBuckets, renderTaskCard, richText 
 import { calendarEnabled, calendarEvents, eventNote, inEventFolder } from "../calendar";
 import { celebrate, renderDoneBar } from "./doneBar";
 import { renderGuide } from "./guide";
-import { renderDayReview } from "./dayReview";
+import { renderDayReview, renderReviewRings } from "./dayReview";
 import { renderLoadBar } from "./loadBar";
 import { renderTimeline, TimelineState } from "./timelineKit";
 import { capacityWindow, Capacity } from "../worktime";
@@ -108,9 +108,14 @@ export class DailyPlannerView extends PlannerPane {
     let body = left; // where today's planned list goes
     if (reviewDay) { // the review replaces the task list and the timeline; the guide stays on the left
       left.addClass("is-review-col");
-      try { renderDayReview(this.plugin, left, { date: this.date, all, meetings: cap.meetings, events: tlEvents.filter(e => !e.allDay).map(e => ({ title: e.title, notePath: e.notePath, s: Math.max(0, (e.start.getTime() - dayMs) / 60000), e: Math.min(1440, (e.end.getTime() - dayMs) / 60000) })).filter(e => e.e > e.s) }); }
+      const revEvents = tlEvents.filter(e => !e.allDay).map(e => ({ title: e.title, notePath: e.notePath, s: Math.max(0, (e.start.getTime() - dayMs) / 60000), e: Math.min(1440, (e.end.getTime() - dayMs) / 60000) })).filter(e => e.e > e.s);
+      try { renderDayReview(this.plugin, left, { date: this.date, all, meetings: cap.meetings, events: revEvents }); }
       catch (e) { console.error("Samaya: could not draw the day review", e); left.empty(); left.createDiv({ cls: "samaya-empty", text: `The day review could not be drawn: ${e instanceof Error ? e.message : String(e)}. You can still end your day.` }); }
-      if (info) { renderGuide(this.plugin, info, { overdue: 0 }); info.scrollTop = this.infoScroll; }
+      if (info) { // the guide, and under its button the time per ticket / project
+        renderGuide(this.plugin, info, { overdue: 0 });
+        try { renderReviewRings(this.plugin, info, { date: this.date, all, events: revEvents }); } catch (e) { console.error("Samaya: could not draw the time per ticket / project", e); }
+        info.scrollTop = this.infoScroll;
+      }
       return void this.finishRender(left);
     }
     if (!pg) { // tasks heading: title, done count, progress

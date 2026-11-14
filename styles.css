@@ -1118,7 +1118,7 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-rv-delta.is-over { color: var(--rv-over); } .samaya-rv-delta.is-under { color: var(--rv-ok); }
 
 /* per ticket / project: a ring each, the list beside it scrolls when long */
-.samaya-rv-rings { display: flex; justify-content: center; align-items: flex-start; gap: 16px 56px; padding: 14px 16px 12px; border-radius: var(--samaya-r-l); background: var(--background-primary-alt); border: 1px solid var(--background-modifier-border); }
+.samaya-rv-rings { --rv-other: color-mix(in srgb, var(--text-muted) 45%, var(--background-primary)); display: flex; flex-direction: column; align-items: center; gap: 22px; margin-top: 28px; padding: 16px 16px 14px; border-radius: var(--samaya-r-l); background: var(--background-primary-alt); border: 1px solid var(--background-modifier-border); }
 .samaya-rv-ringcard { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
 .samaya-rv-ring-t { font-size: var(--samaya-fs-label); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
 .samaya-rv-ring-name { height: 1.4em; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-ui-small); font-weight: 600; text-align: center; }

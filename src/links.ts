@@ -57,39 +57,40 @@ export async function linkProject(app: App, s: SamayaSettings, project: TFile, t
   }
 }
 
-// ---- meetings: a meeting note points at a project and / or a ticket with the same `assigned_project` / `assigned_ticket` properties as a task
+// ---- meetings: a meeting note points at any number of projects and tickets: `assigned_project` / `assigned_ticket` hold one link, or a list of links when there are several
 /** Path prefix of the meeting notes. */
 export const meetingsPrefix = (s: SamayaSettings): string => normalizePath(s.eventNotesFolder.trim() || "Meetings") + "/";
-/** Path of the ticket note a note points at via `assigned_ticket` ("" = none). */
-export function noteTicketPath(app: App, file: TFile): string {
-  const raw = app.metadataCache.getFileCache(file)?.frontmatter?.assigned_ticket;
-  const link = String(raw ?? "").replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0].trim();
-  return link ? app.metadataCache.getFirstLinkpathDest(link, file.path)?.path ?? "" : "";
+export type MeetingProp = "assigned_project" | "assigned_ticket";
+/** The links a property holds, as written (one string, a list, or the nested list Obsidian makes of an unquoted [[link]]). */
+function rawLinks(v: unknown): string[] {
+  if (Array.isArray(v)) return v.flatMap(rawLinks);
+  const link = String(v ?? "").replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0].trim();
+  return link ? [link] : [];
 }
-/** A meeting may take this ticket unless it is in one project and the ticket belongs to another. */
-export const meetingTicketFits = ticketFits;
-/** A meeting may take this project unless its ticket belongs to another project. */
-export function meetingProjectFits(app: App, s: SamayaSettings, note: TFile, project: Project): boolean {
-  const tp = noteTicketPath(app, note); const tk = tp ? allTickets(app, s).find(t => t.file.path === tp) : undefined;
-  const owner = tk ? ownerProjectOf(app, s, tk) : "";
-  return !owner || owner === project.file.path;
+/** Paths of the notes a meeting points at via `prop` (links that do not resolve are skipped). */
+export function meetingLinks(app: App, file: TFile, prop: MeetingProp): string[] {
+  const fm = app.metadataCache.getFileCache(file)?.frontmatter;
+  return [...new Set(rawLinks(fm?.[prop]).map(l => app.metadataCache.getFirstLinkpathDest(l, file.path)?.path ?? "").filter(Boolean))];
 }
-export async function assignMeetingTicket(app: App, s: SamayaSettings, note: TFile, ticket: Ticket | null): Promise<boolean> {
-  if (ticket && !meetingTicketFits(app, s, note, ticket)) { new Notice(`${ticket.key} belongs to another project than this meeting. Change the meeting's project first.`); return false; }
-  await patchNote(app, note, { assigned_ticket: ticket ? `[[${ticket.file.basename}]]` : null });
-  const pf = ticket && s.projectsOn ? fileAt(app, projectPathOf(app, ticket.file)) : null;
-  if (pf) await assignProject(app, note, readProject(app, pf));
-  return true;
+async function writeLinks(app: App, file: TFile, prop: MeetingProp, paths: string[]): Promise<void> {
+  const names = paths.map(p => `[[${p.split("/").pop()!.replace(/\.md$/, "")}]]`);
+  await patchNote(app, file, { [prop]: names.length === 0 ? null : names.length === 1 ? names[0] : names });
 }
-export async function assignMeetingProject(app: App, s: SamayaSettings, note: TFile, project: Project | null): Promise<boolean> {
-  if (project && !meetingProjectFits(app, s, note, project)) { new Notice("This meeting's ticket belongs to another project. Change or remove the ticket first."); return false; }
-  await assignProject(app, note, project);
-  return true;
+/** Add (or, with `remove`, drop) one project / ticket note on a meeting. */
+export async function changeMeetingLink(app: App, s: SamayaSettings, note: TFile, prop: MeetingProp, target: string, remove = false): Promise<void> {
+  const cur = meetingLinks(app, note, prop);
+  if (remove) { if (cur.includes(target)) await writeLinks(app, note, prop, cur.filter(p => p !== target)); return; }
+  if (!cur.includes(target)) await writeLinks(app, note, prop, [...cur, target]);
+  if (prop === "assigned_ticket" && s.projectsOn) { // a ticket brings its project along
+    const t = allTickets(app, s).find(x => x.file.path === target); const owner = t ? ownerProjectOf(app, s, t) : "";
+    const projects = meetingLinks(app, note, "assigned_project");
+    if (owner && !projects.includes(owner)) await writeLinks(app, note, "assigned_project", [...projects, owner]);
+  }
 }
 
 /**
  * New instances of a recurring meeting (created by other code) take the assignment of their series: every instance with neither a project nor a ticket gets
- * the project / ticket of the series' latest assigned instance. Instances that have any assignment are left alone. Returns how many notes were changed.
+ * the projects / tickets of the series' latest assigned instance. Instances that have any assignment are left alone. Returns how many notes were changed.
  */
 export async function syncMeetingLinks(app: App, s: SamayaSettings): Promise<number> {
   if (!s.projectsOn && !s.ticketsOn) return 0;
@@ -101,13 +102,14 @@ export async function syncMeetingLinks(app: App, s: SamayaSettings): Promise<num
   }
   const { series } = buildSeries(notes, "");
   let changed = 0;
+  const props = (path: string) => { const m = fm(files.get(path)!); return { assigned_project: rawLinks(m.assigned_project), assigned_ticket: rawLinks(m.assigned_ticket) }; };
+  const out = (l: string[]) => l.length === 0 ? null : l.length === 1 ? `[[${l[0]}]]` : l.map(x => `[[${x}]]`);
   for (const sr of series) {
-    const props = (path: string) => { const m = fm(files.get(path)!); return { assigned_project: m.assigned_project, assigned_ticket: m.assigned_ticket }; };
-    const has = (p: { assigned_project?: unknown; assigned_ticket?: unknown }) => !!String(p.assigned_project ?? "").trim() || !!String(p.assigned_ticket ?? "").trim();
+    const has = (p: ReturnType<typeof props>) => p.assigned_project.length > 0 || p.assigned_ticket.length > 0;
     const src = [...sr.instances].reverse().map(i => props(i.path)).find(has); if (!src) continue;
     for (const i of sr.instances) {
       if (has(props(i.path))) continue;
-      await patchNote(app, files.get(i.path)!, { assigned_project: s.projectsOn && src.assigned_project != null ? String(src.assigned_project) : null, assigned_ticket: s.ticketsOn && src.assigned_ticket != null ? String(src.assigned_ticket) : null }); changed++;
+      await patchNote(app, files.get(i.path)!, { assigned_project: s.projectsOn ? out(src.assigned_project) : null, assigned_ticket: s.ticketsOn ? out(src.assigned_ticket) : null }); changed++;
     }
   }
   return changed;

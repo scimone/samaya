@@ -1,8 +1,7 @@
 import { Menu, TFile, normalizePath, setIcon } from "obsidian";
 import { Panel } from "./panel";
 import { addMeetingLinkItems, projectChip, ticketChip } from "./common";
-import { noteTicketPath } from "../links";
-import { projectPathOf } from "../projects";
+import { meetingLinks } from "../links";
 import { openFileSmart } from "../openfile";
 import type SamayaPlugin from "../main";
 import { Instance, MeetingNote, Series, analyse, analyseCache, buildSeries, nextWorkday, parseNote, stripFrontmatter } from "../meetingseries";
@@ -184,19 +183,19 @@ export class MeetingsView extends Panel {
   private linkMenu(el: HTMLElement, ...paths: string[]) { // several paths: a recurring meeting, the assignment goes to all its notes
     el.addEventListener("contextmenu", e => {
       const fs = paths.map(p => this.app.vault.getAbstractFileByPath(p)).filter((f): f is TFile => f instanceof TFile); if (!fs.length) return;
-      if (!this.plugin.settings.projectsOn && !this.plugin.settings.ticketsOn && !noteTicketPath(this.app, fs[fs.length - 1])) return;
+      if (!this.plugin.settings.projectsOn && !this.plugin.settings.ticketsOn && !meetingLinks(this.app, fs[fs.length - 1], "assigned_ticket").length) return;
       e.preventDefault(); const m = new Menu(); addMeetingLinkItems(m, this.plugin, fs); m.showAtMouseEvent(e);
     });
   }
   /** project and ticket chips of a meeting */
   private chips(parent: HTMLElement, path: string) {
     const f = this.app.vault.getAbstractFileByPath(path); if (!(f instanceof TFile)) return;
-    const tp = noteTicketPath(this.app, f); const tf = tp ? this.app.vault.getAbstractFileByPath(tp) : null;
-    const pp = projectPathOf(this.app, f);
-    if (!(tf instanceof TFile) && !pp) return;
+    const tickets = meetingLinks(this.app, f, "assigned_ticket").map(p => this.app.vault.getAbstractFileByPath(p)).filter((x): x is TFile => x instanceof TFile);
+    const projects = meetingLinks(this.app, f, "assigned_project");
+    if (!tickets.length && !projects.length) return;
     parent.addClass("has-links"); const box = parent.createSpan("samaya-md-links samaya-card-meta");
-    if (tf instanceof TFile) ticketChip(this.plugin, box, tf);
-    if (pp) projectChip(box, pp.split("/").pop()!.replace(/\.md$/, ""));
+    for (const tf of tickets) ticketChip(this.plugin, box, tf);
+    for (const pp of projects) projectChip(box, pp.split("/").pop()!.replace(/\.md$/, ""));
   }
   /** a meeting as a row: time (or date when `dated`), title, note marker */
   private meetingRow(parent: HTMLElement, i: Instance, dated = false) {

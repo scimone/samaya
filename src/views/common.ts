@@ -11,7 +11,7 @@ import { focusButton, isCurrentTask, trackedBefore, joinParts, splitTitle } from
 import { openDayPicker } from "./dayPicker";
 import { PartsModal } from "./partsModal";
 import { projectPathOf } from "../projects";
-import { assignProjectLinked, assignTicketLinked, projectFits, ticketFits, assignMeetingProject, assignMeetingTicket, meetingProjectFits, meetingTicketFits, noteTicketPath } from "../links";
+import { assignProjectLinked, assignTicketLinked, projectFits, ticketFits, changeMeetingLink, meetingLinks, MeetingProp } from "../links";
 import { safeFileName, HORIZONS, Horizon, bucketOf, fmtDur, fmtHm, minToHm, parseDuration, parseYmd, startOfWeek, today } from "../util";
 
 export interface CardOpts {
@@ -291,15 +291,17 @@ export function bindCardDrop(scope: DndScope, card: HTMLElement, onDrop: (path: 
   });
 }
 
-/** Project / ticket entries of the menu of a meeting (same wording as for tasks). A recurring meeting passes all its notes: the assignment goes to each of them (the state shown is the last one's). */
+/** Project / ticket entries of the menu of a meeting: add as many as you like, remove each one. A recurring meeting passes all its notes: every change goes to each of them. */
 export function addMeetingLinkItems(m: Menu, plugin: SamayaPlugin, files: TFile[]) {
-  const app = plugin.app; const st = plugin.settings; const f = files[files.length - 1];
-  const each = async (run: (n: TFile) => Promise<boolean>) => { for (const n of files) if (!(await run(n))) break; };
-  const tp = noteTicketPath(app, f);
-  if (st.ticketsOn || tp) m.addItem(i => i.setTitle(tp ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void each(n => assignMeetingTicket(app, st, n, tk)); }, tk => files.every(n => meetingTicketFits(app, st, n, tk)), true).open()));
-  if (tp) m.addItem(i => i.setTitle("Unlink ticket").setIcon("unlink").onClick(() => { void each(n => assignMeetingTicket(app, st, n, null)); }));
+  const app = plugin.app; const st = plugin.settings;
+  const each = async (run: (n: TFile) => Promise<void>) => { for (const n of files) await run(n); };
+  const union = (prop: MeetingProp) => [...new Set(files.flatMap(n => meetingLinks(app, n, prop)))];
+  const lacks = (prop: MeetingProp, path: string) => files.some(n => !meetingLinks(app, n, prop).includes(path));
+  const name = (p: string) => p.split("/").pop()!.replace(/\.md$/, "");
+  const tickets = union("assigned_ticket"); const projects = union("assigned_project");
+  if (st.ticketsOn || tickets.length) m.addItem(i => i.setTitle(tickets.length ? "Add another ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { if (tk) void each(n => changeMeetingLink(app, st, n, "assigned_ticket", tk.file.path)); }, tk => lacks("assigned_ticket", tk.file.path), true).open()));
+  for (const t of tickets) m.addItem(i => i.setTitle(`Unlink ticket ${name(t)}`).setIcon("unlink").onClick(() => { void each(n => changeMeetingLink(app, st, n, "assigned_ticket", t, true)); }));
   if (!st.projectsOn) return;
-  const has = !!projectPathOf(app, f);
-  m.addItem(i => i.setTitle(has ? "Change project…" : "Assign project…").setIcon("folder-kanban").onClick(() => new ProjectSuggestModal(plugin, pr => { void each(n => assignMeetingProject(app, st, n, pr)); }, pr => files.every(n => meetingProjectFits(app, st, n, pr))).open()));
-  if (has) m.addItem(i => i.setTitle("Remove project").setIcon("unlink").onClick(() => { void each(n => assignMeetingProject(app, st, n, null)); }));
+  m.addItem(i => i.setTitle(projects.length ? "Add another project…" : "Assign project…").setIcon("folder-kanban").onClick(() => new ProjectSuggestModal(plugin, pr => { void each(n => changeMeetingLink(app, st, n, "assigned_project", pr.file.path)); }, pr => lacks("assigned_project", pr.file.path)).open()));
+  for (const p of projects) m.addItem(i => i.setTitle(`Remove project ${name(p)}`).setIcon("unlink").onClick(() => { void each(n => changeMeetingLink(app, st, n, "assigned_project", p, true)); }));
 }

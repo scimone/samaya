@@ -6,7 +6,7 @@ import { renderSideBars } from "./views/sideBar";
 import { Editor, MarkdownView, Notice, Plugin, TFile, addIcon, normalizePath } from "obsidian";
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FocusManager, FocusState } from "./focus";
-import { assignTicketLinked, assignProjectLinked, projectFits, ticketFits, assignMeetingProject, assignMeetingTicket, meetingProjectFits, meetingsPrefix, syncMeetingLinks } from "./links";
+import { assignTicketLinked, assignProjectLinked, projectFits, ticketFits, changeMeetingLink, meetingLinks, meetingsPrefix, syncMeetingLinks } from "./links";
 import { Ticket, allTickets, createTask } from "./model";
 import { PLANNER_VIEW_TYPE, PlannerView, SAMAYA_ICON, SAMAYA_ICON_SVG } from "./views/PlannerView";
 import { syncTickets } from "./sync";
@@ -121,7 +121,7 @@ export default class SamayaPlugin extends Plugin {
     gated("sync-gitlab", "Sync GitLab issues", () => this.settings.ticketsOn && this.settings.gitlabOn, "gitlab");
     this.addCommand({ id: "assign-ticket", name: "Assign current task or meeting note to a ticket", checkCallback: c => {
       const f = this.app.workspace.getActiveFile(); const meet = !!f && f.path.startsWith(meetingsPrefix(this.settings)); const ok2 = this.settings.ticketsOn && !!f && (meet || f.path.startsWith(prefixOf(this.settings.tasksPath)));
-      if (ok2 && !c && f) new TicketSuggestModal(this, t => { void (meet ? assignMeetingTicket : assignTicketLinked)(this.app, this.settings, f, t); }, t => ticketFits(this.app, this.settings, f, t), meet).open(); return ok2;
+      if (ok2 && !c && f) new TicketSuggestModal(this, t => { if (meet) { if (t) void changeMeetingLink(this.app, this.settings, f, "assigned_ticket", t.file.path); } else void assignTicketLinked(this.app, this.settings, f, t); }, t => meet ? !meetingLinks(this.app, f, "assigned_ticket").includes(t.file.path) : ticketFits(this.app, this.settings, f, t), meet).open(); return ok2;
     } });
     // new instances of a recurring meeting (created by other code) take their series' project / ticket
     let meetTm = 0; let meetBusy = false;
@@ -147,7 +147,7 @@ export default class SamayaPlugin extends Plugin {
     this.addCommand({ id: "assign-project", name: "Assign current task, meeting or ticket note to a project", checkCallback: c => {
       const f = this.app.workspace.getActiveFile(); const meet = !!f && f.path.startsWith(meetingsPrefix(this.settings));
       const ok2 = this.settings.projectsOn && !!f && (meet || f.path.startsWith(prefixOf(this.settings.tasksPath)) || f.path.startsWith(prefixOf(this.settings.ticketsPath)));
-      if (ok2 && !c && f) new ProjectSuggestModal(this, p => { void (meet ? assignMeetingProject : assignProjectLinked)(this.app, this.settings, f, p); }, p => (meet ? meetingProjectFits : projectFits)(this.app, this.settings, f, p)).open(); return ok2;
+      if (ok2 && !c && f) new ProjectSuggestModal(this, p => { void (meet ? changeMeetingLink(this.app, this.settings, f, "assigned_project", p.file.path) : assignProjectLinked(this.app, this.settings, f, p)); }, p => meet ? !meetingLinks(this.app, f, "assigned_project").includes(p.file.path) : projectFits(this.app, this.settings, f, p)).open(); return ok2;
     } });
     this.addCommand({ id: "scaffold", name: "Create Samaya files", callback: () => this.scaffold(true) });
 

@@ -181,7 +181,6 @@ export const momentFmt = (d: Date, f: string): string => (window as any).moment(
 export const folderFor = (pattern: string, d: Date): string => normalizePath(renderPath(pattern, d, momentFmt) || "/");
 /** Date-independent root of a path-pattern setting; every note managed by the pattern lives below it. */
 export const rootOf = (pattern: string): string => normalizePath(pathRoot(pattern, momentFmt) || "/");
-/** Vault-path prefix (with trailing slash) matching everything under the pattern's root; "" for the vault root. */
 /** Path prefix of the notes under a path pattern. A pattern that resolves to the vault root matches nothing (never "every note in the vault is a task / ticket"). */
 export const prefixOf = (pattern: string): string => { const r = rootOf(pattern); return r === "/" ? "\u0000/" : r + "/"; };
 

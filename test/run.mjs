@@ -567,3 +567,21 @@ await bundle("src/tasksboard.ts", "test/.tasksboard.mjs");
   assert.equal(nearestSpan("weekly", wks, "2026-11-13").date, "2026-11-02"); assert.equal(nearestSpan("weekly", wks, "2026-11-20").date, "2026-11-23");
   assert.equal(nearestSpan("weekly", [{ date: "2026-11-09" }, { date: "2026-11-23" }], "2026-11-16").date, "2026-11-09"); // a tie goes to the earlier note
   assert.equal(nearestSpan("weekly", [], "2026-11-16"), null); }
+
+// ---- regressions from the overhaul
+{ const U = await import("./.util.mjs"); const M = await import("./.model.mjs"); const J = await import("./.journal.mjs");
+  const { default: moment } = await import("moment"); globalThis.window ??= { moment }; // (momentFmt reads window.moment)
+  // the weekly note name uses the week-year: Monday 2025-12-29 belongs to week 1 of 2026, not 2025
+  assert.equal(moment(new Date(2025, 11, 29)).format(J.PERIOD_DEFAULT_FORMAT.weekly), "2026-W01");
+  // a day after a day: local midnight to local midnight (23 / 25 hours on a DST change)
+  const d0 = new Date(2026, 2, 29).getTime(); const d1 = new Date(U.nextDayMs(d0));
+  assert.equal(d1.getDate(), 30); assert.equal(d1.getHours(), 0);
+  // a tasks path at the vault root matches nothing
+  assert.equal("Tasks/a.md".startsWith(M.prefixOf("[Tasks]/YYYY")), true); assert.equal("anything.md".startsWith(M.prefixOf("")), false);
+  // readTask: one parse per frontmatter object, a new object (the note was edited) or a rename parses again
+  const fm1 = { status: "todo", duration_estimate: 30 }; let fm = fm1;
+  const file = { basename: "a", path: "Tasks/a.md" }; const app = { metadataCache: { getFileCache: () => ({ frontmatter: fm }) } };
+  const t1 = M.readTask(app, file); assert.equal(M.readTask(app, file), t1); assert.equal(t1.estimate, 30);
+  fm = { status: "done", duration_estimate: 45 }; const t2 = M.readTask(app, file); assert.notEqual(t2, t1); assert.equal(t2.estimate, 45); assert.equal(t2.status, "done");
+  fm = fm1; file.basename = "b"; assert.equal(M.readTask(app, file).title, "b");
+}

@@ -6,13 +6,13 @@
   "scripts": {
     "build": "tsc --noEmit && node esbuild.config.mjs production",
     "dev": "node esbuild.config.mjs",
-    "test": "node test/run.mjs"
+    "test": "tsc --noEmit && node test/run.mjs"
   },
   "devDependencies": {
     "@types/node": "^18.19.0",
     "builtin-modules": "^3.3.0",
     "esbuild": "^0.21.5",
-    "obsidian": "latest",
+    "obsidian": "^1.14.4",
     "tslib": "^2.6.2",
     "typescript": "^5.4.5"
   }

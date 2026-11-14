@@ -244,10 +244,10 @@ export class MeetingsView extends Panel {
     for (const s of list) {
       const r = this.rowEl(rc.body, s);
       r.createSpan({ cls: "samaya-md-name", text: s.title });
+      const last = s.instances[s.instances.length - 1]; if (last) this.chips(r, last.path);
       r.createSpan({ cls: "samaya-md-sched", text: [s.cadence, s.days].filter(Boolean).join(" · ") });
       const n = r.createSpan("samaya-md-noted"); // notes at the very right (an empty slot keeps the schedules aligned)
       if (s.held) { n.setAttr("aria-label", `${s.withNotes} of ${s.held} past meetings have notes`); setIcon(n.createSpan("samaya-md-noted-icon"), "file-text"); n.createSpan({ text: `${s.withNotes}/${s.held}` }); }
-      const last = s.instances[s.instances.length - 1]; if (last) this.chips(r, last.path);
       this.linkMenu(r, ...s.instances.map(i => i.path));
       r.onclick = () => { memory.selected = s.key; memory.onlyNotes = false; this.rerender(); };
     }

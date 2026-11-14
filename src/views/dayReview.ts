@@ -58,7 +58,14 @@ let appRef: App | null = null;
 function setOpener(plugin: SamayaPlugin) { appRef = plugin.app; }
 function clickable(el: Element, path: string) {
   el.classList.add("is-clickable");
-  el.addEventListener("click", e => { e.stopPropagation(); const f = appRef?.vault.getAbstractFileByPath(path); if (appRef && f instanceof TFile) openFileSmart(appRef, f); });
+  el.addEventListener("click", e => {
+    e.stopPropagation();
+    // the page changes under the pointer (a side pane opens), so no mouseleave may follow: put every hover state back now, or the rings keep their lit part and its time
+    el.dispatchEvent(new MouseEvent("mouseleave")); const daily = el.closest(".samaya-daily");
+    daily?.querySelectorAll(".samaya-rv-ring").forEach(b => b.dispatchEvent(new CustomEvent("samaya-hot", { detail: null })));
+    daily?.querySelectorAll(".samaya-rv.is-linking").forEach(x => x.classList.remove("is-linking")); daily?.querySelectorAll(".is-linked").forEach(x => x.classList.remove("is-linked"));
+    const f = appRef?.vault.getAbstractFileByPath(path); if (appRef && f instanceof TFile) openFileSmart(appRef, f);
+  });
 }
 const ICON_OK = "check", ICON_UP = "trending-up", ICON_DOWN = "trending-down";
 
@@ -227,7 +234,7 @@ function drawCap(host: HTMLElement, segs: CapSeg[], c: CapIn) {
 const hueOf = (n: number) => `hsl(${(n * 137.5 + 150) % 360} 48% 58%)`;
 const RING_R = 38, RING_C = 2 * Math.PI * RING_R;
 /** One ring per grouping in use (tickets, projects): how the tracked time divides up, with the biggest first in a list beside it. */
-function drawRings(host: HTMLElement, items: ReviewItem[], meetings: MeetingLink[], worked: number) {
+export function drawRings(host: HTMLElement, items: ReviewItem[], meetings: MeetingLink[], worked: number) {
   const kinds = (["ticket", "project"] as Grouping[]).map(by => ({ by, groups: hasGroups(items, by, meetings) ? timeGroups(items, by, meetings, worked) : [] })).filter(k => k.groups.length);
   if (!kinds.length) return;
   const wrap = host.createDiv("samaya-rv-rings"); // side by side, centred (one ring alone sits in the middle)

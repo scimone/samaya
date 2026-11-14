@@ -184,11 +184,10 @@ export function addProjectItems(m: Menu, plugin: SamayaPlugin, t: Task) {
   m.addItem(i => i.setTitle(has ? "Change project…" : "Assign project…").setIcon("folder-kanban").onClick(() => new ProjectSuggestModal(plugin, pr => { void assignProjectLinked(app, plugin.settings, t.file, pr); }, pr => projectFits(app, plugin.settings, t.file, pr)).open()));
   if (has) m.addItem(i => i.setTitle("Remove project").setIcon("unlink").onClick(() => { void assignProjectLinked(app, plugin.settings, t.file, null); }));
 }
-/** Planning entries of the task menu: split / move, plan for today or this week, back to the timeline's edge, backlog buckets. `seg`: the piece of a split day that was clicked (timeline blocks). */
-/** Where the last right-click happened (the menu's own item click carries no usable position). */
-const lastMenuAt = { x: 200, y: 200 };
-document.addEventListener("contextmenu", e => { lastMenuAt.x = e.clientX; lastMenuAt.y = e.clientY; }, true);
+/** Where the last right-click happened (the menu's own item click carries no usable position). The plugin keeps it current (registered in onload, so it goes away on unload). */
+export const lastMenuAt = { x: 200, y: 200 };
 
+/** Planning entries of the task menu: split / move, plan for today or this week, back to the timeline's edge, backlog buckets. `seg`: the piece of a split day that was clicked (timeline blocks). */
 export function addPlanItems(m: Menu, plugin: SamayaPlugin, t: Task, seg: number | null = null, canCut = false) {
   const app: App = plugin.app; const st = plugin.settings;
   const from: Source = { day: t.planned, seg };

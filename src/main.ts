@@ -1,4 +1,5 @@
-import { hooks, openNote, sideLeaf, setupSideCleanup, setupSideAutoClose } from "./openfile";
+import { hooks, openNote, resetOpenFile, sideLeaf, setupSideCleanup, setupSideAutoClose } from "./openfile";
+import { lastMenuAt } from "./views/common";
 import { renderSideBars } from "./views/sideBar";
 import { reviewItems } from "./views/dayReview";
 import { reviewSummary } from "./dayreview";
@@ -147,6 +148,7 @@ export default class SamayaPlugin extends Plugin {
     } });
     this.addCommand({ id: "scaffold", name: "Create Samaya files", callback: () => this.scaffold(true) });
 
+    this.registerDomEvent(document, "contextmenu", e => { lastMenuAt.x = e.clientX; lastMenuAt.y = e.clientY; }, true);
     // journal notes get a class that hides their properties block (styles.css)
     const marks = () => { void this.markJournalNotes(); };
     this.registerEvent(this.app.workspace.on("file-open", marks)); this.registerEvent(this.app.workspace.on("layout-change", marks)); this.registerEvent(this.app.workspace.on("active-leaf-change", marks));
@@ -160,6 +162,7 @@ export default class SamayaPlugin extends Plugin {
     this.registerEvent(this.app.vault.on("delete", tl)); this.registerEvent(this.app.vault.on("rename", tl));
     this.registerEvent(this.app.vault.on("create", f => { if (this.app.workspace.layoutReady) this.scheduleTaskLists(); void f; }));
     const ref = this.app.metadataCache.on("resolved", () => { this.scheduleTaskLists(); this.scanLunch(); void this.fileAllByPlanned(); this.app.metadataCache.offref(ref); });
+    this.registerEvent(ref); // (also detached on unload, should the cache never resolve)
     // body class while the left sidebar is folded: the planner centres its columns then
     const leftState = () => document.body.toggleClass("samaya-left-collapsed", !!this.app.workspace.leftSplit?.collapsed);
     this.register(() => document.body.removeClass("samaya-left-collapsed"));
@@ -262,7 +265,13 @@ export default class SamayaPlugin extends Plugin {
     await this.saveData(this.data); this.bus.emit();
   }
 
-  onunload() { clearColors(); }
+  onunload() {
+    clearColors();
+    // what Samaya put into the workspace goes with it: banners, the focus dimming, the side pane bookkeeping
+    document.querySelectorAll(".samaya-focus-bar, .samaya-meet-bar").forEach(el => el.remove());
+    document.body.removeClass("samaya-focusing");
+    resetOpenFile();
+  }
 
   async saveSettings() { this.data.settings = this.settings; applyColors(this.settings); await this.saveData(this.data); }
 

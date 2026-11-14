@@ -105,6 +105,8 @@ export function setupSideAutoClose(plugin: Plugin): void {
     } finally { busy = false; }
   }));
 }
+/** Forget the module state (plugin unload): the side pane itself stays, only our bookkeeping goes. */
+export function resetOpenFile(): void { side = null; waitPath = ""; expected = ""; internal = 0; document.querySelectorAll(".samaya-side-wait").forEach(el => el.classList.remove("samaya-side-wait")); }
 /** Close the side pane and show its note in a full page. */
 export async function expandSide(app: App): Promise<void> {
   const l = sideLeaf(app); const file = l ? app.vault.getAbstractFileByPath(leafPath(l) ?? "") : null;

@@ -190,9 +190,16 @@ export default class SamayaPlugin extends Plugin {
       this.taskListRun = this.taskListRun.then(() => syncTaskLists(this.app, this.settings)).catch(e => { console.warn("Samaya: task lists failed", e); });
     }, 1500);
   }
-  async fileByPlanned(f: TFile) {
+  /** Renames run one at a time: two overlapping calls for a file would both pick the same free name and the second rename would fail. */
+  private fileRun: Promise<void> = Promise.resolve();
+  fileByPlanned(f: TFile): Promise<void> {
+    this.fileRun = this.fileRun.then(() => this.fileByPlannedNow(f)).catch(e => { console.warn("Samaya: filing a task note failed", f.path, e); });
+    return this.fileRun;
+  }
+  private async fileByPlannedNow(f: TFile) {
     const root = rootOf(this.settings.tasksPath); // never reshuffle a whole vault
     if (root === "/" || f.extension !== "md" || !f.path.startsWith(root + "/")) return;
+    if (!this.app.vault.getAbstractFileByPath(f.path)) return; // gone or already moved by an earlier queued call
     const { planned } = readTask(this.app, f);
     const [y, m, d] = planned.split("-").map(Number);
     const folder = planned ? folderFor(this.settings.tasksPath, new Date(y, m - 1, d)) : normalizePath(`${root}/Unscheduled`);
@@ -209,7 +216,7 @@ export default class SamayaPlugin extends Plugin {
   private shutdownNudge() {
     const now = new Date(); const hm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
     const t = minToHm(this.workWindowFor(today())[1]);
-    if (hm === t && this.nudged !== today()) { this.nudged = today(); new Notice("Samaya: time to shut down. Run “Start shutdown ritual”.", 10000); }
+    if (this.workday.started && hm >= t && this.nudged !== today()) { this.nudged = today(); new Notice("Samaya: time to shut down. Run “Start shutdown ritual”.", 10000); }
   }
 
   // ---- per-day lunch: stored as the `lunch` property ("12:30-13:30") of that day's daily note

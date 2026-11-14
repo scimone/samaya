@@ -1385,8 +1385,6 @@ body.samaya-focusing :is(.samaya-tasks-row, .samaya-col-bar, .samaya-col-cap, .s
 .samaya-tk-head { flex: none; width: 100%; flex-wrap: wrap; overflow: visible; row-gap: var(--samaya-sp-2); padding: var(--samaya-sp-1) var(--samaya-sp-4) var(--samaya-sp-2) var(--samaya-sp-6); box-sizing: border-box; }
 .samaya-tk-head > .samaya-planner-titles { flex: 1 1 140px; width: auto; }
 .samaya-tk-head .samaya-planner-right { flex-wrap: wrap; justify-content: flex-end; }
-.samaya-tk-group { display: inline-flex; align-items: center; gap: var(--samaya-sp-2); }
-.samaya-tk-grouplabel { color: var(--text-faint); font-size: var(--font-ui-smaller); }
 .samaya-tk-scroll { flex: 1; min-height: 0; overflow: auto; padding: 0 var(--samaya-sp-5) var(--samaya-sp-6) var(--samaya-sp-6); }
 .samaya-tk-grid { display: flex; flex-direction: column; min-height: 100%; min-width: calc(var(--cols) * 232px); }
 

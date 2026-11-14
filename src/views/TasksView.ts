@@ -198,7 +198,7 @@ export class TasksView extends Panel {
 
   // ---- heading
 
-  /** Title over a muted line, then (right) the search, "Group by" and the Board | Backlog switch: the same bar as the planner and the meetings. */
+  /** Title over a muted line, then (right) the search, group dropdown and the Ongoing | Backlog switch: the same bar as the planner and the meetings. */
   private head(items: Item[], canTicket: boolean, canProject: boolean, canSync: boolean) {
     const head = this.root.createDiv("samaya-week-head samaya-day-head samaya-tk-head");
     const open = items.filter(it => it.col !== "done"); const late = items.filter(it => it.col === "overdue").length;
@@ -218,13 +218,13 @@ export class TasksView extends Panel {
       setIcon(b, "refresh-cw"); b.onclick = () => { void this.plugin.syncTickets(); };
     }
     if (canTicket || canProject) {
-      const g = right.createDiv("samaya-tk-group"); g.createSpan({ cls: "samaya-tk-grouplabel", text: "Group by" });
-      const sides: Array<[Group, string, string]> = [["none", "None", "One list of columns"]];
-      if (canProject) sides.push(["project", "Project", "One lane per project"]);
-      if (canTicket) sides.push(["ticket", "Ticket", "One lane per ticket"]);
-      renderSwitch<Group>(g, sides, memory.group, v => { memory.group = v; memory.adding = null; this.render(); }, "Group tasks by");
+      const sel = right.createEl("select", { cls: "dropdown samaya-tk-groupsel", attr: { "aria-label": "Group tasks by" } });
+      sel.createEl("option", { text: "No grouping", value: "none" });
+      if (canProject) sel.createEl("option", { text: "By project", value: "project" });
+      if (canTicket) sel.createEl("option", { text: "By ticket", value: "ticket" });
+      sel.value = memory.group; sel.onchange = () => { memory.group = sel.value as Group; memory.adding = null; this.render(); };
     }
-    renderSwitch<Mode>(right, [["board", "Board", "What is going on: overdue, today, in progress, done"], ["backlog", "Backlog", "What is parked for later"]], memory.mode, m => { memory.mode = m; memory.adding = null; this.render(); }, "Tasks view");
+    renderSwitch<Mode>(right, [["board", "Ongoing", "What is going on: overdue, today, in progress, done"], ["backlog", "Backlog", "What is parked for later"]], memory.mode, m => { memory.mode = m; memory.adding = null; this.render(); }, "Tasks view");
   }
 
   /** The header of a swimlane: ▾ name, what it holds, open / add. Click folds it. */

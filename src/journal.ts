@@ -205,7 +205,12 @@ export async function openPeriodNote(app: App, s: SamayaSettings, p: Period, dat
   const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : ""; if (dir) await ensureFolder(app, dir);
   const title = path.slice(path.lastIndexOf("/") + 1).replace(/\.md$/, "");
   const tpl = loc.template ? renderTemplate(await loadTemplate(app, loc.template, ""), { title, date: new Date(date + "T12:00:00") }, momentFmt) : "";
-  return app.vault.create(path, tpl);
+  return createOrGet(app, path, tpl);
+}
+/** Create a note, or return the one a concurrent writer created between our check and our create (vault.create throws "already exists"). */
+async function createOrGet(app: App, path: string, content: string): Promise<TFile> {
+  try { return await app.vault.create(path, content); }
+  catch (e) { const f = app.vault.getAbstractFileByPath(path); if (f instanceof TFile) return f; throw e; }
 }
 export function journalPathFor(loc: JournalLoc, date: string): string {
   const d = new Date(date + "T12:00:00"); const name = momentFmt(d, loc.format);
@@ -265,8 +270,7 @@ export async function writeSection(app: App, s: SamayaSettings, date: string, he
   const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
   if (dir) await ensureFolder(app, dir);
   const f = app.vault.getAbstractFileByPath(path);
-  if (f instanceof TFile) await app.vault.process(f, t => upsertSection(t, heading, body));
-  else await app.vault.create(path, upsertSection("", heading, body));
+  await app.vault.process(f instanceof TFile ? f : await createOrGet(app, path, ""), t => upsertSection(t, heading, body));
 }
 
 /** Planned time of day of a task: its segments, or start-end from `start` + estimate ("" when unscheduled). */
@@ -295,9 +299,9 @@ export async function setJournalProps(app: App, s: SamayaSettings, date: string,
   const path = await journalPath(app, s, date);
   const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
   if (dir) await ensureFolder(app, dir);
-  let f = app.vault.getAbstractFileByPath(path);
-  if (!(f instanceof TFile)) f = await app.vault.create(path, "");
-  await app.fileManager.processFrontMatter(f as TFile, fm => {
+  const existing = app.vault.getAbstractFileByPath(path);
+  const f = existing instanceof TFile ? existing : await createOrGet(app, path, "");
+  await app.fileManager.processFrontMatter(f, fm => {
     for (const [k, v] of Object.entries(patch)) { if (v === null || (Array.isArray(v) && !v.length)) delete fm[k]; else fm[k] = v; }
   });
 }

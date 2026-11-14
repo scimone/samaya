@@ -165,7 +165,7 @@ export default class SamayaPlugin extends Plugin {
     this.register(() => document.body.removeClass("samaya-left-collapsed"));
     for (const ev of ["layout-change", "resize", "active-leaf-change"] as const) this.registerEvent(this.app.workspace.on(ev as "resize", leftState));
     this.nav.init();
-    setupSideCleanup(this.app); setupSideAutoClose(this.app, ev => this.registerEvent(ev));
+    setupSideCleanup(this.app); setupSideAutoClose(this);
     this.app.workspace.onLayoutReady(async () => {
       leftState();
       void this.nav.apply();

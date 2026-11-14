@@ -1,4 +1,4 @@
-import { App, ItemView, PaneType, TFile, ViewState, WorkspaceLeaf } from "obsidian";
+import { App, ItemView, PaneType, Plugin, TFile, ViewState, WorkspaceLeaf } from "obsidian";
 
 /** Path of the note a tab shows; falls back to the saved state for tabs whose view is not loaded yet (deferred after a restart). */
 export function leafPath(l: WorkspaceLeaf): string | undefined {
@@ -76,16 +76,23 @@ let expected = "";
  * A note opened from outside Samaya (quick switcher, link, file explorer, another tab) while Samaya's side pane is open: the side pane closes and the note
  * shows in a full tab (an existing tab of it, else a new one). If the note took over one of Samaya's own pages, that page is put back.
  */
-export function setupSideAutoClose(app: App, reg: (ev: ReturnType<typeof app.workspace.on>) => void): void {
+export function setupSideAutoClose(plugin: Plugin): void {
+  const app = plugin.app; const reg = plugin.registerEvent.bind(plugin);
   const ws = app.workspace; const mine = new Map<WorkspaceLeaf, ViewState>(); let busy = false;
   const isOurs = (l: WorkspaceLeaf) => l.view.getViewType().startsWith("samaya-");
   const track = () => ws.iterateRootLeaves(l => { if (isOurs(l)) mine.set(l, l.getViewState()); });
   track();
   reg(ws.on("layout-change", track));
+  // a link followed inside the side pane's own note stays in the pane: remember when the last click / Enter came from inside it
+  let inSideAt = 0;
+  const note = (e: Event) => { const sl = sideLeaf(app); inSideAt = sl && e.target instanceof Node && sl.view.containerEl.contains(e.target) ? Date.now() : 0; };
+  const noteKey = (e: KeyboardEvent) => { if (e.key === "Enter") note(e); };
+  plugin.registerDomEvent(document, "mousedown", note, true); plugin.registerDomEvent(document, "keydown", noteKey, true);
   reg(ws.on("file-open", async file => {
     if (busy || internal > 0 || !file || !sideLeaf(app)) return;
     if (sideLeaf(app) === ws.getMostRecentLeaf(ws.rootSplit) || ws.getActiveViewOfType(ItemView)?.leaf === side) {
       // the click landed in the side pane (it was the active tab): a note Samaya did not put there is not for it
+      if (file.path !== expected && Date.now() - inSideAt < 1000) { expected = file.path; void hooks.dress(); return; } // a link of the side note
       if (file.path !== expected) { busy = true; try { closeSide(app); await openFull(app, file); } finally { busy = false; } }
       return;
     }

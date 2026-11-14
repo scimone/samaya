@@ -95,7 +95,7 @@ export function renderDayReview(plugin: SamayaPlugin, host: HTMLElement, o: { da
   stat("Time on tasks", fmtDur(focus), planned ? `plan ${fmtDur(planned)}` : "", planned ? signed(focus - planned, fmtDur) : "", planned > 0 && focus > planned ? "is-warn" : "is-ok");
 
   // ---- every task of the day, the changes first: takes the height that is left and scrolls when it is too long
-  const planned1 = rows.filter(r => !r.unplanned); const unplanned = rows.filter(r => r.unplanned); const diff = planned1.filter(r => r.changes.length);
+  const planned1 = rows.filter(r => !r.unplanned); const unplanned = rows.filter(r => r.unplanned); const diff = rows.filter(r => r.changes.length); // everything that differs from the plan, unplanned tasks included
   const sec = info.createDiv("samaya-rv-sec is-grow");
   const h = sec.createDiv({ cls: "samaya-rv-h samaya-rv-h-row" }); h.createSpan({ text: "Tasks" });
   if (rows.length) h.createSpan({ cls: "samaya-rv-row-tag", text: `${rows.length} ${rows.length === 1 ? "task" : "tasks"} · ${diff.length ? `${diff.length} differ from the plan` : "all as planned"}` });
@@ -138,7 +138,7 @@ function linkHover(el: HTMLElement, root: HTMLElement, key: string) {
 interface TimelineIn { items: ReviewItem[]; events: ReviewEvent[]; window: [number, number]; lunch: [number, number]; start: number | null; end: number | null; breaks: Array<[number, number]>; hasPlan: boolean; linkRoot: HTMLElement; cap: CapIn; }
 const MIN_HOUR_PX = 20; // the lanes fill the column (CSS); this is the least height an hour gets
 /** Two lanes on one time axis: the plan as dashed outlines, the day as filled blocks. What was never worked is a faded outline, what nobody planned wears the accent colour. */
-function drawTimeline(host: HTMLElement, t: TimelineIn) {
+export function drawTimeline(host: HTMLElement, t: TimelineIn) {
   const spans = t.items.flatMap(i => [...i.slots, ...i.spans]);
   const [h0, h1] = hourRange([t.window[0], t.window[1], ...spans.flatMap(g => [g.s, g.e]), ...t.events.flatMap(e => [e.s, e.e]), ...(t.start !== null ? [t.start] : []), ...(t.end !== null ? [t.end] : [])]);
   const pct = (m: number) => ((Math.min(h1 * 60, Math.max(h0 * 60, m)) - h0 * 60) / ((h1 - h0) * 60)) * 100; // positions in percent of the lane: it stretches with the pane, no measuring

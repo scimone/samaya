@@ -1665,4 +1665,8 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 /* End my day, review: the review runs to the right edge (the usual 1280px limit of the Today view does not apply) */
 .samaya-daily.is-end-review > .samaya-day-head, .samaya-daily.is-end-review > .samaya-daily-cols { max-width: none; }
 .samaya-rv-sep.is-first { margin-top: 0; }
-.samaya-rv-tl { gap: 4px; }
+.samaya-rv-tl { gap: 0; }
+.samaya-rv-tl > .samaya-rv-legend { margin-top: 2px; }
+.samaya-daily.is-end-review { scrollbar-gutter: auto; }
+.samaya-daily.is-end-review .samaya-left.is-review-col { padding-right: 0; padding-bottom: 0; }
+.samaya-daily.is-end-review .samaya-left.is-review-col > .samaya-rv { padding-right: 0; padding-bottom: 4px; }

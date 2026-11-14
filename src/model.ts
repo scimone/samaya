@@ -182,7 +182,8 @@ export const folderFor = (pattern: string, d: Date): string => normalizePath(ren
 /** Date-independent root of a path-pattern setting; every note managed by the pattern lives below it. */
 export const rootOf = (pattern: string): string => normalizePath(pathRoot(pattern, momentFmt) || "/");
 /** Vault-path prefix (with trailing slash) matching everything under the pattern's root; "" for the vault root. */
-export const prefixOf = (pattern: string): string => { const r = rootOf(pattern); return r === "/" ? "" : r + "/"; };
+/** Path prefix of the notes under a path pattern. A pattern that resolves to the vault root matches nothing (never "every note in the vault is a task / ticket"). */
+export const prefixOf = (pattern: string): string => { const r = rootOf(pattern); return r === "/" ? "\u0000/" : r + "/"; };
 
 /** New task note in the tasks path, body from the task template (with "## Subtasks" guaranteed). */
 export async function createTask(app: App, s: SamayaSettings, title: string, fm: Record<string, string | number>, body?: string): Promise<TFile> {

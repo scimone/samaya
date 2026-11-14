@@ -1298,7 +1298,7 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-focus-link { font-weight: 600; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; color: var(--text-normal); text-decoration: none; }
 .samaya-focus-link:hover { text-decoration: underline; }
 .samaya-focus-prog { font-variant-numeric: tabular-nums; flex: none; color: var(--text-muted); }
-.samaya-focus-prog.is-over { color: var(--text-error) !important; }
+.samaya-focus-prog.is-over { color: var(--color-orange, #e0953a) !important; } /* same amber as an over-estimate task card */
 .samaya-focus-ctl { display: inline-flex; gap: 6px; flex: none; }
 .samaya-focus-meter { position: absolute; left: 0; bottom: -1px; height: 2px; width: var(--p, 0%); background: var(--samaya-task); transition: width 1s linear; }
 .samaya-focus-bar.is-break .samaya-focus-meter { background: var(--text-faint); }

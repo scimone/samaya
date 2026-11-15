@@ -15,6 +15,8 @@ import { openRangePicker } from "./rangePicker";
 import { renderHeadTitle } from "./plannerHead";
 import { renderResetPill } from "./dateNav";
 import { NoteText, matches, renderSearch } from "./search";
+import { PROJECT_SORTS, sortProjects } from "../sorting";
+import { renderSort } from "./sortControl";
 
 const memory = { query: "", back: 0, fwd: 0, open: new Set<string>(), all: new Set<string>() }; // extra weeks before / after the dates, grown by scrolling to either edge
 import { addDays, horizonOf, parseYmd, today } from "../util";
@@ -59,7 +61,14 @@ export class GanttView extends Panel {
     const every: Project[] = this.data.data.filter(e => e.file.extension === "md").map(e => readProject(this.app, e.file));
     const q = memory.query.trim();
     if (q) this.texts.load(every.map(p => p.file), () => { if (this.root.isConnected && memory.query.trim()) this.onDataUpdated(); });
-    const projects = (q ? every.filter(p => matches(p.name.toLowerCase() + " " + p.file.basename.toLowerCase() + " " + this.texts.get(p.file), q)) : every).sort((a, b) => (a.span?.start ?? "9").localeCompare(b.span?.start ?? "9") || a.name.localeCompare(b.name));
+    const projects0 = (q ? every.filter(p => matches(p.name.toLowerCase() + " " + p.file.basename.toLowerCase() + " " + this.texts.get(p.file), q)) : every);
+    const ticketOf = new Map<string, string>(); // the ticket project of each project, for sorting by it
+    if (s.projectsSort === "ticket") {
+      const all = allTickets(this.app, s);
+      for (const p of every) ticketOf.set(p.file.path, String(this.app.metadataCache.getFileCache(p.file)?.frontmatter?.ticket_project ?? "") || all.find(t => projectPathOf(this.app, t.file) === p.file.path)?.project || "");
+    }
+    const sorted = sortProjects(projects0, s.projectsSort, s.projectsSortDesc, p => ticketOf.get(p.file.path) ?? "");
+    const projects = sorted;
     // tasks of each project, by first planned day (undated last); shown under an expanded project
     const tasksOf = new Map<string, Array<{ t: Task; span: { start: string; end: string } | null; period?: boolean }>>();
     for (const t of allTasks(this.app, s)) {
@@ -85,6 +94,7 @@ export class GanttView extends Panel {
     const scroll = this.root.createDiv("samaya-gantt-scroll");
     const pillSlot = right.createDiv("samaya-gantt-pill"); // leftmost, so the controls to its right stay put when the Today pill appears
     renderSearch(right, "Search projects", memory.query, v => { memory.query = v; }, () => this.render(), id => { this.timer = id; });
+    renderSort(right, "Sort projects by", PROJECT_SORTS, s.projectsSort, s.projectsSortDesc, (k, d) => { s.projectsSort = k; s.projectsSortDesc = d; void this.plugin.saveSettings(); this.render(); });
     const sel = right.createEl("select", { cls: "dropdown samaya-gantt-gran", attr: { "aria-label": "Time scale" } });
     for (const g of GRANULARITIES) sel.createEl("option", { text: g[0].toUpperCase() + g.slice(1), value: g });
     sel.value = gran; sel.onchange = () => { s.projectsScale = sel.value as Granularity; void this.plugin.saveSettings(); this.render(); };

@@ -12,6 +12,8 @@ import { createProject, projectPathOf } from "../projects";
 import { linkProject, ticketColorOf } from "../links";
 import { projectChip, ticketProjectTitle } from "./common";
 import { noteColor, tint } from "../itemcolor";
+import { TICKET_SORTS, sortTickets } from "../sorting";
+import { renderSort } from "./sortControl";
 import { renderHeadTitle } from "./plannerHead";
 import { NoteText, matches, renderSearch } from "./search";
 
@@ -49,7 +51,8 @@ export class KanbanView extends Panel {
       .filter(t => this.config.get("hideDone") !== true || !isDoneState(t.state));
     const q = memory.query.trim();
     if (q) this.texts.load(all.map(t => t.file), () => { if (this.root.isConnected && memory.query.trim()) this.onDataUpdated(); });
-    const tickets = q ? all.filter(t => matches([t.key, t.summary, t.file.basename, t.project, t.assignee, t.issueType, t.state].filter(Boolean).join(" ").toLowerCase() + " " + this.texts.get(t.file), q)) : all;
+    const tickets0 = q ? all.filter(t => matches([t.key, t.summary, t.file.basename, t.project, t.assignee, t.issueType, t.state].filter(Boolean).join(" ").toLowerCase() + " " + this.texts.get(t.file), q)) : all;
+    const tickets = sortTickets(tickets0, this.plugin.settings.ticketsSort, this.plugin.settings.ticketsSortDesc, t => t.file.stat.ctime);
     const prev = this.root.querySelector<HTMLElement>(".samaya-kb-scroll"); const keep = prev ? { x: prev.scrollLeft, y: prev.scrollTop } : null;
     this.root.empty(); this.scope.clear();
     const head0 = this.root.createDiv("samaya-week-head samaya-day-head samaya-kb-head");
@@ -57,6 +60,7 @@ export class KanbanView extends Panel {
     const s = this.plugin.settings;
     const right = head0.createDiv("samaya-planner-right");
     if (all.length) renderSearch(right, "Search tickets", memory.query, v => { memory.query = v; }, () => this.render(), id => { this.timer = id; });
+    if (all.length) renderSort(right, "Sort tickets by", TICKET_SORTS, s.ticketsSort, s.ticketsSortDesc, (key, d) => { s.ticketsSort = key; s.ticketsSortDesc = d; void this.plugin.saveSettings(); this.render(); });
     if (s.ticketsOn || all.length) {
       const b = right.createEl("button", { cls: "samaya-hd-icon", attr: { "aria-label": "Sync Jira / GitLab tickets" } });
       setIcon(b, "refresh-cw"); b.onclick = () => { void this.plugin.syncTickets(); };

@@ -37,6 +37,8 @@ export interface SamayaSettings {
   projectsOn: boolean; projectsPath: string; projectsScale: "month" | "quarter" | "year"; projectsNameWidth: number; projectsTableHidden: boolean;
   /** shortcuts (Planner, Tasks, ...) at the top of the file explorer; their folders are hidden */
   navigationOn: boolean;
+  /** order of the Projects chart and the Tickets board */
+  projectsSort: "start" | "end" | "name" | "ticket"; projectsSortDesc: boolean; ticketsSort: "key" | "date" | "name"; ticketsSortDesc: boolean;
   /** colour (hex) of each ticket project (a Jira / GitLab project), by its key */
   ticketProjectColors: Record<string, string>;
 }
@@ -62,6 +64,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   projectsOn: false, projectsPath: "Projects", projectsScale: "quarter", projectsNameWidth: 200, projectsTableHidden: false,
   navigationOn: false,
   ticketProjectColors: {},
+  projectsSort: "start", projectsSortDesc: false, ticketsSort: "key", ticketsSortDesc: false,
 };
 
 /** Settings saved by older versions used plain folders; turn them into equivalent path patterns. */

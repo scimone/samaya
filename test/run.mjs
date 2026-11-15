@@ -611,7 +611,19 @@ await bundle("src/tasksboard.ts", "test/.tasksboard.mjs");
 // ---- item colours: random picks favour colours not yet used
 { await bundle("src/itemcolor.ts", "test/.itemcolor.mjs"); const { PALETTE, randomColor } = await import("./.itemcolor.mjs");
   assert.equal(PALETTE.length, 12); assert.equal(new Set(PALETTE.map(c => c.hex)).size, 12);
-  assert.ok(PALETTE.some(c => c.hex === randomColor()));
+  { const r = randomColor(); assert.ok(PALETTE.some(c => c.hex === r)); }
   const used = PALETTE.slice(1).map(c => c.hex); assert.equal(randomColor(used), PALETTE[0].hex); // the only unused one
-  assert.ok(PALETTE.some(c => c.hex === randomColor(PALETTE.map(c => c.hex)))); // all used once: any is fine
+  { const r = randomColor(PALETTE.map(c => c.hex)); assert.ok(PALETTE.some(c => c.hex === r)); } // all used once: any is fine
+}
+
+// ---- sorting: direction flips, undated items stay last
+{ await bundle("src/sorting.ts", "test/.sorting.mjs"); const { sortProjects, sortTickets } = await import("./.sorting.mjs");
+  const ps = [{ name: "B", span: { start: "2026-02-01", end: "2026-03-01" } }, { name: "A", span: null }, { name: "C", span: { start: "2026-01-01", end: "2026-04-01" } }];
+  const names = a => a.map(p => p.name).join("");
+  assert.equal(names(sortProjects(ps, "start", false, () => "")), "CBA"); assert.equal(names(sortProjects(ps, "start", true, () => "")), "BCA");
+  assert.equal(names(sortProjects(ps, "end", true, () => "")), "CBA"); assert.equal(names(sortProjects(ps, "name", true, () => "")), "CBA");
+  assert.equal(names(sortProjects(ps, "ticket", false, p => ({ B: "X-1", A: "", C: "A-1" })[p.name])), "CBA");
+  const ts = [{ key: "T-10", summary: "b" }, { key: "T-2", summary: "a" }];
+  assert.equal(sortTickets(ts, "key", false, () => 0)[0].key, "T-2"); assert.equal(sortTickets(ts, "name", true, () => 0)[0].summary, "b");
+  assert.equal(sortTickets(ts, "date", true, t => (t.key === "T-2" ? 5 : 1))[0].key, "T-2");
 }

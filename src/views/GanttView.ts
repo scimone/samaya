@@ -93,11 +93,11 @@ export class GanttView extends Panel {
     const right = head.createDiv("samaya-planner-right");
     const scroll = this.root.createDiv("samaya-gantt-scroll");
     const pillSlot = right.createDiv("samaya-gantt-pill"); // leftmost, so the controls to its right stay put when the Today pill appears
-    renderSearch(right, "Search projects", memory.query, v => { memory.query = v; }, () => this.render(), id => { this.timer = id; });
-    renderSort(right, PROJECT_SORTS, s.projectsSort, s.projectsSortDesc, { key: "start", desc: false }, (k, d) => { s.projectsSort = k; s.projectsSortDesc = d; void this.plugin.saveSettings(); this.render(); });
     const sel = right.createEl("select", { cls: "dropdown samaya-gantt-gran", attr: { "aria-label": "Time scale" } });
     for (const g of GRANULARITIES) sel.createEl("option", { text: g[0].toUpperCase() + g.slice(1), value: g });
     sel.value = gran; sel.onchange = () => { s.projectsScale = sel.value as Granularity; void this.plugin.saveSettings(); this.render(); };
+    renderSearch(right, "Search projects", memory.query, v => { memory.query = v; }, () => this.render(), id => { this.timer = id; });
+    renderSort(right, PROJECT_SORTS, s.projectsSort, s.projectsSortDesc, (k, d) => { s.projectsSort = k; s.projectsSortDesc = d; void this.plugin.saveSettings(); this.render(); });
     const addProject = () => new TextPromptModal(this.plugin, "New project name", name => {
       safe(createProject(this.app, s, name).then(() => this.plugin.bus.emit()), "creating the project");
     }).open();

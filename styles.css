@@ -1713,10 +1713,9 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-colorpick-dot.is-current { border-color: var(--text-normal); }
 
 /* sort button of the page headers */
-.samaya-sortbtn { all: unset; box-sizing: border-box; flex: none; height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: var(--samaya-r-m); cursor: pointer; color: var(--text-muted); font-size: var(--font-ui-small); white-space: nowrap; }
-.samaya-sortbtn:hover, .samaya-sortbtn:focus-visible { background: var(--background-modifier-hover); color: var(--text-normal); }
+.samaya-sortbtn { all: unset; box-sizing: border-box; flex: none; height: 30px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border-radius: var(--samaya-r-m); cursor: pointer; color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); font-size: var(--font-ui-small); white-space: nowrap; }
+.samaya-sortbtn:hover, .samaya-sortbtn:focus-visible { background: color-mix(in srgb, var(--interactive-accent) 22%, transparent); }
 .samaya-sortbtn:focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: -2px; }
-.samaya-sortbtn.is-custom { color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 12%, transparent); }
 .samaya-sortbtn svg { width: 15px; height: 15px; }
 .samaya-sortbtn-dir svg { width: 13px; height: 13px; }
 .samaya-sortbtn-icon, .samaya-sortbtn-dir { display: inline-flex; }

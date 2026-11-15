@@ -326,7 +326,7 @@ export function addMeetingLinkItems(m: Menu, plugin: SamayaPlugin, files: TFile[
   if (files.length === 1) { // tasks go to one meeting note, not to a whole series
     const note = files[0]; const linked = allTasks(app, st).filter(t => meetingPathOf(app, t) === note.path);
     m.addItem(i => i.setTitle("Assign task…").setIcon("check-square").onClick(() => new TaskSuggestModal(plugin, t => { void assignMeeting(app, t.file, note); }, t => meetingPathOf(app, t) !== note.path).open()));
-    for (const t of linked) m.addItem(i => i.setTitle(`Unlink task ${t.title}`).setIcon("unlink").onClick(() => { void assignMeeting(app, t.file, null); }));
+    for (const t of linked) m.addItem(i => i.setTitle(`Unlink task '${t.title}'`).setIcon("unlink").onClick(() => { void assignMeeting(app, t.file, null); }));
     m.addSeparator();
   }
   const tickets = union("assigned_ticket"); const projects = union("assigned_project");

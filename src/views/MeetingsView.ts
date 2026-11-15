@@ -184,10 +184,10 @@ export class MeetingsView extends Panel {
     const b = parent.createSpan({ cls: "samaya-md-tasks" + (s.done === s.total ? " is-done" : ""), attr: { "aria-label": `${s.done} of ${s.total} tasks done` } });
     setIcon(b.createSpan("samaya-md-tasks-icon"), "check-square"); b.createSpan({ text: `${s.done}/${s.total}` });
   }
-  /** note markers: a notes icon for a meeting that has notes, then the tasks badge at the right edge */
+  /** note markers: the tasks badge, then a notes icon (at the right edge) for a meeting that has notes */
   private mark(r: HTMLElement, i: Instance) {
-    if (i.hasNotes) setIcon(r.createSpan({ cls: "samaya-md-hasnotes", attr: { "aria-label": "Has notes" } }), "file-text");
     this.taskBadge(r, i);
+    if (i.hasNotes) setIcon(r.createSpan({ cls: "samaya-md-hasnotes", attr: { "aria-label": "Has notes" } }), "file-text");
   }
   /** right-click on a meeting: assign it to a project and / or a ticket */
   private linkMenu(el: HTMLElement, ...paths: string[]) { // several paths: a recurring meeting, the assignment goes to all its notes

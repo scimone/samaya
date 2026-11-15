@@ -125,7 +125,7 @@ class PathSuggest extends AbstractInputSuggest<string> {
 }
 
 type Pill = [text: string, kind: "ok" | "warn" | "off"];
-interface CardOpts { /** folds away unless true, without a switch of its own */ activeWhen?: () => boolean; enabled?: { get: () => boolean; set: (v: boolean) => void | Promise<void> }; status?: () => Pill }
+interface CardOpts { /** folds away unless true, without a switch of its own */ activeWhen?: () => boolean; enabled?: { get: () => boolean; set: (v: boolean) => void | Promise<void> }; status?: () => Pill; /** small labelled chips after the title, shown while `on` (a dot warns when not `ready`); a click scrolls to `target()` */ chips?: Array<{ name: string; cls: string; on: () => boolean; ready: () => boolean; target: () => HTMLElement | undefined }> }
 
 export class SamayaSettingTab extends PluginSettingTab {
   private activeTab = "planner";
@@ -224,12 +224,19 @@ export class SamayaSettingTab extends PluginSettingTab {
       const head = new Setting(el).setName(title).setDesc(desc);
       head.settingEl.addClass("samaya-mod-head");
       const pill = opts.status ? head.nameEl.createSpan("samaya-pill") : null;
+      const chips = (opts.chips ?? []).map(c => {
+        const b = head.nameEl.createEl("button", { cls: "samaya-mod-chip " + c.cls, attr: { type: "button", "aria-label": "Go to " + c.name + " settings" } });
+        b.createSpan("samaya-mod-chip-dot"); b.createSpan({ text: c.name });
+        b.addEventListener("click", e => { e.preventDefault(); c.target()?.scrollIntoView({ behavior: "smooth", block: "start" }); });
+        return { c, b };
+      });
       const inner = el.createDiv("samaya-mod-body").createDiv("samaya-mod-inner");
       const sync = () => {
         const on = opts.enabled ? opts.enabled.get() : opts.activeWhen ? opts.activeWhen() : true;
         el.toggleClass("is-off", !on); inner.parentElement?.toggleAttribute("inert", !on);
         if (pill && opts.status) { const [t, k] = on ? opts.status() : ["Off", "off" as const]; pill.setText(t); pill.className = "samaya-pill is-" + k; if (dot) dot.className = "samaya-tab-dot is-" + k; }
         else if (dot) dot.className = "samaya-tab-dot is-" + (on ? "ok" : "off");
+        for (const { c, b } of chips) { b.toggleClass("is-hidden", !(on && c.on())); b.toggleClass("is-warn", !c.ready()); }
       };
       if (opts.enabled) head.addToggle(t => { t.setValue(opts.enabled!.get()).setTooltip("Enable " + title).onChange(async v => { await opts.enabled!.set(v); await changed(); }); });
       refreshers.push(sync); sync();
@@ -429,12 +436,30 @@ export class SamayaSettingTab extends PluginSettingTab {
     const syncBtn = (el: HTMLElement, which: "jira" | "gitlab", name: string) =>
       new Setting(el).setName("Import now").setDesc(`Fetch your ${name} issues into the tickets path.`).addButton(bt => bt.setButtonText(`Sync ${name}`).setCta().onClick(async () => { bt.setDisabled(true); try { await this.plugin.syncTickets(which); } finally { bt.setDisabled(false); } }));
 
+    const integ: { jira?: HTMLElement; gitlab?: HTMLElement } = {};
+    const jiraReady = () => !!(s.jiraUrl && s.jiraToken && (s.jiraFlavor === "server" || s.jiraEmail));
+    const gitlabReady = () => !!(s.gitlabUrl && s.gitlabToken);
+    /** An import source inside the Tickets card: a switch, and its settings below while it is on. */
+    const source = (el: HTMLElement, key: "jira" | "gitlab", name: string, desc: string, get: () => boolean, set: (v: boolean) => void, ready: () => boolean) => {
+      const box = el.createDiv("samaya-source"); integ[key] = box;
+      const head = new Setting(box).setName(name).setDesc(desc); head.settingEl.addClass("samaya-source-head");
+      const pill = head.nameEl.createSpan("samaya-pill");
+      head.addToggle(t => t.setValue(get()).setTooltip("Enable " + name).onChange(async v => { set(v); await changed(); }));
+      const body = box.createDiv("samaya-mod-body").createDiv("samaya-mod-inner");
+      refreshers.push(() => { const on = get(); box.toggleClass("is-off", !on); body.parentElement?.toggleAttribute("inert", !on); pill.setText(!on ? "Off" : ready() ? "Configured" : "Needs setup"); pill.className = "samaya-pill is-" + (!on ? "off" : ready() ? "ok" : "warn"); });
+      return body;
+    };
+
     tabDivider();
     tab("tickets", "Tickets", "ticket");
     {
       const b = card("Tickets", "Ticket notes in your vault, with a kanban board in the planner. Works on its own; Jira and GitLab below can import tickets into it.", {
         enabled: { get: () => s.ticketsOn, set: v => { s.ticketsOn = v; if (v) { void this.plugin.scaffoldTickets(false); this.plugin.scheduleTaskLists(); } this.plugin.bus.emit(); } },
         status: () => s.ticketsPath.trim() ? ["On", "ok"] : ["Needs a folder", "warn"],
+        chips: [
+          { name: "Jira", cls: "is-jira", on: () => s.jiraOn, ready: jiraReady, target: () => integ.jira },
+          { name: "GitLab", cls: "is-gitlab", on: () => s.gitlabOn, ready: gitlabReady, target: () => integ.gitlab },
+        ],
       });
       note(b, "A kanban board of all tickets (columns: status, rows: project) is the Tickets entry of the planner.");
       label(b, "Notes & templates");
@@ -444,15 +469,11 @@ export class SamayaSettingTab extends PluginSettingTab {
       const showFn = () => fnPreview.setText("Example: " + renderTicketFileName(s.ticketFileName, SAMPLE_TICKET) + ".md");
       fn.addText(t => t.setValue(s.ticketFileName).setPlaceholder(DEFAULT_SETTINGS.ticketFileName).onChange(async v => { s.ticketFileName = v.trim() || DEFAULT_SETTINGS.ticketFileName; await changed(); showFn(); })); showFn();
       template(b, "Ticket note template", `Path of a template note. Variables: ${vars(TICKET_VARIABLES)} {{date}}.`, "ticketTemplate");
-      label(b, "Sync");
-      toggle(b, "Sync on startup", "Import tickets from the enabled Jira / GitLab integrations when Obsidian starts.", () => s.syncOnStartup, v => (s.syncOnStartup = v));
-    }
-
-    {
-      const b = card("Jira", "Import the issues assigned to you as ticket notes.", {
-        enabled: { get: () => s.jiraOn, set: v => { s.jiraOn = v; } },
-        status: () => (s.jiraUrl && s.jiraToken && (s.jiraFlavor === "server" || s.jiraEmail)) ? ["Configured", "ok"] : ["Needs setup", "warn"],
-      });
+      const tk = b;
+      label(b, "Import from");
+      toggle(b, "Sync on startup", "Import tickets from the enabled sources below when Obsidian starts.", () => s.syncOnStartup, v => (s.syncOnStartup = v));
+      {
+      const b = source(tk, "jira", "Jira", "Import the issues assigned to you as ticket notes.", () => s.jiraOn, v => { s.jiraOn = v; }, jiraReady);
       label(b, "Connection");
       dropdown(b, "Flavor", "Cloud: email + API token. Server / Data Center: personal access token.", { cloud: "Jira Cloud", server: "Server / Data Center" }, () => s.jiraFlavor, v => { s.jiraFlavor = v; renderEmail(); });
       text(b, "Base URL", "e.g. https://yourteam.atlassian.net", () => s.jiraUrl, v => (s.jiraUrl = v.replace(/\/+$/, "")), { placeholder: "https://yourteam.atlassian.net" });
@@ -465,13 +486,10 @@ export class SamayaSettingTab extends PluginSettingTab {
       text(b, "JQL", "Which issues to import.", () => s.jiraJql, v => (s.jiraJql = v), { placeholder: DEFAULT_SETTINGS.jiraJql });
       syncBtn(b, "jira", "Jira");
       refreshers.push(() => { if (!!emailBox.firstChild !== (s.jiraFlavor === "cloud")) renderEmail(); });
-    }
+      }
 
-    {
-      const b = card("GitLab", "Import GitLab issues as ticket notes.", {
-        enabled: { get: () => s.gitlabOn, set: v => { s.gitlabOn = v; } },
-        status: () => (s.gitlabUrl && s.gitlabToken) ? ["Configured", "ok"] : ["Needs setup", "warn"],
-      });
+      {
+      const b = source(tk, "gitlab", "GitLab", "Import GitLab issues as ticket notes.", () => s.gitlabOn, v => { s.gitlabOn = v; }, gitlabReady);
       label(b, "Connection");
       text(b, "Base URL", "https://gitlab.com or your self-hosted URL.", () => s.gitlabUrl, v => (s.gitlabUrl = v.replace(/\/+$/, "")), { placeholder: "https://gitlab.com" });
       text(b, "Personal access token", "Scope: read_api.", () => s.gitlabToken, v => (s.gitlabToken = v), { secret: true });
@@ -479,6 +497,7 @@ export class SamayaSettingTab extends PluginSettingTab {
       label(b, "Import");
       dropdown(b, "Issues to import", "", { assigned_to_me: "Assigned to me", created_by_me: "Created by me", all: "All I can see" }, () => s.gitlabScope, v => { s.gitlabScope = v; });
       syncBtn(b, "gitlab", "GitLab");
+      }
     }
     tab("navigation", "Navigation", "compass");
     {

@@ -315,6 +315,12 @@ body {
 .samaya-gantt-head, .samaya-kb-head { flex: none; width: 100%; padding: var(--samaya-sp-1) var(--samaya-sp-4) var(--samaya-sp-2) var(--samaya-sp-6); box-sizing: border-box; }
 .samaya-gantt-head > .samaya-planner-titles, .samaya-kb-head > .samaya-planner-titles { flex: 1; width: auto; }
 .samaya-gantt-scroll { flex: 1; overflow: auto; position: relative; }
+.samaya-gantt-empty { position: sticky; left: 0; width: 100%; height: 0; z-index: 6; }
+.samaya-gantt-empty-box { position: absolute; top: 44px; left: 0; right: 0; height: min(320px, 60vh); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 0 24px; text-align: center; box-sizing: border-box; }
+.samaya-gantt-empty-icon { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; margin-bottom: 4px; color: var(--interactive-accent); background: color-mix(in srgb, var(--interactive-accent) 14%, transparent); }
+.samaya-gantt-empty-icon svg { width: 24px; height: 24px; }
+.samaya-gantt-empty-title { font-size: var(--font-ui-large); font-weight: 600; color: var(--text-normal); }
+.samaya-gantt-empty-sub { max-width: 380px; color: var(--text-muted); font-size: var(--font-ui-small); margin-bottom: 8px; }
 .samaya-gantt-chart { position: relative; min-height: 100%; }
 .samaya-gantt-row { display: flex; height: 42px; border-bottom: 1px solid var(--background-modifier-border); }
 .samaya-gantt-hrow { height: 44px; position: sticky; top: 0; z-index: 4; background: var(--background-primary); }
@@ -1730,3 +1736,19 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-chip-usecase { display: inline-flex; align-items: center; align-self: stretch; padding: 0 6px 0 7px; margin-right: 1px; border-radius: 0; font-size: 0.85em; font-weight: 700; letter-spacing: 0.01em; background: var(--background-modifier-hover); color: inherit; }
 .samaya-chip.has-pc .samaya-chip-usecase { background: color-mix(in srgb, var(--pc) 22%, transparent); }
 .samaya-gantt-name .samaya-gantt-link.is-project { font-weight: 600; }
+
+/* ---- settings: import sources (Jira / GitLab) inside the Tickets card */
+.samaya-mod-chip { display: inline-flex; align-items: center; gap: 5px; height: auto; padding: 1px 8px; border: 0; border-radius: var(--samaya-r-pill); box-shadow: none; font-size: var(--font-ui-smaller); font-weight: var(--font-semibold); cursor: pointer; }
+.samaya-mod-chip.is-hidden { display: none; }
+.samaya-mod-chip.is-jira { background: rgba(38, 132, 255, 0.16); color: #2684ff; }
+.samaya-mod-chip.is-gitlab { background: rgba(252, 109, 38, 0.16); color: #fc6d26; }
+.samaya-mod-chip:hover { filter: brightness(1.15); }
+.samaya-mod-chip-dot { display: none; width: 6px; height: 6px; border-radius: 50%; background: var(--color-orange); }
+.samaya-mod-chip.is-warn .samaya-mod-chip-dot { display: inline-block; }
+.samaya-source { margin-top: 10px; padding: 0 12px; border: 1px solid var(--background-modifier-border); border-radius: var(--samaya-r-m); background: var(--background-primary); scroll-margin-top: 12px; }
+.samaya-source-head.setting-item { border-top: 0; padding: 10px 0; }
+.samaya-source-head .setting-item-name { display: flex; align-items: center; gap: 8px; font-weight: var(--font-semibold); }
+.samaya-source.is-off { background: transparent; }
+.samaya-source.is-off > .samaya-mod-body { grid-template-rows: 0fr; }
+.samaya-source.is-off > .samaya-mod-body > .samaya-mod-inner { padding-bottom: 0; visibility: hidden; transition: visibility 0s .25s; }
+.samaya-source.is-off .samaya-source-head .setting-item-name { color: var(--text-muted); }

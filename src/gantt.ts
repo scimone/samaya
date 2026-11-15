@@ -13,12 +13,17 @@ export function parseSpan(start: unknown, end: unknown): Span | null {
   return { start: s, end: YMD.test(e) && e >= s ? e : s };
 }
 
-/** The chart's first day (a Monday) and number of days (whole weeks): everything plus a margin, always including today. */
-export function ganttRange(spans: Span[], today: string, extraBackWeeks = 0, extraFwdWeeks = 0): { from: string; days: number } {
+/** The chart's first day (a Monday) and number of days (whole weeks): everything plus a margin, always including today; at least `minDays` wide (so a chart with few or no projects still fills the view). */
+export function ganttRange(spans: Span[], today: string, extraBackWeeks = 0, extraFwdWeeks = 0, minDays = 0): { from: string; days: number } {
   const all = [today, ...spans.flatMap(s => [s.start, s.end])].sort();
   const from = startOfWeek(addDays(all[0], -7 - extraBackWeeks * 7));
   const weeks = Math.ceil((daysBetween(from, addDays(all[all.length - 1], 21 + extraFwdWeeks * 7)) + 1) / 7);
-  return { from, days: weeks * 7 };
+  let out = { from, days: weeks * 7 };
+  if (out.days < minDays) { // fill the view, with room to scroll on both sides: a third of the missing weeks before, the rest after
+    const missing = Math.ceil((minDays - out.days) / 7), back = Math.floor(missing / 3);
+    out = { from: addDays(out.from, -back * 7), days: out.days + missing * 7 };
+  }
+  return out;
 }
 
 /** Month headings across the range: first-day offset and length in days. */

@@ -178,6 +178,7 @@ assert.equal(W.fmtSigned(-18), "-0:18"); assert.equal(W.fmtSigned(75), "+1:15");
   assert.equal(parseSpan("", "2026-11-09"), null);
   const r = ganttRange([{ start: "2026-11-11", end: "2026-12-01" }], "2026-11-08");
   assert.equal(r.from, "2026-10-26"); assert.equal(r.days % 7, 0); assert.ok(daysBetween(r.from, "2026-12-01") < r.days);
+  const w = ganttRange([], "2026-11-08", 0, 0, 200); assert.ok(w.days >= 200 && w.days % 7 === 0 && daysBetween(w.from, "2026-11-08") > 0 && daysBetween("2026-11-08", addDays(w.from, w.days)) > 60);
   assert.deepEqual(dragSpan({ start: "2026-11-02", end: "2026-11-05" }, "move", 3), { start: "2026-11-05", end: "2026-11-08" });
   assert.deepEqual(dragSpan({ start: "2026-11-02", end: "2026-11-05" }, "start", 9), { start: "2026-11-05", end: "2026-11-05" });
   assert.deepEqual(dragSpan({ start: "2026-11-02", end: "2026-11-05" }, "end", -9), { start: "2026-11-02", end: "2026-11-02" });

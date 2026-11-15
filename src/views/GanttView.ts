@@ -104,7 +104,7 @@ export class GanttView extends Panel {
     right.createEl("button", { text: "Add project", cls: "mod-cta" }).onclick = addProject;
 
     const td = today();
-    const { from, days } = ganttRange(projects.flatMap(p => [...(p.span ? [p.span] : []), ...(tasksOf.get(p.file.path) ?? []).flatMap(e => (e.span ? [e.span] : []))]), td, memory.back, memory.fwd);
+    const { from, days } = ganttRange(projects.flatMap(p => [...(p.span ? [p.span] : []), ...(tasksOf.get(p.file.path) ?? []).flatMap(e => (e.span ? [e.span] : []))]), td, memory.back, memory.fwd, Math.ceil(2 * ((this.root.clientWidth || 900) - nw) / Math.max(dayW, 1)));
     const width = days * dayW; const todayX = daysBetween(from, td) * dayW + dayW / 2;
     const chart = scroll.createDiv("samaya-gantt-chart"); chart.style.setProperty("--day", `${dayW}px`); chart.style.setProperty("--name", `${nw}px`); chart.style.width = `calc(var(--name) + ${width}px)`; chart.toggleClass("is-collapsed", hidden); chart.style.setProperty("--grid", `${7 * dayW}px`);
     // month: no gridlines, weekends shaded like the sidebars; quarter and year: only a line between months (below)
@@ -131,7 +131,13 @@ export class GanttView extends Panel {
       el.style.left = `${w * step * dayW}px`; el.style.width = `${step * dayW}px`;
     }
 
-    if (!projects.length) chart.createDiv({ cls: "samaya-empty", text: q ? "No projects match." : "No projects yet. Use “Add project”." });
+    if (!projects.length) { // centred in the visible part (sticky), not in the wide chart
+      const box = scroll.createDiv("samaya-gantt-empty").createDiv("samaya-gantt-empty-box"); scroll.prepend(box.parentElement!);
+      setIcon(box.createDiv("samaya-gantt-empty-icon"), q ? "search-x" : "gantt-chart");
+      box.createDiv({ cls: "samaya-gantt-empty-title", text: q ? "No projects match" : "No projects yet" });
+      box.createDiv({ cls: "samaya-gantt-empty-sub", text: q ? "Try another search." : "Plan work on a timeline: group tasks and tickets into projects and drag them into place." });
+      if (!q) box.createEl("button", { text: "Add project", cls: "mod-cta" }).onclick = addProject;
+    }
     const byProject = new Map<string, Ticket[]>(); // tickets linked to each project (by note path)
     const tickets = allTickets(this.app, s); const allTk = tickets.length > 0;
     for (const t of tickets) { const pp = projectPathOf(this.app, t.file); if (pp) (byProject.get(pp) ?? byProject.set(pp, []).get(pp)!).push(t); }

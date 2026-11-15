@@ -1,8 +1,18 @@
 // Sort orders of the Projects chart and the Tickets board. Pure (unit-tested): undated / unset items always come last, whichever the direction.
 export type ProjectSort = "start" | "end" | "name" | "ticket";
 export type TicketSort = "key" | "date" | "name";
-export const PROJECT_SORTS: ReadonlyArray<[ProjectSort, string]> = [["start", "Start date"], ["end", "End date"], ["name", "Name"], ["ticket", "Ticket project"]];
-export const TICKET_SORTS: ReadonlyArray<[TicketSort, string]> = [["key", "Ticket key"], ["date", "Date added"], ["name", "Title"]];
+/** What a sort key orders by: it decides how the two directions are worded ("Oldest first" / "A → Z"). */
+export type SortKind = "date" | "text";
+export interface SortOption<K extends string> { key: K; label: string; kind: SortKind; }
+export const PROJECT_SORTS: ReadonlyArray<SortOption<ProjectSort>> = [
+  { key: "start", label: "Start date", kind: "date" }, { key: "end", label: "End date", kind: "date" },
+  { key: "name", label: "Name", kind: "text" }, { key: "ticket", label: "Ticket project", kind: "text" },
+];
+export const TICKET_SORTS: ReadonlyArray<SortOption<TicketSort>> = [
+  { key: "key", label: "Ticket key", kind: "text" }, { key: "date", label: "Date added", kind: "date" }, { key: "name", label: "Title", kind: "text" },
+];
+/** Wording of the two directions of a sort kind. */
+export const ORDER_LABELS: Record<SortKind, [asc: string, desc: string]> = { date: ["Oldest first", "Newest first"], text: ["A → Z", "Z → A"] };
 
 const text = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 /** Compare with a direction; an empty value ("" / undefined) goes after every other one in both directions. */

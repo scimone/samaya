@@ -182,7 +182,7 @@ export class GanttView extends Panel {
         arrow.onclick = e => { e.stopPropagation(); if (isOpen) memory.open.delete(p.file.path); else memory.open.add(p.file.path); this.render(); };
       } else name.createSpan("samaya-gantt-arrow is-empty");
       if (p.usecase) tint(name.createSpan({ cls: "samaya-chip samaya-gantt-usecase", text: `#${p.usecase}` }), p.color);
-      const link = name.createSpan({ cls: "samaya-gantt-link is-project", text: p.name }); link.title = p.file.path; if (p.color) link.style.color = p.color;
+      const link = name.createSpan({ cls: "samaya-gantt-link is-project", text: p.name }); link.title = p.file.path;
       link.onclick = () => { openFileBeside(this.app, p.file); };
       const linked = byProject.get(p.file.path) ?? [];
       const tp = String(this.app.metadataCache.getFileCache(p.file)?.frontmatter?.ticket_project ?? "");

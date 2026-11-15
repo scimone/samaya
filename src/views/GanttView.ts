@@ -181,7 +181,7 @@ export class GanttView extends Panel {
         const arrow = name.createSpan({ cls: "samaya-gantt-arrow", attr: { "aria-label": isOpen ? "Hide tasks" : "Show tasks" } }); setIcon(arrow, isOpen ? "chevron-down" : "chevron-right");
         arrow.onclick = e => { e.stopPropagation(); if (isOpen) memory.open.delete(p.file.path); else memory.open.add(p.file.path); this.render(); };
       } else name.createSpan("samaya-gantt-arrow is-empty");
-      if (p.usecase) name.createSpan({ cls: "samaya-chip samaya-gantt-usecase", text: `#${p.usecase}` });
+      if (p.usecase) tint(name.createSpan({ cls: "samaya-chip samaya-gantt-usecase", text: `#${p.usecase}` }), p.color);
       const link = name.createSpan({ cls: "samaya-gantt-link is-project", text: p.name }); link.title = p.file.path; if (p.color) link.style.color = p.color;
       link.onclick = () => { openFileBeside(this.app, p.file); };
       const linked = byProject.get(p.file.path) ?? [];
@@ -241,7 +241,7 @@ export class GanttView extends Panel {
       const bar = tint(track.createDiv({ cls: "samaya-gantt-bar" + (p.done ? " is-done" : "") }), p.color);
       if (st?.tasks) bar.createDiv("samaya-gantt-fill").style.width = `${(st.done / st.tasks) * 100}%`;
       const label = bar.createSpan({ cls: "samaya-gantt-label" });
-      if (p.usecase) label.createSpan({ cls: "samaya-chip samaya-gantt-usecase", text: `#${p.usecase}` });
+      if (p.usecase) tint(label.createSpan({ cls: "samaya-chip samaya-gantt-usecase", text: `#${p.usecase}` }), p.color);
       label.appendText(p.name);
       const place = (sp: { start: string; end: string }) => { bar.style.left = `${daysBetween(from, sp.start) * dayW}px`; bar.style.width = `${(daysBetween(sp.start, sp.end) + 1) * dayW}px`; };
       place(p.span);

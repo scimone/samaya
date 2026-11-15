@@ -1723,6 +1723,6 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-sortbtn svg { width: 15px; height: 15px; }
 .samaya-sortbtn-dir svg { width: 13px; height: 13px; }
 .samaya-sortbtn-icon, .samaya-sortbtn-dir { display: inline-flex; }
-/* use case number pill ("#123") in front of a project name */
-.samaya-gantt-usecase { flex: 0 0 auto; margin-right: 6px; font-weight: 600; background: var(--background-modifier-hover); color: var(--text-muted); }
-.samaya-gantt-bar .samaya-gantt-usecase { background: rgba(0, 0, 0, 0.12); color: inherit; }
+/* use case number pill ("#123") in front of a project name: same look in the name column and on the bar */
+.samaya-gantt-usecase { flex: 0 0 auto; margin-right: 3px; font-weight: 600; background: rgba(0, 0, 0, 0.12); color: var(--text-normal); }
+.samaya-gantt-name .samaya-gantt-link.is-project { font-weight: 600; }

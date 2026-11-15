@@ -10,7 +10,7 @@ import { Notice } from "obsidian";
 import { focusButton, isCurrentTask, trackedBefore, joinParts, splitTitle } from "./place";
 import { openDayPicker } from "./dayPicker";
 import { PartsModal } from "./partsModal";
-import { projectLabel, projectPathOf, usecaseOf } from "../projects";
+import { projectPathOf, usecaseOf } from "../projects";
 import { assignProjectLinked, assignTicketLinked, projectFits, ticketFits, allMeetings, changeMeetingLink, meetingLinks, MeetingProp, ticketColorOf, setTicketProjectColor } from "../links";
 import { noteColor, tint, ticketProjectColor } from "../itemcolor";
 import { openColorPicker } from "./colorPicker";

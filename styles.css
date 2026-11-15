@@ -1725,5 +1725,7 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-sortbtn-icon, .samaya-sortbtn-dir { display: inline-flex; }
 /* use case number pill ("#123") in front of a project name: same look in the name column and on the bar */
 .samaya-gantt-usecase { flex: 0 0 auto; margin-right: 1px; font-weight: 600; } /* colours come from .samaya-chip.has-pc */
-.samaya-chip-usecase { font-family: var(--font-monospace); font-size: 0.85em; font-weight: 600; margin-right: 1px; }
+/* the use case number replaces the folder icon: a small filled badge in the project colour, like an icon tile */
+.samaya-chip-usecase { display: inline-flex; align-items: center; padding: 0 4px; margin: 0 2px 0 -3px; border-radius: 4px; font-size: 0.8em; font-weight: 700; line-height: 1.5; letter-spacing: 0.01em; background: var(--text-muted); color: var(--background-primary); }
+.samaya-chip.has-pc .samaya-chip-usecase { background: var(--pc); }
 .samaya-gantt-name .samaya-gantt-link.is-project { font-weight: 600; }

@@ -28,5 +28,9 @@ export abstract class Panel extends Component {
     this.register(() => window.clearTimeout(tm));
     this.onDataUpdated();
   }
+  /** Also redraw on the plugin's change signal, for what lives outside the notes (e.g. the colours of ticket projects, kept in the settings). */
+  protected redrawOnBus() {
+    this.register(this.plugin.bus.on(() => { const el = this.visibleEl(); if (el && !el.isShown()) this.stale = true; else this.onDataUpdated(); }));
+  }
   abstract onDataUpdated(): void;
 }

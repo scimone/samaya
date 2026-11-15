@@ -38,7 +38,7 @@ export class GanttView extends Panel {
 
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
     super(plugin, () => projectsPrefix(plugin.settings)); this.texts = new NoteText(this.app);
-    this.root = parentEl.createDiv("samaya-gantt");
+    this.root = parentEl.createDiv("samaya-gantt"); this.redrawOnBus();
     // a resized pane shows a shorter or longer time span; the day width stays (it is only fitted when the scale changes)
     this.ro = new ResizeObserver(() => this.syncEdges?.());
     this.ro.observe(this.root);

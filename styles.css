@@ -1232,7 +1232,6 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-md-row.is-live .samaya-md-name, .samaya-md-row.is-live .samaya-md-when { color: var(--samaya-meeting); }
 .samaya-md-rec { flex: none; display: inline-flex; margin-left: auto; color: var(--text-faint); }
 .samaya-md-rec svg { width: 13px; height: 13px; }
-.samaya-md-rec.is-recurring { color: var(--samaya-meeting); }
 .samaya-md-when { flex: none; width: 40px; color: var(--text-muted); font-size: var(--font-ui-small); font-variant-numeric: tabular-nums; }
 .samaya-md-when.is-date { width: 84px; }
 .samaya-md-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-ui-small); color: var(--text-normal); }

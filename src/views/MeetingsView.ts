@@ -210,7 +210,7 @@ export class MeetingsView extends Panel {
     r.createSpan({ cls: dated ? "samaya-md-when is-date" : "samaya-md-when", text: dated ? short(i.date) : time(i) });
     r.createSpan({ cls: "samaya-md-name", text: i.title.trim() }); this.chips(r, i.path); this.mark(r, i);
     const rec = this.recurring.has(i.path); // a symbol at the very right: part of a recurring series or a one-off
-    setIcon(r.createSpan({ cls: "samaya-md-rec" + (rec ? " is-recurring" : ""), attr: { "aria-label": rec ? "Recurring meeting" : "Non-recurring meeting" } }), rec ? "repeat" : "repeat-1");
+    setIcon(r.createSpan({ cls: "samaya-md-rec" + (rec ? " is-recurring" : ""), attr: { "aria-label": rec ? "Recurring meeting" : "One-time meeting" } }), rec ? "repeat" : "calendar-1");
     r.onclick = e => this.open(i.path, e); this.linkMenu(r, i.path);
     return r;
   }
@@ -274,9 +274,9 @@ export class MeetingsView extends Panel {
     };
     const today = all.filter(i => i.date === td); const left = today.filter(i => i.when !== "past").sort(byTime);
     const live = left.find(i => this.isLive(i)); const nxt = left.find(i => !this.isLive(i) && i.start != null);
-    card("Today", String(left.length), !today.length ? "no meetings" : live ? `now: ${live.title.trim()}` : nxt ? `next at ${time(nxt)}` : `of ${today.length} done`, "meet", today.length ? (today.length - left.length) / today.length : undefined);
+    card("Today", `${today.length - left.length}/${today.length}`, !today.length ? "no meetings" : live ? `now: ${live.title.trim()}` : nxt ? `next at ${time(nxt)}` : "all done", "", today.length ? (today.length - left.length) / today.length : undefined);
     const w = startOfWeek(td); const wk = all.filter(i => i.date >= w && i.date <= addDays(w, 6));
-    card("This week", String(wk.length), `Week ${isoWeek(parseYmd(w))}`, "meet", wk.length ? wk.filter(i => i.when === "past").length / wk.length : undefined);
+    card("This week", `${wk.filter(i => i.when === "past").length}/${wk.length}`, `Week ${isoWeek(parseYmd(w))}`, "", wk.length ? wk.filter(i => i.when === "past").length / wk.length : undefined);
     const past = all.filter(i => i.when === "past"); const noted = past.filter(i => i.hasNotes).length; const open = all.reduce((s, i) => s + this.openTasks(i), 0); const withOpen = all.filter(i => this.openTasks(i)).length;
     card("Open tasks", String(open), open ? `in ${withOpen} meeting${withOpen === 1 ? "" : "s"}` : "all clear", open ? "warn" : "");
     card("With notes", !past.length ? "…" : `${Math.round(noted / past.length * 100)}%`, !past.length ? "" : `${noted} of ${past.length} past meetings`, "", !past.length ? undefined : noted / past.length);
@@ -289,11 +289,11 @@ export class MeetingsView extends Panel {
     const card = (kicker: string, value: string, sub: string, tone: "" | "meet" | "warn" = "") => {
       const c = row.createDiv("samaya-md-card" + (tone ? " is-" + tone : "")); c.createDiv({ cls: "samaya-md-card-kicker", text: kicker }); c.createDiv({ cls: "samaya-md-card-value", text: value }); c.createDiv({ cls: "samaya-md-card-sub", text: sub || " " });
     };
-    card("Held", String(s.held), s.last ? `last ${short(s.last.date)}` : "", "meet");
+    card("Held", String(s.held), s.last ? `last ${short(s.last.date)}` : "");
     card("With notes", String(s.withNotes), !s.held ? "" : `${Math.round(s.withNotes / s.held * 100)}% of held`);
     const openT = s.instances.reduce((n, i) => n + this.openTasks(i), 0);
     card("Open tasks", String(openT), openT ? "to follow up" : "all clear", openT ? "warn" : "");
-    card("Next", s.next ? (s.next.date === td ? "Today" : short(s.next.date)) : "—", s.next ? span(s.next) : "none planned", "meet");
+    card("Next", s.next ? (s.next.date === td ? "Today" : short(s.next.date)) : "—", s.next ? span(s.next) : "none planned");
 
     const items = [...s.instances].reverse().filter(i => !memory.onlyNotes || i.hasNotes);
     const body = page.createDiv("samaya-md-body is-detail");

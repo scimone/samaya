@@ -232,7 +232,7 @@ export class MeetingsView extends Panel {
 
     const tomorrow = nextWorkday(td);
     const upcoming = all.filter(i => i.when !== "past" && i.date <= tomorrow).sort(byTime); // today and the next working day (Monday from Friday on)
-    const next = this.section(left, "Next", "next", upcoming.length || "");
+    const next = this.section(left, "Next", "next");
     if (!upcoming.length) this.none(next.body, "Nothing planned for the next two days.");
     for (const day of [td, tomorrow]) {
       const items = upcoming.filter(i => i.date === day); if (!items.length) continue;

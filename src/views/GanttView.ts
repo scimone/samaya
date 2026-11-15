@@ -158,7 +158,7 @@ export class GanttView extends Panel {
         r.createDiv("samaya-gantt-track").style.width = `${width}px`;
       };
       l.slice(0, c.head).forEach(one);
-      if (c.gap) more(`Show ${c.gap} more tasks`);
+      if (c.gap) more(`Show ${c.gap} more task${c.gap === 1 ? "" : "s"}`);
       if (c.tail) l.slice(l.length - c.tail).forEach(one);
       if (expanded && l.length > 6) more("Show fewer");
     };

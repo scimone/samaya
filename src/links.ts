@@ -4,7 +4,7 @@ import type { SamayaSettings } from "./settings";
 import { Ticket, allTasks, allTickets, assignTicket, readTask, ticketPathOf } from "./model";
 import { Project, allProjects, assignProject, linkTickets, projectPathOf, readProject } from "./projects";
 import { patchNote } from "./model";
-import { noteColor, writeNoteColor } from "./itemcolor";
+import { noteColor, randomColor, setTicketProjectColor, ticketProjectColor, writeNoteColor } from "./itemcolor";
 import { buildSeries, parseNote } from "./meetingseries";
 
 /** The Jira / GitLab project a project note is linked to as a whole ("" = none). */
@@ -16,16 +16,17 @@ export function ownerProjectOf(app: App, s: SamayaSettings, ticket: Ticket): str
   const direct = projectPathOf(app, ticket.file); if (direct) return direct;
   return ticket.project ? allProjects(app, s).find(p => String(app.metadataCache.getFileCache(p.file)?.frontmatter?.ticket_project ?? "") === ticket.project)?.file.path ?? "" : "";
 }
-/** The colour a ticket shows: its project's when it belongs to one, else its own ("" = default look). */
-export function ticketColorOf(app: App, s: SamayaSettings, ticket: Ticket): string {
-  const owner = s.projectsOn ? fileAt(app, ownerProjectOf(app, s, ticket)) : null;
-  return (owner && noteColor(app, owner)) || ticket.color;
-}
-/** Set a ticket's colour; a ticket that belongs to a project shares the project's colour, so that is what changes. */
+/** The colour a ticket shows: the one of its ticket project ("" = default look). */
+export function ticketColorOf(_app: App, s: SamayaSettings, ticket: Ticket): string { return ticketProjectColor(s, ticket.project); }
+/** Set the colour of a ticket's ticket project (all its tickets change); a project made from that ticket project follows. */
 export async function setTicketColor(app: App, s: SamayaSettings, ticket: Ticket, hex: string): Promise<void> {
-  const owner = s.projectsOn ? fileAt(app, ownerProjectOf(app, s, ticket)) : null;
-  if (owner) await writeNoteColor(app, owner, hex);
-  await writeNoteColor(app, ticket.file, hex);
+  await setTicketProjectColor(s, ticket.project, hex);
+  for (const p of allProjects(app, s)) if (ticket.project && ticketProjectOf(app, p.file) === ticket.project) await writeNoteColor(app, p.file, hex);
+}
+/** Set a project's colour; if it was made from a ticket project, that ticket project follows. */
+export async function setProjectColor(app: App, s: SamayaSettings, project: TFile, hex: string): Promise<void> {
+  await writeNoteColor(app, project, hex);
+  const tp = ticketProjectOf(app, project); if (tp) await setTicketProjectColor(s, tp, hex);
 }
 /** Whether this task may be assigned to this ticket: not when the task is in one project and the ticket belongs to another. */
 export function ticketFits(app: App, s: SamayaSettings, task: TFile, ticket: Ticket): boolean {
@@ -59,6 +60,11 @@ export async function assignProjectLinked(app: App, s: SamayaSettings, task: TFi
 /** Link tickets to a project, then bring the tasks in line: tasks of those tickets join the project, and tasks of the project join its only ticket. */
 export async function linkProject(app: App, s: SamayaSettings, project: TFile, tickets: Ticket[], ticketProject?: string): Promise<void> {
   await linkTickets(app, project, tickets.map(t => t.file), ticketProject);
+  // connected = same colour: a whole ticket project takes the project's colour; single tickets can't recolour their ticket project, so the project takes theirs
+  const tp = ticketProject || tickets.find(t => t.project)?.project || "";
+  let pc = noteColor(app, project);
+  if (ticketProject) { if (!pc) { pc = randomColor(); await writeNoteColor(app, project, pc); } await setTicketProjectColor(s, ticketProject, pc); }
+  else if (tp && ticketProjectColor(s, tp) && ticketProjectColor(s, tp) !== pc) await writeNoteColor(app, project, ticketProjectColor(s, tp));
   const linked = new Map(allTickets(app, s).filter(t => projectPathOf(app, t.file) === project.path).map(t => [t.file.path, t] as const));
   for (const t of tickets) linked.set(t.file.path, t); // the cache may not have caught up with the notes just written
   const only = linked.size === 1 && !ticketProject && !ticketProjectOf(app, project) ? [...linked.values()][0] : null;

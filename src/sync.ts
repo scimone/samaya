@@ -1,7 +1,7 @@
 import { Notice, requestUrl } from "obsidian";
 import type SamayaPlugin from "./main";
 import { Http, RawTicket, fetchGitlab, fetchJira } from "./tickets";
-import { COLOR_PROP, randomColor } from "./itemcolor";
+import { ensureColors } from "./colormigrate";
 import { LEGACY_TICKET_PROPS, allTickets, createTicketNote, ticketProps, patchNote, relocateTicket, varsOfRaw, varsOfTicket } from "./model";
 
 const http: Http = async o => {
@@ -40,13 +40,14 @@ async function syncNow(plugin: SamayaPlugin, only?: "jira" | "gitlab"): Promise<
           continue;
         }
         const f = await createTicketNote(app, s, varsOfRaw(t));
-        await patchNote(app, f, { ...fm, [COLOR_PROP]: randomColor(allTickets(app, s).map(x => x.color).filter(Boolean)) }); created++;
+        await patchNote(app, f, fm); created++;
       }
       // tickets we imported earlier that no longer appear are resolved / reassigned
       for (const gone of existing.values()) if (gone.state !== "closed") {
         await patchNote(app, gone.file, { status: "closed" }); closed++;
         if (byStatus) await relocateTicket(app, s, gone, { ...varsOfTicket(gone), status: "closed" });
       }
+      await ensureColors(app, s); // a ticket project seen for the first time gets a colour
       new Notice(`${source === "jira" ? "Jira" : "GitLab"}: ${tickets.length} open tickets (${created} new, ${closed} closed)`);
     } catch (e) {
       console.error("Samaya sync failed", e);

@@ -37,6 +37,8 @@ export interface SamayaSettings {
   projectsOn: boolean; projectsPath: string; projectsScale: "month" | "quarter" | "year"; projectsNameWidth: number; projectsTableHidden: boolean;
   /** shortcuts (Planner, Tasks, ...) at the top of the file explorer; their folders are hidden */
   navigationOn: boolean;
+  /** colour (hex) of each ticket project (a Jira / GitLab project), by its key */
+  ticketProjectColors: Record<string, string>;
 }
 export const DEFAULT_SETTINGS: SamayaSettings = {
   tasksPath: "[Tasks]/YYYY/YYYY-MM", ticketsPath: "[Tickets]/{{TICKET_SOURCE}}/{{TICKET_STATUS}}", journalSource: "auto", journalFolder: "[Journal]/YYYY/YYYY-MM", journalFormat: "YYYY-MM-DD", taskTemplate: "", ticketTemplate: "", ticketFileName: "{{TICKET_ID}}_{{TICKET_TITLE_SLUG}}",
@@ -59,6 +61,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   },
   projectsOn: false, projectsPath: "Projects", projectsScale: "quarter", projectsNameWidth: 200, projectsTableHidden: false,
   navigationOn: false,
+  ticketProjectColors: {},
 };
 
 /** Settings saved by older versions used plain folders; turn them into equivalent path patterns. */

@@ -10,6 +10,8 @@ import { assignTicketLinked, assignProjectLinked, projectFits, ticketFits, chang
 import { Ticket, allTickets, createTask } from "./model";
 import { PLANNER_VIEW_TYPE, PlannerView, SAMAYA_ICON, SAMAYA_ICON_SVG } from "./views/PlannerView";
 import { syncTickets } from "./sync";
+import { setColorPersist } from "./itemcolor";
+import { ensureColors } from "./colormigrate";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
 import { ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "./modals";
 import type { Period } from "./journal";
@@ -80,6 +82,8 @@ export default class SamayaPlugin extends Plugin {
     hooks.focusPath = () => this.focus.state?.path; hooks.dress = () => this.dressSide(); // what openfile.ts needs from the plugin
     this.data = (await this.loadData()) ?? {};
     this.settings = Object.assign({}, DEFAULT_SETTINGS, migrateSettings(this.data.settings ?? {}));
+    this.settings.ticketProjectColors = { ...this.settings.ticketProjectColors };
+    setColorPersist(() => this.saveSettings());
     applyColors(this.settings);
     addIcon(SAMAYA_ICON, SAMAYA_ICON_SVG);
     this.registerView(PLANNER_VIEW_TYPE, leaf => new PlannerView(leaf, this));
@@ -187,6 +191,7 @@ export default class SamayaPlugin extends Plugin {
       this.scanLunch();
       void this.markJournalNotes();
       await this.scaffold(false);
+      safe(ensureColors(this.app, this.settings).then(() => this.bus.emit()), "assigning colours");
       if (this.settings.syncOnStartup && this.settings.ticketsOn && (this.settings.jiraOn || this.settings.gitlabOn)) void this.syncTickets();
       if (this.settings.openOnStartup) await this.openPlanner();
       this.registerInterval(window.setInterval(() => this.shutdownNudge(), 60000));

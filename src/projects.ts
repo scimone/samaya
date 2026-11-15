@@ -62,8 +62,6 @@ export async function createProject(app: App, s: SamayaSettings, name: string): 
 
 /** Link ticket notes to an existing project (each gets `assigned_project`); `ticketProject` (a Jira / GitLab project id) is remembered on the project note. */
 export async function linkTickets(app: App, project: TFile, tickets: TFile[], ticketProject?: string): Promise<void> {
-  let color = noteColor(app, project);
-  if (!color) { color = randomColor(); await patchNote(app, project, { [COLOR_PROP]: color }); } // a project from before colours: give it one, the tickets take it
   if (ticketProject) await patchNote(app, project, { ticket_project: ticketProject });
-  for (const t of tickets) await patchNote(app, t, { [PROJECT_PROP]: `[[${project.basename}]]`, [LEGACY_PROJECT_PROP]: null, [COLOR_PROP]: color }); // linked tickets wear their project's colour
+  for (const t of tickets) await patchNote(app, t, { [PROJECT_PROP]: `[[${project.basename}]]`, [LEGACY_PROJECT_PROP]: null });
 }

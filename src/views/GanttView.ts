@@ -6,11 +6,11 @@ import { openFileSmart, openFileBeside } from "../openfile";
 import { DragMode, GRANULARITIES, Granularity, collapseTasks, daysBetween, taskPeriod, taskSpan, dragSpan, ganttRange, granularityDayWidth, monthMarks } from "../gantt";
 import { DEFAULT_PROJECT_DAYS, Project, projectStats, readProject, createProject, projectPathOf, projectsPrefix } from "../projects";
 import { Task, Ticket, allTasks, allTickets, patchNote, prefixOf, setDone, ticketPathOf } from "../model";
-import { linkProject, ticketColorOf } from "../links";
+import { linkProject, ticketColorOf, setProjectColor } from "../links";
 import { ConfirmDeleteModal, TextPromptModal, TicketTargetSuggestModal } from "../modals";
 import { promptRename, showTaskMenu, showTicketMenu } from "./common";
 import { openColorPicker } from "./colorPicker";
-import { noteColor, tint, writeNoteColor } from "../itemcolor";
+import { noteColor, tint, ticketProjectColor } from "../itemcolor";
 import { openRangePicker } from "./rangePicker";
 import { renderHeadTitle } from "./plannerHead";
 import { renderResetPill } from "./dateNav";
@@ -175,7 +175,7 @@ export class GanttView extends Panel {
       link.onclick = () => { openFileBeside(this.app, p.file); };
       const linked = byProject.get(p.file.path) ?? [];
       const tp = String(this.app.metadataCache.getFileCache(p.file)?.frontmatter?.ticket_project ?? "");
-      const pill = (text: string, source: string, title: string, tk?: Ticket) => { const el = tint(name.createSpan({ cls: `samaya-chip samaya-chip-ticket samaya-gantt-pill-ticket is-${source}`, text, attr: { "aria-label": title } }), tk ? ticketColorOf(this.app, s, tk) : p.color); if (tk) el.addEventListener("contextmenu", ev => showTicketMenu(this.plugin, tk, ev)); return el; };
+      const pill = (text: string, source: string, title: string, tk?: Ticket) => { const el = tint(name.createSpan({ cls: `samaya-chip samaya-chip-ticket samaya-gantt-pill-ticket is-${source}`, text, attr: { "aria-label": title } }), tk ? ticketColorOf(this.app, s, tk) : ticketProjectColor(s, tp) || p.color); if (tk) el.addEventListener("contextmenu", ev => showTicketMenu(this.plugin, tk, ev)); return el; };
       if (tp) { // created from a Jira / GitLab project: one pill; clicking lists its linked tickets
         const mine = linked.filter(t => t.project === tp);
         const el = pill(tp, mine[0]?.source ?? "", `Ticket project ${tp}`);
@@ -196,7 +196,7 @@ export class GanttView extends Panel {
           openRangePicker({ x: e.clientX, y: e.clientY, start: p.span?.start, end: p.span?.end }, (start, end) => { safe(patchNote(this.app, p.file, { start, end }), "saving the note"); },
             p.span ? () => { safe(patchNote(this.app, p.file, { start: null, end: null }), "saving the note"); } : undefined);
         }));
-        m.addItem(i => i.setTitle("Color…").setIcon("palette").onClick(() => openColorPicker(e.clientX, e.clientY, p.color, hex => { safe(writeNoteColor(this.app, p.file, hex).then(() => this.plugin.bus.emit()), "saving the colour"); })));
+        m.addItem(i => i.setTitle("Color…").setIcon("palette").onClick(() => openColorPicker(e.clientX, e.clientY, p.color, hex => { safe(setProjectColor(this.app, s, p.file, hex).then(() => this.plugin.bus.emit()), "saving the colour"); })));
         m.addSeparator();
         m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { openFileBeside(this.app, p.file); }));
         m.addItem(i => i.setTitle("Rename").setIcon("pencil").onClick(() => promptRename(this.plugin, p.file, p.file.basename)));

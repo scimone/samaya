@@ -29,3 +29,16 @@ export function tint<T extends HTMLElement>(el: T, hex: string): T {
   if (hex) { el.style.setProperty("--pc", hex); el.addClass("has-pc"); }
   return el;
 }
+
+// ---- ticket projects: one colour per Jira / GitLab project, kept in the settings
+let persist: () => Promise<void> = async () => {};
+/** The plugin registers how settings are saved, so colour helpers need no plugin reference. */
+export function setColorPersist(fn: () => Promise<void>) { persist = fn; }
+export const savePersisted = () => persist();
+/** Colour of a ticket project ("" = none). */
+export function ticketProjectColor(s: { ticketProjectColors: Record<string, string> }, key: string): string {
+  const v = key ? s.ticketProjectColors[key] : ""; return v && HEX.test(v) ? v.toLowerCase() : "";
+}
+export async function setTicketProjectColor(s: { ticketProjectColors: Record<string, string> }, key: string, hex: string): Promise<void> {
+  if (!key) return; s.ticketProjectColors[key] = hex; await persist();
+}

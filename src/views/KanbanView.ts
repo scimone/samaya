@@ -10,7 +10,7 @@ import { TFile, setIcon } from "obsidian";
 import { TextPromptModal } from "../modals";
 import { createProject, projectPathOf } from "../projects";
 import { linkProject, ticketColorOf } from "../links";
-import { projectChip, showTicketMenu } from "./common";
+import { projectChip, ticketProjectTitle } from "./common";
 import { noteColor, tint } from "../itemcolor";
 import { renderHeadTitle } from "./plannerHead";
 import { NoteText, matches, renderSearch } from "./search";
@@ -77,7 +77,7 @@ export class KanbanView extends Panel {
     for (const lane of lanes) {
       const box = grid.createDiv("samaya-kb-lane");
       const title = box.createDiv({ cls: "samaya-kb-lanehead" + (this.collapsed.has(lane.project) ? " is-collapsed" : "") });
-      title.createSpan({ cls: "samaya-kb-chevron", text: "▾" }); title.createSpan({ text: lane.project }); title.createSpan({ cls: "samaya-kb-count", text: String(lane.count) });
+      title.createSpan({ cls: "samaya-kb-chevron", text: "▾" }); if (lane.project === NO_PROJECT) title.createSpan({ text: lane.project }); else ticketProjectTitle(this.plugin, title, lane.project); title.createSpan({ cls: "samaya-kb-count", text: String(lane.count) });
       const laneAll = perLane.get(lane.project) ?? [];
       const laneProjects = new Set(laneAll.map(t => ppath(t.file)).filter(Boolean));
       for (const pp of laneProjects) { // projects created from this Jira / GitLab project
@@ -100,7 +100,6 @@ export class KanbanView extends Panel {
         for (const t of lane.cells.get(c) ?? []) {
           const card = cell.createDiv("samaya-kb-card");
           tint(card.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${t.source}`, text: t.key }), ticketColorOf(this.app, s, t));
-          card.addEventListener("contextmenu", e => showTicketMenu(this.plugin, t, e));
           card.createDiv({ cls: "samaya-kb-title", text: t.summary || t.file.basename });
           const pp = s.projectsOn ? projectOf0(t) : null;
           if (pp) { const chip = projectChip(card.createDiv("samaya-card-meta samaya-kb-projectchip"), pp.basename, noteColor(this.app, pp)); chip.addClass("is-link"); chip.onclick = e => { e.stopPropagation(); openFileSmart(this.app, pp); }; }

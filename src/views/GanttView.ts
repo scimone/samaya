@@ -8,7 +8,7 @@ import { DEFAULT_PROJECT_DAYS, Project, projectStats, readProject, createProject
 import { Task, Ticket, allTasks, allTickets, patchNote, prefixOf, setDone, ticketPathOf } from "../model";
 import { linkProject, ticketColorOf, setProjectColor } from "../links";
 import { ConfirmDeleteModal, TextPromptModal, TicketTargetSuggestModal } from "../modals";
-import { promptRename, showTaskMenu, showTicketMenu } from "./common";
+import { promptRename, showTaskMenu } from "./common";
 import { openColorPicker } from "./colorPicker";
 import { noteColor, tint, ticketProjectColor } from "../itemcolor";
 import { openRangePicker } from "./rangePicker";
@@ -141,7 +141,7 @@ export class GanttView extends Panel {
         const lk = nm.createSpan({ cls: "samaya-gantt-link", text: e.t.title });
         lk.onclick = () => { openFileBeside(this.app, e.t.file); };
         const tk = e.t.ticket ? ticketByPath.get(ticketPathOf(this.app, e.t)) : undefined;
-        if (tk) { const pl = tint(nm.createSpan({ cls: `samaya-chip samaya-chip-ticket samaya-gantt-pill-ticket is-${tk.source}`, text: tk.key, attr: { "aria-label": tk.summary || tk.key } }), ticketColorOf(this.app, s, tk)); pl.onclick = ev => { ev.stopPropagation(); openFileSmart(this.app, tk.file); }; pl.addEventListener("contextmenu", ev => showTicketMenu(this.plugin, tk, ev)); }
+        if (tk) { const pl = tint(nm.createSpan({ cls: `samaya-chip samaya-chip-ticket samaya-gantt-pill-ticket is-${tk.source}`, text: tk.key, attr: { "aria-label": tk.summary || tk.key } }), ticketColorOf(this.app, s, tk)); pl.onclick = ev => { ev.stopPropagation(); openFileSmart(this.app, tk.file); }; }
         const tr = r.createDiv("samaya-gantt-track"); tr.style.width = `${width}px`;
         if (!e.span) return;
         const b = tint(tr.createDiv({ cls: "samaya-gantt-bar is-task" + (e.t.status === "done" ? " is-done" : "") + (e.period ? " is-period" : "") }), noteColor(this.app, p.file));
@@ -175,7 +175,7 @@ export class GanttView extends Panel {
       link.onclick = () => { openFileBeside(this.app, p.file); };
       const linked = byProject.get(p.file.path) ?? [];
       const tp = String(this.app.metadataCache.getFileCache(p.file)?.frontmatter?.ticket_project ?? "");
-      const pill = (text: string, source: string, title: string, tk?: Ticket) => { const el = tint(name.createSpan({ cls: `samaya-chip samaya-chip-ticket samaya-gantt-pill-ticket is-${source}`, text, attr: { "aria-label": title } }), tk ? ticketColorOf(this.app, s, tk) : ticketProjectColor(s, tp) || p.color); if (tk) el.addEventListener("contextmenu", ev => showTicketMenu(this.plugin, tk, ev)); return el; };
+      const pill = (text: string, source: string, title: string, tk?: Ticket) => { const el = tint(name.createSpan({ cls: `samaya-chip samaya-chip-ticket samaya-gantt-pill-ticket is-${source}`, text, attr: { "aria-label": title } }), tk ? ticketColorOf(this.app, s, tk) : ticketProjectColor(s, tp) || p.color); return el; };
       if (tp) { // created from a Jira / GitLab project: one pill; clicking lists its linked tickets
         const mine = linked.filter(t => t.project === tp);
         const el = pill(tp, mine[0]?.source ?? "", `Ticket project ${tp}`);

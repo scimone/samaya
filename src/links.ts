@@ -4,7 +4,7 @@ import type { SamayaSettings } from "./settings";
 import { Ticket, allTasks, allTickets, assignTicket, readTask, ticketPathOf } from "./model";
 import { Project, allProjects, assignProject, linkTickets, projectPathOf, readProject } from "./projects";
 import { patchNote } from "./model";
-import { noteColor, randomColor, setTicketProjectColor, ticketProjectColor, writeNoteColor } from "./itemcolor";
+import { noteColor, randomColor, setTicketProjectColor as setColorOf, ticketProjectColor, writeNoteColor } from "./itemcolor";
 import { buildSeries, parseNote } from "./meetingseries";
 
 /** The Jira / GitLab project a project note is linked to as a whole ("" = none). */
@@ -18,15 +18,15 @@ export function ownerProjectOf(app: App, s: SamayaSettings, ticket: Ticket): str
 }
 /** The colour a ticket shows: the one of its ticket project ("" = default look). */
 export function ticketColorOf(_app: App, s: SamayaSettings, ticket: Ticket): string { return ticketProjectColor(s, ticket.project); }
-/** Set the colour of a ticket's ticket project (all its tickets change); a project made from that ticket project follows. */
-export async function setTicketColor(app: App, s: SamayaSettings, ticket: Ticket, hex: string): Promise<void> {
-  await setTicketProjectColor(s, ticket.project, hex);
-  for (const p of allProjects(app, s)) if (ticket.project && ticketProjectOf(app, p.file) === ticket.project) await writeNoteColor(app, p.file, hex);
+/** Set the colour of a ticket project (all its tickets change); a project made from it follows. */
+export async function setTicketProjectColor(app: App, s: SamayaSettings, key: string, hex: string): Promise<void> {
+  await setColorOf(s, key, hex);
+  for (const p of allProjects(app, s)) if (key && ticketProjectOf(app, p.file) === key) await writeNoteColor(app, p.file, hex);
 }
 /** Set a project's colour; if it was made from a ticket project, that ticket project follows. */
 export async function setProjectColor(app: App, s: SamayaSettings, project: TFile, hex: string): Promise<void> {
   await writeNoteColor(app, project, hex);
-  const tp = ticketProjectOf(app, project); if (tp) await setTicketProjectColor(s, tp, hex);
+  const tp = ticketProjectOf(app, project); if (tp) await setColorOf(s, tp, hex);
 }
 /** Whether this task may be assigned to this ticket: not when the task is in one project and the ticket belongs to another. */
 export function ticketFits(app: App, s: SamayaSettings, task: TFile, ticket: Ticket): boolean {
@@ -63,7 +63,7 @@ export async function linkProject(app: App, s: SamayaSettings, project: TFile, t
   // connected = same colour: a whole ticket project takes the project's colour; single tickets can't recolour their ticket project, so the project takes theirs
   const tp = ticketProject || tickets.find(t => t.project)?.project || "";
   let pc = noteColor(app, project);
-  if (ticketProject) { if (!pc) { pc = randomColor(); await writeNoteColor(app, project, pc); } await setTicketProjectColor(s, ticketProject, pc); }
+  if (ticketProject) { if (!pc) { pc = randomColor(); await writeNoteColor(app, project, pc); } await setColorOf(s, ticketProject, pc); }
   else if (tp && ticketProjectColor(s, tp) && ticketProjectColor(s, tp) !== pc) await writeNoteColor(app, project, ticketProjectColor(s, tp));
   const linked = new Map(allTickets(app, s).filter(t => projectPathOf(app, t.file) === project.path).map(t => [t.file.path, t] as const));
   for (const t of tickets) linked.set(t.file.path, t); // the cache may not have caught up with the notes just written

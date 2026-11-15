@@ -16,11 +16,11 @@ import { renderWeekHead } from "./plannerHead";
 import { renderCapBar } from "./capBar";
 import { addTaskInput, capacityOf, weekBuckets, renderWeekColumn } from "./weekColumn";
 import { TicketTaskModal } from "../modals";
-import { groupTickets, isDoneState } from "../kanban";
+import { NO_PROJECT, groupTickets, isDoneState } from "../kanban";
 import { HORIZONS, addDays, bucketOf, fmtDur, horizonTarget, minToHm, nextDayMs, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { Capacity, capacityWindow } from "../worktime";
-import { bindCardDrop, bindZone, keyActivate, renderTaskCard, richText, showTicketMenu } from "./common";
+import { bindCardDrop, bindZone, keyActivate, renderTaskCard, richText, ticketProjectTitle } from "./common";
 import { ticketColorOf } from "../links";
 import { tint } from "../itemcolor";
 
@@ -183,7 +183,7 @@ export class WeeklyBoardView extends PlannerPane {
         for (const lane of lanes) {
           const box = grid.createDiv("samaya-kb-lane"); const closed = this.kbCollapsed.has(lane.project);
           const title = box.createDiv({ cls: "samaya-kb-lanehead" + (closed ? " is-collapsed" : "") });
-          title.createSpan({ cls: "samaya-kb-chevron", text: "▾" }); title.createSpan({ text: lane.project }); title.createSpan({ cls: "samaya-kb-count", text: String(lane.count) });
+          title.createSpan({ cls: "samaya-kb-chevron", text: "▾" }); if (lane.project === NO_PROJECT) title.createSpan({ text: lane.project }); else ticketProjectTitle(this.plugin, title, lane.project); title.createSpan({ cls: "samaya-kb-count", text: String(lane.count) });
           title.onclick = () => { if (!this.kbCollapsed.delete(lane.project)) this.kbCollapsed.add(lane.project); this.schedule(); };
           if (closed) continue;
           const row = box.createDiv("samaya-kb-row");
@@ -228,7 +228,6 @@ export class WeeklyBoardView extends PlannerPane {
     const card = cell.createDiv("samaya-kb-card");
     const top = card.createDiv("samaya-kb-cardtop");
     tint(top.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}`, text: tk.key }), ticketColorOf(this.app, s, tk));
-    card.addEventListener("contextmenu", e => showTicketMenu(this.plugin, tk, e));
     if (tasks.length) top.createSpan({ cls: "samaya-chip samaya-chip-channel", text: tasks.length === 1 ? "1 task" : `${tasks.length} tasks`, attr: { title: tasks.map(t => t.title).join("\n") } });
     card.createDiv({ cls: "samaya-kb-title", text: title });
     const meta = [tk.issueType, tk.assignee].filter(Boolean).join(" · "); if (meta) card.createDiv({ cls: "samaya-kb-meta", text: meta });

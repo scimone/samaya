@@ -1,13 +1,15 @@
 // Gives colours to what has none: projects, and ticket projects (one colour each). Safe to run again; also removes the per-ticket `color` of an earlier version.
 import { App } from "obsidian";
 import type { SamayaSettings } from "./settings";
-import { COLOR_PROP, noteColor, randomColor, savePersisted, ticketProjectColor, writeNoteColor } from "./itemcolor";
+import { COLOR_PROP, noteColor, upgradeColor, randomColor, savePersisted, ticketProjectColor, writeNoteColor } from "./itemcolor";
 import { allProjects } from "./projects";
 import { allTickets, patchNote } from "./model";
 
 export async function ensureColors(app: App, s: SamayaSettings): Promise<void> {
+  for (const k of Object.keys(s.ticketProjectColors)) { const u = upgradeColor(s.ticketProjectColors[k]); if (u !== s.ticketProjectColors[k]) { s.ticketProjectColors[k] = u; await savePersisted(); } } // brighter first palette -> pastel
   const projects = s.projectsOn ? allProjects(app, s) : [];
-  const used = projects.map(p => noteColor(app, p.file)).filter(Boolean);
+  for (const p of projects) { const c = noteColor(app, p.file); if (c && upgradeColor(c) !== c) await writeNoteColor(app, p.file, upgradeColor(c)); }
+  const used = projects.map(p => upgradeColor(noteColor(app, p.file))).filter(Boolean);
   for (const p of projects) if (!noteColor(app, p.file)) { const c = randomColor(used); used.push(c); await writeNoteColor(app, p.file, c); }
   if (!s.ticketsOn) return;
   const tickets = allTickets(app, s);

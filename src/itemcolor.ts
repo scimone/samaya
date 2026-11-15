@@ -5,10 +5,13 @@ import { patchNote } from "./model";
 export const COLOR_PROP = "color";
 /** The colours a project / ticket can wear (name, hex): readable on light and dark themes. */
 export const PALETTE: ReadonlyArray<{ name: string; hex: string }> = [
-  { name: "Red", hex: "#e5484d" }, { name: "Orange", hex: "#f76b15" }, { name: "Amber", hex: "#e5a50a" }, { name: "Lime", hex: "#8db600" },
-  { name: "Green", hex: "#30a46c" }, { name: "Teal", hex: "#12a594" }, { name: "Cyan", hex: "#0d9ec4" }, { name: "Blue", hex: "#3e63dd" },
-  { name: "Indigo", hex: "#6e56cf" }, { name: "Purple", hex: "#a64fd1" }, { name: "Pink", hex: "#d6409f" }, { name: "Slate", hex: "#7b8794" },
+  { name: "Rose", hex: "#e39aa0" }, { name: "Peach", hex: "#eba97f" }, { name: "Sand", hex: "#e3c57c" }, { name: "Lime", hex: "#b4cc7e" },
+  { name: "Green", hex: "#8fc9a0" }, { name: "Teal", hex: "#84c9c0" }, { name: "Sky", hex: "#88c3df" }, { name: "Blue", hex: "#8fa8e0" },
+  { name: "Lavender", hex: "#a99be0" }, { name: "Lilac", hex: "#c39be0" }, { name: "Pink", hex: "#e39bc3" }, { name: "Slate", hex: "#a3adb8" },
 ];
+/** The brighter first palette, same order: colours saved in it are moved to the matching new one. */
+const OLD_PALETTE = ["#e5484d", "#f76b15", "#e5a50a", "#8db600", "#30a46c", "#12a594", "#0d9ec4", "#3e63dd", "#6e56cf", "#a64fd1", "#d6409f", "#7b8794"];
+export function upgradeColor(hex: string): string { const i = OLD_PALETTE.indexOf(hex.toLowerCase()); return i < 0 ? hex : PALETTE[i].hex; }
 const HEX = /^#[0-9a-f]{6}$/i;
 
 /** The colour a note carries ("" = none). */

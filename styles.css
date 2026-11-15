@@ -1699,9 +1699,10 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 }
 
 /* project / ticket colours: `--pc` is set inline by tint() */
-.samaya-chip.has-pc { background: color-mix(in srgb, var(--pc) 18%, transparent); color: color-mix(in srgb, var(--pc) 78%, var(--text-normal)); }
+.samaya-chip.has-pc { background: color-mix(in srgb, var(--pc) 18%, transparent); color: color-mix(in srgb, var(--pc) 62%, var(--text-normal)); }
 .samaya-chip-project.has-pc, .samaya-card-meta .samaya-chip-project.has-pc { background: transparent; }
-.samaya-tk-lanekey.has-pc { color: color-mix(in srgb, var(--pc) 78%, var(--text-normal)); }
+.samaya-tk-lanekey.has-pc { color: color-mix(in srgb, var(--pc) 62%, var(--text-normal)); }
+.samaya-tp-title.has-pc { color: color-mix(in srgb, var(--pc) 70%, var(--text-normal)); }
 .samaya-tk-lanekey.has-pc .samaya-chip-icon svg { color: inherit; }
 .samaya-gantt-bar.has-pc, .samaya-gantt-bar.is-task.has-pc { background: color-mix(in srgb, var(--pc) 35%, var(--background-primary)); border-color: var(--pc); }
 .samaya-gantt-bar.is-task.is-period.has-pc { background: color-mix(in srgb, var(--pc) 15%, var(--background-primary)); }

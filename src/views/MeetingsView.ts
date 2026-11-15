@@ -170,9 +170,7 @@ export class MeetingsView extends Panel {
     return i.start <= m && m < (i.end ?? i.start + 60);
   }
   private rowEl(parent: HTMLElement, i: { title: string }) {
-    const r = parent.createDiv("samaya-md-row"); const dot = r.createSpan("samaya-md-dot");
-    const rec = !("path" in i) || this.recurring.has((i as Instance).path); // one colour for every recurring meeting, none for one-offs
-    if (rec) r.addClass("is-recurring"); dot.setAttr("aria-label", rec ? "Recurring" : "Not recurring");
+    const r = parent.createDiv("samaya-md-row");
     if ("date" in i && this.isLive(i as Instance)) r.addClass("is-live");
     return r;
   }
@@ -210,7 +208,10 @@ export class MeetingsView extends Panel {
   private meetingRow(parent: HTMLElement, i: Instance, dated = false) {
     const r = this.rowEl(parent, i); r.addClass("is-" + i.when);
     r.createSpan({ cls: dated ? "samaya-md-when is-date" : "samaya-md-when", text: dated ? short(i.date) : time(i) });
-    r.createSpan({ cls: "samaya-md-name", text: i.title.trim() }); this.chips(r, i.path); this.mark(r, i); r.onclick = e => this.open(i.path, e); this.linkMenu(r, i.path);
+    r.createSpan({ cls: "samaya-md-name", text: i.title.trim() }); this.chips(r, i.path); this.mark(r, i);
+    const rec = this.recurring.has(i.path); // a symbol at the very right: part of a recurring series or a one-off
+    setIcon(r.createSpan({ cls: "samaya-md-rec" + (rec ? " is-recurring" : ""), attr: { "aria-label": rec ? "Recurring meeting" : "Non-recurring meeting" } }), rec ? "repeat" : "repeat-1");
+    r.onclick = e => this.open(i.path, e); this.linkMenu(r, i.path);
     return r;
   }
   private dayLabel(d: string, td: string, long = true): string {

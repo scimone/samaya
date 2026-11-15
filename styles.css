@@ -1227,12 +1227,12 @@ input.is-invalid { border-color: var(--text-error); }
 .samaya-md-gl.is-sticky { position: sticky; top: 0; z-index: 2; background: var(--background-primary); }
 .samaya-md-row { --c: var(--text-faint); display: flex; align-items: center; gap: var(--samaya-sp-3); padding: 8px var(--samaya-sp-2); border-radius: var(--samaya-r-m); cursor: pointer; transition: background .15s; }
 .samaya-md-row:hover { background: var(--background-modifier-hover); }
-.samaya-md-row.is-recurring { --c: var(--samaya-meeting); }
 .samaya-md-row.is-past { opacity: .6; }
 .samaya-md-row.is-live { --c: var(--samaya-meeting); }
 .samaya-md-row.is-live .samaya-md-name, .samaya-md-row.is-live .samaya-md-when { color: var(--samaya-meeting); }
-.samaya-md-dot { flex: none; box-sizing: content-box; width: 6px; height: 6px; padding: 5px; margin: -5px; background-clip: content-box; border-radius: 50%; background: var(--c); opacity: .85; }
-.samaya-md-row.is-live .samaya-md-dot { animation: samaya-pulse 1.6s ease-in-out infinite; }
+.samaya-md-rec { flex: none; display: inline-flex; margin-left: auto; color: var(--text-faint); }
+.samaya-md-rec svg { width: 13px; height: 13px; }
+.samaya-md-rec.is-recurring { color: var(--samaya-meeting); }
 .samaya-md-when { flex: none; width: 40px; color: var(--text-muted); font-size: var(--font-ui-small); font-variant-numeric: tabular-nums; }
 .samaya-md-when.is-date { width: 84px; }
 .samaya-md-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--font-ui-small); color: var(--text-normal); }
@@ -1278,7 +1278,7 @@ input.is-invalid { border-color: var(--text-error); }
   .samaya-md-col { flex: none; }
   .samaya-md-sec { flex: none; height: 320px; }
 }
-@media (prefers-reduced-motion: reduce) { .samaya-md-row, .samaya-md-entry { transition: none; } .samaya-md-row.is-live .samaya-md-dot { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .samaya-md-row, .samaya-md-entry { transition: none; } }
 
 /* file explorer shortcuts (Navigation setting) */
 .samaya-nav-shortcuts { margin-bottom: var(--size-4-3); }

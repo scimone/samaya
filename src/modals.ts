@@ -4,7 +4,7 @@ import type SamayaPlugin from "./main";
 import type { TFile } from "obsidian";
 import { allMeetings, meetingLabel } from "./links";
 import { Project, allProjects, createProject, projectPathOf, readProject } from "./projects";
-import { SOURCE_NAMES, Ticket, allTickets } from "./model";
+import { SOURCE_NAMES, Task, Ticket, allTasks, allTickets } from "./model";
 import { HORIZONS, Horizon, fmtDur, parseDuration } from "./util";
 
 export class TextPromptModal extends Modal {
@@ -79,6 +79,14 @@ export class MeetingSuggestModal extends FuzzySuggestModal<ReturnType<typeof all
   getItems() { return allMeetings(this.app, this.plugin.settings); }
   getItemText(m: ReturnType<typeof allMeetings>[number]) { return meetingLabel(m); }
   onChooseItem(m: ReturnType<typeof allMeetings>[number]) { this.choose(m.file); }
+}
+
+/** Pick an open task to assign to a meeting (`fits` hides the ones already assigned to it). */
+export class TaskSuggestModal extends FuzzySuggestModal<Task> {
+  constructor(private plugin: SamayaPlugin, private choose: (t: Task) => void, private fits: (t: Task) => boolean = () => true) { super(plugin.app); this.setPlaceholder("Assign task…"); }
+  getItems() { return allTasks(this.app, this.plugin.settings).filter(t => t.status !== "done" && this.fits(t)).sort((a, b) => a.title.localeCompare(b.title)); }
+  getItemText(t: Task) { return t.title; }
+  onChooseItem(t: Task) { this.choose(t); }
 }
 
 /** A single ticket, or a whole Jira / GitLab project (its tickets not yet linked to the chosen project). */

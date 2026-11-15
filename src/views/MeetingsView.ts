@@ -193,7 +193,6 @@ export class MeetingsView extends Panel {
   private linkMenu(el: HTMLElement, ...paths: string[]) { // several paths: a recurring meeting, the assignment goes to all its notes
     el.addEventListener("contextmenu", e => {
       const fs = paths.map(p => this.app.vault.getAbstractFileByPath(p)).filter((f): f is TFile => f instanceof TFile); if (!fs.length) return;
-      if (!this.plugin.settings.projectsOn && !this.plugin.settings.ticketsOn && !meetingLinks(this.app, fs[fs.length - 1], "assigned_ticket").length) return;
       e.preventDefault(); const m = new Menu(); addMeetingLinkItems(m, this.plugin, fs); m.showAtMouseEvent(e);
     });
   }

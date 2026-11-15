@@ -4,8 +4,8 @@ import type SamayaPlugin from "../main";
 import { safe } from "../safe";
 import { openFileSmart } from "../openfile";
 import { DndScope, DropInfo } from "../dnd";
-import { Source, Task, addSubtask, assignMeeting, meetingPathOf, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
-import { ConfirmDeleteModal, MeetingSuggestModal, ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "../modals";
+import { Source, Task, addSubtask, allTasks, assignMeeting, meetingPathOf, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
+import { ConfirmDeleteModal, MeetingSuggestModal, ProjectSuggestModal, TaskSuggestModal, TextPromptModal, TicketSuggestModal } from "../modals";
 import { Notice } from "obsidian";
 import { focusButton, isCurrentTask, trackedBefore, joinParts, splitTitle } from "./place";
 import { openDayPicker } from "./dayPicker";
@@ -323,6 +323,12 @@ export function addMeetingLinkItems(m: Menu, plugin: SamayaPlugin, files: TFile[
   const union = (prop: MeetingProp) => [...new Set(files.flatMap(n => meetingLinks(app, n, prop)))];
   const lacks = (prop: MeetingProp, path: string) => files.some(n => !meetingLinks(app, n, prop).includes(path));
   const name = (p: string) => p.split("/").pop()!.replace(/\.md$/, "");
+  if (files.length === 1) { // tasks go to one meeting note, not to a whole series
+    const note = files[0]; const linked = allTasks(app, st).filter(t => meetingPathOf(app, t) === note.path);
+    m.addItem(i => i.setTitle("Assign task…").setIcon("check-square").onClick(() => new TaskSuggestModal(plugin, t => { void assignMeeting(app, t.file, note); }, t => meetingPathOf(app, t) !== note.path).open()));
+    for (const t of linked) m.addItem(i => i.setTitle(`Unlink task ${t.title}`).setIcon("unlink").onClick(() => { void assignMeeting(app, t.file, null); }));
+    m.addSeparator();
+  }
   const tickets = union("assigned_ticket"); const projects = union("assigned_project");
   if (st.ticketsOn || tickets.length) m.addItem(i => i.setTitle(tickets.length ? "Add another ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { if (tk) void each(n => changeMeetingLink(app, st, n, "assigned_ticket", tk.file.path)); }, tk => lacks("assigned_ticket", tk.file.path), true).open()));
   for (const t of tickets) m.addItem(i => i.setTitle(`Unlink ticket ${name(t)}`).setIcon("unlink").onClick(() => { void each(n => changeMeetingLink(app, st, n, "assigned_ticket", t, true)); }));

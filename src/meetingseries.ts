@@ -1,8 +1,8 @@
 // Meeting notes grouped into series (recurring meetings) and one-offs. Pure: no Obsidian imports, unit-tested.
 import { addDays, parseYmd } from "./util";
-import { parseClock } from "./eventnotes";
+import { parseStamp } from "./eventnotes";
 
-export interface MeetingNote { path: string; title: string; date: string; start: number | null; end: number | null; /** the `is_recurring` property; undefined when the note has none */ recurring?: boolean; /** note text without frontmatter */ body: string; /** what `analyse` found in the body, when already known (saves doing it again on every redraw) */ analysis?: { excerpt: string[]; open: number; done: number; /** set when the answer came from Obsidian's index instead of the text */ hasNotes?: boolean }; }
+export interface MeetingNote { path: string; title: string; date: string; start: number | null; end: number | null; /** the `recurring` property; undefined when the note has none */ recurring?: boolean; /** note text without frontmatter */ body: string; /** what `analyse` found in the body, when already known (saves doing it again on every redraw) */ analysis?: { excerpt: string[]; open: number; done: number; /** set when the answer came from Obsidian's index instead of the text */ hasNotes?: boolean }; }
 export type When = "past" | "today" | "upcoming";
 export interface Instance extends MeetingNote { when: When; /** the first lines worth showing, without headings and empty bullets */ excerpt: string[]; hasNotes: boolean; open: number; done: number; }
 export interface Series {
@@ -102,7 +102,7 @@ export function toInstance(n: MeetingNote, today: string, nowMin = -1): Instance
   return { ...n, when: whenOf(n, today, nowMin), excerpt: a.excerpt, hasNotes: a.hasNotes ?? a.excerpt.length > 0, open: a.open, done: a.done };
 }
 
-/** Recurring notes (`is_recurring: true`) form a series per title; one-offs stay single. Without the property, a title that occurs more than once counts as recurring. */
+/** Recurring notes (`recurring: true`) form a series per title; one-offs stay single. Without the property, a title that occurs more than once counts as recurring. */
 export function buildSeries(notes: MeetingNote[], today: string, nowMin = -1): { series: Series[]; oneOffs: Instance[] } {
   const byKey = new Map<string, MeetingNote[]>();
   for (const n of notes) { const k = seriesKey(n.title); const l = byKey.get(k); if (l) l.push(n); else byKey.set(k, [n]); }
@@ -129,8 +129,8 @@ export function parseNote(path: string, fm: Record<string, unknown> | undefined,
   const nameDate = /^(\d{4}-\d{2}-\d{2})/.exec(basename)?.[1];
   const date = fm.date == null ? nameDate : String(fm.date).slice(0, 10);
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
-  const r = fm.is_recurring; const recurring = r == null ? undefined : r === true || /^(true|yes|1)$/i.test(String(r));
-  return { path, title: String(fm.title ?? basename).trim() || basename, date, start: parseClock(fm.start), end: parseClock(fm.end), recurring, body: stripFrontmatter(body) };
+  const r = fm.recurring ?? fm.is_recurring; const recurring = r == null ? undefined : r === true || /^(true|yes|1)$/i.test(String(r));
+  return { path, title: String(fm.title ?? basename).trim() || basename, date, start: parseStamp(fm.start)?.min ?? null, end: parseStamp(fm.end)?.min ?? null, recurring, body: stripFrontmatter(body) };
 }
 
 

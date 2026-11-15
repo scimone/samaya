@@ -536,7 +536,7 @@ await bundle("src/meetingseries.ts", "test/.meetingseries.mjs");
   assert.deepEqual(analyse("# T\n\n## Meeting Summary\n\n"), { excerpt: [], open: 0, done: 0 });
   assert.deepEqual(analyse("## S\n- Decided X\n- [ ] Send mail\n- [x] Book room\n- [ ]\n"), { excerpt: ["Decided X", "Send mail", "Book room"], open: 1, done: 1 });
   assert.equal(stripFrontmatter("---\na: 1\n---\n# H\n"), "# H\n");
-  const mk = (title, date, rec, body = "") => parseNote("p/" + date + title, { title, date, start: "09:00", end: "09:30", ...(rec === undefined ? {} : { is_recurring: rec }) }, date + "_x", "---\n---\n" + body);
+  const mk = (title, date, rec, body = "") => parseNote("p/" + date + title, { title, date, start: "09:00", end: "09:30", ...(rec === undefined ? {} : { recurring: rec }) }, date + "_x", "---\n---\n" + body);
   const { series, oneOffs } = buildSeries([mk("Daily ", "2026-11-10", true, "- done"), mk("Daily", "2026-11-12", true), mk("Daily", "2026-11-13", true), mk("Offsite", "2026-11-11", false), mk("Offsite", "2026-11-18", false)], "2026-11-12");
   assert.equal(series.length, 1); assert.equal(oneOffs.length, 2);
   assert.deepEqual([series[0].held, series[0].withNotes, series[0].next.date, series[0].next.when, series[0].time], [1, 1, "2026-11-12", "today", "09:00–09:30"]);

@@ -30,7 +30,7 @@ export function parseClock(v: unknown): number | null {
   if (!m) return null; const h = +m[1], mi = +m[2];
   return h > 24 || mi > 59 ? null : h * 60 + mi;
 }
-function parseStamp(v: unknown): { date?: string; min: number } | null {
+export function parseStamp(v: unknown): { date?: string; min: number } | null {
   const s = String(v ?? "").trim();
   const m = s.match(/^(\d{4}-\d{2}-\d{2})[T ](.+)$/);
   if (m) { const min = parseClock(m[2]); return min == null ? null : { date: m[1], min }; }

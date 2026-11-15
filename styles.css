@@ -1697,3 +1697,16 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
   .samaya-rv { grid-template-columns: minmax(0, 1fr); }
   .samaya-rv-col.is-tl { display: none; }
 }
+
+/* project / ticket colours: `--pc` is set inline by tint() */
+.samaya-chip.has-pc { background: color-mix(in srgb, var(--pc) 18%, transparent); color: color-mix(in srgb, var(--pc) 78%, var(--text-normal)); }
+.samaya-chip-project.has-pc, .samaya-card-meta .samaya-chip-project.has-pc { background: transparent; }
+.samaya-tk-lanekey.has-pc { color: color-mix(in srgb, var(--pc) 78%, var(--text-normal)); }
+.samaya-tk-lanekey.has-pc .samaya-chip-icon svg { color: inherit; }
+.samaya-gantt-bar.has-pc, .samaya-gantt-bar.is-task.has-pc { background: color-mix(in srgb, var(--pc) 35%, var(--background-primary)); border-color: var(--pc); }
+.samaya-gantt-bar.is-task.is-period.has-pc { background: color-mix(in srgb, var(--pc) 15%, var(--background-primary)); }
+.samaya-gantt-bar.has-pc .samaya-gantt-fill { background: var(--pc); }
+.samaya-colorpick { position: fixed; z-index: 1000; display: grid; grid-template-columns: repeat(6, 22px); gap: 8px; padding: 10px; background: var(--background-primary); border: 1px solid var(--background-modifier-border); border-radius: 8px; box-shadow: var(--shadow-l); }
+.samaya-colorpick-dot { width: 22px; height: 22px; padding: 0; border-radius: 50%; border: 2px solid transparent; box-shadow: none; cursor: pointer; }
+.samaya-colorpick-dot:hover { transform: scale(1.12); }
+.samaya-colorpick-dot.is-current { border-color: var(--text-normal); }

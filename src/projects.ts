@@ -4,20 +4,21 @@ import type { SamayaSettings } from "./settings";
 import { ensureFolder, patchNote } from "./model";
 import { Span, parseSpan } from "./gantt";
 import { safeFileName } from "./util";
+import { COLOR_PROP, noteColor, randomColor } from "./itemcolor";
 
 export const PROJECT_PROP = "assigned_project";
 /** Name used by earlier versions: still read, removed when the assignment is written. */
 const LEGACY_PROJECT_PROP = "samaya_project";
 export const DEFAULT_PROJECT_DAYS = 14;
 
-export interface Project { file: TFile; name: string; span: Span | null; done: boolean; }
+export interface Project { file: TFile; name: string; span: Span | null; done: boolean; color: string; }
 
 const folderOf = (s: SamayaSettings): string => normalizePath(s.projectsPath.trim() || "Projects");
 export const projectsPrefix = (s: SamayaSettings): string => folderOf(s) + "/";
 
 export function readProject(app: App, file: TFile): Project {
   const fm = (app.metadataCache.getFileCache(file)?.frontmatter ?? {}) as Record<string, unknown>;
-  return { file, name: file.basename, span: parseSpan(fm.start, fm.end), done: fm.status === "done" };
+  return { file, name: file.basename, span: parseSpan(fm.start, fm.end), done: fm.status === "done", color: noteColor(app, file) };
 }
 export function allProjects(app: App, s: SamayaSettings): Project[] {
   const prefix = projectsPrefix(s);
@@ -55,12 +56,14 @@ export async function createProject(app: App, s: SamayaSettings, name: string): 
   const base = safeFileName(name); let path = `${folder}/${base}.md`; let i = 2;
   while (app.vault.getAbstractFileByPath(path)) path = `${folder}/${base} ${i++}.md`;
   const f = await app.vault.create(path, "");
-  await patchNote(app, f, { status: "active" }); // no dates yet: the chart places it when the user clicks its row
+  await patchNote(app, f, { status: "active", [COLOR_PROP]: randomColor(allProjects(app, s).map(p => p.color).filter(Boolean)) }); // no dates yet: the chart places it when the user clicks its row
   return f;
 }
 
 /** Link ticket notes to an existing project (each gets `assigned_project`); `ticketProject` (a Jira / GitLab project id) is remembered on the project note. */
 export async function linkTickets(app: App, project: TFile, tickets: TFile[], ticketProject?: string): Promise<void> {
+  let color = noteColor(app, project);
+  if (!color) { color = randomColor(); await patchNote(app, project, { [COLOR_PROP]: color }); } // a project from before colours: give it one, the tickets take it
   if (ticketProject) await patchNote(app, project, { ticket_project: ticketProject });
-  for (const t of tickets) await patchNote(app, t, { [PROJECT_PROP]: `[[${project.basename}]]`, [LEGACY_PROJECT_PROP]: null });
+  for (const t of tickets) await patchNote(app, t, { [PROJECT_PROP]: `[[${project.basename}]]`, [LEGACY_PROJECT_PROP]: null, [COLOR_PROP]: color }); // linked tickets wear their project's colour
 }

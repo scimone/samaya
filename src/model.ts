@@ -238,7 +238,7 @@ export async function addSubtask(app: App, file: TFile, text: string): Promise<v
 }
 
 // ---------- tickets (Jira / GitLab / manual), stored as notes ----------
-export interface Ticket { file: TFile; id: string; key: string; source: string; summary: string; url: string; state: string; issueType: string; assignee: string; project: string; }
+export interface Ticket { file: TFile; id: string; key: string; source: string; summary: string; url: string; state: string; issueType: string; assignee: string; project: string; color: string; }
 
 const ticketMemo = new WeakMap<object, { base: string; ticket: Ticket }>(); // per frontmatter object, like taskMemo
 export function readTicket(app: App, file: TFile): Ticket {
@@ -253,7 +253,7 @@ function parseTicket(file: TFile, fm: Record<string, unknown>): Ticket {
   const type = str(fm.type);
   return { file, id: str(fm.id) || file.basename, key: str(fm.key) || str(fm.id) || file.basename, source: str(fm.source) || "manual",
     summary: str(fm.title) || str(fm.summary), url: str(fm.url), state: str(fm.status) || str(fm.state),
-    issueType: str(fm.issue_type) || (type === "ticket" ? "" : type), assignee: str(fm.assignee), project: str(fm.project) };
+    issueType: str(fm.issue_type) || (type === "ticket" ? "" : type), assignee: str(fm.assignee), project: str(fm.project), color: /^#[0-9a-f]{6}$/i.test(str(fm.color)) ? str(fm.color).toLowerCase() : "" };
 }
 export function allTickets(app: App, s: SamayaSettings): Ticket[] {
   const prefix = prefixOf(s.ticketsPath);

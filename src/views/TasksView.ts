@@ -5,7 +5,8 @@ import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { openFileSmart } from "../openfile";
 import { Task, Ticket, allTasks, allTickets, dayTask, prefixOf, readTask, restTask, sendPiece, setDone, sortTasks, ticketPathOf } from "../model";
-import { assignProjectLinked, assignTicketLinked } from "../links";
+import { assignProjectLinked, assignTicketLinked, ticketColorOf } from "../links";
+import { tint } from "../itemcolor";
 import { PROJECT_PROP, Project, allProjects, projectPathOf } from "../projects";
 import { sessionDays } from "../sessions";
 import { readProp } from "../taskprops";
@@ -234,8 +235,8 @@ export class TasksView extends Panel {
     setIcon(h.createSpan("samaya-tk-chevron"), "chevron-down");
     const name = h.createDiv("samaya-tk-lanename");
     if (!key) name.createSpan({ cls: "samaya-tk-lanekey is-none", text: memory.group === "ticket" ? "No ticket" : "No project" });
-    else if (tk) { const chip = name.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}` }); setIcon(chip.createSpan({ cls: "samaya-chip-icon" }), "ticket"); chip.createSpan({ text: tk.key }); name.createSpan({ cls: "samaya-tk-lanesum", text: tk.summary }); }
-    else { const k = name.createSpan({ cls: "samaya-tk-lanekey is-project" }); setIcon(k.createSpan({ cls: "samaya-chip-icon" }), "folder-kanban"); k.createSpan({ text: pr?.name ?? key.split("/").pop()!.replace(/\.md$/, "") }); }
+    else if (tk) { const chip = tint(name.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}` }), ticketColorOf(app, this.plugin.settings, tk)); setIcon(chip.createSpan({ cls: "samaya-chip-icon" }), "ticket"); chip.createSpan({ text: tk.key }); name.createSpan({ cls: "samaya-tk-lanesum", text: tk.summary }); }
+    else { const k = tint(name.createSpan({ cls: "samaya-tk-lanekey is-project" }), pr?.color ?? ""); setIcon(k.createSpan({ cls: "samaya-chip-icon" }), "folder-kanban"); k.createSpan({ text: pr?.name ?? key.split("/").pop()!.replace(/\.md$/, "") }); }
     const open = items.filter(it => it.col !== "done"); const est = open.reduce((a, it) => a + it.t.estimate, 0);
     h.createSpan({ cls: "samaya-tk-lanecount", text: `${open.length} open${est ? " · " + fmtDur(est) : ""}` });
     h.onclick = () => { if (!memory.collapsed.delete(lkey)) memory.collapsed.add(lkey); this.render(); };

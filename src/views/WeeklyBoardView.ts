@@ -20,7 +20,9 @@ import { groupTickets, isDoneState } from "../kanban";
 import { HORIZONS, addDays, bucketOf, fmtDur, horizonTarget, minToHm, nextDayMs, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { Capacity, capacityWindow } from "../worktime";
-import { bindCardDrop, bindZone, keyActivate, renderTaskCard, richText } from "./common";
+import { bindCardDrop, bindZone, keyActivate, renderTaskCard, richText, showTicketMenu } from "./common";
+import { ticketColorOf } from "../links";
+import { tint } from "../itemcolor";
 
 
 export class WeeklyBoardView extends PlannerPane {
@@ -225,7 +227,8 @@ export class WeeklyBoardView extends PlannerPane {
     const s = this.plugin.settings; const title = tk.summary || tk.key;
     const card = cell.createDiv("samaya-kb-card");
     const top = card.createDiv("samaya-kb-cardtop");
-    top.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}`, text: tk.key });
+    tint(top.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${tk.source}`, text: tk.key }), ticketColorOf(this.app, s, tk));
+    card.addEventListener("contextmenu", e => showTicketMenu(this.plugin, tk, e));
     if (tasks.length) top.createSpan({ cls: "samaya-chip samaya-chip-channel", text: tasks.length === 1 ? "1 task" : `${tasks.length} tasks`, attr: { title: tasks.map(t => t.title).join("\n") } });
     card.createDiv({ cls: "samaya-kb-title", text: title });
     const meta = [tk.issueType, tk.assignee].filter(Boolean).join(" · "); if (meta) card.createDiv({ cls: "samaya-kb-meta", text: meta });

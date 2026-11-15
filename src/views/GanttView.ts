@@ -6,9 +6,11 @@ import { openFileSmart, openFileBeside } from "../openfile";
 import { DragMode, GRANULARITIES, Granularity, collapseTasks, daysBetween, taskPeriod, taskSpan, dragSpan, ganttRange, granularityDayWidth, monthMarks } from "../gantt";
 import { DEFAULT_PROJECT_DAYS, Project, projectStats, readProject, createProject, projectPathOf, projectsPrefix } from "../projects";
 import { Task, Ticket, allTasks, allTickets, patchNote, prefixOf, setDone, ticketPathOf } from "../model";
-import { linkProject } from "../links";
+import { linkProject, ticketColorOf } from "../links";
 import { ConfirmDeleteModal, TextPromptModal, TicketTargetSuggestModal } from "../modals";
-import { promptRename, showTaskMenu } from "./common";
+import { promptRename, showTaskMenu, showTicketMenu } from "./common";
+import { openColorPicker } from "./colorPicker";
+import { noteColor, tint, writeNoteColor } from "../itemcolor";
 import { openRangePicker } from "./rangePicker";
 import { renderHeadTitle } from "./plannerHead";
 import { renderResetPill } from "./dateNav";
@@ -139,10 +141,10 @@ export class GanttView extends Panel {
         const lk = nm.createSpan({ cls: "samaya-gantt-link", text: e.t.title });
         lk.onclick = () => { openFileBeside(this.app, e.t.file); };
         const tk = e.t.ticket ? ticketByPath.get(ticketPathOf(this.app, e.t)) : undefined;
-        if (tk) nm.createSpan({ cls: `samaya-chip samaya-chip-ticket samaya-gantt-pill-ticket is-${tk.source}`, text: tk.key, attr: { "aria-label": tk.summary || tk.key } }).onclick = ev => { ev.stopPropagation(); openFileSmart(this.app, tk.file); };
+        if (tk) { const pl = tint(nm.createSpan({ cls: `samaya-chip samaya-chip-ticket samaya-gantt-pill-ticket is-${tk.source}`, text: tk.key, attr: { "aria-label": tk.summary || tk.key } }), ticketColorOf(this.app, s, tk)); pl.onclick = ev => { ev.stopPropagation(); openFileSmart(this.app, tk.file); }; pl.addEventListener("contextmenu", ev => showTicketMenu(this.plugin, tk, ev)); }
         const tr = r.createDiv("samaya-gantt-track"); tr.style.width = `${width}px`;
         if (!e.span) return;
-        const b = tr.createDiv({ cls: "samaya-gantt-bar is-task" + (e.t.status === "done" ? " is-done" : "") + (e.period ? " is-period" : "") });
+        const b = tint(tr.createDiv({ cls: "samaya-gantt-bar is-task" + (e.t.status === "done" ? " is-done" : "") + (e.period ? " is-period" : "") }), noteColor(this.app, p.file));
         b.createSpan({ cls: "samaya-gantt-label", text: e.t.title });
         b.style.left = `${daysBetween(from, e.span.start) * dayW}px`; b.style.width = `${(daysBetween(e.span.start, e.span.end) + 1) * dayW}px`;
         const x0 = daysBetween(from, e.span.start) * dayW; navs.push({ track: tr, bar: b, x0, x1: x0 + (daysBetween(e.span.start, e.span.end) + 1) * dayW, btn: null }); // jump arrows and a sticky name, like a project
@@ -173,13 +175,13 @@ export class GanttView extends Panel {
       link.onclick = () => { openFileBeside(this.app, p.file); };
       const linked = byProject.get(p.file.path) ?? [];
       const tp = String(this.app.metadataCache.getFileCache(p.file)?.frontmatter?.ticket_project ?? "");
-      const pill = (text: string, source: string, title: string) => name.createSpan({ cls: `samaya-chip samaya-chip-ticket samaya-gantt-pill-ticket is-${source}`, text, attr: { "aria-label": title } });
+      const pill = (text: string, source: string, title: string, tk?: Ticket) => { const el = tint(name.createSpan({ cls: `samaya-chip samaya-chip-ticket samaya-gantt-pill-ticket is-${source}`, text, attr: { "aria-label": title } }), tk ? ticketColorOf(this.app, s, tk) : p.color); if (tk) el.addEventListener("contextmenu", ev => showTicketMenu(this.plugin, tk, ev)); return el; };
       if (tp) { // created from a Jira / GitLab project: one pill; clicking lists its linked tickets
         const mine = linked.filter(t => t.project === tp);
         const el = pill(tp, mine[0]?.source ?? "", `Ticket project ${tp}`);
         el.onclick = e => { e.stopPropagation(); if (mine.length === 1) { openFileSmart(this.app, mine[0].file); return; } const m = new Menu(); for (const t of mine) m.addItem(i => i.setTitle(`${t.key} • ${t.summary}`).onClick(() => openFileSmart(this.app, t.file))); m.showAtMouseEvent(e); };
       }
-      for (const t of linked) if (!tp || t.project !== tp) pill(t.key, t.source, t.summary || t.key).onclick = e => { e.stopPropagation(); openFileSmart(this.app, t.file); };
+      for (const t of linked) if (!tp || t.project !== tp) pill(t.key, t.source, t.summary || t.key, t).onclick = e => { e.stopPropagation(); openFileSmart(this.app, t.file); };
       const st = stats.get(p.file.path) ?? { tasks: 0, done: 0, tickets: 0 };
       name.createSpan({ cls: "samaya-gantt-count", text: `${st.done}/${st.tasks}`, attr: { title: `${st.done} of ${st.tasks} tasks done${st.tickets ? `, ${st.tickets} ticket${st.tickets > 1 ? "s" : ""}` : ""}` } });
       row.addEventListener("contextmenu", e => { // the project's actions (they used to be buttons shown on hover)
@@ -194,6 +196,7 @@ export class GanttView extends Panel {
           openRangePicker({ x: e.clientX, y: e.clientY, start: p.span?.start, end: p.span?.end }, (start, end) => { safe(patchNote(this.app, p.file, { start, end }), "saving the note"); },
             p.span ? () => { safe(patchNote(this.app, p.file, { start: null, end: null }), "saving the note"); } : undefined);
         }));
+        m.addItem(i => i.setTitle("Color…").setIcon("palette").onClick(() => openColorPicker(e.clientX, e.clientY, p.color, hex => { safe(writeNoteColor(this.app, p.file, hex).then(() => this.plugin.bus.emit()), "saving the colour"); })));
         m.addSeparator();
         m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { openFileBeside(this.app, p.file); }));
         m.addItem(i => i.setTitle("Rename").setIcon("pencil").onClick(() => promptRename(this.plugin, p.file, p.file.basename)));
@@ -206,7 +209,7 @@ export class GanttView extends Panel {
       if (!p.span) {
         // not on the timeline yet: hovering shows where a default-length item would go, a click sets its dates
         const hint = track.createDiv({ cls: "samaya-gantt-nodates", text: "Click to place on the timeline" });
-        const ghost = track.createDiv("samaya-gantt-bar is-ghost"); ghost.createSpan({ cls: "samaya-gantt-label", text: p.name }); ghost.hide();
+        const ghost = tint(track.createDiv("samaya-gantt-bar is-ghost"), p.color); ghost.createSpan({ cls: "samaya-gantt-label", text: p.name }); ghost.hide();
         const dayAt = (e: MouseEvent) => Math.floor((e.clientX - track.getBoundingClientRect().left) / dayW);
         track.addClass("is-placeable");
         track.addEventListener("pointermove", e => {
@@ -221,7 +224,7 @@ export class GanttView extends Panel {
         taskRows(p);
         continue;
       }
-      const bar = track.createDiv({ cls: "samaya-gantt-bar" + (p.done ? " is-done" : "") });
+      const bar = tint(track.createDiv({ cls: "samaya-gantt-bar" + (p.done ? " is-done" : "") }), p.color);
       if (st?.tasks) bar.createDiv("samaya-gantt-fill").style.width = `${(st.done / st.tasks) * 100}%`;
       bar.createSpan({ cls: "samaya-gantt-label", text: p.name });
       const place = (sp: { start: string; end: string }) => { bar.style.left = `${daysBetween(from, sp.start) * dayW}px`; bar.style.width = `${(daysBetween(sp.start, sp.end) + 1) * dayW}px`; };

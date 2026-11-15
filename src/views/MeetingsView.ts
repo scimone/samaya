@@ -1,6 +1,6 @@
 import { Menu, TFile, normalizePath, setIcon } from "obsidian";
 import { Panel } from "./panel";
-import { addMeetingLinkItems, projectChip, ticketChip } from "./common";
+import { addMeetingLinkItems, projectChip, projectColorAt, ticketChip } from "./common";
 import { meetingLinks } from "../links";
 import { openFileSmart } from "../openfile";
 import type SamayaPlugin from "../main";
@@ -195,7 +195,7 @@ export class MeetingsView extends Panel {
     if (!tickets.length && !projects.length) return;
     parent.addClass("has-links"); const box = parent.createSpan("samaya-md-links samaya-card-meta");
     for (const tf of tickets) ticketChip(this.plugin, box, tf);
-    for (const pp of projects) projectChip(box, pp.split("/").pop()!.replace(/\.md$/, ""));
+    for (const pp of projects) projectChip(box, pp.split("/").pop()!.replace(/\.md$/, ""), projectColorAt(this.app, pp));
   }
   /** a meeting as a row: time (or date when `dated`), title, note marker */
   private meetingRow(parent: HTMLElement, i: Instance, dated = false) {

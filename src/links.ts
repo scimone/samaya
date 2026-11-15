@@ -4,6 +4,7 @@ import type { SamayaSettings } from "./settings";
 import { Ticket, allTasks, allTickets, assignTicket, readTask, ticketPathOf } from "./model";
 import { Project, allProjects, assignProject, linkTickets, projectPathOf, readProject } from "./projects";
 import { patchNote } from "./model";
+import { noteColor, writeNoteColor } from "./itemcolor";
 import { buildSeries, parseNote } from "./meetingseries";
 
 /** The Jira / GitLab project a project note is linked to as a whole ("" = none). */
@@ -14,6 +15,17 @@ const fileAt = (app: App, path: string): TFile | null => { const f = path ? app.
 export function ownerProjectOf(app: App, s: SamayaSettings, ticket: Ticket): string {
   const direct = projectPathOf(app, ticket.file); if (direct) return direct;
   return ticket.project ? allProjects(app, s).find(p => String(app.metadataCache.getFileCache(p.file)?.frontmatter?.ticket_project ?? "") === ticket.project)?.file.path ?? "" : "";
+}
+/** The colour a ticket shows: its project's when it belongs to one, else its own ("" = default look). */
+export function ticketColorOf(app: App, s: SamayaSettings, ticket: Ticket): string {
+  const owner = s.projectsOn ? fileAt(app, ownerProjectOf(app, s, ticket)) : null;
+  return (owner && noteColor(app, owner)) || ticket.color;
+}
+/** Set a ticket's colour; a ticket that belongs to a project shares the project's colour, so that is what changes. */
+export async function setTicketColor(app: App, s: SamayaSettings, ticket: Ticket, hex: string): Promise<void> {
+  const owner = s.projectsOn ? fileAt(app, ownerProjectOf(app, s, ticket)) : null;
+  if (owner) await writeNoteColor(app, owner, hex);
+  await writeNoteColor(app, ticket.file, hex);
 }
 /** Whether this task may be assigned to this ticket: not when the task is in one project and the ticket belongs to another. */
 export function ticketFits(app: App, s: SamayaSettings, task: TFile, ticket: Ticket): boolean {

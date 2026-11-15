@@ -607,3 +607,11 @@ await bundle("src/tasksboard.ts", "test/.tasksboard.mjs");
   fm = { status: "done", duration_estimate: 45 }; const t2 = M.readTask(app, file); assert.notEqual(t2, t1); assert.equal(t2.estimate, 45); assert.equal(t2.status, "done");
   fm = fm1; file.basename = "b"; assert.equal(M.readTask(app, file).title, "b");
 }
+
+// ---- item colours: random picks favour colours not yet used
+{ await bundle("src/itemcolor.ts", "test/.itemcolor.mjs"); const { PALETTE, randomColor } = await import("./.itemcolor.mjs");
+  assert.equal(PALETTE.length, 12); assert.equal(new Set(PALETTE.map(c => c.hex)).size, 12);
+  assert.ok(PALETTE.some(c => c.hex === randomColor()));
+  const used = PALETTE.slice(1).map(c => c.hex); assert.equal(randomColor(used), PALETTE[0].hex); // the only unused one
+  assert.ok(PALETTE.some(c => c.hex === randomColor(PALETTE.map(c => c.hex)))); // all used once: any is fine
+}

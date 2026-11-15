@@ -1,6 +1,7 @@
 import { Notice, requestUrl } from "obsidian";
 import type SamayaPlugin from "./main";
 import { Http, RawTicket, fetchGitlab, fetchJira } from "./tickets";
+import { COLOR_PROP, randomColor } from "./itemcolor";
 import { LEGACY_TICKET_PROPS, allTickets, createTicketNote, ticketProps, patchNote, relocateTicket, varsOfRaw, varsOfTicket } from "./model";
 
 const http: Http = async o => {
@@ -39,7 +40,7 @@ async function syncNow(plugin: SamayaPlugin, only?: "jira" | "gitlab"): Promise<
           continue;
         }
         const f = await createTicketNote(app, s, varsOfRaw(t));
-        await patchNote(app, f, fm); created++;
+        await patchNote(app, f, { ...fm, [COLOR_PROP]: randomColor(allTickets(app, s).map(x => x.color).filter(Boolean)) }); created++;
       }
       // tickets we imported earlier that no longer appear are resolved / reassigned
       for (const gone of existing.values()) if (gone.state !== "closed") {

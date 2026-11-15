@@ -8,7 +8,7 @@ import { bindZone } from "./common";
 import { Ticket, patchNote, prefixOf, readTicket, relocateTicket, varsOfTicket } from "../model";
 import { TFile, setIcon } from "obsidian";
 import { TextPromptModal } from "../modals";
-import { createProject, projectPathOf } from "../projects";
+import { createProject, projectPathOf, usecaseOf } from "../projects";
 import { linkProject, ticketColorOf } from "../links";
 import { projectChip, ticketProjectTitle } from "./common";
 import { noteColor, tint } from "../itemcolor";
@@ -87,7 +87,7 @@ export class KanbanView extends Panel {
       for (const pp of laneProjects) { // projects created from this Jira / GitLab project
         const pf = this.app.vault.getAbstractFileByPath(pp); if (!(pf instanceof TFile)) continue;
         if (String(this.app.metadataCache.getFileCache(pf)?.frontmatter?.ticket_project ?? "") !== lane.project) continue;
-        const chip = projectChip(title.createSpan("samaya-card-meta samaya-kb-projectchip"), pf.basename, noteColor(this.app, pf)); chip.addClass("is-link");
+        const chip = projectChip(title.createSpan("samaya-card-meta samaya-kb-projectchip"), pf.basename, noteColor(this.app, pf), usecaseOf(this.app, pf)); chip.addClass("is-link");
         chip.onclick = e => { e.stopPropagation(); openFileSmart(this.app, pf); };
       }
       const open = laneAll.filter(t => !linked(t));
@@ -106,7 +106,7 @@ export class KanbanView extends Panel {
           tint(card.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${t.source}`, text: t.key }), ticketColorOf(this.app, s, t));
           card.createDiv({ cls: "samaya-kb-title", text: t.summary || t.file.basename });
           const pp = s.projectsOn ? projectOf0(t) : null;
-          if (pp) { const chip = projectChip(card.createDiv("samaya-card-meta samaya-kb-projectchip"), pp.basename, noteColor(this.app, pp)); chip.addClass("is-link"); chip.onclick = e => { e.stopPropagation(); openFileSmart(this.app, pp); }; }
+          if (pp) { const chip = projectChip(card.createDiv("samaya-card-meta samaya-kb-projectchip"), pp.basename, noteColor(this.app, pp), usecaseOf(this.app, pp)); chip.addClass("is-link"); chip.onclick = e => { e.stopPropagation(); openFileSmart(this.app, pp); }; }
           const meta = [t.issueType, t.assignee].filter(Boolean).join(" · "); if (meta) card.createDiv({ cls: "samaya-kb-meta", text: meta });
           this.scope.draggable(card, t.file.path);
           const acts = card.createDiv("samaya-kb-cardactions");

@@ -4,7 +4,7 @@ import { safe } from "../safe";
 import type SamayaPlugin from "../main";
 import { openFileSmart, openFileBeside } from "../openfile";
 import { DragMode, GRANULARITIES, Granularity, collapseTasks, daysBetween, taskPeriod, taskSpan, dragSpan, ganttRange, granularityDayWidth, monthMarks } from "../gantt";
-import { DEFAULT_PROJECT_DAYS, Project, projectStats, readProject, createProject, projectPathOf, projectsPrefix } from "../projects";
+import { DEFAULT_PROJECT_DAYS, USECASE_PROP, Project, projectLabel, projectStats, readProject, createProject, projectPathOf, projectsPrefix } from "../projects";
 import { Task, Ticket, allTasks, allTickets, patchNote, prefixOf, setDone, ticketPathOf } from "../model";
 import { linkProject, ticketColorOf, setProjectColor } from "../links";
 import { ConfirmDeleteModal, TextPromptModal, TicketTargetSuggestModal } from "../modals";
@@ -181,6 +181,7 @@ export class GanttView extends Panel {
         const arrow = name.createSpan({ cls: "samaya-gantt-arrow", attr: { "aria-label": isOpen ? "Hide tasks" : "Show tasks" } }); setIcon(arrow, isOpen ? "chevron-down" : "chevron-right");
         arrow.onclick = e => { e.stopPropagation(); if (isOpen) memory.open.delete(p.file.path); else memory.open.add(p.file.path); this.render(); };
       } else name.createSpan("samaya-gantt-arrow is-empty");
+      if (p.usecase) name.createSpan({ cls: "samaya-chip samaya-gantt-usecase", text: `#${p.usecase}` });
       const link = name.createSpan({ cls: "samaya-gantt-link", text: p.name }); link.title = p.file.path;
       link.onclick = () => { openFileBeside(this.app, p.file); };
       const linked = byProject.get(p.file.path) ?? [];
@@ -206,6 +207,9 @@ export class GanttView extends Panel {
           openRangePicker({ x: e.clientX, y: e.clientY, start: p.span?.start, end: p.span?.end }, (start, end) => { safe(patchNote(this.app, p.file, { start, end }), "saving the note"); },
             p.span ? () => { safe(patchNote(this.app, p.file, { start: null, end: null }), "saving the note"); } : undefined);
         }));
+        m.addItem(i => i.setTitle(p.usecase ? "Change use case number…" : "Set use case number…").setIcon("hash").onClick(() => {
+          new TextPromptModal(this.plugin, "Use case number (empty to remove)", v => { safe(patchNote(this.app, p.file, { [USECASE_PROP]: v.replace(/^#+/, "").trim() || null }).then(() => this.plugin.bus.emit()), "saving the use case number"); }, p.usecase, true).open();
+        }));
         m.addItem(i => i.setTitle("Color…").setIcon("palette").onClick(() => openColorPicker(e.clientX, e.clientY, p.color, hex => { safe(setProjectColor(this.app, s, p.file, hex).then(() => this.plugin.bus.emit()), "saving the colour"); })));
         m.addSeparator();
         m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { openFileBeside(this.app, p.file); }));
@@ -219,7 +223,7 @@ export class GanttView extends Panel {
       if (!p.span) {
         // not on the timeline yet: hovering shows where a default-length item would go, a click sets its dates
         const hint = track.createDiv({ cls: "samaya-gantt-nodates", text: "Click to place on the timeline" });
-        const ghost = tint(track.createDiv("samaya-gantt-bar is-ghost"), p.color); ghost.createSpan({ cls: "samaya-gantt-label", text: p.name }); ghost.hide();
+        const ghost = tint(track.createDiv("samaya-gantt-bar is-ghost"), p.color); ghost.createSpan({ cls: "samaya-gantt-label", text: projectLabel(p.name, p.usecase) }); ghost.hide();
         const dayAt = (e: MouseEvent) => Math.floor((e.clientX - track.getBoundingClientRect().left) / dayW);
         track.addClass("is-placeable");
         track.addEventListener("pointermove", e => {
@@ -236,7 +240,9 @@ export class GanttView extends Panel {
       }
       const bar = tint(track.createDiv({ cls: "samaya-gantt-bar" + (p.done ? " is-done" : "") }), p.color);
       if (st?.tasks) bar.createDiv("samaya-gantt-fill").style.width = `${(st.done / st.tasks) * 100}%`;
-      bar.createSpan({ cls: "samaya-gantt-label", text: p.name });
+      const label = bar.createSpan({ cls: "samaya-gantt-label" });
+      if (p.usecase) label.createSpan({ cls: "samaya-chip samaya-gantt-usecase", text: `#${p.usecase}` });
+      label.appendText(p.name);
       const place = (sp: { start: string; end: string }) => { bar.style.left = `${daysBetween(from, sp.start) * dayW}px`; bar.style.width = `${(daysBetween(sp.start, sp.end) + 1) * dayW}px`; };
       place(p.span);
       bar.createDiv({ cls: "samaya-gantt-handle is-start" }); bar.createDiv({ cls: "samaya-gantt-handle is-end" });

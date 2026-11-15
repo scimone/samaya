@@ -11,14 +11,22 @@ export const PROJECT_PROP = "assigned_project";
 const LEGACY_PROJECT_PROP = "samaya_project";
 export const DEFAULT_PROJECT_DAYS = 14;
 
-export interface Project { file: TFile; name: string; span: Span | null; done: boolean; color: string; }
+export const USECASE_PROP = "usecase";
+export interface Project { file: TFile; name: string; span: Span | null; done: boolean; color: string; usecase: string; }
+
+/** Use case number of a project note ("" = none), without a leading "#". */
+export function usecaseOf(app: App, file: TFile): string {
+  return String(app.metadataCache.getFileCache(file)?.frontmatter?.[USECASE_PROP] ?? "").trim().replace(/^#+/, "");
+}
+/** "#<number> <name>" for a project with a use case number, else the name. */
+export const projectLabel = (name: string, usecase: string): string => usecase ? `#${usecase} ${name}` : name;
 
 const folderOf = (s: SamayaSettings): string => normalizePath(s.projectsPath.trim() || "Projects");
 export const projectsPrefix = (s: SamayaSettings): string => folderOf(s) + "/";
 
 export function readProject(app: App, file: TFile): Project {
   const fm = (app.metadataCache.getFileCache(file)?.frontmatter ?? {}) as Record<string, unknown>;
-  return { file, name: file.basename, span: parseSpan(fm.start, fm.end), done: fm.status === "done", color: noteColor(app, file) };
+  return { file, name: file.basename, span: parseSpan(fm.start, fm.end), done: fm.status === "done", color: noteColor(app, file), usecase: usecaseOf(app, file) };
 }
 export function allProjects(app: App, s: SamayaSettings): Project[] {
   const prefix = projectsPrefix(s);

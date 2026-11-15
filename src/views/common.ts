@@ -10,7 +10,7 @@ import { Notice } from "obsidian";
 import { focusButton, isCurrentTask, trackedBefore, joinParts, splitTitle } from "./place";
 import { openDayPicker } from "./dayPicker";
 import { PartsModal } from "./partsModal";
-import { projectPathOf } from "../projects";
+import { projectLabel, projectPathOf, usecaseOf } from "../projects";
 import { assignProjectLinked, assignTicketLinked, projectFits, ticketFits, allMeetings, changeMeetingLink, meetingLinks, MeetingProp, ticketColorOf, setTicketProjectColor } from "../links";
 import { noteColor, tint, ticketProjectColor } from "../itemcolor";
 import { openColorPicker } from "./colorPicker";
@@ -113,7 +113,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   }
   if (plugin.settings.projectsOn) {
     const pp = projectPathOf(app, t.file);
-    if (pp) projectChip(meta, pp.split("/").pop()!.replace(/\.md$/, ""), projectColorAt(app, pp));
+    if (pp) projectChip(meta, pp.split("/").pop()!.replace(/\.md$/, ""), projectColorAt(app, pp), projectUsecaseAt(app, pp));
   }
   const mp = meetingPathOf(app, t); const mf = mp ? app.vault.getAbstractFileByPath(mp) : null;
   if (mf instanceof TFile) { const mc = meta.createSpan({ cls: "samaya-chip samaya-chip-meeting", attr: { "aria-label": "Meeting" } }); setIcon(mc.createSpan({ cls: "samaya-chip-icon" }), "calendar-clock"); mc.createSpan({ text: app.metadataCache.getFileCache(mf)?.frontmatter?.title ?? mf.basename }); }
@@ -175,6 +175,10 @@ export function renderBacklogBuckets(plugin: SamayaPlugin, host: HTMLElement, ta
 export function projectColorAt(app: App, path: string): string {
   const f = app.vault.getAbstractFileByPath(path); return f instanceof TFile ? noteColor(app, f) : "";
 }
+/** Use case number of the project note at `path` ("" = none). */
+export function projectUsecaseAt(app: App, path: string): string {
+  const f = app.vault.getAbstractFileByPath(path); return f instanceof TFile ? usecaseOf(app, f) : "";
+}
 /** Title of a ticket project (a lane of the ticket boards), in its colour; right-click chooses the colour. */
 export function ticketProjectTitle(plugin: SamayaPlugin, parent: HTMLElement, key: string): HTMLElement {
   const el = tint(parent.createSpan({ cls: "samaya-tp-title", text: key }), ticketProjectColor(plugin.settings, key));
@@ -186,8 +190,8 @@ export function ticketProjectTitle(plugin: SamayaPlugin, parent: HTMLElement, ke
   return el;
 }
 /** The outlined project pill of the task cards. */
-export function projectChip(parent: HTMLElement, name: string, color = ""): HTMLElement {
-  const pc = tint(parent.createSpan({ cls: "samaya-chip samaya-chip-project" }), color); setIcon(pc.createSpan({ cls: "samaya-chip-icon" }), "folder-kanban"); pc.createSpan({ text: name }); return pc;
+export function projectChip(parent: HTMLElement, name: string, color = "", usecase = ""): HTMLElement {
+  const pc = tint(parent.createSpan({ cls: "samaya-chip samaya-chip-project" }), color); setIcon(pc.createSpan({ cls: "samaya-chip-icon" }), "folder-kanban"); pc.createSpan({ text: projectLabel(name, usecase) }); return pc;
 }
 /** Ticket entries of the task menu: assign / change / remove. */
 export function addTicketItems(m: Menu, plugin: SamayaPlugin, t: Task) {

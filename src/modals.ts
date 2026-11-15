@@ -3,16 +3,16 @@ import { FuzzySuggestModal, Modal, SuggestModal, prepareFuzzySearch } from "obsi
 import type SamayaPlugin from "./main";
 import type { TFile } from "obsidian";
 import { allMeetings, meetingLabel } from "./links";
-import { Project, allProjects, createProject, projectPathOf, readProject } from "./projects";
+import { Project, allProjects, createProject, projectLabel, projectPathOf, readProject } from "./projects";
 import { SOURCE_NAMES, Task, Ticket, allTasks, allTickets } from "./model";
 import { HORIZONS, Horizon, fmtDur, parseDuration } from "./util";
 
 export class TextPromptModal extends Modal {
-  constructor(plugin: SamayaPlugin, private label: string, private onSubmit: (v: string) => void, private initial = "") { super(plugin.app); }
+  constructor(plugin: SamayaPlugin, private label: string, private onSubmit: (v: string) => void, private initial = "", private allowEmpty = false) { super(plugin.app); }
   onOpen() {
     this.contentEl.createEl("p", { text: this.label });
     const inp = this.contentEl.createEl("input", { type: "text" }); inp.style.width = "100%"; inp.value = this.initial; inp.focus();
-    const go = () => { const v = inp.value.trim(); this.close(); if (v) this.onSubmit(v); };
+    const go = () => { const v = inp.value.trim(); this.close(); if (v || this.allowEmpty) this.onSubmit(v); };
     inp.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) go(); });
     this.contentEl.createDiv({ cls: "samaya-ritual-nav" }).createEl("button", { text: "OK", cls: "mod-cta" }).onclick = go;
   }
@@ -110,14 +110,14 @@ export class ProjectSuggestModal extends SuggestModal<ProjectChoice> {
   getSuggestions(query: string): ProjectChoice[] {
     const q = query.trim(); const match = q ? prepareFuzzySearch(q) : null;
     const scored = allProjects(this.app, this.plugin.settings).filter(p => !p.done && this.fits(p))
-      .map(p => ({ p, score: match ? match(p.name)?.score : 0 })).filter((x): x is { p: Project; score: number } => x.score != null)
+      .map(p => ({ p, score: match ? match(projectLabel(p.name, p.usecase))?.score : 0 })).filter((x): x is { p: Project; score: number } => x.score != null)
       .sort((a, b) => b.score - a.score);
     const out: ProjectChoice[] = scored.map(x => ({ project: x.p }));
     const exact = allProjects(this.app, this.plugin.settings).some(p => p.name.toLowerCase() === q.toLowerCase());
     if (q && !exact) out.push({ create: q });
     return out;
   }
-  renderSuggestion(c: ProjectChoice, el: HTMLElement) { el.setText("project" in c ? c.project.name : `Create project “${c.create}”`); }
+  renderSuggestion(c: ProjectChoice, el: HTMLElement) { el.setText("project" in c ? projectLabel(c.project.name, c.project.usecase) : `Create project “${c.create}”`); }
   onChooseSuggestion(c: ProjectChoice) {
     if ("project" in c) { this.choose(c.project); return; }
     void createProject(this.app, this.plugin.settings, c.create).then(f => { this.plugin.bus.emit(); this.choose(readProject(this.app, f)); });

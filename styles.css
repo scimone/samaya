@@ -1725,7 +1725,8 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-sortbtn-icon, .samaya-sortbtn-dir { display: inline-flex; }
 /* use case number pill ("#123") in front of a project name: same look in the name column and on the bar */
 .samaya-gantt-usecase { flex: 0 0 auto; margin-right: 1px; font-weight: 600; } /* colours come from .samaya-chip.has-pc */
-/* the use case number replaces the folder icon: a small tile with a tint of the project colour behind coloured text */
-.samaya-chip-usecase { display: inline-flex; align-items: center; padding: 0 4px; margin: 0 2px 0 -3px; border-radius: 4px; font-size: 0.8em; font-weight: 700; line-height: 1.5; letter-spacing: 0.01em; background: var(--background-modifier-hover); color: inherit; }
+/* the use case number replaces the folder icon: a band from the left edge of the chip, top to bottom, with a tint of the project colour */
+.samaya-chip.has-usecase { padding-left: 0; overflow: hidden; }
+.samaya-chip-usecase { display: inline-flex; align-items: center; align-self: stretch; padding: 0 6px 0 7px; margin-right: 1px; border-radius: 0; font-size: 0.85em; font-weight: 700; letter-spacing: 0.01em; background: var(--background-modifier-hover); color: inherit; }
 .samaya-chip.has-pc .samaya-chip-usecase { background: color-mix(in srgb, var(--pc) 22%, transparent); }
 .samaya-gantt-name .samaya-gantt-link.is-project { font-weight: 600; }

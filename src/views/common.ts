@@ -191,7 +191,7 @@ export function ticketProjectTitle(plugin: SamayaPlugin, parent: HTMLElement, ke
 }
 /** The outlined project pill of the task cards. */
 export function projectChip(parent: HTMLElement, name: string, color = "", usecase = ""): HTMLElement {
-  const pc = tint(parent.createSpan({ cls: "samaya-chip samaya-chip-project" }), color); if (usecase) pc.createSpan({ cls: "samaya-chip-usecase", text: `#${usecase}` }); else setIcon(pc.createSpan({ cls: "samaya-chip-icon" }), "folder-kanban");
+  const pc = tint(parent.createSpan({ cls: "samaya-chip samaya-chip-project" }), color); if (usecase) pc.addClass("has-usecase"); if (usecase) pc.createSpan({ cls: "samaya-chip-usecase", text: `#${usecase}` }); else setIcon(pc.createSpan({ cls: "samaya-chip-icon" }), "folder-kanban");
   pc.createSpan({ text: name }); return pc;
 }
 /** Ticket entries of the task menu: assign / change / remove. */

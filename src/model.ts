@@ -12,6 +12,7 @@ export interface Task {
   /** day the task was checked off (YYYY-MM-DD, "" = unknown or open) */ completed: string;
   planned: string; start: string; estimate: number; actual: number; order: number; channel: string;
   /** link path of the assigned ticket note ("" = none) */ ticket: string;
+  /** link path of the assigned meeting note ("" = none) */ meeting: string;
   /** week-start date (YYYY-MM-DD) for "this week" tasks without a day */ week: string;
   /** date a parked backlog task becomes due ("" = none); once reached it counts as this week's task */ later: string;
   /** backlog bucket the task is parked in ("" = none yet, shown as Someday) */ horizon: Horizon | "";
@@ -59,6 +60,7 @@ function parseTask(file: TFile, fm: Record<string, unknown>): Task {
     estimate, sessions, rest, actual: num(readProp(fm, "actual")), order: fm.order == null ? 1e6 : num(fm.order),
     channel: str(fm.channel),
     ticket: str(readProp(fm, "ticket")).replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0].trim(),
+    meeting: str(readProp(fm, "meeting")).replace(/^\[\[/, "").replace(/\]\]$/, "").split("|")[0].trim(),
     week: due ? startOfWeek(today()) : ymdOf(fm.week),
     segments,
   };
@@ -134,7 +136,7 @@ export async function patchNote(app: App, file: TFile, patch: Record<string, str
 }
 /**
  * Patch a task note. Keys are the Task fields: planned (day), start, segments, estimate, actual, ticket, completed, samaya_project
- * are written as planned_sessions, duration_estimate, duration_actual, assigned_ticket, day_completed, assigned_project.
+ * are written as planned_sessions, duration_estimate, duration_actual, assigned_ticket, assigned_meeting, day_completed, assigned_project.
  * undefined/null/"" removes the property.
  */
 export async function patchTask(app: App, file: TFile, patch: Record<string, string | number | string[] | null | undefined>): Promise<void> {
@@ -263,6 +265,14 @@ export function allTickets(app: App, s: SamayaSettings): Ticket[] {
 export function ticketPathOf(app: App, t: Task): string {
   if (!t.ticket) return "";
   return app.metadataCache.getFirstLinkpathDest(t.ticket, t.file.path)?.path ?? "";
+}
+/** Path of the meeting note a task is assigned to ("" = none). */
+export function meetingPathOf(app: App, t: Task): string {
+  if (!t.meeting) return "";
+  return app.metadataCache.getFirstLinkpathDest(t.meeting, t.file.path)?.path ?? "";
+}
+export async function assignMeeting(app: App, task: TFile, meeting: TFile | null): Promise<void> {
+  await patchTask(app, task, { meeting: meeting ? `[[${meeting.basename}]]` : null });
 }
 export async function assignTicket(app: App, task: TFile, ticket: Ticket | null): Promise<void> {
   await patchTask(app, task, { ticket: ticket ? `[[${ticket.file.basename}]]` : null });

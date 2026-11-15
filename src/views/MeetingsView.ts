@@ -1,7 +1,7 @@
 import { Menu, TFile, normalizePath, setIcon } from "obsidian";
 import { Panel } from "./panel";
 import { addMeetingLinkItems, projectChip, projectColorAt, ticketChip } from "./common";
-import { meetingLinks } from "../links";
+import { meetingLinks, meetingTaskStats } from "../links";
 import { openFileSmart } from "../openfile";
 import type SamayaPlugin from "../main";
 import { Instance, MeetingNote, Series, analyse, analyseCache, buildSeries, nextWorkday, parseNote, stripFrontmatter } from "../meetingseries";
@@ -40,6 +40,7 @@ export class MeetingsView extends Panel {
   private recurring = new Set<string>(); // paths of the meetings that belong to a recurring series
   private fitting?: ResizeObserver;
   private queue: TFile[] = []; private workers = 0; private drawn = 0;
+  private stats = new Map<string, { done: number; total: number }>(); // tasks assigned to each meeting note
   private week: Instance[] = []; // the meetings of the shown week (the agenda's heading counts them)
   constructor(parentEl: HTMLElement, plugin: SamayaPlugin) {
     super(plugin, () => normalizePath(plugin.settings.eventNotesFolder.trim() || "Meetings") + "/"); this.root = parentEl.createDiv("samaya-mt samaya-md");
@@ -95,6 +96,7 @@ export class MeetingsView extends Panel {
     const keep = Array.from(this.root.querySelectorAll<HTMLElement>("[data-keep]")).map(el => [el.dataset.keep!, el.scrollTop, el.scrollLeft] as const); // every scroller keeps its place across a redraw
     this.fitting?.disconnect(); this.root.empty();
     this.recurring = new Set(series.flatMap(s => s.instances.map(i => i.path)));
+    this.stats = meetingTaskStats(this.app, this.plugin.settings);
     const sel = memory.selected ? series.find(s => s.key === memory.selected) : undefined;
     if (memory.selected && !sel) memory.selected = null;
     const w0 = addDays(startOfWeek(td), memory.week * 7); const w1 = addDays(w0, 6);
@@ -174,10 +176,18 @@ export class MeetingsView extends Panel {
     if ("date" in i && this.isLive(i as Instance)) r.addClass("is-live");
     return r;
   }
-  /** note markers: the open action count, then a notes icon for a meeting that has notes */
+  /** open tasks of a meeting (assigned tasks not done yet) */
+  private openTasks = (i: Pick<Instance, "path">): number => { const s = this.stats.get(i.path); return s ? s.total - s.done : 0; };
+  /** the done / total badge of a meeting's assigned tasks, e.g. "2/3" (nothing when none is assigned) */
+  private taskBadge(parent: HTMLElement, i: Pick<Instance, "path">) {
+    const s = this.stats.get(i.path); if (!s) return;
+    const b = parent.createSpan({ cls: "samaya-md-tasks" + (s.done === s.total ? " is-done" : ""), attr: { "aria-label": `${s.done} of ${s.total} tasks done` } });
+    setIcon(b.createSpan("samaya-md-tasks-icon"), "check-square"); b.createSpan({ text: `${s.done}/${s.total}` });
+  }
+  /** note markers: a notes icon for a meeting that has notes, then the tasks badge at the right edge */
   private mark(r: HTMLElement, i: Instance) {
-    if (i.open) r.createSpan({ cls: "samaya-md-badge is-open", text: `${i.open} open` });
     if (i.hasNotes) setIcon(r.createSpan({ cls: "samaya-md-hasnotes", attr: { "aria-label": "Has notes" } }), "file-text");
+    this.taskBadge(r, i);
   }
   /** right-click on a meeting: assign it to a project and / or a ticket */
   private linkMenu(el: HTMLElement, ...paths: string[]) { // several paths: a recurring meeting, the assignment goes to all its notes
@@ -252,7 +262,7 @@ export class MeetingsView extends Panel {
     }
   }
 
-  /** The row of figures on top (the jump cards of the journal): what is left today, this week, open actions and how many meetings have notes. */
+  /** The row of figures on top (the jump cards of the journal): what is left today, this week, open tasks and how many meetings have notes. */
   private figures(page: HTMLElement, all: Instance[], td: string) {
     const row = page.createDiv("samaya-md-cards");
     const card = (kicker: string, value: string, sub: string, tone: "" | "meet" | "warn" = "", fill?: number) => {
@@ -267,8 +277,8 @@ export class MeetingsView extends Panel {
     card("Today", String(left.length), !today.length ? "no meetings" : live ? `now: ${live.title.trim()}` : nxt ? `next at ${time(nxt)}` : `of ${today.length} done`, "meet", today.length ? (today.length - left.length) / today.length : undefined);
     const w = startOfWeek(td); const wk = all.filter(i => i.date >= w && i.date <= addDays(w, 6));
     card("This week", String(wk.length), `Week ${isoWeek(parseYmd(w))}`, "meet", wk.length ? wk.filter(i => i.when === "past").length / wk.length : undefined);
-    const past = all.filter(i => i.when === "past"); const noted = past.filter(i => i.hasNotes).length; const open = all.reduce((s, i) => s + i.open, 0);
-    card("Open actions", String(open), open ? `in ${all.filter(i => i.open).length} meeting${all.filter(i => i.open).length === 1 ? "" : "s"}` : "all clear", open ? "warn" : "");
+    const past = all.filter(i => i.when === "past"); const noted = past.filter(i => i.hasNotes).length; const open = all.reduce((s, i) => s + this.openTasks(i), 0); const withOpen = all.filter(i => this.openTasks(i)).length;
+    card("Open tasks", String(open), open ? `in ${withOpen} meeting${withOpen === 1 ? "" : "s"}` : "all clear", open ? "warn" : "");
     card("With notes", !past.length ? "…" : `${Math.round(noted / past.length * 100)}%`, !past.length ? "" : `${noted} of ${past.length} past meetings`, "", !past.length ? undefined : noted / past.length);
   }
 
@@ -281,7 +291,8 @@ export class MeetingsView extends Panel {
     };
     card("Held", String(s.held), s.last ? `last ${short(s.last.date)}` : "", "meet");
     card("With notes", String(s.withNotes), !s.held ? "" : `${Math.round(s.withNotes / s.held * 100)}% of held`);
-    card("Open actions", String(s.open), s.open ? "to follow up" : "all clear", s.open ? "warn" : "");
+    const openT = s.instances.reduce((n, i) => n + this.openTasks(i), 0);
+    card("Open tasks", String(openT), openT ? "to follow up" : "all clear", openT ? "warn" : "");
     card("Next", s.next ? (s.next.date === td ? "Today" : short(s.next.date)) : "—", s.next ? span(s.next) : "none planned", "meet");
 
     const items = [...s.instances].reverse().filter(i => !memory.onlyNotes || i.hasNotes);
@@ -293,8 +304,7 @@ export class MeetingsView extends Panel {
         const eb = r.createDiv("samaya-md-ebody");
         if (i.hasNotes && i.excerpt.length) for (const t of i.excerpt) eb.createDiv({ cls: "samaya-md-eline", text: t });
         else eb.createDiv({ cls: "samaya-md-eline is-faint", text: i.hasNotes ? "…" : i.when === "past" ? "no notes" : span(i) }); // "…": the text is still being read
-        if (i.open) eb.createSpan({ cls: "samaya-md-badge is-open", text: `${i.open} open` });
-        this.chips(eb, i.path);
+        this.chips(eb, i.path); this.taskBadge(eb, i);
         r.onclick = e => this.open(i.path, e); this.linkMenu(r, i.path);
       }
     };

@@ -6,14 +6,14 @@ import { renderSideBars } from "./views/sideBar";
 import { Editor, MarkdownView, Notice, Plugin, TFile, addIcon, normalizePath } from "obsidian";
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FocusManager, FocusState } from "./focus";
-import { assignTicketLinked, assignProjectLinked, projectFits, ticketFits, changeMeetingLink, meetingLinks, meetingsPrefix, syncMeetingLinks } from "./links";
-import { Ticket, allTickets, createTask } from "./model";
+import { assignTicketLinked, assignProjectLinked, projectFits, ticketFits, allMeetings, changeMeetingLink, meetingLinks, meetingsPrefix, syncMeetingLinks } from "./links";
+import { Ticket, allTickets, assignMeeting, createTask } from "./model";
 import { PLANNER_VIEW_TYPE, PlannerView, SAMAYA_ICON, SAMAYA_ICON_SVG } from "./views/PlannerView";
 import { syncTickets } from "./sync";
 import { setColorPersist } from "./itemcolor";
 import { ensureColors } from "./colormigrate";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
-import { ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "./modals";
+import { MeetingSuggestModal, ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "./modals";
 import type { Period } from "./journal";
 import { renderJournalBar } from "./views/journalBar";
 import { PERIODIC_KINDS, identifyNote, invalidatePeriodNotes, listPeriodNotes, neighbours, openPeriodNote, periodNotePath } from "./journal";
@@ -152,6 +152,10 @@ export default class SamayaPlugin extends Plugin {
       const f = this.app.workspace.getActiveFile(); const meet = !!f && f.path.startsWith(meetingsPrefix(this.settings));
       const ok2 = this.settings.projectsOn && !!f && (meet || f.path.startsWith(prefixOf(this.settings.tasksPath)) || f.path.startsWith(prefixOf(this.settings.ticketsPath)));
       if (ok2 && !c && f) new ProjectSuggestModal(this, p => { void (meet ? changeMeetingLink(this.app, this.settings, f, "assigned_project", p.file.path) : assignProjectLinked(this.app, this.settings, f, p)); }, p => meet ? !meetingLinks(this.app, f, "assigned_project").includes(p.file.path) : projectFits(this.app, this.settings, f, p)).open(); return ok2;
+    } });
+    this.addCommand({ id: "assign-meeting", name: "Assign current task to a meeting", checkCallback: c => {
+      const f = this.app.workspace.getActiveFile(); const ok2 = !!f && f.path.startsWith(prefixOf(this.settings.tasksPath)) && allMeetings(this.app, this.settings).length > 0;
+      if (ok2 && !c && f) new MeetingSuggestModal(this, m => { void assignMeeting(this.app, f, m); }).open(); return ok2;
     } });
     this.addCommand({ id: "scaffold", name: "Create Samaya files", callback: () => this.scaffold(true) });
 

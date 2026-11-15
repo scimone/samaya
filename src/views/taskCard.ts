@@ -2,9 +2,10 @@ import { Menu, TFile, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { dayTask, patchTask, readTask, readTicket } from "../model";
 import { projectPathOf } from "../projects";
+import { allMeetings } from "../links";
 import { HORIZONS, addDays, bucketOf, fmtHm, parseDuration, minToHm, parseYmd, startOfWeek, today } from "../util";
 import { focusButton, roundCheck, trackedBefore } from "./place";
-import { addPlanItems, addProjectItems, addTicketItems } from "./common";
+import { addMeetingItems, addPlanItems, addProjectItems, addTicketItems } from "./common";
 
 const DAY_FMT = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short" });
 /** "Thu, 12 Nov" (Today / Tomorrow for those). */
@@ -133,6 +134,8 @@ export function decorateTaskNote(plugin: SamayaPlugin, el: HTMLElement, file: TF
     const ticketPath = t.ticket ? plugin.app.metadataCache.getFirstLinkpathDest(t.ticket, file!.path)?.path ?? "" : "";
     if (plugin.settings.projectsOn || projectPath) relation("Project", "folder-kanban", projectPath, f => f.basename, m => addProjectItems(m, plugin, t));
     if (plugin.settings.ticketsOn || ticketPath) relation("Ticket", "ticket", ticketPath, f => { const k = readTicket(plugin.app, f); return k.summary ? `${k.key} • ${k.summary}` : k.key; }, m => addTicketItems(m, plugin, t));
+    const meetingPath = t.meeting ? plugin.app.metadataCache.getFirstLinkpathDest(t.meeting, file!.path)?.path ?? "" : "";
+    if (meetingPath || allMeetings(plugin.app, plugin.settings).length) relation("Meeting", "calendar-clock", meetingPath, f => String(plugin.app.metadataCache.getFileCache(f)?.frontmatter?.title ?? f.basename), m => addMeetingItems(m, plugin, t));
     return card;
   }
 }

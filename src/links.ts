@@ -1,7 +1,7 @@
 // Keeps tasks, tickets and projects consistent (a project linked to a whole ticket project never hands out one of its tickets on its own): a task assigned to a ticket that belongs to a project is assigned to that project too, and the other way round.
 import { App, Notice, TFile, normalizePath } from "obsidian";
 import type { SamayaSettings } from "./settings";
-import { Ticket, allTasks, allTickets, assignTicket, readTask, ticketPathOf } from "./model";
+import { Ticket, allTasks, allTickets, assignTicket, meetingPathOf, readTask, ticketPathOf } from "./model";
 import { Project, allProjects, assignProject, linkTickets, projectPathOf, readProject } from "./projects";
 import { patchNote } from "./model";
 import { noteColor, randomColor, setTicketProjectColor as setColorOf, ticketProjectColor, writeNoteColor } from "./itemcolor";
@@ -131,4 +131,31 @@ export async function syncMeetingLinks(app: App, s: SamayaSettings): Promise<num
     }
   }
   return changed;
+}
+
+/** Per meeting note (path): how many tasks are assigned to it and how many of those are done. */
+export function meetingTaskStats(app: App, s: SamayaSettings): Map<string, { done: number; total: number }> {
+  const out = new Map<string, { done: number; total: number }>();
+  for (const t of allTasks(app, s)) {
+    const p = meetingPathOf(app, t); if (!p) continue;
+    const st = out.get(p) ?? { done: 0, total: 0 }; out.set(p, st);
+    st.total++; if (t.status === "done") st.done++;
+  }
+  return out;
+}
+
+/** Every meeting note, newest first (the choices when a task is assigned to a meeting). */
+export function allMeetings(app: App, s: SamayaSettings): Array<{ file: TFile; title: string; date: string; start: number | null }> {
+  const prefix = meetingsPrefix(s); const out = [];
+  for (const f of app.vault.getMarkdownFiles()) {
+    if (!f.path.startsWith(prefix)) continue;
+    const n = parseNote(f.path, app.metadataCache.getFileCache(f)?.frontmatter, f.basename, ""); if (n) out.push({ file: f, title: n.title, date: n.date, start: n.start });
+  }
+  return out.sort((a, b) => b.date.localeCompare(a.date) || (b.start ?? 0) - (a.start ?? 0));
+}
+/** "Mon 2 Nov 10:00 Title": how a meeting is named in lists. */
+export function meetingLabel(m: { title: string; date: string; start: number | null }): string {
+  const d = new Date(m.date + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+  const t = m.start == null ? "" : ` ${String(Math.floor(m.start / 60)).padStart(2, "0")}:${String(m.start % 60).padStart(2, "0")}`;
+  return `${d}${t}  ${m.title}`;
 }

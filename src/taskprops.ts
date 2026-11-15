@@ -12,7 +12,7 @@ import { hmToMin } from "./util";
 
 /** Internal patch key -> frontmatter property. Everything else is written under its own name. */
 export const PROP_RENAMES: Record<string, string> = {
-  estimate: "duration_estimate", actual: "duration_actual", samaya_project: "assigned_project", ticket: "assigned_ticket", completed: "day_completed",
+  estimate: "duration_estimate", actual: "duration_actual", samaya_project: "assigned_project", ticket: "assigned_ticket", meeting: "assigned_meeting", completed: "day_completed",
 };
 export const SESSIONS_PROP = "planned_sessions";
 /** Properties written by earlier versions: still read, removed the next time the note is written. */

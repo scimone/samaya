@@ -1,9 +1,10 @@
 // "Tasks" section of project and ticket notes: every task assigned to the note, in the style of the daily note's planned tasks plus the day.
 import { App, TFile } from "obsidian";
 import type { SamayaSettings } from "./settings";
-import { Task, allTasks, prefixOf, ticketPathOf } from "./model";
+import { Task, allTasks, meetingPathOf, prefixOf, ticketPathOf } from "./model";
 import { JournalTask, plannedTime, taskLines, upsertSection } from "./journal";
 import { allProjects, projectPathOf, projectsPrefix } from "./projects";
+import { meetingsPrefix } from "./links";
 
 export const TASKS_HEADING = "Tasks";
 
@@ -14,15 +15,17 @@ export function taskListBody(tasks: Task[]): string {
   return taskLines(items);
 }
 
-/** Notes (path -> tasks) that get a Tasks section: projects while projects are on, tickets while Jira or GitLab is on. */
+/** Notes (path -> tasks) that get a Tasks section: projects while projects are on, tickets while Jira or GitLab is on, and meetings that have tasks assigned (or already show the section). */
 export async function syncTaskLists(app: App, s: SamayaSettings): Promise<void> {
   const projectsOn = s.projectsOn, ticketsOn = s.ticketsOn;
-  if (!projectsOn && !ticketsOn) return;
   const byNote = new Map<string, Task[]>();
   if (projectsOn) for (const p of allProjects(app, s)) byNote.set(p.file.path, []);
   if (ticketsOn) { const tp = prefixOf(s.ticketsPath); if (tp) for (const f of app.vault.getMarkdownFiles()) if (f.path.startsWith(tp)) byNote.set(f.path, []); }
+  const mp = meetingsPrefix(s);
+  for (const f of app.vault.getMarkdownFiles()) if (f.path.startsWith(mp) && app.metadataCache.getFileCache(f)?.headings?.some(h => h.level === 2 && h.heading.trim() === TASKS_HEADING)) byNote.set(f.path, []); // a section whose tasks were all unlinked is emptied
   for (const t of allTasks(app, s)) {
     const targets = new Set<string>();
+    const m = meetingPathOf(app, t); if (m && m.startsWith(mp)) { if (!byNote.has(m)) byNote.set(m, []); targets.add(m); }
     if (projectsOn) { const p = projectPathOf(app, t.file); if (p) targets.add(p); }
     if (ticketsOn) { const p = ticketPathOf(app, t); if (p) targets.add(p); }
     for (const p of targets) byNote.get(p)?.push(t);

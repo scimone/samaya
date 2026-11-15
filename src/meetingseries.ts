@@ -23,9 +23,11 @@ export function stripFrontmatter(text: string): string { return text.replace(/^-
 
 /** What a meeting note says: the first few real lines, and the open / done action items. */
 export function analyse(body: string, maxLines = 3): { excerpt: string[]; open: number; done: number } {
-  const excerpt: string[] = []; let open = 0, done = 0;
+  const excerpt: string[] = []; let open = 0, done = 0; let inTasks = false; // the generated "Tasks" section lists linked tasks: not notes
   for (const raw of body.replace(/<!--[\s\S]*?-->/g, "").split(/\r?\n/)) {
     const line = raw.trim();
+    const h = /^(#{1,6})\s+(.*)$/.exec(line); if (h) inTasks = h[1].length === 2 && h[2].trim() === "Tasks";
+    if (inTasks) continue;
     if (!line || /^#{1,6}\s/.test(line) || /^-{3,}$/.test(line)) continue;
     const task = /^[-*]\s+\[( |x|X)\]\s*(.*)$/.exec(line);
     if (task && !task[2].trim()) continue;
@@ -39,17 +41,21 @@ export function analyse(body: string, maxLines = 3): { excerpt: string[]; open: 
 
 interface Pos { start: { line: number; offset: number }; end: { line: number; offset: number } }
 /** The parts of Obsidian's index (`CachedMetadata`) that tell whether a note has notes in it. */
-export interface CacheLike { sections?: Array<{ type: string; position: Pos }>; listItems?: Array<{ task?: string; position: Pos }> }
+export interface CacheLike { sections?: Array<{ type: string; position: Pos }>; headings?: Array<{ heading: string; level: number; position: Pos }>; listItems?: Array<{ task?: string; position: Pos }> }
 
 /**
  * What a meeting note holds, from Obsidian's index alone: reading the files is slow (they queue up and hold back everything else that reads files), the index is already in memory.
  * Notes = anything but headings, rules, comments and the front matter; empty bullets and empty `- [ ]` items do not count. The excerpt needs the text, so it stays empty until the file is read.
  */
 export function analyseCache(c: CacheLike | null | undefined): { excerpt: string[]; open: number; done: number; hasNotes: boolean } {
-  const items = (c?.listItems ?? []).filter(li => li.position.end.offset - li.position.start.offset > (li.task !== undefined ? 6 : 2)); // "- [ ]" or "-" and nothing after
+  // the generated "Tasks" section (linked tasks) is no notes: lines from its heading to the next level-2-or-higher heading are ignored
+  const hs = c?.headings ?? []; const ti = hs.findIndex(h => h.level === 2 && h.heading.trim() === "Tasks");
+  const tFrom = ti < 0 ? -1 : hs[ti].position.start.line; const tTo = ti < 0 ? -1 : (hs.slice(ti + 1).find(h => h.level <= 2)?.position.start.line ?? Infinity);
+  const inTasks = (line: number) => tFrom >= 0 && line >= tFrom && line < tTo;
+  const items = (c?.listItems ?? []).filter(li => li.position.end.offset - li.position.start.offset > (li.task !== undefined ? 6 : 2) && !inTasks(li.position.start.line)); // "- [ ]" or "-" and nothing after
   const open = items.filter(li => li.task === " ").length, done = items.filter(li => li.task !== undefined && li.task !== " ").length;
   const hasNotes = (c?.sections ?? []).some(sec => {
-    if (["yaml", "heading", "thematicBreak", "comment", "html"].includes(sec.type)) return false;
+    if (["yaml", "heading", "thematicBreak", "comment", "html"].includes(sec.type) || inTasks(sec.position.start.line)) return false;
     if (sec.type !== "list") return true;
     return items.some(li => li.position.start.line >= sec.position.start.line && li.position.start.line <= sec.position.end.line);
   });

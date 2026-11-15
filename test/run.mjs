@@ -528,6 +528,11 @@ await bundle("src/meetingseries.ts", "test/.meetingseries.mjs");
   assert.deepEqual(cadenceOf(["2026-11-03", "2026-11-10", "2026-11-17"]), { label: "Weekly", days: "Tue" });
   assert.deepEqual(cadenceOf(["2026-11-06", "2026-11-20"]), { label: "Every 2 weeks", days: "Fri" });
   assert.deepEqual(cadenceOf(["2026-11-02", "2026-11-05", "2026-11-09", "2026-11-12"]), { label: "2× a week", days: "Mon, Thu" });
+  assert.deepEqual(analyse("## Notes\n- Decided X\n\n## Tasks\n\n- [[Send mail]]\n- [ ] x\n\n## More\n- Y\n"), { excerpt: ["Decided X", "Y"], open: 0, done: 0 }); // the generated Tasks section is skipped
+  { const P = (l) => ({ start: { line: l, offset: l * 10 }, end: { line: l, offset: l * 10 + 20 } });
+    const onlyTasks = { headings: [{ heading: "Tasks", level: 2, position: P(2) }], sections: [{ type: "heading", position: P(2) }, { type: "list", position: { start: P(4).start, end: P(5).end } }], listItems: [{ position: P(4) }, { position: P(5) }] };
+    assert.equal(analyseCache(onlyTasks).hasNotes, false); // linked tasks are no notes
+    assert.equal(analyseCache({ ...onlyTasks, headings: [{ heading: "Notes", level: 2, position: P(2) }] }).hasNotes, true); }
   assert.deepEqual(analyse("# T\n\n## Meeting Summary\n\n"), { excerpt: [], open: 0, done: 0 });
   assert.deepEqual(analyse("## S\n- Decided X\n- [ ] Send mail\n- [x] Book room\n- [ ]\n"), { excerpt: ["Decided X", "Send mail", "Book room"], open: 1, done: 1 });
   assert.equal(stripFrontmatter("---\na: 1\n---\n# H\n"), "# H\n");

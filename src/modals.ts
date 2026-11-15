@@ -1,6 +1,8 @@
 import { isDoneState } from "./kanban";
 import { FuzzySuggestModal, Modal, SuggestModal, prepareFuzzySearch } from "obsidian";
 import type SamayaPlugin from "./main";
+import type { TFile } from "obsidian";
+import { allMeetings, meetingLabel } from "./links";
 import { Project, allProjects, createProject, projectPathOf, readProject } from "./projects";
 import { SOURCE_NAMES, Ticket, allTickets } from "./model";
 import { HORIZONS, Horizon, fmtDur, parseDuration } from "./util";
@@ -69,6 +71,14 @@ export class TicketSuggestModal extends FuzzySuggestModal<Ticket | null> {
   getItems() { return allTickets(this.app, this.plugin.settings).filter(t => (this.includeDone || !isDoneState(t.state)) && this.fits(t)); }
   getItemText(t: Ticket | null) { return t ? `${t.key}  ${t.summary}` : "(no ticket)"; }
   onChooseItem(t: Ticket | null) { this.choose(t); }
+}
+
+/** Pick the meeting a task is assigned to (newest first). */
+export class MeetingSuggestModal extends FuzzySuggestModal<ReturnType<typeof allMeetings>[number]> {
+  constructor(private plugin: SamayaPlugin, private choose: (f: TFile) => void) { super(plugin.app); this.setPlaceholder("Assign to meeting…"); }
+  getItems() { return allMeetings(this.app, this.plugin.settings); }
+  getItemText(m: ReturnType<typeof allMeetings>[number]) { return meetingLabel(m); }
+  onChooseItem(m: ReturnType<typeof allMeetings>[number]) { this.choose(m.file); }
 }
 
 /** A single ticket, or a whole Jira / GitLab project (its tickets not yet linked to the chosen project). */

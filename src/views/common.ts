@@ -4,14 +4,14 @@ import type SamayaPlugin from "../main";
 import { safe } from "../safe";
 import { openFileSmart } from "../openfile";
 import { DndScope, DropInfo } from "../dnd";
-import { Source, Task, addSubtask, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
-import { ConfirmDeleteModal, ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "../modals";
+import { Source, Task, addSubtask, assignMeeting, meetingPathOf, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
+import { ConfirmDeleteModal, MeetingSuggestModal, ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "../modals";
 import { Notice } from "obsidian";
 import { focusButton, isCurrentTask, trackedBefore, joinParts, splitTitle } from "./place";
 import { openDayPicker } from "./dayPicker";
 import { PartsModal } from "./partsModal";
 import { projectPathOf } from "../projects";
-import { assignProjectLinked, assignTicketLinked, projectFits, ticketFits, changeMeetingLink, meetingLinks, MeetingProp, ticketColorOf, setTicketProjectColor } from "../links";
+import { assignProjectLinked, assignTicketLinked, projectFits, ticketFits, allMeetings, changeMeetingLink, meetingLinks, MeetingProp, ticketColorOf, setTicketProjectColor } from "../links";
 import { noteColor, tint, ticketProjectColor } from "../itemcolor";
 import { openColorPicker } from "./colorPicker";
 import { safeFileName, HORIZONS, Horizon, bucketOf, fmtDur, fmtHm, minToHm, parseDuration, parseYmd, startOfWeek, today } from "../util";
@@ -115,6 +115,8 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
     const pp = projectPathOf(app, t.file);
     if (pp) projectChip(meta, pp.split("/").pop()!.replace(/\.md$/, ""), projectColorAt(app, pp));
   }
+  const mp = meetingPathOf(app, t); const mf = mp ? app.vault.getAbstractFileByPath(mp) : null;
+  if (mf instanceof TFile) { const mc = meta.createSpan({ cls: "samaya-chip samaya-chip-meeting", attr: { "aria-label": "Meeting" } }); setIcon(mc.createSpan({ cls: "samaya-chip-icon" }), "calendar-clock"); mc.createSpan({ text: app.metadataCache.getFileCache(mf)?.frontmatter?.title ?? mf.basename }); }
   if (t.channel) meta.createSpan({ cls: "samaya-chip samaya-chip-channel", text: t.channel });
   if (t.part) partChip(plugin, meta, t);
   if (!meta.childElementCount) meta.remove();
@@ -193,6 +195,13 @@ export function addTicketItems(m: Menu, plugin: SamayaPlugin, t: Task) {
   if (ticketsOn || t.ticket) m.addItem(i => i.setTitle(t.ticket ? "Change ticket…" : "Assign ticket…").setIcon("ticket").onClick(() => new TicketSuggestModal(plugin, tk => { void assignTicketLinked(app, plugin.settings, t.file, tk); }, tk => ticketFits(app, plugin.settings, t.file, tk)).open()));
   if (t.ticket) m.addItem(i => i.setTitle("Unlink ticket").setIcon("unlink").onClick(() => { void assignTicketLinked(app, plugin.settings, t.file, null); }));
 }
+/** Meeting entries of the task menu: assign / change / remove. */
+export function addMeetingItems(m: Menu, plugin: SamayaPlugin, t: Task) {
+  const app = plugin.app;
+  if (!allMeetings(app, plugin.settings).length && !t.meeting) return;
+  m.addItem(i => i.setTitle(t.meeting ? "Change meeting…" : "Assign meeting…").setIcon("calendar-clock").onClick(() => new MeetingSuggestModal(plugin, f => { void assignMeeting(app, t.file, f); }).open()));
+  if (t.meeting) m.addItem(i => i.setTitle("Unlink meeting").setIcon("unlink").onClick(() => { void assignMeeting(app, t.file, null); }));
+}
 /** Project entries of the task menu: assign / change / remove. */
 export function addProjectItems(m: Menu, plugin: SamayaPlugin, t: Task) {
   const app = plugin.app;
@@ -240,7 +249,7 @@ export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent, seg: 
   const app: App = plugin.app;
   e.preventDefault(); const m = new Menu();
   if (plugin.workday.started && (t.planned === today() || t.sessions.some(g => g.date === today()))) m.addItem(i => i.setTitle("Start focus").setIcon("timer").onClick(() => { void plugin.focus.start(t.file); }));
-  addTicketItems(m, plugin, t); addProjectItems(m, plugin, t);
+  addTicketItems(m, plugin, t); addProjectItems(m, plugin, t); addMeetingItems(m, plugin, t);
   m.addSeparator();
   addPlanItems(m, plugin, t, seg, canCut);
   m.addSeparator();

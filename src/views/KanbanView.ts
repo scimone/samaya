@@ -30,8 +30,10 @@ export class KanbanView extends Panel {
   private scope = new DndScope();
   private pending = false;
   private texts: NoteText;
-  constructor(parentEl: HTMLElement, plugin: SamayaPlugin) { super(plugin, () => prefixOf(plugin.settings.ticketsPath)); this.texts = new NoteText(this.app); this.root = parentEl.createDiv("samaya-kanban"); this.redrawOnBus(); this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.render(); } }; }
-  onunload() { this.texts.clear(); window.clearTimeout(this.timer); this.scope.dispose(); }
+  private ro: ResizeObserver;
+  private fitFrame = 0;
+  constructor(parentEl: HTMLElement, plugin: SamayaPlugin) { super(plugin, () => prefixOf(plugin.settings.ticketsPath)); this.texts = new NoteText(this.app); this.root = parentEl.createDiv("samaya-kanban"); this.ro = new ResizeObserver(() => { window.cancelAnimationFrame(this.fitFrame); this.fitFrame = window.requestAnimationFrame(() => this.fitLanes()); }); this.ro.observe(this.root); this.redrawOnBus(); this.scope.onIdle = () => { if (this.pending) { this.pending = false; this.render(); } }; }
+  onunload() { this.ro.disconnect(); window.cancelAnimationFrame(this.fitFrame); this.texts.clear(); window.clearTimeout(this.timer); this.scope.dispose(); }
   private async setStatus(path: string, status: string) {
     const f = this.app.vault.getAbstractFileByPath(path); if (!(f instanceof TFile)) return;
     const t = readTicket(this.app, f); if (t.state === status || status === "No status") return;
@@ -149,8 +151,9 @@ export class KanbanView extends Panel {
       title.onclick = () => { if (!this.collapsed.delete(lane.project)) this.collapsed.add(lane.project); this.render(); };
       if (this.collapsed.has(lane.project)) continue;
       const row = box.createDiv("samaya-kb-row");
+      row.dataset.open = columns.some(c => !isDoneState(c) && (lane.cells.get(c)?.length ?? 0) > 0) ? "1" : ""; // any to do / in progress ticket in this lane?
       for (const c of columns) {
-        const cell = row.createDiv("samaya-kb-cell");
+        const cell = row.createDiv("samaya-kb-cell" + (isDoneState(c) ? " is-closed-col" : ""));
         bindZone(this.scope, cell, path => { safe(this.setStatus(path, c), "changing the status"); });
         for (const t of lane.cells.get(c) ?? []) {
           const card = cell.createDiv("samaya-kb-card"); card.dataset.key = t.key;
@@ -180,6 +183,26 @@ export class KanbanView extends Panel {
         }
       }
     }
+    this.fitLanes();
     if (keep) { scroll.scrollLeft = keep.x; scroll.scrollTop = keep.y; }
+  }
+  /** A lane is as tall as its tallest open (to do / in progress ...) column; the closed columns scroll when longer. A lane with nothing open fits two closed tickets before it scrolls. */
+  private fitLanes() {
+    for (const row of Array.from(this.root.querySelectorAll<HTMLElement>(".samaya-kb-row"))) {
+      const closed = Array.from(row.querySelectorAll<HTMLElement>(".samaya-kb-cell.is-closed-col")); if (!closed.length) continue;
+      for (const c of closed) { c.style.maxHeight = "0px"; c.addClass("is-scrolling"); } // out of the way, so the row measures only the open columns
+      let h = row.offsetHeight;
+      if (!row.dataset.open) { // nothing open: the height of two closed cards
+        h = 0;
+        for (const c of closed) {
+          const cards = Array.from(c.querySelectorAll<HTMLElement>(".samaya-kb-card")).slice(0, 2); if (!cards.length) continue;
+          const cs = getComputedStyle(c); const top = cards[0].getBoundingClientRect().top, bottom = cards[cards.length - 1].getBoundingClientRect().bottom;
+          h = Math.max(h, bottom - top + (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0));
+        }
+        if (!h) h = 28;
+      }
+      if (!h) { for (const c of closed) { c.style.maxHeight = ""; c.removeClass("is-scrolling"); } continue; } // not laid out yet (hidden view): the observer fits it when it shows
+      for (const c of closed) c.style.maxHeight = `${Math.ceil(h)}px`;
+    }
   }
 }

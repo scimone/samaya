@@ -6,8 +6,8 @@ export function statusRank(status: string): number {
   const s = status.toLowerCase();
   if (/(done|closed|resolved|complete|finished|released|cancel|won'?t|geschlossen|erledigt|abgeschlossen|fertig|gel[öo]st|abgebrochen|verworfen)/.test(s) && !/\b(not|un)\s?(done|resolved|complete|finished|released)|incomplete|nicht\s+(erledigt|fertig|gel[öo]st|abgeschlossen)/.test(s)) return 3;
   if (/(review|test|verif|qa|accept)/.test(s)) return 2;
-  if (/(progress|doing|develop|started|active)/.test(s)) return 1.5;
-  if (/(backlog|open|todo|to do|new|ready|selected|reopen)/.test(s)) return 0;
+  if (/(progress|doing|develop|started|active|bearbeitung|in arbeit)/.test(s)) return 1.5;
+  if (/(backlog|open|todo|to do|new|ready|selected|reopen|offen|zu erledigen)/.test(s)) return 0;
   return 1;
 }
 /** A finished ticket (done / closed / resolved / cancelled ...), the one definition for hiding and filtering. */

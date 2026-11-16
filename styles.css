@@ -1769,3 +1769,5 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-kb-linkicon svg { width: 12px; height: 12px; }
 @keyframes samaya-kb-hl { 0%, 65% { box-shadow: 0 0 0 3px var(--samaya-hl), 0 0 16px 2px var(--samaya-hl); background: color-mix(in srgb, var(--samaya-hl) 22%, var(--background-primary)); } 100% { box-shadow: 0 0 0 0 transparent; } }
 .samaya-kb-card.is-hl { animation: samaya-kb-hl 2s ease-out; }
+.samaya-kb-cell.is-scrolling { overflow-y: auto; }
+.samaya-kb-cell.is-scrolling > * { flex-shrink: 0; }

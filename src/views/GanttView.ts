@@ -67,7 +67,7 @@ export class GanttView extends Panel {
       const all = allTickets(this.app, s);
       for (const p of every) ticketOf.set(p.file.path, String(this.app.metadataCache.getFileCache(p.file)?.frontmatter?.ticket_project ?? "") || all.find(t => projectPathOf(this.app, t.file) === p.file.path)?.project || "");
     }
-    const sorted = sortProjects(projects0, s.projectsSort, s.projectsSortDesc, p => ticketOf.get(p.file.path) ?? "");
+    const sorted = sortProjects(projects0, s.projectsSort, s.projectsSortDesc, p => ticketOf.get(p.file.path) ?? "", p => p.usecase);
     const projects = sorted;
     // tasks of each project, by first planned day (undated last); shown under an expanded project
     const tasksOf = new Map<string, Array<{ t: Task; span: { start: string; end: string } | null; period?: boolean }>>();

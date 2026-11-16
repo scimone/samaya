@@ -108,7 +108,7 @@ export class TasksView extends Panel {
         const mine = lane.items.filter(it => it.col === c.key);
         bindZone(this.scope, cell, (path, i) => { void this.dropped(hooks, c.key, path, i, grouped ? lane.key : null, tickets, projects); });
         if (!grouped) { const p = hooks.add(c.key, mine.length); if (p) addTaskInput(this.plugin, cell, "+ Add task", () => p, () => this.schedule()); }
-        for (const it of mine) renderTaskCard(this.plugin, cell, it.t, { scope: this.scope, compact: true, dayLabel: hooks.dayLabel(it.t, c.key), actions: hooks.actions(it), ...(memory.mode === "board" && c.key === "today" ? { focus: "today" as const } : {}) });
+        for (const it of mine) renderTaskCard(this.plugin, cell, it.t, { scope: this.scope, dayLabel: hooks.dayLabel(it.t, c.key), actions: hooks.actions(it), ...(memory.mode === "board" && c.key === "today" ? { focus: "today" as const } : {}) });
         if (!mine.length) cell.createDiv({ cls: "samaya-tk-empty", text: c.key === "overdue" ? "All caught up" : c.key === "done" ? "Nothing finished yet" : c.key === "progress" ? "Start a task with its focus timer" : "Drop a task here" });
       }
     }

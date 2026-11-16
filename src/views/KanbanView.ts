@@ -2,10 +2,10 @@ import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { safe } from "../safe";
 import { openFileSmart } from "../openfile";
-import { NO_PROJECT, groupTickets, isDoneState } from "../kanban";
+import { NO_PROJECT, applyColumnOrder, groupTickets, isDoneState, moveColumn, nestChildren } from "../kanban";
 import { DndScope } from "../dnd";
 import { bindZone } from "./common";
-import { Ticket, patchNote, prefixOf, readTicket, relocateTicket, varsOfTicket } from "../model";
+import { Ticket, allTasks, ticketPathOf, patchNote, prefixOf, readTicket, relocateTicket, varsOfTicket } from "../model";
 import { TFile, setIcon } from "obsidian";
 import { TextPromptModal } from "../modals";
 import { createProject, projectPathOf, usecaseOf } from "../projects";
@@ -18,6 +18,7 @@ import { renderHeadTitle } from "./plannerHead";
 import { NoteText, matches, renderSearch } from "./search";
 
 const memory = { query: "" };
+const COL_PREFIX = "samaya-col:"; // drag id of a column header (a ticket is dragged by its note path)
 
 export const KANBAN_VIEW_TYPE = "samaya-kanban";
 
@@ -72,12 +73,28 @@ export class KanbanView extends Panel {
     const linked = (t: { file: TFile }) => !!ppath(t.file);
     const perLane = new Map<string, Ticket[]>(); for (const t of all) (perLane.get(t.project) ?? perLane.set(t.project, []).get(t.project)!).push(t);
     const perState = new Map<string, number>(); for (const t of tickets) { const k = t.state || "No status"; perState.set(k, (perState.get(k) ?? 0) + 1); }
-    const { columns } = groupTickets(all); const { lanes } = groupTickets(tickets); // the columns stay whatever the search finds
+    const columns = applyColumnOrder(groupTickets(all).columns, s.ticketColumnOrder ?? []); // the columns stay whatever the search finds
+    const nested = nestChildren(tickets); const { lanes } = groupTickets(nested.top); // a child ticket is shown inside its parent when both are on the board
+    const taskStats = new Map<string, { done: number; total: number }>(); // tasks assigned to each ticket
+    for (const tk of allTasks(this.app, s)) { const tp = ticketPathOf(this.app, tk); if (!tp) continue; const st = taskStats.get(tp) ?? { done: 0, total: 0 }; taskStats.set(tp, st); st.total++; if (tk.status === "done") st.done++; }
+    const taskBadge = (el: HTMLElement, t: Ticket) => {
+      const st = taskStats.get(t.file.path); if (!st) return;
+      const b = el.createSpan({ cls: "samaya-kb-tasks" + (st.done === st.total ? " is-complete" : ""), attr: { "aria-label": `${st.done} of ${st.total} tasks done` } });
+      setIcon(b.createSpan("samaya-kb-tasksicon"), "circle-check"); b.createSpan({ text: `${st.done}/${st.total}` });
+    };
     if (!tickets.length) this.root.createDiv({ cls: "samaya-empty", text: "No tickets match." });
     const scroll = this.root.createDiv("samaya-kb-scroll");
     const grid = scroll.createDiv("samaya-kb-grid"); grid.style.setProperty("--cols", String(columns.length));
     const head = grid.createDiv("samaya-kb-cols");
-    for (const c of columns) head.createDiv({ cls: "samaya-kb-colhead", text: `${c} (${perState.get(c) ?? 0})` });
+    for (const c of columns) { // drag a column header onto another one to reorder the columns (kept for next time)
+      const h = head.createDiv({ cls: "samaya-kb-colhead", text: `${c} (${perState.get(c) ?? 0})`, attr: { "aria-label": "Drag to reorder the columns" } });
+      this.scope.draggable(h, COL_PREFIX + c);
+      this.scope.target(h, { over: () => h.addClass("is-drop"), leave: () => h.removeClass("is-drop"), drop: i => {
+        h.removeClass("is-drop"); if (!i.path.startsWith(COL_PREFIX)) return;
+        const next = moveColumn(columns, i.path.slice(COL_PREFIX.length), c); if (next === columns) return;
+        s.ticketColumnOrder = next; void this.plugin.saveSettings(); this.render();
+      } });
+    }
     for (const lane of lanes) {
       const box = grid.createDiv("samaya-kb-lane");
       const title = box.createDiv({ cls: "samaya-kb-lanehead" + (this.collapsed.has(lane.project) ? " is-collapsed" : "") });
@@ -108,6 +125,23 @@ export class KanbanView extends Panel {
           const pp = s.projectsOn ? projectOf0(t) : null;
           if (pp) { const chip = projectChip(card.createDiv("samaya-card-meta samaya-kb-projectchip"), pp.basename, noteColor(this.app, pp), usecaseOf(this.app, pp)); chip.addClass("is-link"); chip.onclick = e => { e.stopPropagation(); openFileSmart(this.app, pp); }; }
           const meta = [t.issueType, t.assignee].filter(Boolean).join(" · "); if (meta) card.createDiv({ cls: "samaya-kb-meta", text: meta });
+          const kids = nested.kids.get(t.key) ?? [];
+          const own = taskStats.get(t.file.path);
+          if (own || kids.length) {
+            const foot = card.createDiv("samaya-kb-foot"); taskBadge(foot, t);
+            if (kids.length) { const kd = kids.filter(k => isDoneState(k.state)).length; foot.createSpan({ cls: "samaya-kb-kidcount", text: `${kd}/${kids.length} child tickets` }); }
+          }
+          if (kids.length) {
+            const list = card.createDiv("samaya-kb-kids");
+            for (const k of kids) {
+              const row = list.createDiv({ cls: "samaya-kb-kid" + (isDoneState(k.state) ? " is-done" : "") });
+              tint(row.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${k.source}`, text: k.key }), ticketColorOf(this.app, s, k));
+              row.createSpan({ cls: "samaya-kb-kidtitle", text: k.summary || k.file.basename });
+              if (k.state) row.createSpan({ cls: "samaya-kb-kidstate", text: k.state });
+              taskBadge(row, k);
+              row.onclick = e => { e.stopPropagation(); void openFileSmart(this.app, k.file, e.ctrlKey || e.metaKey ? "tab" : false); };
+            }
+          }
           this.scope.draggable(card, t.file.path);
           const acts = card.createDiv("samaya-kb-cardactions");
           const addTask = acts.createSpan({ cls: "samaya-kb-cardbtn", attr: { "aria-label": "Create a task from this ticket" } }); setIcon(addTask, "circle-check");

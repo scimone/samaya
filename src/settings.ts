@@ -38,7 +38,8 @@ export interface SamayaSettings {
   /** shortcuts (Planner, Tasks, ...) at the top of the file explorer; their folders are hidden */
   navigationOn: boolean;
   /** order of the Projects chart and the Tickets board */
-  projectsSort: "start" | "end" | "name" | "ticket"; projectsSortDesc: boolean; ticketsSort: "key" | "date" | "name"; ticketsSortDesc: boolean;
+  projectsSort: "start" | "end" | "name" | "ticket" | "usecase"; projectsSortDesc: boolean; ticketsSort: "key" | "date" | "name"; ticketsSortDesc: boolean;
+  /** order of the Tickets board columns (statuses) as the user dragged them; statuses not listed follow in the default order */ ticketColumnOrder: string[];
   /** colour (hex) of each ticket project (a Jira / GitLab project), by its key */
   ticketProjectColors: Record<string, string>;
 }
@@ -64,7 +65,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
   projectsOn: false, projectsPath: "Projects", projectsScale: "quarter", projectsNameWidth: 200, projectsTableHidden: false,
   navigationOn: false,
   ticketProjectColors: {},
-  projectsSort: "start", projectsSortDesc: false, ticketsSort: "key", ticketsSortDesc: false,
+  projectsSort: "start", projectsSortDesc: false, ticketsSort: "key", ticketsSortDesc: false, ticketColumnOrder: [],
 };
 
 /** Settings saved by older versions used plain folders; turn them into equivalent path patterns. */

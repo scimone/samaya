@@ -1752,3 +1752,19 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-source.is-off > .samaya-mod-body { grid-template-rows: 0fr; }
 .samaya-source.is-off > .samaya-mod-body > .samaya-mod-inner { padding-bottom: 0; visibility: hidden; transition: visibility 0s .25s; }
 .samaya-source.is-off .samaya-source-head .setting-item-name { color: var(--text-muted); }
+
+/* tickets board: task progress, child tickets, reorderable columns */
+.samaya-kb-colhead { cursor: grab; touch-action: none; border-radius: var(--radius-s); }
+.samaya-kb-colhead.is-drop { outline: 2px dashed var(--interactive-accent); outline-offset: 1px; }
+.samaya-kb-foot { display: flex; gap: 8px; align-items: center; margin-top: 4px; font-size: var(--font-ui-smaller); color: var(--text-muted); }
+.samaya-kb-tasks { display: inline-flex; align-items: center; gap: 3px; margin-left: auto; color: var(--text-muted); }
+.samaya-kb-foot .samaya-kb-tasks { margin-left: 0; }
+.samaya-kb-tasks.is-complete { color: var(--color-green); }
+.samaya-kb-tasksicon { display: inline-flex; }
+.samaya-kb-tasksicon svg { width: 12px; height: 12px; }
+.samaya-kb-kids { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--background-modifier-border); }
+.samaya-kb-kid { display: flex; align-items: center; gap: 6px; padding: 2px 4px; border-radius: var(--radius-s); font-size: var(--font-ui-smaller); cursor: pointer; }
+.samaya-kb-kid:hover { background: var(--background-modifier-hover); }
+.samaya-kb-kid.is-done .samaya-kb-kidtitle { text-decoration: line-through; color: var(--text-faint); }
+.samaya-kb-kidtitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.samaya-kb-kidstate { color: var(--text-muted); white-space: nowrap; }

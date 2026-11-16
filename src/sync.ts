@@ -32,7 +32,7 @@ async function syncNow(plugin: SamayaPlugin, only?: "jira" | "gitlab"): Promise<
       const existing = new Map(allTickets(app, s).filter(t => t.source === source && t.url).map(t => [t.url, t]));
       let created = 0, closed = 0;
       for (const t of tickets) {
-        const fm = { ...ticketProps(source, varsOfRaw(t)), ...LEGACY_TICKET_PROPS };
+        const fm = { ...ticketProps(source, varsOfRaw(t)), parent: t.parent || null, ...LEGACY_TICKET_PROPS };
         const hit = existing.get(t.url);
         if (hit) {
           await patchNote(app, hit.file, fm); existing.delete(t.url);

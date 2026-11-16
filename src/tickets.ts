@@ -1,5 +1,5 @@
 // Jira / GitLab fetching. Pure with respect to Obsidian: HTTP is injected so it can be unit-tested.
-export interface RawTicket { source: "jira" | "gitlab"; id: string; key: string; summary: string; url: string; state: string; project: string; type: string; assignee: string; description: string; }
+export interface RawTicket { source: "jira" | "gitlab"; id: string; key: string; summary: string; url: string; state: string; project: string; type: string; assignee: string; description: string; /** key of the parent ticket (Jira parent / epic / the issue of a sub-task), "" = none */ parent?: string; }
 export interface HttpResult { status: number; json: any; headers: Record<string, string>; } // eslint-disable-line @typescript-eslint/no-explicit-any
 export type Http = (o: { url: string; headers?: Record<string, string> }) => Promise<HttpResult>;
 
@@ -41,9 +41,9 @@ export async function fetchJira(cfg: JiraCfg, http: Http): Promise<RawTicket[]> 
   const map = (i: any): RawTicket => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
     source: "jira", id: i.key, key: i.key, summary: i.fields?.summary ?? "", url: `${cfg.url}/browse/${i.key}`,
     state: i.fields?.status?.name ?? "", project: i.fields?.project?.key ?? String(i.key).split("-")[0],
-    type: i.fields?.issuetype?.name ?? "", assignee: i.fields?.assignee?.displayName ?? "", description: adfToText(i.fields?.description).trim(),
+    type: i.fields?.issuetype?.name ?? "", assignee: i.fields?.assignee?.displayName ?? "", description: adfToText(i.fields?.description).trim(), parent: i.fields?.parent?.key ?? "",
   });
-  const fields = "summary,status,project,issuetype,assignee,description";
+  const fields = "summary,status,project,issuetype,assignee,description,parent";
   if (cfg.flavor === "cloud") {
     let token = ""; let complete = false;
     for (let page = 0; page < MAX_PAGES; page++) {

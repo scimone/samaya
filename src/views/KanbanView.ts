@@ -7,7 +7,7 @@ import { DndScope } from "../dnd";
 import { bindZone } from "./common";
 import { Ticket, allTasks, ticketPathOf, patchNote, prefixOf, readTicket, relocateTicket, varsOfTicket } from "../model";
 import { TFile, setIcon } from "obsidian";
-import { TextPromptModal } from "../modals";
+import { TextPromptModal, TicketSuggestModal } from "../modals";
 import { createProject, projectPathOf, usecaseOf } from "../projects";
 import { linkProject, ticketColorOf } from "../links";
 import { projectChip, ticketProjectTitle } from "./common";
@@ -41,6 +41,11 @@ export class KanbanView extends Panel {
   /** Ask for a name (pre-filled), create a project and link the given tickets to it. */
   private newProject(initial: string, tickets: Ticket[], ticketProject?: string) {
     new TextPromptModal(this.plugin, "New project name", n => { safe(createProject(this.app, this.plugin.settings, n).then(f => linkProject(this.app, this.plugin.settings, f, tickets, ticketProject)).then(() => this.plugin.bus.emit()), "creating the project"); }, initial).open();
+  }
+  /** Nest a ticket under a parent (or take it out again with null); the parent is stored by key in the ticket note. */
+  private setParent(t: Ticket, parent: string | null) { safe(patchNote(this.app, t.file, { parent }).then(() => this.plugin.bus.emit()), "changing the parent ticket"); }
+  private pickParent(t: Ticket) {
+    new TicketSuggestModal(this.plugin, p => { if (p) this.setParent(t, p.key); }, p => p.file.path !== t.file.path && p.parent !== t.key, true, "Nest under parent ticket…").open();
   }
   protected visibleEl(): HTMLElement { return this.root; }
   onDataUpdated(): void {
@@ -139,6 +144,7 @@ export class KanbanView extends Panel {
               row.createSpan({ cls: "samaya-kb-kidtitle", text: k.summary || k.file.basename });
               if (k.state) row.createSpan({ cls: "samaya-kb-kidstate", text: k.state });
               taskBadge(row, k);
+              const un = row.createSpan({ cls: "samaya-kb-kidremove", attr: { "aria-label": "Remove from parent ticket" } }); setIcon(un, "x"); un.onclick = e => { e.stopPropagation(); this.setParent(k, null); };
               row.onclick = e => { e.stopPropagation(); void openFileSmart(this.app, k.file, e.ctrlKey || e.metaKey ? "tab" : false); };
             }
           }
@@ -146,6 +152,9 @@ export class KanbanView extends Panel {
           const acts = card.createDiv("samaya-kb-cardactions");
           const addTask = acts.createSpan({ cls: "samaya-kb-cardbtn", attr: { "aria-label": "Create a task from this ticket" } }); setIcon(addTask, "circle-check");
           addTask.onclick = e => { e.stopPropagation(); this.plugin.newTaskForTicket(t); };
+          const nest = acts.createSpan({ cls: "samaya-kb-cardbtn", attr: { "aria-label": t.parent ? `Change parent ticket (now ${t.parent})` : "Nest under a parent ticket" } }); setIcon(nest, "corner-down-right");
+          nest.onclick = e => { e.stopPropagation(); this.pickParent(t); };
+          if (t.parent) { const un = acts.createSpan({ cls: "samaya-kb-cardbtn", attr: { "aria-label": "Remove from parent ticket" } }); setIcon(un, "unlink"); un.onclick = e => { e.stopPropagation(); this.setParent(t, null); }; }
           if (s.projectsOn && !linked(t)) {
             const add = acts.createSpan({ cls: "samaya-kb-cardbtn", attr: { "aria-label": "Create a project from this ticket" } }); setIcon(add, "folder-plus");
             add.onclick = e => { e.stopPropagation(); this.newProject(t.summary || t.key, [t]); };

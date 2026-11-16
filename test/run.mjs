@@ -372,6 +372,7 @@ assert.equal(renderTicketNote("{{TICKET_TYPE}}|{{ TICKET_STATUS }}|{{TICKET_NOPE
 assert.equal(adfToText({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "A" }] }, { type: "bulletList", content: [{ type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }] }] }] }), "A\n\n- x");
 // ---- ticket columns
 { await bundle("src/kanban.ts", "test/.kanban2.mjs"); const { applyColumnOrder, moveColumn } = await import("./.kanban2.mjs");
+  { const { isDoneState } = await import("./.kanban2.mjs"); assert.ok(isDoneState("Geschlossen") && isDoneState("Erledigt") && !isDoneState("In Bearbeitung") && !isDoneState("Offen")); }
   assert.deepEqual(applyColumnOrder(["To Do", "Doing", "Done"], ["Done", "To Do"]), ["Done", "To Do", "Doing"]);
   assert.deepEqual(applyColumnOrder(["To Do", "Done"], ["Gone", "Done"]), ["Done", "To Do"]);
   assert.deepEqual(moveColumn(["a", "b", "c"], "a", "c"), ["b", "c", "a"]); assert.deepEqual(moveColumn(["a", "b", "c"], "c", "a"), ["c", "a", "b"]);

@@ -4,7 +4,7 @@ export const NO_PROJECT = "No project";
 /** Rank of a status in a typical workflow: open / to do first, done / closed last, anything else between. */
 export function statusRank(status: string): number {
   const s = status.toLowerCase();
-  if (/(done|closed|resolved|complete|finished|released|cancel|won'?t)/.test(s) && !/\b(not|un)\s?(done|resolved|complete|finished|released)|incomplete/.test(s)) return 3;
+  if (/(done|closed|resolved|complete|finished|released|cancel|won'?t|geschlossen|erledigt|abgeschlossen|fertig|gel[öo]st|abgebrochen|verworfen)/.test(s) && !/\b(not|un)\s?(done|resolved|complete|finished|released)|incomplete|nicht\s+(erledigt|fertig|gel[öo]st|abgeschlossen)/.test(s)) return 3;
   if (/(review|test|verif|qa|accept)/.test(s)) return 2;
   if (/(progress|doing|develop|started|active)/.test(s)) return 1.5;
   if (/(backlog|open|todo|to do|new|ready|selected|reopen)/.test(s)) return 0;

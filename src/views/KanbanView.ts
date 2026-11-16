@@ -159,7 +159,8 @@ export class KanbanView extends Panel {
           const pp = s.projectsOn ? projectOf0(t) : null;
           if (pp) { const chip = projectChip(card.createDiv("samaya-card-meta samaya-kb-projectchip"), pp.basename, noteColor(this.app, pp), usecaseOf(this.app, pp)); chip.addClass("is-link"); chip.onclick = e => { e.stopPropagation(); openFileSmart(this.app, pp); }; }
           const meta = [t.issueType, t.assignee].filter(Boolean).join(" · "); if (meta) card.createDiv({ cls: "samaya-kb-meta", text: meta });
-          const kids = childrenOf.get(t.key) ?? []; const parent = t.parent ? byKey.get(t.parent) : undefined;
+          const kids = (childrenOf.get(t.key) ?? []).filter(k => !isDoneState(k.state)); // closed children are left out: not counted, not highlighted
+          const parent = t.parent ? byKey.get(t.parent) : undefined;
           const own = taskStats.get(t.file.path);
           if (own || t.parent || kids.length) { // the links of a ticket: its parent and its children, as chips under the card
             const foot = card.createDiv("samaya-kb-foot"); taskBadge(foot, t);
@@ -169,8 +170,8 @@ export class KanbanView extends Panel {
               if (parent) pc.onclick = e => { e.stopPropagation(); this.flash([parent]); };
             }
             if (kids.length) {
-              const kc = foot.createSpan({ cls: "samaya-kb-link is-link", attr: { "aria-label": `${kids.length} child ${kids.length === 1 ? "ticket" : "tickets"}. Click to highlight them` } });
-              setIcon(kc.createSpan("samaya-kb-linkicon"), "corner-down-right"); kc.createSpan({ text: `${kids.filter(k => isDoneState(k.state)).length}/${kids.length}` });
+              const kc = foot.createSpan({ cls: "samaya-kb-link is-link", attr: { "aria-label": `${kids.length} open child ${kids.length === 1 ? "ticket" : "tickets"}. Click to highlight them` } });
+              setIcon(kc.createSpan("samaya-kb-linkicon"), "corner-down-right"); kc.createSpan({ text: String(kids.length) });
               kc.onclick = e => { e.stopPropagation(); this.flash(kids); };
             }
           }

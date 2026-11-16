@@ -2,7 +2,7 @@ import { Panel } from "./panel";
 import type SamayaPlugin from "../main";
 import { safe } from "../safe";
 import { openFileSmart } from "../openfile";
-import { NO_PROJECT, applyColumnOrder, groupTickets, isDoneState, moveColumn, nestChildren } from "../kanban";
+import { NO_PROJECT, applyColumnOrder, groupTickets, isDoneState, moveColumn } from "../kanban";
 import { DndScope } from "../dnd";
 import { bindZone } from "./common";
 import { Ticket, allTasks, ticketPathOf, patchNote, prefixOf, readTicket, relocateTicket, varsOfTicket } from "../model";
@@ -89,7 +89,9 @@ export class KanbanView extends Panel {
     const perLane = new Map<string, Ticket[]>(); for (const t of all) (perLane.get(t.project) ?? perLane.set(t.project, []).get(t.project)!).push(t);
     const perState = new Map<string, number>(); for (const t of tickets) { const k = t.state || "No status"; perState.set(k, (perState.get(k) ?? 0) + 1); }
     const columns = applyColumnOrder(groupTickets(all).columns, s.ticketColumnOrder ?? []); // the columns stay whatever the search finds
-    const nested = nestChildren(tickets); const { lanes } = groupTickets(nested.top); // a child ticket is shown inside its parent when both are on the board
+    const { lanes } = groupTickets(tickets);
+    const byKey = new Map(all.map(t => [t.key, t] as const)); const childrenOf = new Map<string, Ticket[]>(); // links between tickets, shown as chips on the cards
+    for (const t of all) if (t.parent && t.parent !== t.key) (childrenOf.get(t.parent) ?? childrenOf.set(t.parent, []).get(t.parent)!).push(t);
     const taskStats = new Map<string, { done: number; total: number }>(); // tasks assigned to each ticket
     for (const tk of allTasks(this.app, s)) { const tp = ticketPathOf(this.app, tk); if (!tp) continue; const st = taskStats.get(tp) ?? { done: 0, total: 0 }; taskStats.set(tp, st); st.total++; if (tk.status === "done") st.done++; }
     const taskBadge = (el: HTMLElement, t: Ticket) => {
@@ -140,22 +142,19 @@ export class KanbanView extends Panel {
           const pp = s.projectsOn ? projectOf0(t) : null;
           if (pp) { const chip = projectChip(card.createDiv("samaya-card-meta samaya-kb-projectchip"), pp.basename, noteColor(this.app, pp), usecaseOf(this.app, pp)); chip.addClass("is-link"); chip.onclick = e => { e.stopPropagation(); openFileSmart(this.app, pp); }; }
           const meta = [t.issueType, t.assignee].filter(Boolean).join(" · "); if (meta) card.createDiv({ cls: "samaya-kb-meta", text: meta });
-          const kids = nested.kids.get(t.key) ?? [];
+          const kids = childrenOf.get(t.key) ?? []; const parent = t.parent ? byKey.get(t.parent) : undefined;
           const own = taskStats.get(t.file.path);
-          if (own || kids.length) {
+          if (own || t.parent || kids.length) { // the links of a ticket: its parent and its children, as chips under the card
             const foot = card.createDiv("samaya-kb-foot"); taskBadge(foot, t);
-            if (kids.length) { const kd = kids.filter(k => isDoneState(k.state)).length; foot.createSpan({ cls: "samaya-kb-kidcount", text: `${kd}/${kids.length} child tickets` }); }
-          }
-          if (kids.length) {
-            const list = card.createDiv("samaya-kb-kids");
-            for (const k of kids) {
-              const row = list.createDiv({ cls: "samaya-kb-kid" + (isDoneState(k.state) ? " is-done" : "") });
-              tint(row.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${k.source}`, text: k.key }), ticketColorOf(this.app, s, k));
-              row.createSpan({ cls: "samaya-kb-kidtitle", text: k.summary || k.file.basename });
-              if (k.state) row.createSpan({ cls: "samaya-kb-kidstate", text: k.state });
-              taskBadge(row, k);
-              this.ticketMenu(row, k);
-              row.onclick = e => { e.stopPropagation(); void openFileSmart(this.app, k.file, e.ctrlKey || e.metaKey ? "tab" : false); };
+            if (t.parent) {
+              const pc = foot.createSpan({ cls: "samaya-kb-link" + (parent ? " is-link" : ""), attr: { "aria-label": parent ? `Child of ${t.parent}: ${parent.summary}` : `Child of ${t.parent}` } });
+              setIcon(pc.createSpan("samaya-kb-linkicon"), "corner-left-up"); pc.createSpan({ text: t.parent });
+              if (parent) pc.onclick = e => { e.stopPropagation(); void openFileSmart(this.app, parent.file, e.ctrlKey || e.metaKey ? "tab" : false); };
+            }
+            if (kids.length) {
+              const kc = foot.createSpan({ cls: "samaya-kb-link is-link", attr: { "aria-label": `${kids.length} child ${kids.length === 1 ? "ticket" : "tickets"}: click to open one` } });
+              setIcon(kc.createSpan("samaya-kb-linkicon"), "corner-down-right"); kc.createSpan({ text: `${kids.filter(k => isDoneState(k.state)).length}/${kids.length}` });
+              kc.onclick = e => { e.stopPropagation(); const m = new Menu(); for (const k of kids) m.addItem(i => i.setTitle(`${k.key}  ${k.summary}${k.state ? ` (${k.state})` : ""}`).onClick(() => { void openFileSmart(this.app, k.file, false); })); m.showAtMouseEvent(e); };
             }
           }
           this.scope.draggable(card, t.file.path); this.ticketMenu(card, t);

@@ -370,14 +370,12 @@ assert.equal(renderTicketNote("{{TASK_ID}}|{{TASK_STATUS}}", tv), "OPS-1|In Prog
 assert.equal(renderTicketNote("", tv), "# Fix the Deploy!\n\n[Open in JIRA](https://x/OPS-1)\n");
 assert.equal(renderTicketNote("{{TICKET_TYPE}}|{{ TICKET_STATUS }}|{{TICKET_NOPE}}", tv), "Bug|In Progress|{{TICKET_NOPE}}");
 assert.equal(adfToText({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "A" }] }, { type: "bulletList", content: [{ type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }] }] }] }), "A\n\n- x");
-// ---- ticket columns and parent / child nesting
-{ await bundle("src/kanban.ts", "test/.kanban2.mjs"); const { applyColumnOrder, moveColumn, nestChildren } = await import("./.kanban2.mjs");
+// ---- ticket columns
+{ await bundle("src/kanban.ts", "test/.kanban2.mjs"); const { applyColumnOrder, moveColumn } = await import("./.kanban2.mjs");
   assert.deepEqual(applyColumnOrder(["To Do", "Doing", "Done"], ["Done", "To Do"]), ["Done", "To Do", "Doing"]);
   assert.deepEqual(applyColumnOrder(["To Do", "Done"], ["Gone", "Done"]), ["Done", "To Do"]);
   assert.deepEqual(moveColumn(["a", "b", "c"], "a", "c"), ["b", "c", "a"]); assert.deepEqual(moveColumn(["a", "b", "c"], "c", "a"), ["c", "a", "b"]);
-  const mk = (key, parent = "") => ({ key, parent });
-  const n = nestChildren([mk("E-1"), mk("T-1", "E-1"), mk("T-2", "T-1"), mk("X-1", "MISSING"), mk("L-1", "L-2"), mk("L-2", "L-1")]);
-  assert.deepEqual(n.top.map(t => t.key), ["E-1", "X-1", "L-1", "L-2"]); assert.deepEqual(n.kids.get("E-1").map(t => t.key), ["T-1", "T-2"]); }
+}
 // ---- jira parent
 { const r = await fetchJira({ flavor: "cloud", url: "https://x", email: "a", token: "t", jql: "a" }, async () => ({ status: 200, headers: {}, json: { issues: [{ key: "A-2", fields: { parent: { key: "A-1" } } }, { key: "A-1", fields: {} }], isLast: true } }));
   assert.deepEqual(r.map(t => t.parent), ["A-1", ""]); }

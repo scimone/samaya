@@ -40,18 +40,3 @@ export function moveColumn(columns: string[], from: string, to: string): string[
   const a = columns.indexOf(from), b = columns.indexOf(to); if (a < 0 || b < 0 || a === b) return columns;
   const out = columns.filter(c => c !== from); out.splice(b, 0, from); return out;
 }
-/** Tickets shown inside their parent: `top` are the cards to place on the board, `kids` the children per top-level ticket key (nested deeper levels are folded into the top-level ancestor). A ticket whose parent is not in the list stays a card of its own. */
-export function nestChildren<T extends { key: string; parent: string }>(items: T[]): { top: T[]; kids: Map<string, T[]> } {
-  const byKey = new Map(items.map(t => [t.key, t] as const));
-  const rootOf = (t: T): T | null => { // the top-level ancestor, null when t has no parent here (or the chain loops: then every ticket of the loop stays a card)
-    const seen = new Set([t.key]); let cur = t, hasParent = false;
-    for (;;) { const p = cur.parent ? byKey.get(cur.parent) : undefined; if (!p) return hasParent ? cur : null; if (seen.has(p.key)) return null; seen.add(p.key); cur = p; hasParent = true; }
-  };
-  const top: T[] = [], kids = new Map<string, T[]>();
-  for (const t of items) {
-    const r = rootOf(t);
-    if (!r || r === t) { top.push(t); continue; }
-    (kids.get(r.key) ?? kids.set(r.key, []).get(r.key)!).push(t);
-  }
-  return { top, kids };
-}

@@ -1762,14 +1762,13 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-kb-tasks.is-complete { color: var(--color-green); }
 .samaya-kb-tasksicon { display: inline-flex; }
 .samaya-kb-tasksicon svg { width: 12px; height: 12px; }
-.samaya-kb-kids { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--background-modifier-border); }
-.samaya-kb-kid { display: flex; align-items: center; gap: 6px; padding: 2px 4px; border-radius: var(--radius-s); font-size: var(--font-ui-smaller); cursor: pointer; }
-.samaya-kb-kid:hover { background: var(--background-modifier-hover); }
-.samaya-kb-kid.is-done .samaya-kb-kidtitle { text-decoration: line-through; color: var(--text-faint); }
-.samaya-kb-kidtitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.samaya-kb-kidstate { color: var(--text-muted); white-space: nowrap; }
 .samaya-kb-tasks, .samaya-kb-tasks.is-complete { color: var(--samaya-task); }
 /* tasks board: "+ Add subtask" on its own line above the buttons */
 .samaya-tk .samaya-card-foot { flex-wrap: wrap; }
 .samaya-tk .samaya-card-foot .samaya-sub-add { flex: 1 1 100%; }
 .samaya-tk .samaya-card-foot .samaya-card-actions { margin-left: auto; }
+.samaya-kb-link { display: inline-flex; align-items: center; gap: 3px; padding: 0 6px; border-radius: 10px; background: var(--background-modifier-hover); }
+.samaya-kb-link.is-link { cursor: pointer; }
+.samaya-kb-link.is-link:hover { color: var(--text-normal); }
+.samaya-kb-linkicon { display: inline-flex; }
+.samaya-kb-linkicon svg { width: 12px; height: 12px; }

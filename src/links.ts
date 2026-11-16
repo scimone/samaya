@@ -2,7 +2,7 @@
 import { App, Notice, TFile, normalizePath } from "obsidian";
 import type { SamayaSettings } from "./settings";
 import { Ticket, allTasks, allTickets, assignTicket, meetingPathOf, readTask, ticketPathOf } from "./model";
-import { Project, allProjects, assignProject, linkTickets, projectPathOf, readProject } from "./projects";
+import { INHERITED_PROP, PROJECT_PROP, Project, allProjects, assignProject, linkTickets, projectPathOf, readProject } from "./projects";
 import { patchNote } from "./model";
 import { noteColor, randomColor, setTicketProjectColor as setColorOf, ticketProjectColor, writeNoteColor } from "./itemcolor";
 import { buildSeries, parseNote } from "./meetingseries";
@@ -72,6 +72,39 @@ export async function linkProject(app: App, s: SamayaSettings, project: TFile, t
   for (const t of allTasks(app, s)) {
     if (t.ticket && linked.has(ticketPathOf(app, t))) { if (projectPathOf(app, t.file) !== project.path) await assignProject(app, t.file, pr); }
     else if (!t.ticket && only && projectPathOf(app, t.file) === project.path) await assignTicket(app, t.file, only);
+  }
+  await syncInheritedProjects(app, s);
+}
+
+/** Child tickets take over the project of their parent (Jira parent / epic, or one set by hand). A child with a project of its own keeps it; an inherited one follows the parent when that changes or is removed. Tasks of a child ticket that have no project join it. */
+export async function syncInheritedProjects(app: App, s: SamayaSettings): Promise<void> {
+  if (!s.projectsOn || !s.ticketsOn) return;
+  const tickets = allTickets(app, s); const byKey = new Map(tickets.map(t => [t.key, t] as const));
+  const flagged = (t: Ticket) => !!app.metadataCache.getFileCache(t.file)?.frontmatter?.[INHERITED_PROP];
+  const base = (t: Ticket) => flagged(t) ? "" : ownerProjectOf(app, s, t); // a project of its own
+  const eff = (t: Ticket): string => { // own project, else the nearest ancestor's
+    const seen = new Set<string>(); let cur: Ticket | undefined = t;
+    while (cur && !seen.has(cur.key)) { seen.add(cur.key); const b = base(cur); if (b) return b; cur = cur.parent ? byKey.get(cur.parent) : undefined; }
+    return "";
+  };
+  const changed = new Set<string>();
+  for (const t of tickets) {
+    if (!t.parent) continue;
+    const want = eff(t), direct = projectPathOf(app, t.file);
+    if (flagged(t)) {
+      if (want === direct) continue;
+      const pf = fileAt(app, want);
+      await patchNote(app, t.file, pf ? { [PROJECT_PROP]: `[[${pf.basename}]]`, [INHERITED_PROP]: 1 } : { [PROJECT_PROP]: null, [INHERITED_PROP]: null });
+      changed.add(t.file.path);
+    } else if (want && !base(t)) {
+      const pf = fileAt(app, want); if (!pf) continue;
+      await patchNote(app, t.file, { [PROJECT_PROP]: `[[${pf.basename}]]`, [INHERITED_PROP]: 1 }); changed.add(t.file.path);
+    }
+  }
+  if (!changed.size) return;
+  for (const task of allTasks(app, s)) { // a task of a child ticket follows the ticket's project when it has none
+    const tp = ticketPathOf(app, task); if (!tp || !changed.has(tp) || projectPathOf(app, task.file)) continue;
+    const pf = fileAt(app, eff(tickets.find(x => x.file.path === tp)!)); if (pf) await assignProject(app, task.file, readProject(app, pf));
   }
 }
 

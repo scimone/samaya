@@ -12,6 +12,8 @@ const LEGACY_PROJECT_PROP = "samaya_project";
 export const DEFAULT_PROJECT_DAYS = 14;
 
 export const USECASE_PROP = "usecase";
+/** Set on a ticket whose project was taken over from its parent ticket (so it follows the parent when that changes); any manual assignment clears it. */
+export const INHERITED_PROP = "project_inherited";
 export interface Project { file: TFile; name: string; span: Span | null; done: boolean; color: string; usecase: string; }
 
 /** Use case number of a project note ("" = none), without a leading "#". */
@@ -41,7 +43,7 @@ export function projectPathOf(app: App, file: TFile): string {
   return link ? app.metadataCache.getFirstLinkpathDest(link, file.path)?.path ?? "" : "";
 }
 export async function assignProject(app: App, file: TFile, project: Project | null): Promise<void> {
-  await patchNote(app, file, { [PROJECT_PROP]: project ? `[[${project.file.basename}]]` : null, [LEGACY_PROJECT_PROP]: null });
+  await patchNote(app, file, { [PROJECT_PROP]: project ? `[[${project.file.basename}]]` : null, [LEGACY_PROJECT_PROP]: null, [INHERITED_PROP]: null });
 }
 
 /** Per project (by note path): linked tasks, how many are done, and linked tickets. */
@@ -71,5 +73,5 @@ export async function createProject(app: App, s: SamayaSettings, name: string): 
 /** Link ticket notes to an existing project (each gets `assigned_project`); `ticketProject` (a Jira / GitLab project id) is remembered on the project note. */
 export async function linkTickets(app: App, project: TFile, tickets: TFile[], ticketProject?: string): Promise<void> {
   if (ticketProject) await patchNote(app, project, { ticket_project: ticketProject });
-  for (const t of tickets) await patchNote(app, t, { [PROJECT_PROP]: `[[${project.basename}]]`, [LEGACY_PROJECT_PROP]: null });
+  for (const t of tickets) await patchNote(app, t, { [PROJECT_PROP]: `[[${project.basename}]]`, [LEGACY_PROJECT_PROP]: null, [INHERITED_PROP]: null });
 }

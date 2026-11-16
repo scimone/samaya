@@ -9,7 +9,7 @@ import { Ticket, allTasks, ticketPathOf, patchNote, prefixOf, readTicket, reloca
 import { Menu, TFile, setIcon } from "obsidian";
 import { TextPromptModal, TicketSuggestModal } from "../modals";
 import { createProject, projectPathOf, usecaseOf } from "../projects";
-import { linkProject, ticketColorOf } from "../links";
+import { linkProject, syncInheritedProjects, ticketColorOf } from "../links";
 import { projectChip, ticketProjectTitle } from "./common";
 import { noteColor, tint } from "../itemcolor";
 import { TICKET_SORTS, sortTickets } from "../sorting";
@@ -43,9 +43,21 @@ export class KanbanView extends Panel {
     new TextPromptModal(this.plugin, "New project name", n => { safe(createProject(this.app, this.plugin.settings, n).then(f => linkProject(this.app, this.plugin.settings, f, tickets, ticketProject)).then(() => this.plugin.bus.emit()), "creating the project"); }, initial).open();
   }
   /** Nest a ticket under a parent (or take it out again with null); the parent is stored by key in the ticket note. */
-  private setParent(t: Ticket, parent: string | null) { safe(patchNote(this.app, t.file, { parent }).then(() => this.plugin.bus.emit()), "changing the parent ticket"); }
+  private setParent(t: Ticket, parent: string | null) { safe(patchNote(this.app, t.file, { parent }).then(() => syncInheritedProjects(this.app, this.plugin.settings)).then(() => this.plugin.bus.emit()), "changing the parent ticket"); }
   private pickParent(t: Ticket) {
     new TicketSuggestModal(this.plugin, p => { if (p) this.setParent(t, p.key); }, p => p.file.path !== t.file.path && p.parent !== t.key, true, "Assign parent ticket…").open();
+  }
+  /** Light up the cards of some tickets for a moment, each in its ticket project's colour (a collapsed lane opens first). */
+  private flash(targets: Ticket[]) {
+    let reopened = false;
+    for (const t of targets) if (this.collapsed.delete(t.project || NO_PROJECT)) reopened = true;
+    if (reopened) this.render();
+    for (const t of targets) {
+      const el = this.root.querySelector<HTMLElement>(`.samaya-kb-card[data-key="${CSS.escape(t.key)}"]`); if (!el) continue; // not on the board (hidden by the search or "hide done")
+      el.style.setProperty("--samaya-hl", ticketColorOf(this.app, this.plugin.settings, t) || "var(--interactive-accent)");
+      el.removeClass("is-hl"); void el.offsetWidth; el.addClass("is-hl"); el.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+      window.setTimeout(() => el.removeClass("is-hl"), 2000);
+    }
   }
   /** Right-click menu of a ticket, in the style of the task menu: create a task / project, set or remove the parent, open the note. */
   private ticketMenu(el: HTMLElement, t: Ticket, hasProject: boolean) {
@@ -141,7 +153,7 @@ export class KanbanView extends Panel {
         const cell = row.createDiv("samaya-kb-cell");
         bindZone(this.scope, cell, path => { safe(this.setStatus(path, c), "changing the status"); });
         for (const t of lane.cells.get(c) ?? []) {
-          const card = cell.createDiv("samaya-kb-card");
+          const card = cell.createDiv("samaya-kb-card"); card.dataset.key = t.key;
           tint(card.createSpan({ cls: `samaya-chip samaya-chip-ticket is-${t.source}`, text: t.key }), ticketColorOf(this.app, s, t));
           card.createDiv({ cls: "samaya-kb-title", text: t.summary || t.file.basename });
           const pp = s.projectsOn ? projectOf0(t) : null;
@@ -152,14 +164,14 @@ export class KanbanView extends Panel {
           if (own || t.parent || kids.length) { // the links of a ticket: its parent and its children, as chips under the card
             const foot = card.createDiv("samaya-kb-foot"); taskBadge(foot, t);
             if (t.parent) {
-              const pc = foot.createSpan({ cls: "samaya-kb-link" + (parent ? " is-link" : ""), attr: { "aria-label": parent ? `Child of ${t.parent}: ${parent.summary}` : `Child of ${t.parent}` } });
+              const pc = foot.createSpan({ cls: "samaya-kb-link" + (parent ? " is-link" : ""), attr: { "aria-label": parent ? `Child of ${t.parent}: ${parent.summary}. Click to highlight it` : `Child of ${t.parent}` } });
               setIcon(pc.createSpan("samaya-kb-linkicon"), "corner-left-up"); pc.createSpan({ text: t.parent });
-              if (parent) pc.onclick = e => { e.stopPropagation(); void openFileSmart(this.app, parent.file, e.ctrlKey || e.metaKey ? "tab" : false); };
+              if (parent) pc.onclick = e => { e.stopPropagation(); this.flash([parent]); };
             }
             if (kids.length) {
-              const kc = foot.createSpan({ cls: "samaya-kb-link is-link", attr: { "aria-label": `${kids.length} child ${kids.length === 1 ? "ticket" : "tickets"}: click to open one` } });
+              const kc = foot.createSpan({ cls: "samaya-kb-link is-link", attr: { "aria-label": `${kids.length} child ${kids.length === 1 ? "ticket" : "tickets"}. Click to highlight them` } });
               setIcon(kc.createSpan("samaya-kb-linkicon"), "corner-down-right"); kc.createSpan({ text: `${kids.filter(k => isDoneState(k.state)).length}/${kids.length}` });
-              kc.onclick = e => { e.stopPropagation(); const m = new Menu(); for (const k of kids) m.addItem(i => i.setTitle(`${k.key}  ${k.summary}${k.state ? ` (${k.state})` : ""}`).onClick(() => { void openFileSmart(this.app, k.file, false); })); m.showAtMouseEvent(e); };
+              kc.onclick = e => { e.stopPropagation(); this.flash(kids); };
             }
           }
           this.scope.draggable(card, t.file.path); this.ticketMenu(card, t, linked(t));

@@ -2,6 +2,7 @@ import { Notice, requestUrl } from "obsidian";
 import type SamayaPlugin from "./main";
 import { Http, RawTicket, fetchGitlab, fetchJira } from "./tickets";
 import { ensureColors } from "./colormigrate";
+import { syncInheritedProjects } from "./links";
 import { LEGACY_TICKET_PROPS, allTickets, createTicketNote, ticketProps, patchNote, relocateTicket, varsOfRaw, varsOfTicket } from "./model";
 
 const http: Http = async o => {
@@ -47,6 +48,7 @@ async function syncNow(plugin: SamayaPlugin, only?: "jira" | "gitlab"): Promise<
         await patchNote(app, gone.file, { status: "closed" }); closed++;
         if (byStatus) await relocateTicket(app, s, gone, { ...varsOfTicket(gone), status: "closed" });
       }
+      await syncInheritedProjects(app, s).catch(e => console.warn("Samaya: inheriting projects failed", e));
       await ensureColors(app, s); // a ticket project seen for the first time gets a colour
       new Notice(`${source === "jira" ? "Jira" : "GitLab"}: ${tickets.length} open tickets (${created} new, ${closed} closed)`);
     } catch (e) {

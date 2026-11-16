@@ -108,7 +108,7 @@ export class KanbanView extends Panel {
     const columns = applyColumnOrder(groupTickets(all).columns, s.ticketColumnOrder ?? []); // the columns stay whatever the search finds
     const { lanes } = groupTickets(tickets);
     const byKey = new Map(all.map(t => [t.key, t] as const)); const childrenOf = new Map<string, Ticket[]>(); // links between tickets, shown as chips on the cards
-    for (const t of all) if (t.parent && t.parent !== t.key) (childrenOf.get(t.parent) ?? childrenOf.set(t.parent, []).get(t.parent)!).push(t);
+    for (const t of all) if (t.parent && t.parent !== t.key && !(childrenOf.get(t.parent) ?? []).some(c => c.key === t.key)) (childrenOf.get(t.parent) ?? childrenOf.set(t.parent, []).get(t.parent)!).push(t);
     const taskStats = new Map<string, { done: number; total: number }>(); // tasks assigned to each ticket
     for (const tk of allTasks(this.app, s)) { const tp = ticketPathOf(this.app, tk); if (!tp) continue; const st = taskStats.get(tp) ?? { done: 0, total: 0 }; taskStats.set(tp, st); st.total++; if (tk.status === "done") st.done++; }
     const taskBadge = (el: HTMLElement, t: Ticket) => {

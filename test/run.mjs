@@ -383,6 +383,8 @@ assert.equal(adfToText({ type: "doc", content: [{ type: "paragraph", content: [{
     if (o.url.endsWith("/rest/api/2/field")) return { status: 200, headers: {}, json: [{ id: "customfield_10014", name: "Epic Link", schema: { custom: "com.pyxis.greenhopper.jira:gh-epic-link" } }] };
     return { status: 200, headers: {}, json: { total: 3, issues: [{ key: "A-2", fields: { customfield_10014: "A-1" } }, { key: "A-3", fields: { parent: { key: "A-2" }, customfield_10014: null } }, { key: "A-1", fields: {} }] } }; });
   assert.deepEqual(srv.map(t => t.parent), ["A-1", "A-2", ""]); assert.ok(urls[1].includes("customfield_10014")); }
+{ const d = await fetchJira({ flavor: "cloud", url: "https://x", email: "a", token: "t", jql: "a" }, async () => ({ status: 200, headers: {}, json: { issues: [{ key: "A-1", fields: {} }, { key: "A-1", fields: {} }], isLast: true } }));
+  assert.equal(d.length, 1); } // an issue returned twice becomes one ticket
 // ---- event notes
 await bundle("src/eventnotes.ts", "test/.eventnotes.mjs");
 const { compilePattern, eventFromNote, parseClock } = await import("./.eventnotes.mjs");

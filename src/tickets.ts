@@ -69,8 +69,10 @@ export async function fetchJira(cfg: JiraCfg, http: Http): Promise<RawTicket[]> 
     }
     if (!complete) throw new Error(TOO_MANY);
   }
-  return out;
+  return uniqueByUrl(out);
 }
+/** A server may return an issue twice (e.g. while paging a changing result); a duplicate would become a second note. */
+const uniqueByUrl = (items: RawTicket[]): RawTicket[] => { const seen = new Set<string>(); return items.filter(t => !seen.has(t.url) && !!seen.add(t.url)); };
 
 export async function fetchGitlab(cfg: GitlabCfg, http: Http): Promise<RawTicket[]> {
   if (!cfg.url || !cfg.token) throw new Error("GitLab: base URL and token are required");
@@ -85,5 +87,5 @@ export async function fetchGitlab(cfg: GitlabCfg, http: Http): Promise<RawTicket
     }
     page = header(r.headers, "x-next-page");
   }
-  return out;
+  return uniqueByUrl(out);
 }

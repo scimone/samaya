@@ -30,13 +30,15 @@ async function syncNow(plugin: SamayaPlugin, only?: "jira" | "gitlab"): Promise<
   for (const [source, run] of jobs) {
     try {
       const tickets = await run();
-      const existing = new Map(allTickets(app, s).filter(t => t.source === source && t.url).map(t => [t.url, t]));
+      const mine = allTickets(app, s).filter(t => t.source === source);
+      const existing = new Map(mine.filter(t => t.url).map(t => [t.url, t]));
+      const byId = new Map(mine.map(t => [t.id, t] as const)); // a note whose url changed (or is missing) is still the same ticket: update it instead of creating a second one
       let created = 0, closed = 0;
       for (const t of tickets) {
         const fm = { ...ticketProps(source, varsOfRaw(t)), ...(t.parent ? { parent: t.parent } : {}), ...LEGACY_TICKET_PROPS };
-        const hit = existing.get(t.url);
+        const hit = existing.get(t.url) ?? byId.get(t.id);
         if (hit) {
-          await patchNote(app, hit.file, fm); existing.delete(t.url);
+          await patchNote(app, hit.file, fm); existing.delete(hit.url); byId.delete(hit.id);
           if (byStatus && hit.state !== t.state) await relocateTicket(app, s, hit, varsOfRaw(t)); // keep status folders in step
           continue;
         }

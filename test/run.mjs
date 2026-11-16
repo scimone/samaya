@@ -379,6 +379,10 @@ assert.equal(adfToText({ type: "doc", content: [{ type: "paragraph", content: [{
 // ---- jira parent
 { const r = await fetchJira({ flavor: "cloud", url: "https://x", email: "a", token: "t", jql: "a" }, async () => ({ status: 200, headers: {}, json: { issues: [{ key: "A-2", fields: { parent: { key: "A-1" } } }, { key: "A-1", fields: {} }], isLast: true } }));
   assert.deepEqual(r.map(t => t.parent), ["A-1", ""]); }
+{ const urls = []; const srv = await fetchJira({ flavor: "server", url: "https://j", email: "", token: "t", jql: "a" }, async o => { urls.push(o.url);
+    if (o.url.endsWith("/rest/api/2/field")) return { status: 200, headers: {}, json: [{ id: "customfield_10014", name: "Epic Link", schema: { custom: "com.pyxis.greenhopper.jira:gh-epic-link" } }] };
+    return { status: 200, headers: {}, json: { total: 3, issues: [{ key: "A-2", fields: { customfield_10014: "A-1" } }, { key: "A-3", fields: { parent: { key: "A-2" }, customfield_10014: null } }, { key: "A-1", fields: {} }] } }; });
+  assert.deepEqual(srv.map(t => t.parent), ["A-1", "A-2", ""]); assert.ok(urls[1].includes("customfield_10014")); }
 // ---- event notes
 await bundle("src/eventnotes.ts", "test/.eventnotes.mjs");
 const { compilePattern, eventFromNote, parseClock } = await import("./.eventnotes.mjs");

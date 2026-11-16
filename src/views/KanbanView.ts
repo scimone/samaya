@@ -45,15 +45,20 @@ export class KanbanView extends Panel {
   /** Nest a ticket under a parent (or take it out again with null); the parent is stored by key in the ticket note. */
   private setParent(t: Ticket, parent: string | null) { safe(patchNote(this.app, t.file, { parent }).then(() => this.plugin.bus.emit()), "changing the parent ticket"); }
   private pickParent(t: Ticket) {
-    new TicketSuggestModal(this.plugin, p => { if (p) this.setParent(t, p.key); }, p => p.file.path !== t.file.path && p.parent !== t.key, true, "Nest under parent ticket…").open();
+    new TicketSuggestModal(this.plugin, p => { if (p) this.setParent(t, p.key); }, p => p.file.path !== t.file.path && p.parent !== t.key, true, "Assign parent ticket…").open();
   }
-  /** Right-click menu of a ticket: nest it under a parent ticket, or take it out of one. */
-  private ticketMenu(el: HTMLElement, t: Ticket) {
+  /** Right-click menu of a ticket, in the style of the task menu: create a task / project, set or remove the parent, open the note. */
+  private ticketMenu(el: HTMLElement, t: Ticket, hasProject: boolean) {
     el.addEventListener("contextmenu", e => {
       e.preventDefault(); e.stopPropagation();
       const m = new Menu();
-      m.addItem(i => i.setTitle(t.parent ? `Change parent ticket… (now ${t.parent})` : "Nest under parent ticket…").setIcon("corner-down-right").onClick(() => this.pickParent(t)));
-      if (t.parent) m.addItem(i => i.setTitle("Remove from parent ticket").setIcon("unlink").onClick(() => this.setParent(t, null)));
+      m.addItem(i => i.setTitle("Create task…").setIcon("circle-check").onClick(() => this.plugin.newTaskForTicket(t)));
+      if (this.plugin.settings.projectsOn && !hasProject) m.addItem(i => i.setTitle("Create project…").setIcon("folder-plus").onClick(() => this.newProject(t.summary || t.key, [t])));
+      m.addSeparator();
+      m.addItem(i => i.setTitle(t.parent ? "Change parent ticket…" : "Assign parent ticket…").setIcon("ticket").onClick(() => this.pickParent(t)));
+      if (t.parent) m.addItem(i => i.setTitle("Unlink parent ticket").setIcon("unlink").onClick(() => this.setParent(t, null)));
+      m.addSeparator();
+      m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { void openFileSmart(this.app, t.file, "tab"); }));
       m.showAtMouseEvent(e);
     });
   }
@@ -157,14 +162,7 @@ export class KanbanView extends Panel {
               kc.onclick = e => { e.stopPropagation(); const m = new Menu(); for (const k of kids) m.addItem(i => i.setTitle(`${k.key}  ${k.summary}${k.state ? ` (${k.state})` : ""}`).onClick(() => { void openFileSmart(this.app, k.file, false); })); m.showAtMouseEvent(e); };
             }
           }
-          this.scope.draggable(card, t.file.path); this.ticketMenu(card, t);
-          const acts = card.createDiv("samaya-kb-cardactions");
-          const addTask = acts.createSpan({ cls: "samaya-kb-cardbtn", attr: { "aria-label": "Create a task from this ticket" } }); setIcon(addTask, "circle-check");
-          addTask.onclick = e => { e.stopPropagation(); this.plugin.newTaskForTicket(t); };
-          if (s.projectsOn && !linked(t)) {
-            const add = acts.createSpan({ cls: "samaya-kb-cardbtn", attr: { "aria-label": "Create a project from this ticket" } }); setIcon(add, "folder-plus");
-            add.onclick = e => { e.stopPropagation(); this.newProject(t.summary || t.key, [t]); };
-          }
+          this.scope.draggable(card, t.file.path); this.ticketMenu(card, t, linked(t));
           card.onclick = e => { void openFileSmart(this.app, t.file, e.ctrlKey || e.metaKey ? "tab" : false); };
         }
       }

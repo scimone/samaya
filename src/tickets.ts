@@ -41,9 +41,16 @@ export async function fetchJira(cfg: JiraCfg, http: Http): Promise<RawTicket[]> 
   const map = (i: any): RawTicket => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
     source: "jira", id: i.key, key: i.key, summary: i.fields?.summary ?? "", url: `${cfg.url}/browse/${i.key}`,
     state: i.fields?.status?.name ?? "", project: i.fields?.project?.key ?? String(i.key).split("-")[0],
-    type: i.fields?.issuetype?.name ?? "", assignee: i.fields?.assignee?.displayName ?? "", description: adfToText(i.fields?.description).trim(), parent: i.fields?.parent?.key ?? "",
+    type: i.fields?.issuetype?.name ?? "", assignee: i.fields?.assignee?.displayName ?? "", description: adfToText(i.fields?.description).trim(), parent: i.fields?.parent?.key ?? (epicField && typeof i.fields?.[epicField] === "string" ? i.fields[epicField] : ""),
   });
-  const fields = "summary,status,project,issuetype,assignee,description,parent";
+  let epicField = ""; // Jira Server: the parent of an issue in an epic is in the "Epic Link" custom field, whose id differs per instance
+  if (cfg.flavor === "server") {
+    try {
+      const fr = await http({ url: `${cfg.url}/rest/api/2/field`, headers });
+      epicField = ((fr.json as any[]) ?? []).find(f => f.schema?.custom === "com.pyxis.greenhopper.jira:gh-epic-link" || f.name === "Epic Link")?.id ?? ""; // eslint-disable-line @typescript-eslint/no-explicit-any
+    } catch { /* no access to the field list: only sub-tasks get a parent */ }
+  }
+  const fields = "summary,status,project,issuetype,assignee,description,parent" + (epicField ? `,${epicField}` : "");
   if (cfg.flavor === "cloud") {
     let token = ""; let complete = false;
     for (let page = 0; page < MAX_PAGES; page++) {

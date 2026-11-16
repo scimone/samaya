@@ -1773,7 +1773,3 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-tk .samaya-card-foot { flex-wrap: wrap; }
 .samaya-tk .samaya-card-foot .samaya-sub-add { flex: 1 1 100%; }
 .samaya-tk .samaya-card-foot .samaya-card-actions { margin-left: auto; }
-.samaya-kb-kidremove { display: none; color: var(--text-muted); }
-.samaya-kb-kidremove svg { width: 12px; height: 12px; }
-.samaya-kb-kid:hover .samaya-kb-kidremove { display: inline-flex; }
-.samaya-kb-kidremove:hover { color: var(--text-normal); }

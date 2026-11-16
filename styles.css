@@ -1768,3 +1768,8 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-kb-kid.is-done .samaya-kb-kidtitle { text-decoration: line-through; color: var(--text-faint); }
 .samaya-kb-kidtitle { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .samaya-kb-kidstate { color: var(--text-muted); white-space: nowrap; }
+.samaya-kb-tasks, .samaya-kb-tasks.is-complete { color: var(--samaya-task); }
+/* tasks board: "+ Add subtask" on its own line above the buttons */
+.samaya-tk .samaya-card-foot { flex-wrap: wrap; }
+.samaya-tk .samaya-card-foot .samaya-sub-add { flex: 1 1 100%; }
+.samaya-tk .samaya-card-foot .samaya-card-actions { margin-left: auto; }

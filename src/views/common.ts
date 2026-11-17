@@ -322,6 +322,10 @@ export function bindCardDrop(scope: DndScope, card: HTMLElement, onDrop: (path: 
   });
 }
 
+/** Right-click menu of a meeting block on a timeline (the same entries as in the Meetings view). */
+export function showMeetingMenu(plugin: SamayaPlugin, note: TFile, e: MouseEvent) {
+  e.preventDefault(); e.stopPropagation(); const m = new Menu(); addMeetingLinkItems(m, plugin, [note]); m.showAtMouseEvent(e);
+}
 /** Project / ticket entries of the menu of a meeting: add as many as you like, remove each one. A recurring meeting passes all its notes: every change goes to each of them. */
 export function addMeetingLinkItems(m: Menu, plugin: SamayaPlugin, files: TFile[]) {
   const app = plugin.app; const st = plugin.settings;

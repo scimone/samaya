@@ -125,7 +125,7 @@ export function buildSeries(notes: MeetingNote[], today: string, nowMin = -1): {
 }
 
 export function parseNote(path: string, fm: Record<string, unknown> | undefined, basename: string, body: string): MeetingNote | null {
-  if (!fm) return null;
+  if (!fm || fm.archived === true || /^(true|yes|1)$/i.test(String(fm.archived ?? ""))) return null; // archived meetings are not shown
   const nameDate = /^(\d{4}-\d{2}-\d{2})/.exec(basename)?.[1];
   const date = fm.date == null ? nameDate : String(fm.date).slice(0, 10);
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;

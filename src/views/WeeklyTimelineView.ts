@@ -9,9 +9,9 @@ import type SamayaPlugin from "../main";
 import { DndScope } from "../dnd";
 import { Task, allTasks, dropOnDay, onDay, setDone, sortTasks } from "../model";
 import { addDays, fmtDur, minToHm, nextDayMs, parseYmd, startOfWeek, today } from "../util";
-import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
+import { calendarEnabled, calendarEvents, eventNote, inEventFolder } from "../calendar";
 import { layoutItems } from "../timeline";
-import { bindZone, keyActivate, showTaskMenu } from "./common";
+import { bindZone, keyActivate, showMeetingMenu, showTaskMenu } from "./common";
 import { addBands } from "./bands";
 import { renderWeekHead } from "./plannerHead";
 import { isCurrentTask, decorateSegment, dragLen, dropOnTimeline, remainingBlocks, splitTitle } from "./place";
@@ -160,6 +160,7 @@ export class WeeklyTimelineView extends PlannerPane {
           if (isToday && nm >= it.s && nm < it.s + it.dur) b.addClass("is-current"); // the meeting on now stays lit while focusing
           b.createDiv({ cls: "samaya-event-title", text: it.ev.title });
           b.createDiv({ cls: "samaya-event-time", text: `${minToHm(it.s)}–${minToHm(it.s + it.dur)}` });
+          const note = eventNote(this.app, it.ev); if (note) b.addEventListener("contextmenu", e => showMeetingMenu(this.plugin, note, e));
           return;
         }
         const t = it.task!;

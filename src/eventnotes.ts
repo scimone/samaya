@@ -45,7 +45,7 @@ const at = (date: string, min: number) => { const [y, mo, d] = date.split("-").m
  * `allday: true` needs only the date. `title` is optional (falls back to the name's {{title}}, then the file name).
  */
 export function eventFromNote(fm: Record<string, unknown> | undefined, name: { date?: string; title?: string; start?: string }, basename: string): CalendarEvent | null {
-  if (!fm) return null;
+  if (!fm || truthy(fm.archived)) return null;
   const title = String(fm.title ?? name.title ?? basename).trim() || basename;
   const dateProp = fm.date == null ? undefined : String(fm.date).slice(0, 10);
   const allDay = truthy(fm.allday ?? fm.allDay);

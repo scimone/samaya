@@ -1771,3 +1771,16 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-kb-card.is-hl { animation: samaya-kb-hl 2s ease-out; }
 .samaya-kb-cell.is-scrolling { overflow-y: auto; }
 .samaya-kb-cell.is-scrolling > * { flex-shrink: 0; }
+
+/* quick add dialog */
+.samaya-quickadd-input { width: 100%; }
+.samaya-quickadd-input.is-invalid { border-color: var(--text-error); }
+.samaya-quickadd-list { margin-top: 4px; border-radius: var(--radius-s); }
+.samaya-quickadd-opt { display: flex; gap: 10px; justify-content: space-between; padding: 3px 8px; border-radius: var(--radius-s); cursor: pointer; }
+.samaya-quickadd-opt.is-selected { background: var(--background-modifier-hover); }
+.samaya-quickadd-hint { color: var(--text-muted); font-size: var(--font-ui-smaller); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.samaya-quickadd-preview { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; min-height: 1.6em; }
+.samaya-quickadd-title { font-weight: var(--font-semibold); }
+.samaya-quickadd-chip { background: var(--background-modifier-hover); border-radius: 10px; padding: 0 8px; font-size: var(--font-ui-smaller); }
+.samaya-quickadd-error { flex-basis: 100%; color: var(--text-error); font-size: var(--font-ui-smaller); }
+.samaya-quickadd-help { margin-top: 8px; color: var(--text-faint); font-size: var(--font-ui-smaller); }

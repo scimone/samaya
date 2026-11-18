@@ -13,6 +13,7 @@ import { syncTickets } from "./sync";
 import { setColorPersist } from "./itemcolor";
 import { ensureColors } from "./colormigrate";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
+import { QuickAddModal } from "./quickadd";
 import { MeetingSuggestModal, ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "./modals";
 import type { Period } from "./journal";
 import { renderJournalBar } from "./views/journalBar";
@@ -451,12 +452,8 @@ export default class SamayaPlugin extends Plugin {
   startShutdown() { return this.guides.startShutdown(); }
   writeDayClose(date: string) { return this.guides.writeDayClose(date); }
   finishShutdown() { return this.guides.finishShutdown(); }
-  quickAdd() {
-    new TextPromptModal(this, "New task (append 30m / 1h for an estimate)", raw => {
-      const p = parseTitleEstimateSafe(raw);
-      safe(createTask(this.app, this.settings, p.title, { planned: today(), estimate: p.estimate ?? this.settings.defaultEstimate }), "creating the task");
-    }).open();
-  }
+  /** Keyboard-only quick add: title, estimate, day / backlog, project, ticket and meeting in one line (see quickparse.ts). */
+  quickAdd() { new QuickAddModal(this).open(); }
 
   /** New task assigned to a ticket (and to the ticket's project); left unplanned so it lands in the backlog. */
   newTaskForTicket(t: Ticket) {

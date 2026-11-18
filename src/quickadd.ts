@@ -1,0 +1,155 @@
+// Keyboard-only "New task" dialog: one line with inline directives (see quickparse.ts), a live preview of what they mean
+// and completion for @ # ^ & (Up / Down to choose, Tab to accept, Enter to create).
+import { App, Modal, TFile, prepareFuzzySearch } from "obsidian";
+import type SamayaPlugin from "./main";
+import type { SamayaSettings } from "./settings";
+import { allTickets, Ticket, createTask } from "./model";
+import { allProjects, projectLabel, projectPathOf } from "./projects";
+import { allMeetings, meetingLabel } from "./links";
+import { HORIZONS, fmtDur, horizonTarget, parseYmd, today } from "./util";
+import { QuickTask, WHEN_WORDS, parseQuick, tokenAt } from "./quickparse";
+import { safe } from "./safe";
+
+const slug = (s: string): string => s.trim().replace(/\s+/g, "-");
+const unslug = (s: string): string => s.replace(/[-_]+/g, " ").trim();
+const dayLabel = (ymd: string): string => parseYmd(ymd).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+
+/** Best fuzzy match of `query` among `items` (by text), or null. */
+function best<T>(items: T[], text: (t: T) => string, query: string): T | null {
+  const m = prepareFuzzySearch(unslug(query)); let top: T | null = null; let score = -Infinity;
+  for (const it of items) { const r = m(text(it)); if (r && r.score > score) { score = r.score; top = it; } }
+  return top;
+}
+
+export interface Resolved { title: string; fm: Record<string, string | number>; chips: string[]; errors: string[]; }
+
+/** Turn a parsed line into the properties of the new note, looking projects, tickets and meetings up in the vault. */
+export function resolveQuick(app: App, s: SamayaSettings, q: QuickTask): Resolved {
+  const errors = [...q.errors]; const chips: string[] = []; const fm: Record<string, string | number> = {};
+  const t0 = today();
+  const w = q.when ?? { day: t0 };
+  if ("day" in w) { fm.planned = w.day; chips.push(`📅 ${w.day === t0 ? "Today" : dayLabel(w.day)}`); }
+  else if ("week" in w) { fm.week = w.week; chips.push("📅 This week"); }
+  else { const tg = horizonTarget(w.horizon, t0); if (tg) fm.later = tg; fm.horizon = w.horizon; chips.push(`🗄 ${HORIZONS.find(h => h[0] === w.horizon)?.[1] ?? w.horizon}`); }
+  fm.estimate = q.estimate ?? s.defaultEstimate; chips.push(`⏱ ${fmtDur(fm.estimate)}`);
+
+  let ticket: Ticket | null = null; let project: TFile | null = null;
+  if (q.ticket !== undefined) {
+    if (!s.ticketsOn) errors.push("Tickets are switched off");
+    else {
+      const all = allTickets(app, s); const k = q.ticket.toLowerCase();
+      ticket = all.find(t => t.key.toLowerCase() === k) ?? all.find(t => t.key.toLowerCase().startsWith(k)) ?? best(all, t => `${t.key} ${t.summary}`, q.ticket);
+      if (!ticket) errors.push(`No ticket matches ^${q.ticket}`);
+    }
+  }
+  if (q.project !== undefined) {
+    if (!s.projectsOn) errors.push("Projects are switched off");
+    else {
+      const p = best(allProjects(app, s).filter(x => !x.done), x => projectLabel(x.name, x.usecase), q.project);
+      if (p) project = p.file; else errors.push(`No project matches #${q.project}`);
+    }
+  }
+  // same rules as assigning later: a ticket brings its project along, a project with exactly one single ticket brings that ticket
+  const tp = ticket && s.projectsOn ? projectPathOf(app, ticket.file) : "";
+  if (ticket && project && tp && tp !== project.path) { errors.push(`${ticket.key} belongs to another project than ${project.basename}`); ticket = null; }
+  if (ticket && !project && tp) { const f = app.vault.getAbstractFileByPath(tp); if (f instanceof TFile) project = f; }
+  if (project && !ticket && !app.metadataCache.getFileCache(project)?.frontmatter?.ticket_project && q.ticket === undefined) {
+    const mine = allTickets(app, s).filter(t => projectPathOf(app, t.file) === project!.path); if (mine.length === 1) ticket = mine[0];
+  }
+  if (project) { fm.samaya_project = `[[${project.basename}]]`; chips.push(`# ${project.basename}`); }
+  if (ticket) { fm.ticket = `[[${ticket.file.basename}]]`; chips.push(`^ ${ticket.key}`); }
+
+  if (q.meeting !== undefined) {
+    const ms = allMeetings(app, s).filter(m => !q.meetingDate || m.date === q.meetingDate);
+    const hits = ms.filter(m => best([m], x => x.title, q.meeting!)); // fuzzy matches; the one closest to today wins (a recurring meeting has many instances)
+    const near = (d: string) => Math.abs(parseYmd(d).getTime() - parseYmd(t0).getTime());
+    const m = hits.sort((a, b) => near(a.date) - near(b.date) || (a.start ?? 0) - (b.start ?? 0))[0];
+    if (m) { fm.meeting = `[[${m.file.basename}]]`; chips.push(`& ${meetingLabel(m).trim()}`); } else errors.push(`No meeting matches &${q.meeting}`);
+  }
+  return { title: q.title, fm, chips, errors };
+}
+
+interface Option { insert: string; label: string; hint?: string; }
+/** Completions for the directive being typed. */
+function optionsFor(app: App, s: SamayaSettings, prefix: string, query: string): Option[] {
+  const m = query ? prepareFuzzySearch(unslug(query)) : null;
+  const rank = <T,>(items: T[], text: (t: T) => string): T[] =>
+    (m ? items.map(it => ({ it, r: m(text(it)) })).filter(x => x.r).sort((a, b) => b.r!.score - a.r!.score).map(x => x.it) : items);
+  if (prefix === "@") {
+    const l = query.toLowerCase(); const out = WHEN_WORDS.filter(([w, d]) => !l || w.startsWith(l) || d.toLowerCase().includes(l));
+    return out.map(([w, d]) => ({ insert: `@${w}`, label: `@${w}`, hint: d }));
+  }
+  if (prefix === "#") return rank(allProjects(app, s).filter(p => !p.done), p => projectLabel(p.name, p.usecase)).slice(0, 8).map(p => ({ insert: `#${slug(p.name)}`, label: `#${slug(p.name)}`, hint: p.usecase ? `#${p.usecase}` : undefined }));
+  if (prefix === "^") return rank(allTickets(app, s).filter(t => !/^(done|closed|resolved)/i.test(t.state)), t => `${t.key} ${t.summary}`).slice(0, 8).map(t => ({ insert: `^${t.key}`, label: `^${t.key}`, hint: t.summary }));
+  const t0 = today(); const near = (d: string) => Math.abs(parseYmd(d).getTime() - parseYmd(t0).getTime());
+  return rank(allMeetings(app, s), mt => mt.title).sort((a, b) => (m ? 0 : near(a.date) - near(b.date))).slice(0, 8)
+    .map(mt => ({ insert: `&${slug(mt.title)}:${mt.date}`, label: `&${slug(mt.title)}`, hint: meetingLabel(mt).split("  ")[0] }));
+}
+
+export class QuickAddModal extends Modal {
+  private input!: HTMLInputElement; private preview!: HTMLElement; private list!: HTMLElement;
+  private opts: Option[] = []; private sel = -1; private navigated = false;
+  constructor(private plugin: SamayaPlugin, private label = "New task", private onDone?: () => void) { super(plugin.app); }
+  onOpen() {
+    const { contentEl } = this; contentEl.addClass("samaya-quickadd");
+    contentEl.createEl("p", { text: this.label });
+    this.input = contentEl.createEl("input", { type: "text", cls: "samaya-quickadd-input", attr: { placeholder: "Title 30m @tomorrow #project ^TICKET &meeting" } });
+    this.list = contentEl.createDiv("samaya-quickadd-list");
+    this.preview = contentEl.createDiv("samaya-quickadd-preview");
+    contentEl.createDiv({ cls: "samaya-quickadd-help", text: "@ day or backlog (@tomorrow @fri @nextweek @someday) · # project · ^ ticket · & meeting · Tab completes · Enter creates" });
+    this.input.focus();
+    this.input.addEventListener("input", () => { this.navigated = false; this.refresh(); });
+    this.input.addEventListener("click", () => this.refresh());
+    this.input.addEventListener("keydown", e => this.onKey(e));
+    this.refresh();
+  }
+  private onKey(e: KeyboardEvent) {
+    if (e.isComposing) return;
+    const open = this.opts.length > 0;
+    if (open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      e.preventDefault(); this.navigated = true; const n = this.opts.length;
+      this.sel = (this.sel + (e.key === "ArrowDown" ? 1 : -1) + n) % n; this.drawList(); return;
+    }
+    if (open && e.key === "Tab" && !e.shiftKey) { e.preventDefault(); this.accept(Math.max(0, this.sel)); return; }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (open && this.navigated && this.sel >= 0) this.accept(this.sel); else this.submit();
+    }
+  }
+  private accept(i: number) {
+    const o = this.opts[i]; const v = this.input.value; const cur = this.input.selectionStart ?? v.length;
+    const t = tokenAt(v, cur); if (!o || !t) return;
+    const rest = v.slice(t.end).replace(/^\s*/, "");
+    const next = `${v.slice(0, t.start)}${o.insert} ${rest}`;
+    this.input.value = next; const pos = t.start + o.insert.length + 1; this.input.setSelectionRange(pos, pos);
+    this.navigated = false; this.refresh();
+  }
+  private refresh() {
+    const v = this.input.value; const t = tokenAt(v, this.input.selectionStart ?? v.length);
+    const s = this.plugin.settings;
+    this.opts = t && (t.prefix !== "#" || s.projectsOn) && (t.prefix !== "^" || s.ticketsOn) ? optionsFor(this.app, s, t.prefix, t.query) : [];
+    if (this.sel >= this.opts.length || !this.navigated) this.sel = this.opts.length ? 0 : -1;
+    this.drawList();
+    this.preview.empty();
+    if (!v.trim()) return;
+    const r = resolveQuick(this.app, s, parseQuick(v));
+    this.preview.createSpan({ cls: "samaya-quickadd-title", text: r.title || "(no title)" });
+    for (const c of r.chips) this.preview.createSpan({ cls: "samaya-quickadd-chip", text: c });
+    for (const er of r.errors) this.preview.createDiv({ cls: "samaya-quickadd-error", text: er });
+  }
+  private drawList() {
+    this.list.empty();
+    this.opts.forEach((o, i) => {
+      const row = this.list.createDiv({ cls: "samaya-quickadd-opt" + (i === this.sel ? " is-selected" : "") });
+      row.createSpan({ text: o.label }); if (o.hint) row.createSpan({ cls: "samaya-quickadd-hint", text: o.hint });
+      row.addEventListener("mousedown", e => { e.preventDefault(); this.accept(i); this.input.focus(); });
+    });
+  }
+  private submit() {
+    const r = resolveQuick(this.app, this.plugin.settings, parseQuick(this.input.value));
+    if (r.errors.length) { this.input.addClass("is-invalid"); window.setTimeout(() => this.input.removeClass("is-invalid"), 600); return; } // the preview says what is wrong
+    this.close();
+    safe(createTask(this.app, this.plugin.settings, r.title, r.fm).then(() => { this.plugin.bus.emit(); this.onDone?.(); }), "creating the task");
+  }
+  onClose() { this.contentEl.empty(); }
+}

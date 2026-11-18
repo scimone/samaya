@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 const bundle = async (entry, out) => esbuild.build({ entryPoints: [entry], bundle: true, format: "esm", outfile: out, alias: { obsidian: "./test/obsidian-stub.mjs" }, logLevel: "error" });
 await bundle("src/util.ts", "test/.util.mjs"); await bundle("src/journaldigest.ts", "test/.journaldigest.mjs");
 await bundle("src/colors.ts", "test/.colors.mjs"); await bundle("src/worktime.ts", "test/.worktime.mjs"); await bundle("src/segments.ts", "test/.segments.mjs"); await bundle("src/sessions.ts", "test/.sessions.mjs"); await bundle("src/model.ts", "test/.model.mjs"); await bundle("src/taskprops.ts", "test/.taskprops.mjs");
-await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timeline.ts", "test/.timeline.mjs");
+await bundle("src/quickparse.ts", "test/.quickparse.mjs"); await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timeline.ts", "test/.timeline.mjs");
 await bundle("src/settings.ts", "test/.settings.mjs"); await bundle("src/weekplan.ts", "test/.weekplan.mjs");
 await bundle("src/monthgrid.ts", "test/.monthgrid.mjs"); await bundle("src/kanban.ts", "test/.kanban.mjs"); await bundle("src/gantt.ts", "test/.gantt.mjs"); await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
 const { horizonTarget, horizonOf, bucketOf, parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify } = await import("./.util.mjs");
@@ -37,6 +37,22 @@ const { renderTicketPath, renderTicketFileName, renderTicketNote, pathRoot: path
   assert.deepEqual(collapseTasks(6, false), { head: 6, gap: 0, tail: 0 });
   assert.deepEqual(collapseTasks(10, false), { head: 3, gap: 4, tail: 3 });
   assert.deepEqual(collapseTasks(10, true), { head: 10, gap: 0, tail: 0 }); }
+// ---- quick add line
+{ const { parseQuick, whenToken, durationToken, tokenAt } = await import("./.quickparse.mjs"); const f = "2026-11-18"; // a Wednesday
+  assert.deepEqual(parseQuick("do dishes 25m", f), { title: "do dishes", estimate: 25, errors: [] });
+  assert.deepEqual(parseQuick("Write report 1h30m @fri #web-site ^PROJ-1 &standup", f), { title: "Write report", estimate: 90, when: { day: "2026-11-20" }, project: "web-site", ticket: "PROJ-1", meeting: "standup", meetingDate: undefined, errors: [] });
+  assert.equal(parseQuick("@tomorrow call mom", f).title, "call mom"); assert.deepEqual(parseQuick("@tomorrow call mom", f).when, { day: "2026-11-19" });
+  assert.equal(parseQuick("read chapter #5 now", f).title, "read chapter #5 now"); // directives only at the ends
+  assert.equal(parseQuick("fix \\#5 @today", f).title, "fix #5");
+  assert.equal(parseQuick("@today", f).errors[0], "The task needs a title");
+  assert.equal(parseQuick("x @nope", f).errors[0], 'Unknown date "@nope"');
+  assert.deepEqual(parseQuick("x &sync:2026-11-25", f).meetingDate, "2026-11-25");
+  assert.deepEqual(whenToken("wed", f), { day: "2026-11-25" }); // never today
+  assert.deepEqual(whenToken("mon", f), { day: "2026-11-23" }); assert.deepEqual(whenToken("+3", f), { day: "2026-11-21" });
+  assert.deepEqual(whenToken("nextweek", f), { horizon: "week" }); assert.deepEqual(whenToken("week", f), { week: "2026-11-16" });
+  assert.equal(whenToken("2026-02-31", f), null); assert.equal(whenToken("month", f).horizon, "month");
+  assert.equal(durationToken("1.5h"), 90); assert.equal(durationToken("1:30"), 90); assert.equal(durationToken("20min"), 20); assert.equal(durationToken("abc"), null);
+  assert.deepEqual(tokenAt("do it #we", 9), { start: 6, end: 9, prefix: "#", query: "we" }); assert.equal(tokenAt("do it", 5), null); }
 // ---- util
 assert.deepEqual(parseTitleEstimate("Write report 1h"), { title: "Write report", estimate: 60 });
 assert.deepEqual(parseTitleEstimate("Call mom"), { title: "Call mom" });

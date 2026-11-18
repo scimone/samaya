@@ -20,6 +20,9 @@ Everything is plain Markdown: a task is a note with frontmatter (`status`, `plan
 
 Plan my day / week (guided), Start shutdown ritual, Review my week, Toggle week timeline, Start workday now, Start / End break, Open work time dashboard, New task, Focus on current note's task, Convert checkbox line to task note, Assign current task note to a ticket / project, New project, Open ticket board / journal / projects, Create Samaya files.
 
+**Quick add (keyboard only):** bind *Samaya: New task* in Settings → Hotkeys. One line sets everything: `Write report 1h30m @fri #website ^PROJ-123 &standup`.
+`@today @tomorrow @mon..@sun @2026-11-20 @+3` plan it for a day, `@week` this week, `@nextweek @month @quarter @year @someday @never` park it in the backlog (default: today); `#project`, `^ticket`, `&meeting` link it (loose name match, `-` = space). Typing `@ # ^ &` shows completions (↑/↓, Tab); a preview shows what will be created. Write `\#5` to keep a directive in the title.
+
 ## Development
 
 ```

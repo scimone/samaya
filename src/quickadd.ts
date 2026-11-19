@@ -1,12 +1,13 @@
 // Keyboard-only "New task" dialog: one line with inline directives (see quickparse.ts), a live preview of what they mean
 // and completion for @ # ^ & (Up / Down to choose, Tab to accept, Enter to create).
-import { AbstractInputSuggest, App, Modal, Notice, TFile, prepareFuzzySearch } from "obsidian";
+import { AbstractInputSuggest, App, Modal, Notice, TFile, prepareFuzzySearch, setIcon } from "obsidian";
 import type SamayaPlugin from "./main";
 import type { SamayaSettings } from "./settings";
 import { allTickets, Ticket, createTask } from "./model";
 import { allProjects, projectLabel, projectPathOf } from "./projects";
 import { allMeetings, meetingLabel } from "./links";
-import { HORIZONS, fmtDur, horizonTarget, parseYmd, today } from "./util";
+import { projectChip, projectColorAt, projectUsecaseAt, ticketChip } from "./views/common";
+import { addDays, fmtHm, horizonTarget, parseYmd, today } from "./util";
 import { QuickTask, WHEN_WORDS, parseQuick, tokenAt } from "./quickparse";
 import { safe } from "./safe";
 
@@ -21,13 +22,17 @@ function best<T>(items: T[], text: (t: T) => string, query: string): T | null {
   return top;
 }
 
-export interface Resolved { title: string; fm: Record<string, string | number>; chips: string[]; errors: string[]; }
+export interface Resolved {
+  title: string; fm: Record<string, string | number>; errors: string[];
+  /** what the card shows */ ticket: Ticket | null; project: TFile | null; meeting: { file: TFile; title: string } | null;
+  /** what the card does not show, as pills (@today, @nextweek ...) */ pills: string[];
+}
 
 /** Turn a parsed line into the properties of the new note, looking projects, tickets and meetings up in the vault. */
 const WHEN_KEYS = ["planned", "week", "later", "horizon"];
 /** `base`: properties the place the task is added in already gives (a day, a position); a day typed in the line replaces its day / week / backlog keys. */
 export function resolveQuick(app: App, s: SamayaSettings, q: QuickTask, base: Record<string, string | number> | null = null): Resolved {
-  const errors = [...q.errors]; const chips: string[] = []; const fm: Record<string, string | number> = { ...base };
+  const errors = [...q.errors]; const pills: string[] = []; let meeting: Resolved["meeting"] = null; const fm: Record<string, string | number> = { ...base };
   const t0 = today();
   if (q.when || !base) {
     for (const k of WHEN_KEYS) delete fm[k];
@@ -36,10 +41,10 @@ export function resolveQuick(app: App, s: SamayaSettings, q: QuickTask, base: Re
     else if ("week" in w) fm.week = w.week;
     else { const tg = horizonTarget(w.horizon, t0); if (tg) fm.later = tg; fm.horizon = w.horizon; }
   }
-  if (typeof fm.planned === "string") chips.push(`📅 ${fm.planned === t0 ? "Today" : dayLabel(fm.planned)}`);
-  else if (fm.week) chips.push("📅 This week");
-  else if (fm.horizon) chips.push(`🗄 ${HORIZONS.find(h => h[0] === fm.horizon)?.[1] ?? fm.horizon}`);
-  fm.estimate = q.estimate ?? s.defaultEstimate; chips.push(`⏱ ${fmtDur(fm.estimate)}`);
+  if (typeof fm.planned === "string") pills.push(fm.planned === t0 ? "@today" : fm.planned === addDays(t0, 1) ? "@tomorrow" : `@${dayLabel(fm.planned)}`);
+  else if (fm.week) pills.push("@week");
+  else if (fm.horizon) pills.push(fm.horizon === "week" ? "@nextweek" : `@${fm.horizon}`);
+  fm.estimate = q.estimate ?? s.defaultEstimate;
 
   let ticket: Ticket | null = null; let project: TFile | null = null;
   if (q.ticket !== undefined) {
@@ -65,8 +70,8 @@ export function resolveQuick(app: App, s: SamayaSettings, q: QuickTask, base: Re
   if (project && !ticket && !app.metadataCache.getFileCache(project)?.frontmatter?.ticket_project && q.ticket === undefined) {
     const mine = allTickets(app, s).filter(t => projectPathOf(app, t.file) === project!.path); if (mine.length === 1) ticket = mine[0];
   }
-  if (project) { fm.samaya_project = `[[${project.basename}]]`; chips.push(`# ${project.basename}`); }
-  if (ticket) { fm.ticket = `[[${ticket.file.basename}]]`; chips.push(`^ ${ticket.key}`); }
+  if (project) fm.samaya_project = `[[${project.basename}]]`;
+  if (ticket) fm.ticket = `[[${ticket.file.basename}]]`;
 
   if (q.meeting !== undefined) {
     const ms = allMeetings(app, s).filter(m => !q.meetingDate || m.date === q.meetingDate);
@@ -74,9 +79,9 @@ export function resolveQuick(app: App, s: SamayaSettings, q: QuickTask, base: Re
     const hits = exact.length ? exact : ms.filter(m => best([m], x => x.title, q.meeting!)); // fuzzy matches; the one closest to today wins (a recurring meeting has many instances)
     const near = (d: string) => Math.abs(parseYmd(d).getTime() - parseYmd(t0).getTime());
     const m = hits.sort((a, b) => near(a.date) - near(b.date) || (a.start ?? 0) - (b.start ?? 0))[0];
-    if (m) { fm.meeting = `[[${m.file.basename}]]`; chips.push(`& ${meetingLabel(m).trim()}`); } else errors.push(`No meeting matches &${q.meeting}`);
+    if (m) { fm.meeting = `[[${m.file.basename}]]`; meeting = { file: m.file, title: m.title }; pills.push(`&${meetingLabel(m).split("  ")[0].trim()}`); } else errors.push(`No meeting matches &${q.meeting}`);
   }
-  return { title: q.title, fm, chips, errors };
+  return { title: q.title, fm, errors, ticket, project, meeting, pills };
 }
 
 interface Option { insert: string; label: string; hint?: string; }
@@ -96,9 +101,33 @@ function optionsFor(app: App, s: SamayaSettings, prefix: string, query: string):
     .map(mt => ({ insert: `&${slug(mt.title)}:${mt.date}`, label: `&${slug(mt.title)}`, hint: meetingLabel(mt).split("  ")[0] }));
 }
 
+/** The completions for the word at the cursor: none when no directive is being typed, its module is off, or it is already complete (then Enter creates the task). */
+function suggestionsAt(app: App, s: SamayaSettings, text: string, cursor: number): Option[] {
+  const t = tokenAt(text, cursor);
+  if (!t || (t.prefix === "#" && !s.projectsOn) || (t.prefix === "^" && !s.ticketsOn)) return [];
+  const all = optionsFor(app, s, t.prefix, t.query);
+  return all.some(o => o.insert.toLowerCase() === `${t.prefix}${t.query}`.toLowerCase()) ? [] : all;
+}
+
+/** The task as a card (the one the task lists show), without its buttons; what the card does not show comes as pills. */
+export function renderTaskPreview(plugin: SamayaPlugin, host: HTMLElement, r: Resolved) {
+  const el = host.createDiv({ cls: "samaya-card is-compact samaya-quickadd-card" });
+  const body = el.createDiv("samaya-card-row").createDiv("samaya-card-body");
+  const line = body.createDiv("samaya-card-line");
+  line.createEl("input", { type: "checkbox", cls: "samaya-check", attr: { disabled: "true" } });
+  line.createDiv({ cls: "samaya-card-title" + (r.title ? "" : " is-placeholder"), text: r.title || "Title" });
+  const est = Number(r.fm.estimate) || 0;
+  const b = line.createEl("button", { cls: "samaya-est", text: est ? fmtHm(est) : "--:--", attr: { tabindex: "-1" } }); b.style.setProperty("--p", "0%"); b.style.pointerEvents = "none";
+  const meta = body.createDiv("samaya-card-meta");
+  if (r.ticket) ticketChip(plugin, meta, r.ticket.file);
+  if (r.project) projectChip(meta, r.project.basename, projectColorAt(plugin.app, r.project.path), projectUsecaseAt(plugin.app, r.project.path));
+  if (r.meeting) { const mc = meta.createSpan({ cls: "samaya-chip samaya-chip-meeting" }); setIcon(mc.createSpan({ cls: "samaya-chip-icon" }), "calendar-clock"); mc.createSpan({ text: r.meeting.title }); }
+  for (const p of r.pills) meta.createSpan({ cls: "samaya-chip samaya-chip-when", text: p });
+}
+
 export class QuickAddModal extends Modal {
   private input!: HTMLInputElement; private preview!: HTMLElement; private list!: HTMLElement;
-  private opts: Option[] = []; private sel = -1; private navigated = false;
+  private opts: Option[] = []; private sel = -1;
   constructor(private plugin: SamayaPlugin, private label = "New task", private initial = "", private onDone?: () => void) { super(plugin.app); }
   onOpen() {
     const { contentEl } = this; contentEl.addClass("samaya-quickadd");
@@ -106,9 +135,9 @@ export class QuickAddModal extends Modal {
     this.input = contentEl.createEl("input", { type: "text", cls: "samaya-quickadd-input", attr: { placeholder: "Title 30m @tomorrow #project ^TICKET &meeting" } });
     this.list = contentEl.createDiv("samaya-quickadd-list");
     this.preview = contentEl.createDiv("samaya-quickadd-preview");
-    contentEl.createDiv({ cls: "samaya-quickadd-help", text: "@ day or backlog (@tomorrow @fri @nextweek @someday) · # project · ^ ticket · & meeting · Tab completes · Enter creates" });
+    contentEl.createDiv({ cls: "samaya-quickadd-help", text: "@ day or backlog (@tomorrow @fri @nextweek @someday) · # project · ^ ticket · & meeting · Enter completes a suggestion, Enter again creates" });
     this.input.value = this.initial; this.input.focus();
-    this.input.addEventListener("input", () => { this.navigated = false; this.refresh(); });
+    this.input.addEventListener("input", () => this.refresh());
     this.input.addEventListener("click", () => this.refresh());
     this.input.addEventListener("keydown", e => this.onKey(e));
     this.refresh();
@@ -117,14 +146,11 @@ export class QuickAddModal extends Modal {
     if (e.isComposing) return;
     const open = this.opts.length > 0;
     if (open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
-      e.preventDefault(); this.navigated = true; const n = this.opts.length;
+      e.preventDefault(); const n = this.opts.length;
       this.sel = (this.sel + (e.key === "ArrowDown" ? 1 : -1) + n) % n; this.drawList(); return;
     }
     if (open && e.key === "Tab" && !e.shiftKey) { e.preventDefault(); this.accept(Math.max(0, this.sel)); return; }
-    if (e.key === "Enter") {
-      e.preventDefault();
-      if (open && this.navigated && this.sel >= 0) this.accept(this.sel); else this.submit();
-    }
+    if (e.key === "Enter") { e.preventDefault(); if (open) this.accept(Math.max(0, this.sel)); else this.submit(); } // Enter completes while a suggestion is open, the next Enter creates the task
   }
   private accept(i: number) {
     const o = this.opts[i]; const v = this.input.value; const cur = this.input.selectionStart ?? v.length;
@@ -132,19 +158,17 @@ export class QuickAddModal extends Modal {
     const rest = v.slice(t.end).replace(/^\s*/, "");
     const next = `${v.slice(0, t.start)}${o.insert} ${rest}`;
     this.input.value = next; const pos = t.start + o.insert.length + 1; this.input.setSelectionRange(pos, pos);
-    this.navigated = false; this.refresh();
+    this.refresh();
   }
   private refresh() {
-    const v = this.input.value; const t = tokenAt(v, this.input.selectionStart ?? v.length);
-    const s = this.plugin.settings;
-    this.opts = t && (t.prefix !== "#" || s.projectsOn) && (t.prefix !== "^" || s.ticketsOn) ? optionsFor(this.app, s, t.prefix, t.query) : [];
-    if (this.sel >= this.opts.length || !this.navigated) this.sel = this.opts.length ? 0 : -1;
+    const v = this.input.value; const s = this.plugin.settings;
+    this.opts = suggestionsAt(this.app, s, v, this.input.selectionStart ?? v.length);
+    if (this.sel >= this.opts.length || this.sel < 0) this.sel = this.opts.length ? 0 : -1;
     this.drawList();
     this.preview.empty();
     if (!v.trim()) return;
     const r = resolveQuick(this.app, s, parseQuick(v));
-    this.preview.createSpan({ cls: "samaya-quickadd-title", text: r.title || "(no title)" });
-    for (const c of r.chips) this.preview.createSpan({ cls: "samaya-quickadd-chip", text: c });
+    renderTaskPreview(this.plugin, this.preview, r);
     for (const er of r.errors) this.preview.createDiv({ cls: "samaya-quickadd-error", text: er });
   }
   private drawList() {
@@ -167,12 +191,7 @@ export class QuickAddModal extends Modal {
 /** Completion popup for the directive being typed in an input (the inline "+ Add task" boxes). Enter picks a suggestion only while the word is unfinished. */
 class QuickSuggest extends AbstractInputSuggest<Option> {
   constructor(private plugin: SamayaPlugin, private el: HTMLInputElement) { super(plugin.app, el); }
-  getSuggestions(): Option[] {
-    const v = this.el.value; const t = tokenAt(v, this.el.selectionStart ?? v.length); const s = this.plugin.settings;
-    if (!t || (t.prefix === "#" && !s.projectsOn) || (t.prefix === "^" && !s.ticketsOn)) return [];
-    const all = optionsFor(this.app, s, t.prefix, t.query);
-    return all.some(o => o.insert.toLowerCase() === `${t.prefix}${t.query}`.toLowerCase()) ? [] : all; // already complete: Enter creates the task
-  }
+  getSuggestions(): Option[] { const v = this.el.value; return suggestionsAt(this.app, this.plugin.settings, v, this.el.selectionStart ?? v.length); }
   renderSuggestion(o: Option, el: HTMLElement) { el.createSpan({ text: o.label }); if (o.hint) el.createSpan({ cls: "samaya-quickadd-hint", text: ` ${o.hint}` }); }
   selectSuggestion(o: Option) {
     const v = this.el.value; const t = tokenAt(v, this.el.selectionStart ?? v.length); if (!t) return;
@@ -187,8 +206,11 @@ class QuickSuggest extends AbstractInputSuggest<Option> {
  */
 export function bindQuickAdd(plugin: SamayaPlugin, input: HTMLInputElement, base: () => Record<string, string | number>, done: () => void, directives = ""): void {
   const pre = directives ? directives + " " : "";
-  const reset = () => { input.value = pre; };
-  reset(); new QuickSuggest(plugin, input);
+  // the field shows its own placeholder; the directives of the place appear when it is clicked into (and go again when left alone)
+  const reset = () => { input.value = document.activeElement === input ? pre : ""; };
+  new QuickSuggest(plugin, input);
+  input.addEventListener("focus", () => { if (pre && !input.value) { input.value = pre; input.setSelectionRange(pre.length, pre.length); input.dispatchEvent(new Event("input")); } });
+  input.addEventListener("blur", () => { if (input.value.trim() === directives.trim()) input.value = ""; });
   input.addEventListener("keydown", e => {
     if (e.key !== "Enter" || e.isComposing) return;
     const typed = input.value; if (!typed.trim()) return;
@@ -199,6 +221,6 @@ export function bindQuickAdd(plugin: SamayaPlugin, input: HTMLInputElement, base
     reset();
     createTask(plugin.app, plugin.settings, r.title, r.fm)
       .then(() => { plugin.bus.emit(); window.setTimeout(done, 250); }) // the metadata cache needs a moment to index the new note
-      .catch((err: unknown) => { if (input.value === pre) input.value = typed; /* keep what was typed */ new Notice(`Samaya: could not create the task (${err instanceof Error ? err.message : String(err)})`); });
+      .catch((err: unknown) => { if (!input.value.trim() || input.value === pre) input.value = typed; /* keep what was typed */ new Notice(`Samaya: could not create the task (${err instanceof Error ? err.message : String(err)})`); });
   });
 }

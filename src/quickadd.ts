@@ -8,7 +8,7 @@ import { allProjects, projectLabel, projectPathOf } from "./projects";
 import { allMeetings, meetingLabel } from "./links";
 import { projectChip, projectColorAt, projectUsecaseAt, ticketChip } from "./views/common";
 import { addDays, fmtHm, horizonTarget, parseYmd, today } from "./util";
-import { QuickTask, WHEN_WORDS, parseQuick, tokenAt } from "./quickparse";
+import { QuickTask, WHEN_WORDS, applyCompletion, parseQuick, tokenAt } from "./quickparse";
 import { safe } from "./safe";
 
 export const slug = (s: string): string => s.trim().replace(/\s+/g, "-");
@@ -84,6 +84,7 @@ export function resolveQuick(app: App, s: SamayaSettings, q: QuickTask, base: Re
   return { title: q.title, fm, errors, ticket, project, meeting, pills };
 }
 
+const NO_TITLE = "The task needs a title"; // (the card shows a placeholder title instead of this error)
 interface Option { insert: string; label: string; hint?: string; }
 /** Completions for the directive being typed. */
 function optionsFor(app: App, s: SamayaSettings, prefix: string, query: string): Option[] {
@@ -174,9 +175,8 @@ export class QuickAddModal extends Modal {
   private accept(i: number) {
     const o = this.opts[i]; const v = this.input.value; const cur = this.input.selectionStart ?? v.length;
     const t = tokenAt(v, cur); if (!o || !t) return;
-    const rest = v.slice(t.end).replace(/^\s*/, "");
-    const next = `${v.slice(0, t.start)}${o.insert} ${rest}`;
-    this.input.value = next; const pos = t.start + o.insert.length + 1; this.input.setSelectionRange(pos, pos);
+    const r = applyCompletion(v, t, o.insert);
+    this.input.value = r.text; this.input.setSelectionRange(r.cursor, r.cursor);
     this.refresh();
   }
   private refresh() {
@@ -185,7 +185,6 @@ export class QuickAddModal extends Modal {
     if (this.sel >= this.opts.length || this.sel < 0) this.sel = this.opts.length ? 0 : -1;
     this.drawList();
     this.preview.empty();
-    if (!v.trim()) return;
     const q = parseQuick(v); let r: Resolved;
     try { r = resolveQuick(this.app, s, q); }
     catch (e) { // a lookup failed: still show the task as typed, and say why the links could not be resolved
@@ -193,7 +192,7 @@ export class QuickAddModal extends Modal {
       r = { title: q.title, fm: { estimate: q.estimate ?? s.defaultEstimate }, errors: [`Could not look up the links (${e instanceof Error ? e.message : String(e)})`], ticket: null, project: null, meeting: null, pills: [] };
     }
     try { renderTaskPreview(this.plugin, this.preview, r); } catch (e) { console.warn("Samaya: quick add card failed", e); this.preview.empty(); this.preview.createDiv({ cls: "samaya-quickadd-title", text: r.title }); }
-    for (const er of r.errors) this.preview.createDiv({ cls: "samaya-quickadd-error", text: er });
+    for (const er of r.errors.filter(e => e !== NO_TITLE)) this.preview.createDiv({ cls: "samaya-quickadd-error", text: er });
   }
   private drawList() {
     this.list.empty();
@@ -219,8 +218,8 @@ class QuickSuggest extends AbstractInputSuggest<Option> {
   renderSuggestion(o: Option, el: HTMLElement) { el.createSpan({ text: o.label }); if (o.hint) el.createSpan({ cls: "samaya-quickadd-hint", text: ` ${o.hint}` }); }
   selectSuggestion(o: Option) {
     const v = this.el.value; const t = tokenAt(v, this.el.selectionStart ?? v.length); if (!t) return;
-    this.el.value = `${v.slice(0, t.start)}${o.insert} ${v.slice(t.end).replace(/^\s*/, "")}`;
-    const pos = t.start + o.insert.length + 1; this.el.setSelectionRange(pos, pos); this.el.dispatchEvent(new Event("input")); this.close();
+    const r = applyCompletion(v, t, o.insert);
+    this.el.value = r.text; this.el.setSelectionRange(r.cursor, r.cursor); this.el.dispatchEvent(new Event("input")); this.close();
   }
 }
 
@@ -246,12 +245,11 @@ export function bindQuickAdd(plugin: SamayaPlugin, input: HTMLInputElement, base
   const box = document.createElement("div"); box.className = "samaya-quickadd-inline"; input.after(box);
   const show = () => {
     box.replaceChildren(); const v = input.value;
-    const q = v.trim() ? parseQuick(v) : null;
-    if (q?.title) { // (with only the place's own directives there is no task yet)
+    if (v.trim()) { // (a placeholder title stands in until one is typed)
       try {
-        const r = resolveQuick(plugin.app, plugin.settings, q, base());
+        const r = resolveQuick(plugin.app, plugin.settings, parseQuick(v), base());
         renderTaskPreview(plugin, box, r);
-        for (const er of r.errors) box.createDiv({ cls: "samaya-quickadd-error", text: er });
+        for (const er of r.errors.filter(e => e !== NO_TITLE)) box.createDiv({ cls: "samaya-quickadd-error", text: er });
       } catch (e) { console.warn("Samaya: quick add preview failed", e); box.replaceChildren(); }
     }
     if (focused) { try { renderLegend(box, plugin.settings, "Enter completes a suggestion, Enter again creates the task"); } catch (e) { console.warn("Samaya: quick add legend failed", e); } }

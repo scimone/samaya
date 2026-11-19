@@ -47,6 +47,11 @@ const { renderTicketPath, renderTicketFileName, renderTicketNote, pathRoot: path
   { const r = parseQuick("buy milk @tomorrow #web (", f); assert.deepEqual([r.title, r.project, r.when], ["buy milk (", "web", { day: "2026-11-19" }]); }
   { const r = parseQuick("call @fri 30m /", f); assert.deepEqual([r.title, r.estimate, r.when], ["call /", 30, { day: "2026-11-20" }]); }
   assert.equal(parseQuick("a @week b #p c", f).title, "a b c");
+  assert.equal(parseQuick("x @today @tomorrow", f).errors[0], "Only one day or backlog (@) allowed (@today and @tomorrow)");
+  assert.equal(parseQuick("x #a #b &K-1 &K-2 /m /n", f).errors.length, 3);
+  { const { applyCompletion } = await import("./.quickparse.mjs");
+    assert.deepEqual(applyCompletion("@week buy @fr milk", { start: 10, end: 13, prefix: "@" }, "@fri"), { text: "buy @fri milk", cursor: 9 });
+    assert.deepEqual(applyCompletion("buy #w", { start: 4, end: 6, prefix: "#" }, "#web"), { text: "buy #web ", cursor: 9 }); }
   assert.equal(parseQuick("fix \\#5 @today", f).title, "fix #5");
   assert.equal(parseQuick("a / b (x) [y]", f).title, "a / b (x) [y]"); assert.equal(parseQuick("read ^x", f).title, "read ^x");
   assert.equal(parseQuick("@today", f).errors[0], "The task needs a title");

@@ -48,6 +48,7 @@ export function whenToken(word: string, from: string): When | null {
 }
 
 type Kind = "when" | "project" | "ticket" | "meeting" | "dur";
+const KIND_NAME: Record<Kind, string> = { when: "day or backlog (@)", project: "project (#)", ticket: "ticket (&)", meeting: "meeting (/)", dur: "estimate" };
 const PREFIX: Record<string, Kind> = { "@": "when", "#": "project", "&": "ticket", "/": "meeting" };
 function kindOf(t: string): Kind | null {
   if (t.length > 1 && PREFIX[t[0]]) return PREFIX[t[0]];
@@ -62,8 +63,13 @@ export function parseQuick(raw: string, from = today()): QuickTask {
   for (let j = toks.length - 1; j >= 0; j--) { // the estimate: at the end, behind any directives and loose signs
     if (kindOf(toks[j]) === "dur") used[j] = true; else if (!used[j] && !bare(toks[j])) break;
   }
+  const seen: Partial<Record<Kind, string>> = {};
   for (const t of toks.filter((_, i) => used[i])) {
     const k = kindOf(t)!; const v = t.slice(1);
+    if (k !== "dur") { // each sign once: "@today @tomorrow" is a mistake, not a choice
+      if (seen[k]) { out.errors.push(`Only one ${KIND_NAME[k]} allowed (${seen[k]} and ${t})`); continue; }
+      seen[k] = t;
+    }
     if (k === "dur") { out.estimate = durationToken(t)!; continue; }
     if (k === "when") { const w = whenToken(v, from); if (w) out.when = w; else out.errors.push(`Unknown date "${t}"`); continue; }
     if (k === "meeting") { const m = v.match(/^(.*?):(\d{4}-\d{2}-\d{2})$/); out.meeting = m ? m[1] : v; out.meetingDate = m?.[2]; continue; }
@@ -81,4 +87,12 @@ export function tokenAt(text: string, cursor: number): { start: number; end: num
   const tok = text.slice(s, e);
   if (tok.length < 1 || !PREFIX[tok[0]] || PREFIX[tok[0]] === "dur") return null;
   return { start: s, end: e, prefix: tok[0], query: tok.slice(1) };
+}
+
+/** Put a chosen completion in place of the word being typed. Another word with the same sign goes (the new one replaces it), so a prefilled "@week" gives way to "@fri". */
+export function applyCompletion(text: string, t: { start: number; end: number; prefix: string }, insert: string): { text: string; cursor: number } {
+  const drop = (side: string) => side.split(/(\s+)/).filter(w => !w.startsWith(t.prefix)).join("").replace(/\s{2,}/g, " ");
+  let before = drop(text.slice(0, t.start)).replace(/^\s+/, ""); if (before && !/\s$/.test(before)) before += " ";
+  const after = drop(text.slice(t.end)).replace(/^\s+/, "");
+  return { text: `${before}${insert} ${after}`, cursor: before.length + insert.length + 1 };
 }

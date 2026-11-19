@@ -127,6 +127,23 @@ export function renderTaskPreview(plugin: SamayaPlugin, host: HTMLElement, r: Re
   for (const p of r.pills) meta.createSpan({ cls: "samaya-chip samaya-chip-when", text: p });
 }
 
+/** What each sign does, one line per sign. */
+function renderLegend(host: HTMLElement, s: SamayaSettings, foot: string) {
+  const box = host.createDiv("samaya-quickadd-legend");
+  const rows: Array<[string, string, string]> = [
+    ["30m", "Estimate", "25m · 1h · 1.5h · 1h30m"],
+    ["@", "Day or backlog", "@today · @tomorrow · @fri · @2026-11-20 · @week · @nextweek · @someday"],
+    ...(s.projectsOn ? [["#", "Project", "#website (loose match, - = space)"] as [string, string, string]] : []),
+    ...(s.ticketsOn ? [["&", "Ticket", "&PROJ-123"] as [string, string, string]] : []),
+    ["/", "Meeting", "/standup (the one closest to today)"],
+  ];
+  for (const [key, what, eg] of rows) {
+    const row = box.createDiv("samaya-quickadd-legend-row");
+    row.createEl("kbd", { text: key }); row.createSpan({ cls: "samaya-quickadd-legend-what", text: what }); row.createSpan({ cls: "samaya-quickadd-hint", text: eg });
+  }
+  box.createDiv({ cls: "samaya-quickadd-legend-foot", text: foot });
+}
+
 export class QuickAddModal extends Modal {
   private input!: HTMLInputElement; private preview!: HTMLElement; private list!: HTMLElement;
   private opts: Option[] = []; private sel = -1;
@@ -137,28 +154,12 @@ export class QuickAddModal extends Modal {
     this.input = contentEl.createEl("input", { type: "text", cls: "samaya-quickadd-input", attr: { placeholder: "Title 30m @tomorrow #project &TICKET /meeting" } });
     this.list = contentEl.createDiv("samaya-quickadd-list");
     this.preview = contentEl.createDiv("samaya-quickadd-preview");
-    this.legend(contentEl);
+    renderLegend(contentEl, this.plugin.settings, "Enter completes a suggestion, Enter again creates the task · Esc cancels");
     this.input.value = this.initial; this.input.focus();
     this.input.addEventListener("input", () => this.refresh());
     this.input.addEventListener("click", () => this.refresh());
     this.input.addEventListener("keydown", e => this.onKey(e));
     this.refresh();
-  }
-  /** What each sign does, one line per sign. */
-  private legend(host: HTMLElement) {
-    const s = this.plugin.settings; const box = host.createDiv("samaya-quickadd-legend");
-    const rows: Array<[string, string, string]> = [
-      ["30m", "Estimate", "25m · 1h · 1.5h · 1h30m"],
-      ["@", "Day or backlog", "@today · @tomorrow · @fri · @2026-11-20 · @week · @nextweek · @someday"],
-      ...(s.projectsOn ? [["#", "Project", "#website (loose match, - = space)"] as [string, string, string]] : []),
-      ...(s.ticketsOn ? [["&", "Ticket", "&PROJ-123"] as [string, string, string]] : []),
-      ["/", "Meeting", "/standup (the one closest to today)"],
-    ];
-    for (const [key, what, eg] of rows) {
-      const row = box.createDiv("samaya-quickadd-legend-row");
-      row.createEl("kbd", { text: key }); row.createSpan({ cls: "samaya-quickadd-legend-what", text: what }); row.createSpan({ cls: "samaya-quickadd-hint", text: eg });
-    }
-    box.createDiv({ cls: "samaya-quickadd-legend-foot", text: "Enter completes a suggestion, Enter again creates the task · Esc cancels" });
   }
   private onKey(e: KeyboardEvent) {
     if (e.isComposing) return;
@@ -223,29 +224,58 @@ class QuickSuggest extends AbstractInputSuggest<Option> {
   }
 }
 
+/** What was being typed in an inline add field: the views redraw now and then, and the new field takes the text, the focus and the caret over. */
+const drafts = new Map<string, { value: string; focused: boolean; start: number; end: number }>();
+
 /**
  * Makes an "+ Add task" input understand the quick-add line. `directives` (e.g. "@week", "#website &PROJ-1") are put in the field up front and
  * come back after every task, so the place the box is in is visible and can be changed by editing it; `base` are the properties that place gives anyway.
  */
 export function bindQuickAdd(plugin: SamayaPlugin, input: HTMLInputElement, base: () => Record<string, string | number>, done: () => void, directives = ""): void {
   const pre = directives ? directives + " " : "";
+  const key = `${directives}|${input.getAttribute("placeholder") ?? ""}`;
+  let focused = false;
+  const keep = () => { // remember the field's state (or forget it when there is nothing to keep)
+    if (input.value && (focused || input.value.trim() !== directives.trim())) drafts.set(key, { value: input.value, focused, start: input.selectionStart ?? input.value.length, end: input.selectionEnd ?? input.value.length });
+    else if (input.value || !focused) drafts.delete(key);
+  };
   // the field shows its own placeholder; the directives of the place appear when it is clicked into (and go again when left alone)
-  const reset = () => { input.value = document.activeElement === input ? pre : ""; show(); };
+  const reset = () => { input.value = document.activeElement === input ? pre : ""; show(); keep(); };
   new QuickSuggest(plugin, input);
-  // a virtual task card under the field shows what Enter will create
+  // under the field: a virtual task card showing what Enter will create, and (while the field has the focus) the legend
   const box = document.createElement("div"); box.className = "samaya-quickadd-inline"; input.after(box);
   const show = () => {
-    box.replaceChildren(); const v = input.value; if (!v.trim()) return;
-    const q = parseQuick(v); if (!q.title) return; // only the place's own directives so far
-    let r: Resolved;
-    try { r = resolveQuick(plugin.app, plugin.settings, q, base()); }
-    catch (e) { console.warn("Samaya: quick add preview failed", e); return; }
-    try { renderTaskPreview(plugin, box, r); } catch (e) { console.warn("Samaya: quick add card failed", e); return; }
-    for (const er of r.errors) box.createDiv({ cls: "samaya-quickadd-error", text: er });
+    box.replaceChildren(); const v = input.value;
+    const q = v.trim() ? parseQuick(v) : null;
+    if (q?.title) { // (with only the place's own directives there is no task yet)
+      try {
+        const r = resolveQuick(plugin.app, plugin.settings, q, base());
+        renderTaskPreview(plugin, box, r);
+        for (const er of r.errors) box.createDiv({ cls: "samaya-quickadd-error", text: er });
+      } catch (e) { console.warn("Samaya: quick add preview failed", e); box.replaceChildren(); }
+    }
+    if (focused) { try { renderLegend(box, plugin.settings, "Enter completes a suggestion, Enter again creates the task"); } catch (e) { console.warn("Samaya: quick add legend failed", e); } }
   };
-  input.addEventListener("input", show);
-  input.addEventListener("focus", () => { if (pre && !input.value) { input.value = pre; input.setSelectionRange(pre.length, pre.length); input.dispatchEvent(new Event("input")); } });
-  input.addEventListener("blur", () => { if (input.value.trim() === directives.trim()) { input.value = ""; show(); } });
+  input.addEventListener("input", () => { show(); keep(); });
+  for (const ev of ["keyup", "click"]) input.addEventListener(ev, keep);
+  input.addEventListener("focus", () => {
+    focused = true;
+    if (pre && !input.value) { input.value = pre; input.setSelectionRange(pre.length, pre.length); }
+    show(); keep();
+  });
+  input.addEventListener("blur", () => {
+    window.setTimeout(() => { // (a field that is being redrawn is gone by now: its draft stays for the new one)
+      if (!input.isConnected) return;
+      focused = false;
+      if (input.value.trim() === directives.trim()) input.value = "";
+      show(); keep();
+    }, 0);
+  });
+  const draft = drafts.get(key);
+  if (draft) {
+    input.value = draft.value; show();
+    if (draft.focused) for (const ms of [0, 150]) window.setTimeout(() => { if (input.isConnected && document.activeElement !== input) { input.focus(); input.setSelectionRange(draft.start, draft.end); } }, ms);
+  }
   input.addEventListener("keydown", e => {
     if (e.key !== "Enter" || e.isComposing) return;
     const typed = input.value; if (!typed.trim()) return;

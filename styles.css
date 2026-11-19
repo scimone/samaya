@@ -1796,3 +1796,5 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-quickadd-inline:empty { display: none; }
 .samaya-quickadd-inline { margin: 0 0 8px; }
 .samaya-quickadd-inline .samaya-quickadd-card { margin-top: 0; opacity: .9; outline: 1px dashed var(--background-modifier-border); }
+.samaya-quickadd-inline .samaya-quickadd-legend { margin-top: 8px; padding: 6px 8px; }
+.samaya-quickadd-inline .samaya-quickadd-legend-row { grid-template-columns: 2.6em 7em 1fr; gap: 6px; }

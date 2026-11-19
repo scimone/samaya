@@ -1,19 +1,19 @@
 // Pure parser for the quick-add line (no Obsidian imports, unit-tested).
 //
-//   Write report 1h30m @tomorrow #website ^PROJ-123 &standup
+//   Write report 1h30m @tomorrow #website &PROJ-123 /standup
 //
 //   25m / 1h / 1.5h / 1h30m   estimate
 //   @today @tomorrow @mon..@sun @2026-11-20 @+3     the day it is planned for
 //   @week                                           this week, no day yet
 //   @nextweek @month @quarter @year @someday @never  parked in the backlog
-//   #project   ^ticket-key   &meeting               links (names are matched loosely; "-" stands for a space)
+//   #project   &ticket-key   /meeting               links (names are matched loosely; "-" stands for a space)
 //
 // Directives are read from the start and from the end of the line, so the title is what is left in the middle.
 // A directive that should stay part of the title is written with a backslash: \#5
 import { Horizon, addDays, isHorizon, parseYmd, startOfWeek, today } from "./util";
 
 export type When = { day: string } | { week: string } | { horizon: Horizon };
-export interface QuickTask { title: string; estimate?: number; when?: When; project?: string; ticket?: string; meeting?: string; /** meeting date when given as &name:yyyy-mm-dd */ meetingDate?: string; errors: string[]; }
+export interface QuickTask { title: string; estimate?: number; when?: When; project?: string; ticket?: string; meeting?: string; /** meeting date when given as /name:yyyy-mm-dd */ meetingDate?: string; errors: string[]; }
 
 const DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const HORIZON_WORDS: Record<string, Horizon> = { nextweek: "week", "next-week": "week", month: "month", nextmonth: "month", quarter: "quarter", nextquarter: "quarter", year: "year", nextyear: "year", someday: "someday", never: "never" };
@@ -48,7 +48,7 @@ export function whenToken(word: string, from: string): When | null {
 }
 
 type Kind = "when" | "project" | "ticket" | "meeting" | "dur";
-const PREFIX: Record<string, Kind> = { "@": "when", "#": "project", "^": "ticket", "&": "meeting" };
+const PREFIX: Record<string, Kind> = { "@": "when", "#": "project", "&": "ticket", "/": "meeting" };
 function kindOf(t: string): Kind | null {
   if (t.length > 1 && PREFIX[t[0]]) return PREFIX[t[0]];
   return durationToken(t) !== null ? "dur" : null;
@@ -68,7 +68,7 @@ export function parseQuick(raw: string, from = today()): QuickTask {
     if (k === "meeting") { const m = v.match(/^(.*?):(\d{4}-\d{2}-\d{2})$/); out.meeting = m ? m[1] : v; out.meetingDate = m?.[2]; continue; }
     out[k] = v;
   }
-  out.title = toks.slice(i, j).map(t => t.replace(/^\\(?=[@#^&])/, "")).join(" ");
+  out.title = toks.slice(i, j).map(t => t.replace(/^\\(?=[@#&/])/, "")).join(" ");
   if (!out.title) out.errors.push("The task needs a title");
   return out;
 }

@@ -264,7 +264,7 @@ export class TasksView extends Panel {
     }
     if (memory.adding === lkey && !closed) {
       const where = memory.mode === "board" ? "today" : "Someday";
-      const dir = [hooks.laneDirective, tk ? `^${tk.key}` : "", pr ? `#${slug(pr.name)}` : ""].filter(Boolean).join(" ");
+      const dir = [hooks.laneDirective, tk ? `&${tk.key}` : "", pr ? `#${slug(pr.name)}` : ""].filter(Boolean).join(" ");
       const inp = addTaskInput(this.plugin, box, `+ Add to ${where}${tk ? ` for ${tk.key}` : pr ? ` in ${pr.name}` : ""}`, () => hooks.addLane(), () => this.schedule(), dir);
       inp.addClass("samaya-tk-laneadd");
       inp.addEventListener("keydown", e => { if (e.key === "Escape") { memory.adding = null; this.render(); } });

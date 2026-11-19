@@ -40,13 +40,14 @@ const { renderTicketPath, renderTicketFileName, renderTicketNote, pathRoot: path
 // ---- quick add line
 { const { parseQuick, whenToken, durationToken, tokenAt } = await import("./.quickparse.mjs"); const f = "2026-11-18"; // a Wednesday
   assert.deepEqual(parseQuick("do dishes 25m", f), { title: "do dishes", estimate: 25, errors: [] });
-  assert.deepEqual(parseQuick("Write report 1h30m @fri #web-site ^PROJ-1 &standup", f), { title: "Write report", estimate: 90, when: { day: "2026-11-20" }, project: "web-site", ticket: "PROJ-1", meeting: "standup", meetingDate: undefined, errors: [] });
+  assert.deepEqual(parseQuick("Write report 1h30m @fri #web-site &PROJ-1 /standup", f), { title: "Write report", estimate: 90, when: { day: "2026-11-20" }, project: "web-site", ticket: "PROJ-1", meeting: "standup", meetingDate: undefined, errors: [] });
   assert.equal(parseQuick("@tomorrow call mom", f).title, "call mom"); assert.deepEqual(parseQuick("@tomorrow call mom", f).when, { day: "2026-11-19" });
   assert.equal(parseQuick("read chapter #5 now", f).title, "read chapter #5 now"); // directives only at the ends
   assert.equal(parseQuick("fix \\#5 @today", f).title, "fix #5");
+  assert.equal(parseQuick("a / b (x) [y]", f).title, "a / b (x) [y]"); assert.equal(parseQuick("read ^x", f).title, "read ^x");
   assert.equal(parseQuick("@today", f).errors[0], "The task needs a title");
   assert.equal(parseQuick("x @nope", f).errors[0], 'Unknown date "@nope"');
-  assert.deepEqual(parseQuick("x &sync:2026-11-25", f).meetingDate, "2026-11-25");
+  assert.deepEqual(parseQuick("x /sync:2026-11-25", f).meetingDate, "2026-11-25");
   assert.deepEqual(whenToken("wed", f), { day: "2026-11-25" }); // never today
   assert.deepEqual(whenToken("mon", f), { day: "2026-11-23" }); assert.deepEqual(whenToken("+3", f), { day: "2026-11-21" });
   assert.deepEqual(whenToken("nextweek", f), { horizon: "week" }); assert.deepEqual(whenToken("week", f), { week: "2026-11-16" });

@@ -52,7 +52,7 @@ export function resolveQuick(app: App, s: SamayaSettings, q: QuickTask, base: Re
     else {
       const all = allTickets(app, s); const k = q.ticket.toLowerCase();
       ticket = all.find(t => t.key.toLowerCase() === k) ?? all.find(t => t.key.toLowerCase().startsWith(k)) ?? best(all, t => `${t.key} ${t.summary}`, q.ticket);
-      if (!ticket) errors.push(`No ticket matches ^${q.ticket}`);
+      if (!ticket) errors.push(`No ticket matches &${q.ticket}`);
     }
   }
   if (q.project !== undefined) {
@@ -79,7 +79,7 @@ export function resolveQuick(app: App, s: SamayaSettings, q: QuickTask, base: Re
     const hits = exact.length ? exact : ms.filter(m => best([m], x => x.title, q.meeting!)); // fuzzy matches; the one closest to today wins (a recurring meeting has many instances)
     const near = (d: string) => Math.abs(parseYmd(d).getTime() - parseYmd(t0).getTime());
     const m = hits.sort((a, b) => near(a.date) - near(b.date) || (a.start ?? 0) - (b.start ?? 0))[0];
-    if (m) { fm.meeting = `[[${m.file.basename}]]`; meeting = { file: m.file, title: m.title }; pills.push(`&${meetingLabel(m).split("  ")[0].trim()}`); } else errors.push(`No meeting matches &${q.meeting}`);
+    if (m) { fm.meeting = `[[${m.file.basename}]]`; meeting = { file: m.file, title: m.title }; pills.push(`/${meetingLabel(m).split("  ")[0].trim()}`); } else errors.push(`No meeting matches /${q.meeting}`);
   }
   return { title: q.title, fm, errors, ticket, project, meeting, pills };
 }
@@ -95,18 +95,20 @@ function optionsFor(app: App, s: SamayaSettings, prefix: string, query: string):
     return out.map(([w, d]) => ({ insert: `@${w}`, label: `@${w}`, hint: d }));
   }
   if (prefix === "#") return rank(allProjects(app, s).filter(p => !p.done), p => projectLabel(p.name, p.usecase)).slice(0, 8).map(p => ({ insert: `#${slug(p.name)}`, label: `#${slug(p.name)}`, hint: p.usecase ? `#${p.usecase}` : undefined }));
-  if (prefix === "^") return rank(allTickets(app, s).filter(t => !/^(done|closed|resolved)/i.test(t.state)), t => `${t.key} ${t.summary}`).slice(0, 8).map(t => ({ insert: `^${t.key}`, label: `^${t.key}`, hint: t.summary }));
+  if (prefix === "&") return rank(allTickets(app, s).filter(t => !/^(done|closed|resolved)/i.test(t.state)), t => `${t.key} ${t.summary}`).slice(0, 8).map(t => ({ insert: `&${t.key}`, label: `&${t.key}`, hint: t.summary }));
   const t0 = today(); const near = (d: string) => Math.abs(parseYmd(d).getTime() - parseYmd(t0).getTime());
   return rank(allMeetings(app, s), mt => mt.title).sort((a, b) => (m ? 0 : near(a.date) - near(b.date))).slice(0, 8)
-    .map(mt => ({ insert: `&${slug(mt.title)}:${mt.date}`, label: `&${slug(mt.title)}`, hint: meetingLabel(mt).split("  ")[0] }));
+    .map(mt => ({ insert: `/${slug(mt.title)}:${mt.date}`, label: `/${slug(mt.title)}`, hint: meetingLabel(mt).split("  ")[0] }));
 }
 
 /** The completions for the word at the cursor: none when no directive is being typed, its module is off, or it is already complete (then Enter creates the task). */
 function suggestionsAt(app: App, s: SamayaSettings, text: string, cursor: number): Option[] {
   const t = tokenAt(text, cursor);
-  if (!t || (t.prefix === "#" && !s.projectsOn) || (t.prefix === "^" && !s.ticketsOn)) return [];
-  const all = optionsFor(app, s, t.prefix, t.query);
-  return all.some(o => o.insert.toLowerCase() === `${t.prefix}${t.query}`.toLowerCase()) ? [] : all;
+  if (!t || (t.prefix === "#" && !s.projectsOn) || (t.prefix === "&" && !s.ticketsOn)) return [];
+  try {
+    const all = optionsFor(app, s, t.prefix, t.query);
+    return all.some(o => o.insert.toLowerCase() === `${t.prefix}${t.query}`.toLowerCase()) ? [] : all;
+  } catch (e) { console.warn("Samaya: quick add suggestions failed", e); return []; } // never let the completion get in the way of typing
 }
 
 /** The task as a card (the one the task lists show), without its buttons; what the card does not show comes as pills. */
@@ -132,15 +134,31 @@ export class QuickAddModal extends Modal {
   onOpen() {
     const { contentEl } = this; contentEl.addClass("samaya-quickadd");
     contentEl.createEl("p", { text: this.label });
-    this.input = contentEl.createEl("input", { type: "text", cls: "samaya-quickadd-input", attr: { placeholder: "Title 30m @tomorrow #project ^TICKET &meeting" } });
+    this.input = contentEl.createEl("input", { type: "text", cls: "samaya-quickadd-input", attr: { placeholder: "Title 30m @tomorrow #project &TICKET /meeting" } });
     this.list = contentEl.createDiv("samaya-quickadd-list");
     this.preview = contentEl.createDiv("samaya-quickadd-preview");
-    contentEl.createDiv({ cls: "samaya-quickadd-help", text: "@ day or backlog (@tomorrow @fri @nextweek @someday) · # project · ^ ticket · & meeting · Enter completes a suggestion, Enter again creates" });
+    this.legend(contentEl);
     this.input.value = this.initial; this.input.focus();
     this.input.addEventListener("input", () => this.refresh());
     this.input.addEventListener("click", () => this.refresh());
     this.input.addEventListener("keydown", e => this.onKey(e));
     this.refresh();
+  }
+  /** What each sign does, one line per sign. */
+  private legend(host: HTMLElement) {
+    const s = this.plugin.settings; const box = host.createDiv("samaya-quickadd-legend");
+    const rows: Array<[string, string, string]> = [
+      ["30m", "Estimate", "25m · 1h · 1.5h · 1h30m"],
+      ["@", "Day or backlog", "@today · @tomorrow · @fri · @2026-11-20 · @week · @nextweek · @someday"],
+      ...(s.projectsOn ? [["#", "Project", "#website (loose match, - = space)"] as [string, string, string]] : []),
+      ...(s.ticketsOn ? [["&", "Ticket", "&PROJ-123"] as [string, string, string]] : []),
+      ["/", "Meeting", "/standup (the one closest to today)"],
+    ];
+    for (const [key, what, eg] of rows) {
+      const row = box.createDiv("samaya-quickadd-legend-row");
+      row.createEl("kbd", { text: key }); row.createSpan({ cls: "samaya-quickadd-legend-what", text: what }); row.createSpan({ cls: "samaya-quickadd-hint", text: eg });
+    }
+    box.createDiv({ cls: "samaya-quickadd-legend-foot", text: "Enter completes a suggestion, Enter again creates the task · Esc cancels" });
   }
   private onKey(e: KeyboardEvent) {
     if (e.isComposing) return;
@@ -167,8 +185,13 @@ export class QuickAddModal extends Modal {
     this.drawList();
     this.preview.empty();
     if (!v.trim()) return;
-    const r = resolveQuick(this.app, s, parseQuick(v));
-    renderTaskPreview(this.plugin, this.preview, r);
+    const q = parseQuick(v); let r: Resolved;
+    try { r = resolveQuick(this.app, s, q); }
+    catch (e) { // a lookup failed: still show the task as typed, and say why the links could not be resolved
+      console.warn("Samaya: quick add preview failed", e);
+      r = { title: q.title, fm: { estimate: q.estimate ?? s.defaultEstimate }, errors: [`Could not look up the links (${e instanceof Error ? e.message : String(e)})`], ticket: null, project: null, meeting: null, pills: [] };
+    }
+    try { renderTaskPreview(this.plugin, this.preview, r); } catch (e) { console.warn("Samaya: quick add card failed", e); this.preview.empty(); this.preview.createDiv({ cls: "samaya-quickadd-title", text: r.title }); }
     for (const er of r.errors) this.preview.createDiv({ cls: "samaya-quickadd-error", text: er });
   }
   private drawList() {
@@ -201,7 +224,7 @@ class QuickSuggest extends AbstractInputSuggest<Option> {
 }
 
 /**
- * Makes an "+ Add task" input understand the quick-add line. `directives` (e.g. "@week", "#website ^PROJ-1") are put in the field up front and
+ * Makes an "+ Add task" input understand the quick-add line. `directives` (e.g. "@week", "#website &PROJ-1") are put in the field up front and
  * come back after every task, so the place the box is in is visible and can be changed by editing it; `base` are the properties that place gives anyway.
  */
 export function bindQuickAdd(plugin: SamayaPlugin, input: HTMLInputElement, base: () => Record<string, string | number>, done: () => void, directives = ""): void {

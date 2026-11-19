@@ -457,7 +457,7 @@ export default class SamayaPlugin extends Plugin {
 
   /** New task assigned to a ticket (and to the ticket's project); parked in Someday unless the line says otherwise. The line takes the same directives as the quick add. */
   newTaskForTicket(t: Ticket) {
-    new QuickAddModal(this, `New task for ${t.key}`, `^${t.key} @someday ${t.summary}`).open();
+    new QuickAddModal(this, `New task for ${t.key}`, `&${t.key} @someday ${t.summary}`).open();
   }
 
   /** New task assigned to a project (and to its only ticket, if it is linked to exactly one single ticket; a project linked to a whole ticket project gives its tasks no ticket); parked in Someday unless the line says otherwise. */

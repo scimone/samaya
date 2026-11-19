@@ -1787,3 +1787,9 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-quickadd-card { margin-top: 8px; pointer-events: none; }
 .samaya-quickadd-card .is-placeholder { color: var(--text-faint); }
 .samaya-chip-when { background: var(--background-modifier-hover); color: var(--text-muted); font-family: var(--font-monospace); }
+.samaya-quickadd-legend { margin-top: 12px; padding: 8px 10px; border-radius: var(--radius-m); background: var(--background-secondary); display: flex; flex-direction: column; gap: 3px; }
+.samaya-quickadd-legend-row { display: grid; grid-template-columns: 3.2em 8.5em 1fr; align-items: baseline; gap: 8px; white-space: nowrap; overflow: hidden; }
+.samaya-quickadd-legend-row kbd { justify-self: start; min-width: 2.2em; text-align: center; font-size: var(--font-ui-smaller); }
+.samaya-quickadd-legend-what { color: var(--text-normal); font-size: var(--font-ui-small); }
+.samaya-quickadd-legend-row .samaya-quickadd-hint { overflow: hidden; text-overflow: ellipsis; }
+.samaya-quickadd-legend-foot { margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--background-modifier-border); color: var(--text-faint); font-size: var(--font-ui-smaller); }

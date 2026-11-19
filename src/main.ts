@@ -7,19 +7,19 @@ import { Editor, MarkdownView, Notice, Plugin, TFile, addIcon, normalizePath } f
 import { DEFAULT_SETTINGS, SamayaSettings, SamayaSettingTab, migrateSettings } from "./settings";
 import { FocusManager, FocusState } from "./focus";
 import { assignTicketLinked, assignProjectLinked, projectFits, ticketFits, allMeetings, changeMeetingLink, meetingLinks, meetingsPrefix, syncMeetingLinks } from "./links";
-import { Ticket, allTickets, assignMeeting, createTask } from "./model";
+import { Ticket, assignMeeting, createTask } from "./model";
 import { PLANNER_VIEW_TYPE, PlannerView, SAMAYA_ICON, SAMAYA_ICON_SVG } from "./views/PlannerView";
 import { syncTickets } from "./sync";
 import { setColorPersist } from "./itemcolor";
 import { ensureColors } from "./colormigrate";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
-import { QuickAddModal } from "./quickadd";
+import { QuickAddModal, slug } from "./quickadd";
 import { MeetingSuggestModal, ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "./modals";
 import type { Period } from "./journal";
 import { renderJournalBar } from "./views/journalBar";
 import { PERIODIC_KINDS, identifyNote, invalidatePeriodNotes, listPeriodNotes, neighbours, openPeriodNote, periodNotePath } from "./journal";
 import { affectsTaskLists, syncTaskLists } from "./tasklinks";
-import { createProject, projectPathOf } from "./projects";
+import { createProject } from "./projects";
 import { DASHBOARD_VIEW_TYPE, DashboardView } from "./views/DashboardView";
 import { promoteParked, prefixOf, rootOf, ensureFolder, folderFor, readTask } from "./model";
 import { decorateTaskNote } from "./views/taskCard";
@@ -455,23 +455,14 @@ export default class SamayaPlugin extends Plugin {
   /** Keyboard-only quick add: title, estimate, day / backlog, project, ticket and meeting in one line (see quickparse.ts). */
   quickAdd() { new QuickAddModal(this).open(); }
 
-  /** New task assigned to a ticket (and to the ticket's project); left unplanned so it lands in the backlog. */
+  /** New task assigned to a ticket (and to the ticket's project); parked in Someday unless the line says otherwise. The line takes the same directives as the quick add. */
   newTaskForTicket(t: Ticket) {
-    new TextPromptModal(this, `New task for ${t.key} (append 30m / 1h for an estimate)`, raw => {
-      const p = parseTitleEstimateSafe(raw);
-      const pf = this.settings.projectsOn ? this.app.vault.getAbstractFileByPath(projectPathOf(this.app, t.file)) : null;
-      safe(createTask(this.app, this.settings, p.title, { estimate: p.estimate ?? this.settings.defaultEstimate, ticket: `[[${t.file.basename}]]`, ...(pf instanceof TFile ? { samaya_project: `[[${pf.basename}]]` } : {}) }).then(() => this.bus.emit()), "creating the task");
-    }, t.summary).open();
+    new QuickAddModal(this, `New task for ${t.key}`, `^${t.key} @someday ${t.summary}`).open();
   }
 
-  /** New task assigned to a project (and to its only ticket, if it is linked to exactly one single ticket; a project linked to a whole ticket project gives its tasks no ticket); left unplanned so it lands in the backlog. */
+  /** New task assigned to a project (and to its only ticket, if it is linked to exactly one single ticket; a project linked to a whole ticket project gives its tasks no ticket); parked in Someday unless the line says otherwise. */
   newTaskForProject(project: TFile) {
-    new TextPromptModal(this, `New task for ${project.basename} (append 30m / 1h for an estimate)`, raw => {
-      const p = parseTitleEstimateSafe(raw);
-      const tickets = allTickets(this.app, this.settings).filter(t => projectPathOf(this.app, t.file) === project.path);
-      const project_tp = !!this.app.metadataCache.getFileCache(project)?.frontmatter?.ticket_project; // linked to a whole ticket project
-      safe(createTask(this.app, this.settings, p.title, { estimate: p.estimate ?? this.settings.defaultEstimate, samaya_project: `[[${project.basename}]]`, ...(tickets.length === 1 && !project_tp ? { ticket: `[[${tickets[0].file.basename}]]` } : {}) }).then(() => this.bus.emit()), "creating the task");
-    }).open();
+    new QuickAddModal(this, `New task for ${project.basename}`, `#${slug(project.basename)} @someday `).open();
   }
 
   private async convertCheckbox(ed: Editor, view: MarkdownView) {

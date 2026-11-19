@@ -581,18 +581,19 @@ await bundle("src/meetingseries.ts", "test/.meetingseries.mjs");
 // ---- tasks board
 await bundle("src/tasksboard.ts", "test/.tasksboard.mjs");
 {
-  const { columnOf, backlogOf, doneThisWeek, lanes } = await import("./.tasksboard.mjs");
+  const { columnOf, backlogOf, placeOf, doneThisWeek, lanes } = await import("./.tasksboard.mjs");
   const td = "2026-11-12", wk = "2026-11-09"; // Thursday of the week starting Mon 9th
   assert.equal(columnOf("2026-11-11", "", td, wk), "overdue");
   assert.equal(columnOf("2026-11-12", "", td, wk), "today");
-  assert.equal(columnOf("2026-11-13", "", td, wk), null); // a later day is backlog
+  assert.equal(columnOf("2026-11-13", "", td, wk), "thisweek"); // a later day of this week
+  assert.equal(columnOf("2026-11-16", "", td, wk), null); // next week is backlog
   assert.equal(columnOf("", "2026-11-02", td, wk), "overdue"); // a week that is over
-  assert.equal(columnOf("", wk, td, wk), null);
-  assert.equal(backlogOf("2026-11-13", "", "", "", td, wk), "thisweek");
-  assert.equal(backlogOf("2026-11-15", "", "", "", td, wk), "thisweek"); // Sunday
+  assert.equal(columnOf("", wk, td, wk), "thisweek");
+  assert.equal(placeOf("2026-11-13", "", "", "", td, wk), "thisweek");
+  assert.equal(placeOf("2026-11-15", "", "", "", td, wk), "thisweek"); // Sunday
   assert.equal(backlogOf("2026-11-16", "", "", "", td, wk), "week");
   assert.equal(backlogOf("2026-12-10", "", "", "", td, wk), "month");
-  assert.equal(backlogOf("", wk, "", "", td, wk), "thisweek");
+  assert.equal(placeOf("", wk, "", "", td, wk), "thisweek");
   assert.equal(backlogOf("", "", "", "", td, wk), "someday");
   assert.equal(backlogOf("", "", "never", "", td, wk), "never");
   assert.equal(doneThisWeek("2026-11-09", "", wk), true);

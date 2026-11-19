@@ -14,10 +14,11 @@ import { renderGuide } from "./guide";
 import { celebrate } from "./doneBar";
 import { renderWeekHead } from "./plannerHead";
 import { renderCapBar } from "./capBar";
+import { bindQuickAdd } from "../quickadd";
 import { addTaskInput, capacityOf, weekBuckets, renderWeekColumn } from "./weekColumn";
 import { TicketTaskModal } from "../modals";
 import { NO_PROJECT, groupTickets, isDoneState } from "../kanban";
-import { HORIZONS, addDays, bucketOf, fmtDur, horizonTarget, minToHm, nextDayMs, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
+import { HORIZONS, addDays, bucketOf, fmtDur, horizonTarget, minToHm, nextDayMs, parseYmd, startOfWeek, today } from "../util";
 import { calendarEnabled, calendarEvents, inEventFolder } from "../calendar";
 import { Capacity, capacityWindow } from "../worktime";
 import { bindCardDrop, bindZone, keyActivate, renderTaskCard, richText, ticketProjectTitle } from "./common";
@@ -100,11 +101,7 @@ export class WeeklyBoardView extends PlannerPane {
     }
     renderAgenda(top, events, key); // the day's meetings above the add field (only shown in the board-only layout, see CSS)
     const add = top.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task" } });
-    add.addEventListener("keydown", e => {
-      if (e.key !== "Enter" || e.isComposing || !add.value.trim()) return;
-      const p = parseTitleEstimate(add.value); add.value = "";
-      safe(createTask(this.app, this.plugin.settings, p.title, { planned: key, estimate: p.estimate ?? this.plugin.settings.defaultEstimate, order: tasks.length }), "creating the task");
-    });
+    bindQuickAdd(this.plugin, add, () => ({ planned: key, order: tasks.length }), () => 0, key === today() ? "@today" : `@${key}`);
     const body = col.createDiv("samaya-col-body");
     tasks.forEach((t, idx) => {
       const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true, focus: "today" });
@@ -150,7 +147,7 @@ export class WeeklyBoardView extends PlannerPane {
       return badge;
     };
     if (step !== 0) this.lastLeft = null;
-    const addBox = (col: HTMLElement, placeholder: string, props: () => Record<string, string | number>) => { addTaskInput(this.plugin, col, placeholder, props, () => this.schedule()); };
+    const addBox = (col: HTMLElement, placeholder: string, props: () => Record<string, string | number>, directives: string) => { addTaskInput(this.plugin, col, placeholder, props, () => this.schedule(), directives); };
 
     if (step === 0) {
       const cols = main.createDiv("samaya-wg-cols is-board is-review"); // the Overdue column sits at the right, next to This week
@@ -207,7 +204,7 @@ export class WeeklyBoardView extends PlannerPane {
         hd.createDiv({ cls: "samaya-kb-colhead", text: `${label} (${ts.length})` });
         const cell = row.createDiv("samaya-kb-cell");
         bindZone(this.scope, cell, (path, i) => { const f = this.app.vault.getAbstractFileByPath(path); if (f instanceof TFile) safe(sendPiece(this.app, s, f, i, { backlog: h }), "moving the task"); });
-        addBox(cell, "+ Add task", () => ({ horizon: h, ...(horizonTarget(h, td) ? { later: horizonTarget(h, td) } : {}) }));
+        addBox(cell, "+ Add task", () => ({ horizon: h, ...(horizonTarget(h, td) ? { later: horizonTarget(h, td) } : {}) }), h === "week" ? "@nextweek" : `@${h}`);
         ts.forEach(t => renderTaskCard(this.plugin, cell, t, { scope: this.scope, compact: true, actions: [["This week", () => { this.send(t, { week: wk }); }]] }));
       }
     } else if (step === 3) {
@@ -244,7 +241,7 @@ export class WeeklyBoardView extends PlannerPane {
   }
 
   /** One day of the Schedule step: its meetings as a compact agenda on top, then the load bar and the day's tasks. */
-  private guidedDay(parent: HTMLElement, date: string, cap: Capacity, events: CalendarEvent[], tasks: Task[], isToday: boolean, addBox: (col: HTMLElement, placeholder: string, props: () => Record<string, string | number>) => void) {
+  private guidedDay(parent: HTMLElement, date: string, cap: Capacity, events: CalendarEvent[], tasks: Task[], isToday: boolean, addBox: (col: HTMLElement, placeholder: string, props: () => Record<string, string | number>, directives: string) => void) {
     const s = this.plugin.settings;
     const col = parent.createDiv({ cls: "samaya-col samaya-wg-day" + (isToday ? " is-today" : "") });
     const share = bufferShare(s.bufferPercent); const planned = tasks.reduce((a, t) => a + leftToDo(this.plugin, t, date, s.defaultEstimate), 0); const lvl = loadLevel(planned, cap.free, share);
@@ -256,7 +253,7 @@ export class WeeklyBoardView extends PlannerPane {
     sum.title = `Free to plan = ${fmtDur(cap.total)} work time - ${fmtDur(cap.lunch)} lunch - ${fmtDur(cap.meetings)} meetings. Keep about ${Math.round((1 - share) * 100)}% of it free.`;
     renderCapBar(col, { tasks: planned, meetings: cap.meetings, free: cap.free, share });
     renderAgenda(col, events, date);
-    addBox(col, "+ Add task", () => ({ planned: date, order: tasks.length }));
+    addBox(col, "+ Add task", () => ({ planned: date, order: tasks.length }), isToday ? "@today" : `@${date}`);
     const body = col.createDiv("samaya-col-body");
     tasks.forEach((t, idx) => {
       const c = renderTaskCard(this.plugin, body, t, { scope: this.scope, showTime: true, split: true });

@@ -1,13 +1,14 @@
 import { leftToDo } from "./place";
 // The "This week" column of the week guide. It is the last column of the Weekly Board's guide.
-import { Notice, TFile } from "obsidian";
+import { TFile } from "obsidian";
 import { safe } from "../safe";
 import type { CalendarEvent } from "../eventnotes";
 import type SamayaPlugin from "../main";
 import type { DndScope } from "../dnd";
-import { Task, createTask, onDay, sendPiece, sortTasks, unplanned } from "../model";
+import { Task, onDay, sendPiece, sortTasks, unplanned } from "../model";
 import { calendarEnabled, calendarEvents } from "../calendar";
-import { addDays, fmtDur, parseTitleEstimate, parseYmd, today } from "../util";
+import { addDays, fmtDur, parseYmd, today } from "../util";
+import { bindQuickAdd } from "../quickadd";
 import { Capacity, capacityWindow } from "../worktime";
 import { bufferShare, loadLevel } from "../weekplan";
 import { renderCapBar } from "./capBar";
@@ -34,17 +35,10 @@ export async function weekCapacity(plugin: SamayaPlugin, wk: string, days: numbe
   return { free: caps.reduce((a, c) => a + c.free, 0), meetings: caps.reduce((a, c) => a + c.meetings, 0) };
 }
 
-/** "+ Add task" field: Enter creates the task with `props` (and the estimate typed after the title), then `done` runs once the note is indexed. */
-export function addTaskInput(plugin: SamayaPlugin, host: HTMLElement, placeholder: string, props: () => Record<string, string | number>, done: () => void) {
-  const s = plugin.settings;
+/** "+ Add task" field: Enter creates the task from the quick-add line (estimate, day, project, ticket, meeting), with `props` and the prefilled `directives` of the place it is in; then `done` runs once the note is indexed. */
+export function addTaskInput(plugin: SamayaPlugin, host: HTMLElement, placeholder: string, props: () => Record<string, string | number>, done: () => void, directives = "") {
   const add = host.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder } });
-  add.addEventListener("keydown", e => {
-    if (e.key !== "Enter" || e.isComposing || !add.value.trim()) return;
-    const typed = add.value; const p = parseTitleEstimate(typed); add.value = "";
-    createTask(plugin.app, s, p.title, { ...props(), estimate: p.estimate ?? s.defaultEstimate })
-      .then(() => { window.setTimeout(done, 250); })
-      .catch((err: unknown) => { if (!add.value) add.value = typed; /* keep what was typed */ new Notice(`Samaya: could not create the task (${err instanceof Error ? err.message : String(err)})`); });
-  });
+  bindQuickAdd(plugin, add, props, done, directives);
   return add;
 }
 
@@ -70,7 +64,7 @@ export function renderWeekColumn(plugin: SamayaPlugin, scope: DndScope, host: HT
   renderCapBar(box, { tasks: planned, meetings, free: o.free, share });
   const label = col.createDiv({ cls: "samaya-wg-info" }).createDiv({ cls: "samaya-total", text: `${fmtDur(planned + meetings)} allocated · ${fmtDur(meetings + budget)} recommended` });
   label.title = `Allocated = ${fmtDur(planned)} tasks + ${fmtDur(meetings)} meetings. Free time of the week = work time - lunch - meetings = ${fmtDur(o.free)}. Plan at most ${Math.round(share * 100)}% of it (${fmtDur(budget)}).`;
-  if (!schedule) addTaskInput(plugin, col, "+ Add weekly task", () => ({ week: wk }), o.refresh); // before the first task (the days have their own in Schedule)
+  if (!schedule) addTaskInput(plugin, col, "+ Add weekly task", () => ({ week: wk }), o.refresh, "@week"); // before the first task (the days have their own in Schedule)
   const list = col.createDiv("samaya-wg-scroll samaya-leftover-list");
   if (!shown.length) list.createDiv({ cls: "samaya-empty", text: schedule ? "Every task has a day." : "Nothing planned for this week yet." });
   shown.forEach(t => renderTaskCard(plugin, list, t, { scope, dayLabel: t.planned ? parseYmd(t.planned).toLocaleDateString(undefined, { weekday: "long" }) : undefined }));

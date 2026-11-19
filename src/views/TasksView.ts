@@ -7,15 +7,16 @@ import { openFileSmart } from "../openfile";
 import { Task, Ticket, allTasks, allTickets, dayTask, prefixOf, readTask, restTask, sendPiece, setDone, sortTasks, ticketPathOf } from "../model";
 import { assignProjectLinked, assignTicketLinked, ticketColorOf } from "../links";
 import { tint } from "../itemcolor";
-import { PROJECT_PROP, Project, allProjects, projectPathOf } from "../projects";
+import { Project, allProjects, projectPathOf } from "../projects";
 import { sessionDays } from "../sessions";
 import { readProp } from "../taskprops";
-import { BACKLOG_COLS, BOARD_COLS, backlogOf, columnOf, doneThisWeek, lanes } from "../tasksboard";
+import { BACKLOG_COLS, BOARD_COLS, columnOf, doneThisWeek, lanes, placeOf } from "../tasksboard";
 import { Horizon, fmtDur, horizonTarget, parseYmd, startOfWeek, today } from "../util";
 import { bindZone, renderTaskCard } from "./common";
 import { renderHeadTitle, renderSwitch } from "./plannerHead";
 import { NoteText } from "./search";
 import { addTaskInput } from "./weekColumn";
+import { slug } from "../quickadd";
 
 type Mode = "board" | "backlog";
 type Group = "none" | "project" | "ticket";
@@ -26,6 +27,7 @@ interface Hooks {
   /** the quick actions of a card */ actions(it: Item): Array<[string, () => void]>;
   /** properties of a task added at the foot of a column (flat view); null = the column takes no new tasks */ add(col: string, count: number): Record<string, string | number> | null;
   /** properties of a task added to a swimlane */ addLane(): Record<string, string | number>;
+  /** the quick-add directive of a column / of a lane ("@week"), shown in the add field */ directive(col: string): string; laneDirective: string;
   /** a short label above a card ("Fri 13") */ dayLabel(t: Task, col: string): string | undefined;
   tones: Record<string, string>;
 }
@@ -76,7 +78,7 @@ export class TasksView extends Panel {
     // ---- the work, each piece in its column
     const all = allTasks(app, s);
     const everything = this.collect(all, td, wk);
-    const backlog = (c: string) => c !== "overdue" && c !== "today" && c !== "progress" && c !== "done";
+    const backlog = (c: string) => !BOARD_COLS.some(([k]) => k === c);
     let items = everything.filter(it => memory.mode === "board" ? !backlog(it.col) : backlog(it.col));
     const cols: ColDef[] = (memory.mode === "board" ? BOARD_COLS : BACKLOG_COLS).map(([key, label]) => ({ key, label }));
     const q = memory.query.trim().toLowerCase();
@@ -107,7 +109,7 @@ export class TasksView extends Panel {
         const cell = row.createDiv({ cls: `samaya-tk-cell is-${hooks.tones[c.key] ?? "plain"}` }); cell.dataset.key = `${memory.mode}|${lane.key}|${c.key}`;
         const mine = lane.items.filter(it => it.col === c.key);
         bindZone(this.scope, cell, (path, i) => { void this.dropped(hooks, c.key, path, i, grouped ? lane.key : null, tickets, projects); });
-        if (!grouped) { const p = hooks.add(c.key, mine.length); if (p) addTaskInput(this.plugin, cell, "+ Add task", () => p, () => this.schedule()); }
+        if (!grouped) { const p = hooks.add(c.key, mine.length); if (p) addTaskInput(this.plugin, cell, "+ Add task", () => p, () => this.schedule(), hooks.directive(c.key)); }
         for (const it of mine) renderTaskCard(this.plugin, cell, it.t, { scope: this.scope, dayLabel: hooks.dayLabel(it.t, c.key), actions: hooks.actions(it), ...(memory.mode === "board" && c.key === "today" ? { focus: "today" as const } : {}) });
         if (!mine.length) cell.createDiv({ cls: "samaya-tk-empty", text: c.key === "overdue" ? "All caught up" : c.key === "done" ? "Nothing finished yet" : c.key === "progress" ? "Start a task with its focus timer" : "Drop a task here" });
       }
@@ -129,7 +131,7 @@ export class TasksView extends Panel {
       }
       if (t.actual > 0 || focused === t.file.path || (Array.isArray(fm.focus_sessions) && fm.focus_sessions.length)) { out.push({ t, col: "progress" }); continue; }
       const days = sessionDays(t.sessions);
-      const put = (x: Task, day: string, week: string) => out.push({ t: x, col: columnOf(day, week, td, wk) ?? backlogOf(day, week, t.horizon, t.later, td, wk) });
+      const put = (x: Task, day: string, week: string) => out.push({ t: x, col: placeOf(day, week, t.horizon, t.later, td, wk) });
       for (const d of days) put(dayTask(t, d), d, "");
       if (!days.length) put(t, "", t.week); else if (t.rest > 0) put(restTask(t), "", t.week);
     }
@@ -146,25 +148,32 @@ export class TasksView extends Panel {
   private from = (t: Task) => ({ day: t.part?.kind === "rest" ? "" : t.planned || null, seg: null as number | null });
 
   private boardHooks(td: string): Hooks {
-    const s = this.plugin.settings, app = this.app;
+    const s = this.plugin.settings, app = this.app, wk = startOfWeek(td);
     const go = (t: Task) => { safe(sendPiece(app, s, t.file, this.from(t), { day: td }), "moving the task"); };
     const day = (d: string) => parseYmd(d).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
     return {
       tones: { overdue: "warn", today: "accent", done: "done" },
+      directive: col => col === "today" ? "@today" : col === "thisweek" ? "@week" : "", laneDirective: "@today",
       drop: async (col, path, i) => {
         const f = app.vault.getAbstractFileByPath(path); if (!(f instanceof TFile)) return;
         const t = readTask(app, f);
         if (col === "done") { if (t.status !== "done") await setDone(app, t, true); return; }
+        if (col === "thisweek") { // planned for this week without a day
+          const d = i.day ?? t.planned; const here = d ? columnOf(d, "", td, wk) : columnOf("", t.week, td, wk);
+          if (t.status !== "done" && here === "thisweek") return;
+          if (t.status === "done") await setDone(app, t, false);
+          await sendPiece(app, s, f, i, { week: wk }); return;
+        }
         if (col !== "today") return; // overdue and in progress are not places to put work: they follow from the dates and the timer
         const d = i.day ?? t.planned;
         if (t.status !== "done" && d === td) return; // already there
         if (t.status === "done") await setDone(app, t, false);
         await sendPiece(app, s, f, i, { day: td });
       },
-      actions: it => it.col === "overdue" ? [["Today", () => go(it.t)]] : [],
-      add: (col, n): Record<string, string | number> | null => col === "today" ? { planned: td, order: n } : null,
+      actions: it => it.col === "overdue" || it.col === "thisweek" ? [["Today", () => go(it.t)]] : [],
+      add: (col, n): Record<string, string | number> | null => col === "today" ? { planned: td, order: n } : col === "thisweek" ? { week: wk } : null,
       addLane: () => ({ planned: td }),
-      dayLabel: (t, col) => t.planned && t.part?.kind !== "rest" && col === "overdue" ? day(t.planned) : undefined,
+      dayLabel: (t, col) => t.planned && t.part?.kind !== "rest" && (col === "overdue" || col === "thisweek") ? day(t.planned) : undefined,
     };
   }
   private backlogHooks(td: string): Hooks {
@@ -173,15 +182,16 @@ export class TasksView extends Panel {
     const day = (d: string) => parseYmd(d).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
     return {
       tones: {},
+      directive: col => col === "week" ? "@nextweek" : `@${col}`, laneDirective: "@someday",
       drop: async (col, path, i) => {
         const f = app.vault.getAbstractFileByPath(path); if (!(f instanceof TFile)) return;
         const t = readTask(app, f); if (t.status === "done") await setDone(app, t, false);
-        const d = i.day ?? t.planned; const here = backlogOf(d, d ? "" : t.week, t.horizon, t.later, td, wk);
+        const d = i.day ?? t.planned; const here = placeOf(d, d ? "" : t.week, t.horizon, t.later, td, wk);
         if (t.status !== "done" && here === col && (d || t.week || t.rest === 0)) return; // there already: re-parking would only reset its date
-        await sendPiece(app, s, f, i, col === "thisweek" ? { week: wk } : { backlog: col as Horizon });
+        await sendPiece(app, s, f, i, { backlog: col as Horizon });
       },
-      actions: it => [["Today", () => go(it.t, { day: td })], ...(it.col !== "thisweek" ? [["This week", () => go(it.t, { week: wk })] as [string, () => void]] : [])],
-      add: (col): Record<string, string | number> => col === "thisweek" ? { week: wk } : { horizon: col, ...(horizonTarget(col as Horizon, td) ? { later: horizonTarget(col as Horizon, td) } : {}) },
+      actions: it => [["Today", () => go(it.t, { day: td })], ["This week", () => go(it.t, { week: wk })]],
+      add: (col): Record<string, string | number> => ({ horizon: col, ...(horizonTarget(col as Horizon, td) ? { later: horizonTarget(col as Horizon, td) } : {}) }),
       addLane: () => ({ horizon: "someday" }),
       dayLabel: (t, col) => t.planned && t.part?.kind !== "rest" && col !== "someday" ? day(t.planned) : undefined,
     };
@@ -225,7 +235,7 @@ export class TasksView extends Panel {
       if (canTicket) sel.createEl("option", { text: "By ticket", value: "ticket" });
       sel.value = memory.group; sel.onchange = () => { memory.group = sel.value as Group; memory.adding = null; this.render(); };
     }
-    renderSwitch<Mode>(right, [["board", "Ongoing", "What is going on: overdue, today, in progress, done"], ["backlog", "Backlog", "What is parked for later"]], memory.mode, m => { memory.mode = m; memory.adding = null; this.render(); }, "Tasks view");
+    renderSwitch<Mode>(right, [["board", "Ongoing", "What is going on: this week, overdue, today, in progress, done"], ["backlog", "Backlog", "What is parked for later"]], memory.mode, m => { memory.mode = m; memory.adding = null; this.render(); }, "Tasks view");
   }
 
   /** The header of a swimlane: ▾ name, what it holds, open / add. Click folds it. */
@@ -254,8 +264,8 @@ export class TasksView extends Panel {
     }
     if (memory.adding === lkey && !closed) {
       const where = memory.mode === "board" ? "today" : "Someday";
-      const props = () => ({ ...hooks.addLane(), ...(tk ? { ticket: `[[${tk.file.basename}]]` } : {}), ...(pr ? { [PROJECT_PROP]: `[[${pr.file.basename}]]` } : {}) });
-      const inp = addTaskInput(this.plugin, box, `+ Add to ${where}${tk ? ` for ${tk.key}` : pr ? ` in ${pr.name}` : ""}`, props, () => this.schedule());
+      const dir = [hooks.laneDirective, tk ? `^${tk.key}` : "", pr ? `#${slug(pr.name)}` : ""].filter(Boolean).join(" ");
+      const inp = addTaskInput(this.plugin, box, `+ Add to ${where}${tk ? ` for ${tk.key}` : pr ? ` in ${pr.name}` : ""}`, () => hooks.addLane(), () => this.schedule(), dir);
       inp.addClass("samaya-tk-laneadd");
       inp.addEventListener("keydown", e => { if (e.key === "Escape") { memory.adding = null; this.render(); } });
       window.setTimeout(() => inp.focus(), 0);

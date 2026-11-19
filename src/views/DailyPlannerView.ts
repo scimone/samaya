@@ -1,13 +1,14 @@
 import { leftToDo } from "./place";
 import { Scheduler } from "./scheduler";
-import { Notice, TFile, setIcon } from "obsidian";
+import { TFile, setIcon } from "obsidian";
 import { safe } from "../safe";
 import type { CalendarEvent } from "../eventnotes";
 import { PlannerPane } from "./plannerPane";
 import type SamayaPlugin from "../main";
 import { DndScope, DropInfo } from "../dnd";
-import { Task, allTasks, createTask, dropOnDay, onDay, overdueParts, prefixOf, sendPiece, sortTasks, unplanned } from "../model";
-import { addDays, fmtDur, parseTitleEstimate, parseYmd, startOfWeek, today } from "../util";
+import { Task, allTasks, dropOnDay, onDay, overdueParts, prefixOf, sendPiece, sortTasks, unplanned } from "../model";
+import { bindQuickAdd } from "../quickadd";
+import { addDays, fmtDur, parseYmd, startOfWeek, today } from "../util";
 import type { PlannerHost } from "./plannerHost";
 import { bindCardDrop, bindZone, renderBacklogBuckets, renderTaskCard, richText } from "./common";
 import { calendarEnabled, calendarEvents, eventNote, inEventFolder } from "../calendar";
@@ -128,7 +129,7 @@ export class DailyPlannerView extends PlannerPane {
       renderDoneBar(head, nd, day.length, false);
       if (!sd && this.date >= today()) { // the quick add sits right under the bar and sticks with it
         const add = head.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
-        this.bindAdd(add, () => ({ planned: this.date, order: day.length }));
+        this.bindAdd(add, () => ({ planned: this.date, order: day.length }), this.date === today() ? "@today" : `@${this.date}`);
       }
       const all = day.length > 0 && nd === day.length;
       if (all && this.lastAll && this.lastAll.date === this.date && !this.lastAll.all) celebrate(badge); // right away: a delayed call can find the badge already replaced by the next re-render (the End day view re-renders several times per tick)
@@ -168,7 +169,7 @@ export class DailyPlannerView extends PlannerPane {
 
     if (pg && !sd && !review && step !== 2 && this.date >= today()) { // (no quick add in Review and Timebox: go back to Pick to add tasks)
       const add = body.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: "+ Add task  (e.g. “Write report 1h”)" } });
-      this.bindAdd(add, () => ({ planned: this.date, order: day.length }));
+      this.bindAdd(add, () => ({ planned: this.date, order: day.length }), this.date === today() ? "@today" : `@${this.date}`);
     }
 
     if (info) { renderGuide(this.plugin, info, { overdue: 0 }); info.scrollTop = this.infoScroll; }
@@ -253,7 +254,7 @@ export class DailyPlannerView extends PlannerPane {
     });
     richText(col.createDiv("samaya-guide-text samaya-colhint"), "Press `Today` on a task, or drag it into today's list.");
     const add = col.createEl("input", { type: "text", cls: "samaya-add", attr: { placeholder: this.pickTab === "week" ? "+ Add weekly task" : "+ Add to backlog" } });
-    this.bindAdd(add, (): Record<string, string | number> => (this.pickTab === "week" ? { week: wk } : { horizon: "someday" }));
+    this.bindAdd(add, (): Record<string, string | number> => (this.pickTab === "week" ? { week: wk } : { horizon: "someday" }), this.pickTab === "week" ? "@week" : "@someday");
     const list = col.createDiv("samaya-leftover-list samaya-pick-list");
     if (this.pickTab === "week") {
       if (!tasks.length) list.createDiv({ cls: "samaya-empty", text: "Nothing planned for this week yet." });
@@ -267,17 +268,9 @@ export class DailyPlannerView extends PlannerPane {
     }
   }
 
-  /** "+ Add task" field: Enter creates the task with `extra` properties, then the lists refresh. Failures are shown instead of swallowed. */
-  private bindAdd(input: HTMLInputElement, extra: () => Record<string, string | number>) {
-    const s = this.plugin.settings;
-    input.addEventListener("keydown", e => {
-      if (e.key !== "Enter" || e.isComposing || !input.value.trim()) return;
-      const p = parseTitleEstimate(input.value); const props = { ...extra(), estimate: p.estimate ?? s.defaultEstimate };
-      input.value = "";
-      createTask(this.app, s, p.title, props)
-        .then(() => { window.setTimeout(() => this.schedule(), 250); }) // the metadata cache needs a moment to index the new note
-        .catch((err: unknown) => { console.error("Samaya: could not create task", err); new Notice(`Samaya: could not create the task (${err instanceof Error ? err.message : String(err)})`); });
-    });
+  /** "+ Add task" field: understands the quick-add line; `where` is what the place gives (shown in the field up front). */
+  private bindAdd(input: HTMLInputElement, extra: () => Record<string, string | number>, where: string) {
+    bindQuickAdd(this.plugin, input, extra, () => this.schedule(), where);
   }
 
   /** Check step: a verdict on the day, its numbers, one bar (meetings, planned work, the 80% buffer line) and what is left to fix. */

@@ -1,6 +1,6 @@
 // Keyboard-only "New task" dialog: one line with inline directives (see quickparse.ts), a live preview of what they mean
 // and completion for @ # ^ & (Up / Down to choose, Tab to accept, Enter to create).
-import { App, Modal, TFile, prepareFuzzySearch } from "obsidian";
+import { AbstractInputSuggest, App, Modal, Notice, TFile, prepareFuzzySearch } from "obsidian";
 import type SamayaPlugin from "./main";
 import type { SamayaSettings } from "./settings";
 import { allTickets, Ticket, createTask } from "./model";
@@ -10,7 +10,7 @@ import { HORIZONS, fmtDur, horizonTarget, parseYmd, today } from "./util";
 import { QuickTask, WHEN_WORDS, parseQuick, tokenAt } from "./quickparse";
 import { safe } from "./safe";
 
-const slug = (s: string): string => s.trim().replace(/\s+/g, "-");
+export const slug = (s: string): string => s.trim().replace(/\s+/g, "-");
 const unslug = (s: string): string => s.replace(/[-_]+/g, " ").trim();
 const dayLabel = (ymd: string): string => parseYmd(ymd).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
 
@@ -24,13 +24,21 @@ function best<T>(items: T[], text: (t: T) => string, query: string): T | null {
 export interface Resolved { title: string; fm: Record<string, string | number>; chips: string[]; errors: string[]; }
 
 /** Turn a parsed line into the properties of the new note, looking projects, tickets and meetings up in the vault. */
-export function resolveQuick(app: App, s: SamayaSettings, q: QuickTask): Resolved {
-  const errors = [...q.errors]; const chips: string[] = []; const fm: Record<string, string | number> = {};
+const WHEN_KEYS = ["planned", "week", "later", "horizon"];
+/** `base`: properties the place the task is added in already gives (a day, a position); a day typed in the line replaces its day / week / backlog keys. */
+export function resolveQuick(app: App, s: SamayaSettings, q: QuickTask, base: Record<string, string | number> | null = null): Resolved {
+  const errors = [...q.errors]; const chips: string[] = []; const fm: Record<string, string | number> = { ...base };
   const t0 = today();
-  const w = q.when ?? { day: t0 };
-  if ("day" in w) { fm.planned = w.day; chips.push(`📅 ${w.day === t0 ? "Today" : dayLabel(w.day)}`); }
-  else if ("week" in w) { fm.week = w.week; chips.push("📅 This week"); }
-  else { const tg = horizonTarget(w.horizon, t0); if (tg) fm.later = tg; fm.horizon = w.horizon; chips.push(`🗄 ${HORIZONS.find(h => h[0] === w.horizon)?.[1] ?? w.horizon}`); }
+  if (q.when || !base) {
+    for (const k of WHEN_KEYS) delete fm[k];
+    const w = q.when ?? { day: t0 };
+    if ("day" in w) fm.planned = w.day;
+    else if ("week" in w) fm.week = w.week;
+    else { const tg = horizonTarget(w.horizon, t0); if (tg) fm.later = tg; fm.horizon = w.horizon; }
+  }
+  if (typeof fm.planned === "string") chips.push(`📅 ${fm.planned === t0 ? "Today" : dayLabel(fm.planned)}`);
+  else if (fm.week) chips.push("📅 This week");
+  else if (fm.horizon) chips.push(`🗄 ${HORIZONS.find(h => h[0] === fm.horizon)?.[1] ?? fm.horizon}`);
   fm.estimate = q.estimate ?? s.defaultEstimate; chips.push(`⏱ ${fmtDur(fm.estimate)}`);
 
   let ticket: Ticket | null = null; let project: TFile | null = null;
@@ -45,7 +53,8 @@ export function resolveQuick(app: App, s: SamayaSettings, q: QuickTask): Resolve
   if (q.project !== undefined) {
     if (!s.projectsOn) errors.push("Projects are switched off");
     else {
-      const p = best(allProjects(app, s).filter(x => !x.done), x => projectLabel(x.name, x.usecase), q.project);
+      const open = allProjects(app, s).filter(x => !x.done);
+      const p = open.find(x => slug(x.name).toLowerCase() === q.project!.toLowerCase()) ?? best(open, x => projectLabel(x.name, x.usecase), q.project);
       if (p) project = p.file; else errors.push(`No project matches #${q.project}`);
     }
   }
@@ -61,7 +70,8 @@ export function resolveQuick(app: App, s: SamayaSettings, q: QuickTask): Resolve
 
   if (q.meeting !== undefined) {
     const ms = allMeetings(app, s).filter(m => !q.meetingDate || m.date === q.meetingDate);
-    const hits = ms.filter(m => best([m], x => x.title, q.meeting!)); // fuzzy matches; the one closest to today wins (a recurring meeting has many instances)
+    const exact = ms.filter(m => slug(m.title).toLowerCase() === q.meeting!.toLowerCase());
+    const hits = exact.length ? exact : ms.filter(m => best([m], x => x.title, q.meeting!)); // fuzzy matches; the one closest to today wins (a recurring meeting has many instances)
     const near = (d: string) => Math.abs(parseYmd(d).getTime() - parseYmd(t0).getTime());
     const m = hits.sort((a, b) => near(a.date) - near(b.date) || (a.start ?? 0) - (b.start ?? 0))[0];
     if (m) { fm.meeting = `[[${m.file.basename}]]`; chips.push(`& ${meetingLabel(m).trim()}`); } else errors.push(`No meeting matches &${q.meeting}`);
@@ -89,7 +99,7 @@ function optionsFor(app: App, s: SamayaSettings, prefix: string, query: string):
 export class QuickAddModal extends Modal {
   private input!: HTMLInputElement; private preview!: HTMLElement; private list!: HTMLElement;
   private opts: Option[] = []; private sel = -1; private navigated = false;
-  constructor(private plugin: SamayaPlugin, private label = "New task", private onDone?: () => void) { super(plugin.app); }
+  constructor(private plugin: SamayaPlugin, private label = "New task", private initial = "", private onDone?: () => void) { super(plugin.app); }
   onOpen() {
     const { contentEl } = this; contentEl.addClass("samaya-quickadd");
     contentEl.createEl("p", { text: this.label });
@@ -97,7 +107,7 @@ export class QuickAddModal extends Modal {
     this.list = contentEl.createDiv("samaya-quickadd-list");
     this.preview = contentEl.createDiv("samaya-quickadd-preview");
     contentEl.createDiv({ cls: "samaya-quickadd-help", text: "@ day or backlog (@tomorrow @fri @nextweek @someday) · # project · ^ ticket · & meeting · Tab completes · Enter creates" });
-    this.input.focus();
+    this.input.value = this.initial; this.input.focus();
     this.input.addEventListener("input", () => { this.navigated = false; this.refresh(); });
     this.input.addEventListener("click", () => this.refresh());
     this.input.addEventListener("keydown", e => this.onKey(e));
@@ -152,4 +162,43 @@ export class QuickAddModal extends Modal {
     safe(createTask(this.app, this.plugin.settings, r.title, r.fm).then(() => { this.plugin.bus.emit(); this.onDone?.(); }), "creating the task");
   }
   onClose() { this.contentEl.empty(); }
+}
+
+/** Completion popup for the directive being typed in an input (the inline "+ Add task" boxes). Enter picks a suggestion only while the word is unfinished. */
+class QuickSuggest extends AbstractInputSuggest<Option> {
+  constructor(private plugin: SamayaPlugin, private el: HTMLInputElement) { super(plugin.app, el); }
+  getSuggestions(): Option[] {
+    const v = this.el.value; const t = tokenAt(v, this.el.selectionStart ?? v.length); const s = this.plugin.settings;
+    if (!t || (t.prefix === "#" && !s.projectsOn) || (t.prefix === "^" && !s.ticketsOn)) return [];
+    const all = optionsFor(this.app, s, t.prefix, t.query);
+    return all.some(o => o.insert.toLowerCase() === `${t.prefix}${t.query}`.toLowerCase()) ? [] : all; // already complete: Enter creates the task
+  }
+  renderSuggestion(o: Option, el: HTMLElement) { el.createSpan({ text: o.label }); if (o.hint) el.createSpan({ cls: "samaya-quickadd-hint", text: ` ${o.hint}` }); }
+  selectSuggestion(o: Option) {
+    const v = this.el.value; const t = tokenAt(v, this.el.selectionStart ?? v.length); if (!t) return;
+    this.el.value = `${v.slice(0, t.start)}${o.insert} ${v.slice(t.end).replace(/^\s*/, "")}`;
+    const pos = t.start + o.insert.length + 1; this.el.setSelectionRange(pos, pos); this.el.dispatchEvent(new Event("input")); this.close();
+  }
+}
+
+/**
+ * Makes an "+ Add task" input understand the quick-add line. `directives` (e.g. "@week", "#website ^PROJ-1") are put in the field up front and
+ * come back after every task, so the place the box is in is visible and can be changed by editing it; `base` are the properties that place gives anyway.
+ */
+export function bindQuickAdd(plugin: SamayaPlugin, input: HTMLInputElement, base: () => Record<string, string | number>, done: () => void, directives = ""): void {
+  const pre = directives ? directives + " " : "";
+  const reset = () => { input.value = pre; };
+  reset(); new QuickSuggest(plugin, input);
+  input.addEventListener("keydown", e => {
+    if (e.key !== "Enter" || e.isComposing) return;
+    const typed = input.value; if (!typed.trim()) return;
+    const q = parseQuick(typed);
+    if (q.errors.length === 1 && q.errors[0] === "The task needs a title") return; // only the prefilled directives: nothing to add yet
+    const r = resolveQuick(plugin.app, plugin.settings, q, base());
+    if (r.errors.length) { new Notice(`Samaya: ${r.errors.join("; ")}`); input.addClass("is-invalid"); window.setTimeout(() => input.removeClass("is-invalid"), 600); return; }
+    reset();
+    createTask(plugin.app, plugin.settings, r.title, r.fm)
+      .then(() => { plugin.bus.emit(); window.setTimeout(done, 250); }) // the metadata cache needs a moment to index the new note
+      .catch((err: unknown) => { if (input.value === pre) input.value = typed; /* keep what was typed */ new Notice(`Samaya: could not create the task (${err instanceof Error ? err.message : String(err)})`); });
+  });
 }

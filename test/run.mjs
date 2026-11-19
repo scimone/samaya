@@ -42,7 +42,11 @@ const { renderTicketPath, renderTicketFileName, renderTicketNote, pathRoot: path
   assert.deepEqual(parseQuick("do dishes 25m", f), { title: "do dishes", estimate: 25, errors: [] });
   assert.deepEqual(parseQuick("Write report 1h30m @fri #web-site &PROJ-1 /standup", f), { title: "Write report", estimate: 90, when: { day: "2026-11-20" }, project: "web-site", ticket: "PROJ-1", meeting: "standup", meetingDate: undefined, errors: [] });
   assert.equal(parseQuick("@tomorrow call mom", f).title, "call mom"); assert.deepEqual(parseQuick("@tomorrow call mom", f).when, { day: "2026-11-19" });
-  assert.equal(parseQuick("read chapter #5 now", f).title, "read chapter #5 now"); // directives only at the ends
+  assert.equal(parseQuick("read chapter \\#5 now", f).title, "read chapter #5 now"); // escaped
+  assert.equal(parseQuick("wait 2h for call", f).estimate, undefined); // an estimate only counts at the end
+  { const r = parseQuick("buy milk @tomorrow #web (", f); assert.deepEqual([r.title, r.project, r.when], ["buy milk (", "web", { day: "2026-11-19" }]); }
+  { const r = parseQuick("call @fri 30m /", f); assert.deepEqual([r.title, r.estimate, r.when], ["call /", 30, { day: "2026-11-20" }]); }
+  assert.equal(parseQuick("a @week b #p c", f).title, "a b c");
   assert.equal(parseQuick("fix \\#5 @today", f).title, "fix #5");
   assert.equal(parseQuick("a / b (x) [y]", f).title, "a / b (x) [y]"); assert.equal(parseQuick("read ^x", f).title, "read ^x");
   assert.equal(parseQuick("@today", f).errors[0], "The task needs a title");

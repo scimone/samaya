@@ -8,7 +8,7 @@
 //   @nextweek @month @quarter @year @someday @never  parked in the backlog
 //   #project   &ticket-key   /meeting               links (names are matched loosely; "-" stands for a space)
 //
-// Directives are read from the start and from the end of the line, so the title is what is left in the middle.
+// Directives can stand anywhere in the line (the estimate only at its end); the title is what is left.
 // A directive that should stay part of the title is written with a backslash: \#5
 import { Horizon, addDays, isHorizon, parseYmd, startOfWeek, today } from "./util";
 
@@ -57,18 +57,19 @@ function kindOf(t: string): Kind | null {
 export function parseQuick(raw: string, from = today()): QuickTask {
   const out: QuickTask = { title: "", errors: [] };
   const toks = raw.trim().split(/\s+/).filter(Boolean);
-  let i = 0, j = toks.length;
-  while (i < j && kindOf(toks[i]) && kindOf(toks[i]) !== "dur") i++; // leading directives (not a duration: "30 minutes" may start a title)
-  while (j > i && kindOf(toks[j - 1])) j--;                           // trailing directives and the estimate
-  const used = [...toks.slice(0, i), ...toks.slice(j)];
-  for (const t of used) {
+  const used = toks.map(t => { const k = kindOf(t); return k !== null && k !== "dur"; }); // @ # & / words count wherever they stand
+  const bare = (t: string) => !/[\p{L}\p{N}]/u.test(t); // a lone ( or / being typed: it neither is a directive nor ends the search for the estimate
+  for (let j = toks.length - 1; j >= 0; j--) { // the estimate: at the end, behind any directives and loose signs
+    if (kindOf(toks[j]) === "dur") used[j] = true; else if (!used[j] && !bare(toks[j])) break;
+  }
+  for (const t of toks.filter((_, i) => used[i])) {
     const k = kindOf(t)!; const v = t.slice(1);
     if (k === "dur") { out.estimate = durationToken(t)!; continue; }
     if (k === "when") { const w = whenToken(v, from); if (w) out.when = w; else out.errors.push(`Unknown date "${t}"`); continue; }
     if (k === "meeting") { const m = v.match(/^(.*?):(\d{4}-\d{2}-\d{2})$/); out.meeting = m ? m[1] : v; out.meetingDate = m?.[2]; continue; }
     out[k] = v;
   }
-  out.title = toks.slice(i, j).map(t => t.replace(/^\\(?=[@#&/])/, "")).join(" ");
+  out.title = toks.filter((_, i) => !used[i]).map(t => t.replace(/^\\(?=[@#&/])/, "")).join(" ");
   if (!out.title) out.errors.push("The task needs a title");
   return out;
 }

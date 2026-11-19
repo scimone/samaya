@@ -1793,3 +1793,6 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-quickadd-legend-what { color: var(--text-normal); font-size: var(--font-ui-small); }
 .samaya-quickadd-legend-row .samaya-quickadd-hint { overflow: hidden; text-overflow: ellipsis; }
 .samaya-quickadd-legend-foot { margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--background-modifier-border); color: var(--text-faint); font-size: var(--font-ui-smaller); }
+.samaya-quickadd-inline:empty { display: none; }
+.samaya-quickadd-inline { margin: 0 0 8px; }
+.samaya-quickadd-inline .samaya-quickadd-card { margin-top: 0; opacity: .9; outline: 1px dashed var(--background-modifier-border); }

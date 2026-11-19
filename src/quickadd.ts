@@ -79,7 +79,7 @@ export function resolveQuick(app: App, s: SamayaSettings, q: QuickTask, base: Re
     const hits = exact.length ? exact : ms.filter(m => best([m], x => x.title, q.meeting!)); // fuzzy matches; the one closest to today wins (a recurring meeting has many instances)
     const near = (d: string) => Math.abs(parseYmd(d).getTime() - parseYmd(t0).getTime());
     const m = hits.sort((a, b) => near(a.date) - near(b.date) || (a.start ?? 0) - (b.start ?? 0))[0];
-    if (m) { fm.meeting = `[[${m.file.basename}]]`; meeting = { file: m.file, title: m.title }; pills.push(`/${meetingLabel(m).split("  ")[0].trim()}`); } else errors.push(`No meeting matches /${q.meeting}`);
+    if (m) { fm.meeting = `[[${m.file.basename}]]`; meeting = { file: m.file, title: m.title }; } else errors.push(`No meeting matches /${q.meeting}`);
   }
   return { title: q.title, fm, errors, ticket, project, meeting, pills };
 }
@@ -230,10 +230,22 @@ class QuickSuggest extends AbstractInputSuggest<Option> {
 export function bindQuickAdd(plugin: SamayaPlugin, input: HTMLInputElement, base: () => Record<string, string | number>, done: () => void, directives = ""): void {
   const pre = directives ? directives + " " : "";
   // the field shows its own placeholder; the directives of the place appear when it is clicked into (and go again when left alone)
-  const reset = () => { input.value = document.activeElement === input ? pre : ""; };
+  const reset = () => { input.value = document.activeElement === input ? pre : ""; show(); };
   new QuickSuggest(plugin, input);
+  // a virtual task card under the field shows what Enter will create
+  const box = document.createElement("div"); box.className = "samaya-quickadd-inline"; input.after(box);
+  const show = () => {
+    box.replaceChildren(); const v = input.value; if (!v.trim()) return;
+    const q = parseQuick(v); if (!q.title) return; // only the place's own directives so far
+    let r: Resolved;
+    try { r = resolveQuick(plugin.app, plugin.settings, q, base()); }
+    catch (e) { console.warn("Samaya: quick add preview failed", e); return; }
+    try { renderTaskPreview(plugin, box, r); } catch (e) { console.warn("Samaya: quick add card failed", e); return; }
+    for (const er of r.errors) box.createDiv({ cls: "samaya-quickadd-error", text: er });
+  };
+  input.addEventListener("input", show);
   input.addEventListener("focus", () => { if (pre && !input.value) { input.value = pre; input.setSelectionRange(pre.length, pre.length); input.dispatchEvent(new Event("input")); } });
-  input.addEventListener("blur", () => { if (input.value.trim() === directives.trim()) input.value = ""; });
+  input.addEventListener("blur", () => { if (input.value.trim() === directives.trim()) { input.value = ""; show(); } });
   input.addEventListener("keydown", e => {
     if (e.key !== "Enter" || e.isComposing) return;
     const typed = input.value; if (!typed.trim()) return;

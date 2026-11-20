@@ -5,7 +5,7 @@ import type { TFile } from "obsidian";
 import { allMeetings, meetingLabel } from "./links";
 import { Project, allProjects, createProject, projectLabel, projectPathOf, readProject } from "./projects";
 import { SOURCE_NAMES, Task, Ticket, allTasks, allTickets } from "./model";
-import { Break, BreakKind } from "./worktime";
+import { Break, BreakKind, Extra } from "./worktime";
 import { Notice } from "obsidian";
 import { HORIZONS, Horizon, fmtDur, hmToMin, parseDuration } from "./util";
 
@@ -224,5 +224,32 @@ export class EditBreaksModal extends Modal {
     const bad = this.rows.find(b => hmToMin(b.end) <= hmToMin(b.start));
     if (bad) { new Notice(`Samaya: a break must end after it starts (${bad.start}-${bad.end}).`); return; }
     this.close(); await this.plugin.workday.setBreaks(this.date, this.rows);
+  }
+}
+
+/** Log work outside the workday (evening, weekend). It counts as work time on top of the day, independent of its start and end. */
+export class EditExtraModal extends Modal {
+  private rows: Extra[];
+  constructor(private plugin: SamayaPlugin, private date: string, extra: Extra[]) { super(plugin.app); this.rows = extra.map(e => ({ ...e })); }
+  onOpen() { this.titleEl.setText(`Extra work time on ${this.date}`); this.render(); }
+  private render() {
+    const c = this.contentEl; c.empty();
+    c.createEl("p", { cls: "samaya-dash-note", text: "Work done outside the workday, e.g. in the evening or at the weekend. Counts as work time, independent of the day's start and end." });
+    const list = c.createDiv("samaya-brk-list");
+    if (!this.rows.length) list.createDiv({ cls: "samaya-dash-note", text: "No extra work logged." });
+    this.rows.forEach((e, i) => {
+      const row = list.createDiv("samaya-brk-row");
+      const t = (v: string, set: (v: string) => void) => { const el = row.createEl("input", { type: "time" }); el.value = v; el.onchange = () => { if (el.value) set(el.value); }; };
+      t(e.start, v => { e.start = v; }); row.createSpan({ text: "–" }); t(e.end, v => { e.end = v; });
+      row.createEl("button", { text: "✕", attr: { "aria-label": "Remove this entry" } }).onclick = () => { this.rows.splice(i, 1); this.render(); };
+    });
+    const nav = c.createDiv("samaya-ritual-nav");
+    nav.createEl("button", { text: "Add time" }).onclick = () => { this.rows.push({ start: "19:00", end: "20:00" }); this.render(); };
+    nav.createEl("button", { text: "Save", cls: "mod-cta" }).onclick = () => void this.save();
+  }
+  private async save() {
+    const bad = this.rows.find(e => hmToMin(e.end) <= hmToMin(e.start));
+    if (bad) { new Notice(`Samaya: an entry must end after it starts (${bad.start}-${bad.end}).`); return; }
+    this.close(); await this.plugin.workday.setExtra(this.date, this.rows);
   }
 }

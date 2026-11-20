@@ -3,11 +3,24 @@ import { addDays, hmToMin, minToHm, parseYmd, startOfWeek, ymd } from "./util";
 
 export type BreakKind = "lunch" | "break";
 export interface Break { start: string; end: string; kind: BreakKind; }
+/** Work logged outside the workday (evening, weekend): counts as work time on top, independent of the day's start/end. */
+export interface Extra { start: string; end: string; }
+export const fmtExtra = (e: Extra): string => `${e.start}-${e.end}`;
+export function parseExtra(raw: unknown): Extra | null {
+  const m = String(raw).match(/^\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})\s*$/);
+  return m ? { start: minToHm(hmToMin(m[1])), end: minToHm(hmToMin(m[2])) } : null;
+}
+/** Minutes of extra work on a day (overlapping entries count once). */
+export const extraMinutes = (log: { extra?: Extra[] } | null): number => unionMinutes((log?.extra ?? []).map((e): [number, number] => [hmToMin(e.start), hmToMin(e.end)]));
+/** A day that counts as logged and finished: start and end, or only extra work (no workday at all). */
+export const isDone = (l: DayLog): boolean => !!(l.start && l.end) || (!l.start && !!l.extra?.length);
+
 export interface DayLog {
   date: string; start: string | null; end: string | null; breaks: Break[];
   open: { start: string; kind: BreakKind } | null;
   /** last time we saw activity (HH:mm); used to close a day the user forgot to end */ seen?: string;
   endAuto?: boolean;
+  /** work outside the workday */ extra?: Extra[];
 }
 
 export const fmtBreak = (b: Break): string => `${b.start}-${b.end}${b.kind !== "break" ? " " + b.kind : ""}`;
@@ -38,7 +51,8 @@ export function workedSince(from: number, now: number, lunch: [number, number], 
 export interface DayRules { from: number; lunch: [number, number]; }
 export type RulesFor = (date: string) => DayRules;
 /** Time worked on a logged day. With `rules`: from the start line to the end (or `nowMin`), minus the breaks and the lunch, overlaps once. Without: the logged start minus the logged breaks. */
-export function workedOn(log: DayLog | null, nowMin: number, rules?: RulesFor): number {
+export function workedOn(log: DayLog | null, nowMin: number, rules?: RulesFor): number { return workedMain(log, nowMin, rules) + extraMinutes(log); }
+function workedMain(log: DayLog | null, nowMin: number, rules?: RulesFor): number {
   if (!rules) return workedMinutes(log, nowMin);
   if (!log || !log.start) return 0;
   const end = log.end ? hmToMin(log.end) : nowMin; const r = rules(log.date);
@@ -85,7 +99,7 @@ export function weekSummary(logs: DayLog[], weekStart: string, weeklyHours: numb
   const byDate = new Map(logs.map(l => [l.date, l])); const rows: WeekRow[] = [];
   for (let i = 0; i < 7; i++) {
     const date = addDays(weekStart, i); const log = byDate.get(date) ?? null;
-    const target = dailyTarget(weeklyHours, workdays, date); const live = date === today && !!log && !log.end;
+    const target = dailyTarget(weeklyHours, workdays, date); const live = date === today && !!log && !!log.start && !log.end;
     const worked = workedOn(log, date === today ? nowMin : 1440, rules);
     rows.push({ date, log, worked, target, delta: log && !live ? worked - target : null, isToday: date === today });
   }
@@ -93,7 +107,7 @@ export function weekSummary(logs: DayLog[], weekStart: string, weeklyHours: numb
 }
 /** Running overtime balance over all finished days. */
 export function totalBalance(logs: DayLog[], weeklyHours: number, workdays: number, rules?: RulesFor): number {
-  return logs.filter(l => l.start && l.end).reduce((a, l) => a + workedOn(l, 1440, rules) - dailyTarget(weeklyHours, workdays, l.date), 0);
+  return logs.filter(isDone).reduce((a, l) => a + workedOn(l, 1440, rules) - dailyTarget(weeklyHours, workdays, l.date), 0);
 }
 export function fmtSigned(min: number): string {
   const sign = min < 0 ? "-" : "+"; const m = Math.abs(Math.round(min));
@@ -116,12 +130,12 @@ export function periodRange(kind: PeriodKind, date: string): { from: string; to:
 export interface PeriodStats { days: number; avgStart: string | null; avgEnd: string | null; worked: number; avgWorked: number; target: number; balance: number; }
 /** Aggregates over the finished days (start and end logged) between from and to: averages, totals and overtime (worked - required). */
 export function periodStats(logs: DayLog[], from: string, to: string, weeklyHours: number, workdays: number, rules?: RulesFor): PeriodStats {
-  const done = logs.filter(l => l.start && l.end && l.date >= from && l.date <= to);
+  const done = logs.filter(l => isDone(l) && l.date >= from && l.date <= to); const timed = done.filter(l => l.start && l.end);
   const n = done.length; if (!n) return { days: 0, avgStart: null, avgEnd: null, worked: 0, avgWorked: 0, target: 0, balance: 0 };
   const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
   const worked = done.reduce((a, l) => a + workedOn(l, 1440, rules), 0);
   const target = done.reduce((a, l) => a + dailyTarget(weeklyHours, workdays, l.date), 0);
-  return { days: n, avgStart: minToHm(mean(done.map(l => hmToMin(l.start!)))), avgEnd: minToHm(mean(done.map(l => hmToMin(l.end!)))), worked, avgWorked: worked / n, target, balance: worked - target };
+  return { days: n, avgStart: timed.length ? minToHm(mean(timed.map(l => hmToMin(l.start!)))) : null, avgEnd: timed.length ? minToHm(mean(timed.map(l => hmToMin(l.end!)))) : null, worked, avgWorked: worked / n, target, balance: worked - target };
 }
 
 /** Dates (YYYY-MM-DD) covered by all-day events whose title contains `keyword` (case-insensitive; empty keyword = none). The event's end is exclusive. */
@@ -139,7 +153,7 @@ export function weekAverageWorked(logs: DayLog[], weekStart: string, workdays: n
   const mins: number[] = [];
   for (let i = 0; i < Math.max(1, Math.min(7, Math.round(workdays))); i++) {
     const date = addDays(weekStart, i); if (vacation.has(date)) continue;
-    const l = logs.find(x => x.date === date); if (l && l.start && l.end) mins.push(workedOn(l, 1440, rules));
+    const l = logs.find(x => x.date === date); if (l && isDone(l)) mins.push(workedOn(l, 1440, rules));
   }
   return mins.length ? { avg: mins.reduce((a, b) => a + b, 0) / mins.length, days: mins.length } : null;
 }

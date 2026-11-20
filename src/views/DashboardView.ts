@@ -1,9 +1,9 @@
 import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { addDays, fmtDur, parseYmd, startOfWeek, today } from "../util";
-import { EditBreaksModal } from "../modals";
+import { EditBreaksModal, EditExtraModal } from "../modals";
 import { nowMin } from "../workday";
-import { DayLog, breakMinutes, fmtSigned, totalBalance, weekSummary } from "../worktime";
+import { DayLog, breakMinutes, extraMinutes, fmtSigned, totalBalance, weekSummary } from "../worktime";
 
 export const DASHBOARD_VIEW_TYPE = "samaya-dashboard";
 
@@ -44,7 +44,7 @@ export class DashboardPanel {
     const maxMin = Math.max(600, ...wk.rows.map(r => Math.max(r.worked, r.target)));
     const table = c.createDiv("samaya-dash-table");
     const hdr = table.createDiv("samaya-dash-row is-head");
-    ["Day", "Start", "End", "Breaks", "Worked", "Target", "+/-"].forEach(h => hdr.createSpan({ text: h }));
+    ["Day", "Start", "End", "Breaks", "Extra", "Worked", "Target", "+/-"].forEach(h => hdr.createSpan({ text: h }));
     hdr.createSpan({ text: "" });
     wk.rows.forEach(r => {
       const row = table.createDiv("samaya-dash-row" + (r.isToday ? " is-today" : "") + (!r.log && !r.target ? " is-off" : ""));
@@ -52,12 +52,16 @@ export class DashboardPanel {
       row.createSpan({ text: r.log?.start ?? "–" });
       row.createSpan({ text: r.log?.end ? r.log.end + (r.log.endAuto ? " (auto)" : "") : r.log?.start ? "…" : "–" });
       const br = r.log ? breakMinutes(r.log) : 0;
-      const brCell = row.createSpan({ cls: r.log ? "samaya-dash-breaks" : "", text: r.log ? fmtDur(br) : "–" });
-      if (r.log) {
+      const brCell = row.createSpan({ cls: r.log ? "samaya-dash-breaks" : "", text: r.log?.start ? fmtDur(br) : "–" });
+      if (r.log?.start) {
         const log = r.log; brCell.setAttr("aria-label", (log.breaks.map(b => `${b.start}-${b.end} ${b.kind}`).join("\n") || "No breaks") + "\nClick to edit");
         brCell.onclick = () => new EditBreaksModal(this.plugin, r.date, log.breaks, log.open).open();
         setIcon(brCell.createSpan("samaya-dash-edit"), "pencil");
       }
+      const ex = r.log ? extraMinutes(r.log) : 0; const exCell = row.createSpan({ cls: "samaya-dash-breaks", text: ex ? fmtDur(ex) : "–" });
+      exCell.setAttr("aria-label", (r.log?.extra?.map(e => `${e.start}-${e.end}`).join("\n") || "No extra work") + "\nClick to log work outside the workday");
+      exCell.onclick = () => new EditExtraModal(this.plugin, r.date, r.log?.extra ?? []).open();
+      setIcon(exCell.createSpan("samaya-dash-edit"), ex ? "pencil" : "plus");
       row.createSpan({ cls: "samaya-dash-worked", text: r.log ? fmtDur(r.worked) : "–" });
       row.createSpan({ text: r.target ? fmtDur(r.target) : "–" });
       row.createSpan({ cls: r.delta === null ? "" : r.delta < 0 ? "is-neg" : "is-pos", text: r.delta === null ? (r.log ? "live" : "") : fmtSigned(r.delta) });

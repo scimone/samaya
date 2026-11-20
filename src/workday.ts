@@ -1,7 +1,7 @@
 import { App, Notice } from "obsidian";
 import type SamayaPlugin from "./main";
 import { journalWants, setJournalProps } from "./journal";
-import { Break, BreakKind, DayLog, autoLunch, breakMinutes, fmtBreak, parseBreak, workedOn } from "./worktime";
+import { Break, BreakKind, DayLog, Extra, autoLunch, fmtExtra, parseExtra, breakMinutes, fmtBreak, parseBreak, workedOn } from "./worktime";
 import { fmtDur, hmToMin, minToHm, today } from "./util";
 
 export const nowHm = (): string => { const d = new Date(); return minToHm(d.getHours() * 60 + d.getMinutes()); };
@@ -12,10 +12,11 @@ export function readLogs(app: App): DayLog[] {
   const out: DayLog[] = [];
   for (const f of app.vault.getMarkdownFiles()) {
     const fm = app.metadataCache.getFileCache(f)?.frontmatter as Record<string, unknown> | undefined;
-    if (!fm || !fm.work_start || !fm.date) continue;
+    if (!fm || !fm.date || (!fm.work_start && !fm.extra_work)) continue;
     const date = String(fm.date).slice(0, 10);
+    const rawExtra = Array.isArray(fm.extra_work) ? fm.extra_work : fm.extra_work ? [fm.extra_work] : [];
     const raw = Array.isArray(fm.breaks) ? fm.breaks : fm.breaks ? [fm.breaks] : [];
-    out.push({ date, start: String(fm.work_start), end: fm.work_end ? String(fm.work_end) : null, endAuto: fm.work_end_auto === true,
+    out.push({ date, start: fm.work_start ? String(fm.work_start) : null, extra: rawExtra.map(parseExtra).filter((e): e is Extra => !!e), end: fm.work_end ? String(fm.work_end) : null, endAuto: fm.work_end_auto === true,
       breaks: raw.map(parseBreak).filter((b): b is Break => !!b), open: null });
   }
   return out;
@@ -26,15 +27,18 @@ export class WorkdayManager {
   constructor(private plugin: SamayaPlugin) {}
   private get s() { return this.plugin.settings; }
 
+  /** The extra work logged on a date (kept in that day's daily note). */
+  extraOf(date: string): Extra[] { return readLogs(this.plugin.app).find(l => l.date === date)?.extra ?? []; }
+
   /** All logged days from the daily notes; today's live state wins. */
   allLogs(): DayLog[] {
-    const logs = readLogs(this.plugin.app).filter(l => l.date !== this.log?.date);
-    if (this.log?.start) logs.push(this.log);
+    const notes = readLogs(this.plugin.app); const logs = notes.filter(l => l.date !== this.log?.date);
+    if (this.log?.start) logs.push({ ...this.log, extra: notes.find(l => l.date === this.log!.date)?.extra ?? [] });
     return logs;
   }
   get started(): boolean { return !!this.log?.start && !this.log.end; }
   get onBreak(): boolean { return !!this.log?.open; }
-  worked(): number { return workedOn(this.log, nowMin(), this.plugin.dayRules); }
+  worked(): number { return workedOn(this.log && { ...this.log, extra: this.extraOf(this.log.date) }, nowMin(), this.plugin.dayRules); }
 
   init(saved: DayLog | null) {
     this.log = saved;
@@ -75,7 +79,7 @@ export class WorkdayManager {
 
   private async persist() { this.plugin.data.workday = this.log; await this.plugin.saveData(this.plugin.data); }
   private async writeProps(l: DayLog) {
-    const worked = workedOn(l, nowMin(), this.plugin.dayRules);
+    const worked = workedOn({ ...l, extra: this.extraOf(l.date) }, nowMin(), this.plugin.dayRules);
     const s = this.s; const patch: Record<string, string | number | boolean | string[] | null> = {};
     if (journalWants(s, "journalWorkTimes")) Object.assign(patch, { work_start: l.start, work_end: l.end, work_end_auto: l.endAuto ? true : null });
     if (journalWants(s, "journalBreaks")) Object.assign(patch, {
@@ -117,6 +121,17 @@ export class WorkdayManager {
     l.breaks = breaks;
     const patch: Record<string, string | number | boolean | string[] | null> = { breaks: breaks.map(fmtBreak), break_minutes: breakMinutes(l) || null };
     if (l.end && journalWants(this.s, "journalTracked")) patch.work_minutes = workedOn(l, 1440, this.plugin.dayRules);
+    await setJournalProps(this.plugin.app, this.s, date, { date, ...patch });
+    this.plugin.bus.emit();
+  }
+  /** Replace the extra work of a day (after the workday ended, weekends): it counts as work time independent of the workday's start and end. */
+  async setExtra(date: string, extra: Extra[]) {
+    if (!this.s.journalOn) { new Notice("Samaya: turn on the journal to log extra work time (it is kept in the daily note)."); return; }
+    extra = extra.slice().sort((a, b) => hmToMin(a.start) - hmToMin(b.start));
+    const base = this.log?.date === date ? this.log : readLogs(this.plugin.app).find(x => x.date === date) ?? null;
+    const l: DayLog | null = base ? { ...base, extra } : extra.length ? { date, start: null, end: null, breaks: [], open: null, extra } : null;
+    const patch: Record<string, string | number | boolean | string[] | null> = { extra_work: extra.length ? extra.map(fmtExtra) : null };
+    if (journalWants(this.s, "journalTracked") && (!l || !l.start || l.end)) patch.work_minutes = l && (l.end || extra.length) ? workedOn(l, 1440, this.plugin.dayRules) || null : null;
     await setJournalProps(this.plugin.app, this.s, date, { date, ...patch });
     this.plugin.bus.emit();
   }

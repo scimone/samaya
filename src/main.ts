@@ -14,7 +14,7 @@ import { setColorPersist } from "./itemcolor";
 import { ensureColors } from "./colormigrate";
 import { TODAY_VIEW_TYPE, TodayView } from "./views/TodayView";
 import { QuickAddModal, slug } from "./quickadd";
-import { MeetingSuggestModal, ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "./modals";
+import { EditExtraModal, MeetingSuggestModal, ProjectSuggestModal, TextPromptModal, TicketSuggestModal } from "./modals";
 import type { Period } from "./journal";
 import { renderJournalBar } from "./views/journalBar";
 import { PERIODIC_KINDS, identifyNote, invalidatePeriodNotes, listPeriodNotes, neighbours, openPeriodNote, periodNotePath } from "./journal";
@@ -109,6 +109,7 @@ export default class SamayaPlugin extends Plugin {
     this.addCommand({ id: "plan-day", name: "Plan my day (guided)", callback: () => this.startGuide() });
     this.addCommand({ id: "start-day", name: "Start workday now", callback: () => this.workday.startDay() });
     this.addCommand({ id: "start-break", name: "Start break", callback: () => this.workday.startBreak() });
+    this.addCommand({ id: "log-extra-work", name: "Log extra work time (outside the workday)", callback: () => new EditExtraModal(this, today(), this.workday.extraOf(today())).open() });
     this.addCommand({ id: "end-break", name: "End break (back to work)", callback: () => this.workday.endBreak() });
     this.addCommand({ id: "dashboard", name: "Open work time dashboard", callback: () => this.openDashboard() });
     this.addCommand({ id: "shutdown", name: "Start shutdown ritual", callback: () => this.startShutdown() });

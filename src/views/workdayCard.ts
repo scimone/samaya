@@ -2,7 +2,7 @@ import type SamayaPlugin from "../main";
 import { fmtDur, hmToMin, minToHm, today } from "../util";
 import { safe } from "../safe";
 import { nowMin } from "../workday";
-import { breakMinutes, fmtSigned, workedSince } from "../worktime";
+import { breakMinutes, extraMinutes, fmtSigned, workedSince } from "../worktime";
 
 /** Workday status with actions: a minimal one-liner, or (`panel`) a card with the time worked in large type. Repaints itself until removed from the DOM. */
 export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { compact?: boolean; panel?: boolean; /** heading pieces: just the status chip, or just the buttons */ part?: "status" | "actions"; /** status chip of a past week: the average work time per working day instead of a live status */ average?: { avg: number; days: number } | null; /** another day than today: a read-only summary from its log */ date?: string } = {}) {
@@ -26,9 +26,10 @@ export function renderWorkdayCard(plugin: SamayaPlugin, host: HTMLElement, o: { 
     if (o.average !== undefined) { // a past week: the average, never the live status
       state = "Ø per day"; if (o.average) { big = fmtDur(Math.round(o.average.avg)); sub = `Average work time over ${o.average.days} working day${o.average.days === 1 ? "" : "s"} (weekends and vacation left out)`; } else sub = "No work time logged this week.";
     } else if (other) { // a past or future day: just what was logged
-      if (!l || !l.start) { state = "Workday"; sub = o.date! > today() ? "Not started yet." : "No work time logged."; }
+      if (l && !l.start && extraMinutes(l)) { state = "Worked"; big = fmtDur(extraMinutes(l)); sub = "Extra work outside a workday"; }
+      else if (!l || !l.start) { state = "Workday"; sub = o.date! > today() ? "Not started yet." : "No work time logged."; }
       else {
-        const end = l.end ?? l.seen ?? null; const worked = end ? workedTo(hmToMin(end)) : 0;
+        const end = l.end ?? l.seen ?? null; const worked = (end ? workedTo(hmToMin(end)) : 0) + extraMinutes(l);
         state = "Worked"; big = fmtDur(worked);
         sub = `${l.start}–${l.end ?? (end ? end + "?" : "…")}` + (breakMinutes(l) ? ` · ${fmtDur(breakMinutes(l))} break` : "") + (target ? ` · ${fmtSigned(worked - target)}` : "");
       }

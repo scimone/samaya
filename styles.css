@@ -183,7 +183,7 @@ body {
 .samaya-dash-tile-value { font-size: 2em; font-weight: 700; font-variant-numeric: tabular-nums; }
 .samaya-dash-tile-sub { font-size: var(--font-ui-smaller); color: var(--text-faint); }
 .is-pos { color: var(--samaya-green); } .is-neg { color: var(--text-error); }
-.samaya-dash-row { display: grid; grid-template-columns: 1fr 0.7fr 1fr 0.8fr 0.8fr 0.8fr 0.7fr 1.8fr; gap: 8px; align-items: center; padding: 8px 6px; border-bottom: 1px solid var(--background-modifier-border); font-variant-numeric: tabular-nums; }
+.samaya-dash-row { display: grid; grid-template-columns: 1fr 0.7fr 1fr 0.8fr 0.8fr 0.8fr 0.8fr 0.7fr 1.6fr; gap: 8px; align-items: center; padding: 8px 6px; border-bottom: 1px solid var(--background-modifier-border); font-variant-numeric: tabular-nums; }
 .samaya-dash-row.is-head { font-size: var(--font-ui-smaller); color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.06em; }
 .samaya-dash-row.is-today { background: color-mix(in srgb, var(--interactive-accent) 8%, transparent); border-radius: var(--samaya-r-m); }
 .samaya-dash-row.is-off { opacity: 0.45; }

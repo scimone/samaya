@@ -140,6 +140,15 @@ assert.deepEqual(cap, { total: 360, lunch: 60, meetings: 90 + 20, free: 360 - 60
 assert.deepEqual(W.autoLunch({ ...log, breaks: [] }, [720, 780]), { start: "12:00", end: "13:00", kind: "lunch" });
 assert.equal(W.autoLunch(log, [720, 780]), null);
 assert.equal(W.autoLunch({ ...log, start: "13:30", breaks: [] }, [720, 780]), null);
+{ // extra work outside the workday
+  assert.deepEqual(W.parseExtra("19:00-20:30"), { start: "19:00", end: "20:30" }); assert.equal(W.parseExtra("x"), null);
+  const only = { date: "2026-11-07", start: null, end: null, breaks: [], open: null, extra: [{ start: "10:00", end: "11:00" }, { start: "10:30", end: "11:30" }] };
+  assert.equal(W.workedOn(only, 1440), 90); assert.equal(W.isDone(only), true);
+  assert.equal(W.workedOn({ ...log, extra: [{ start: "19:00", end: "20:00" }] }, 1440), 8 * 60 + 30 - 55 + 60);
+  assert.equal(W.totalBalance([only], 40, 5), 90); // weekend: no target, all of it is overtime
+  const wk2 = W.weekSummary([only], "2026-11-02", 40, 5, "2026-11-09", 0); assert.equal(wk2.rows[5].worked, 90); assert.equal(wk2.rows[5].delta, 90);
+  assert.equal(W.periodStats([only], "2026-11-01", "2026-11-30", 40, 5).avgStart, null);
+}
 const logs = [log, { date: "2026-11-04", start: "09:00", end: "18:00", breaks: [{ start: "12:00", end: "13:00", kind: "lunch" }], open: null }, { date: "2026-11-05", start: "09:00", end: null, breaks: [], open: null }];
 const wk = W.weekSummary(logs, "2026-11-02", 40, 5, "2026-11-05", 10 * 60);
 assert.equal(wk.rows[1].delta, 8 * 60 + 30 - 55 - 480); assert.equal(wk.rows[2].delta, 0); assert.equal(wk.rows[3].delta, null); assert.equal(wk.rows[3].worked, 60);

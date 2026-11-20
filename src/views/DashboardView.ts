@@ -1,6 +1,7 @@
 import { ItemView, WorkspaceLeaf, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { addDays, fmtDur, parseYmd, startOfWeek, today } from "../util";
+import { EditBreaksModal } from "../modals";
 import { nowMin } from "../workday";
 import { DayLog, breakMinutes, fmtSigned, totalBalance, weekSummary } from "../worktime";
 
@@ -51,7 +52,12 @@ export class DashboardPanel {
       row.createSpan({ text: r.log?.start ?? "–" });
       row.createSpan({ text: r.log?.end ? r.log.end + (r.log.endAuto ? " (auto)" : "") : r.log?.start ? "…" : "–" });
       const br = r.log ? breakMinutes(r.log) : 0;
-      row.createSpan({ text: r.log ? fmtDur(br) : "–", attr: { title: r.log?.breaks.map(b => `${b.start}-${b.end} ${b.kind}`).join("\n") ?? "" } });
+      const brCell = row.createSpan({ cls: r.log ? "samaya-dash-breaks" : "", text: r.log ? fmtDur(br) : "–" });
+      if (r.log) {
+        const log = r.log; brCell.setAttr("aria-label", (log.breaks.map(b => `${b.start}-${b.end} ${b.kind}`).join("\n") || "No breaks") + "\nClick to edit");
+        brCell.onclick = () => new EditBreaksModal(this.plugin, r.date, log.breaks, log.open).open();
+        setIcon(brCell.createSpan("samaya-dash-edit"), "pencil");
+      }
       row.createSpan({ cls: "samaya-dash-worked", text: r.log ? fmtDur(r.worked) : "–" });
       row.createSpan({ text: r.target ? fmtDur(r.target) : "–" });
       row.createSpan({ cls: r.delta === null ? "" : r.delta < 0 ? "is-neg" : "is-pos", text: r.delta === null ? (r.log ? "live" : "") : fmtSigned(r.delta) });
@@ -59,7 +65,7 @@ export class DashboardPanel {
       if (r.target) bar.createDiv("samaya-dash-bar-target").style.left = `${(r.target / maxMin) * 100}%`;
       const fill = bar.createDiv("samaya-dash-bar-fill"); fill.style.width = `${(r.worked / maxMin) * 100}%`; fill.toggleClass("is-over", r.target > 0 && r.worked > r.target);
     });
-    c.createDiv({ cls: "samaya-dash-note", text: "Times come from the work_start, work_end and breaks properties of your daily notes - edit them there to correct a day." });
+    c.createDiv({ cls: "samaya-dash-note", text: "Times come from the work_start, work_end and breaks properties of your daily notes - click a day's breaks to correct them, or edit the properties there." });
   }
 }
 

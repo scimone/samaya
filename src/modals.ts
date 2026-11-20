@@ -5,7 +5,9 @@ import type { TFile } from "obsidian";
 import { allMeetings, meetingLabel } from "./links";
 import { Project, allProjects, createProject, projectLabel, projectPathOf, readProject } from "./projects";
 import { SOURCE_NAMES, Task, Ticket, allTasks, allTickets } from "./model";
-import { HORIZONS, Horizon, fmtDur, parseDuration } from "./util";
+import { Break, BreakKind } from "./worktime";
+import { Notice } from "obsidian";
+import { HORIZONS, Horizon, fmtDur, hmToMin, parseDuration } from "./util";
 
 export class TextPromptModal extends Modal {
   constructor(plugin: SamayaPlugin, private label: string, private onSubmit: (v: string) => void, private initial = "", private allowEmpty = false) { super(plugin.app); }
@@ -189,5 +191,38 @@ export class ConfirmCreatePeriodModal extends Modal {
     const ok = nav.createEl("button", { text: "Create", cls: "mod-cta" });
     ok.onclick = () => { this.close(); this.onCreate(); };
     ok.focus();
+  }
+}
+
+/** Correct the breaks of one day: change times, switch lunch/break, remove or add. */
+export class EditBreaksModal extends Modal {
+  private rows: Break[];
+  constructor(private plugin: SamayaPlugin, private date: string, breaks: Break[], private openBreak: { start: string; kind: BreakKind } | null = null) {
+    super(plugin.app); this.rows = breaks.map(b => ({ ...b }));
+  }
+  onOpen() {
+    this.titleEl.setText(`Breaks on ${this.date}`);
+    this.render();
+  }
+  private render() {
+    const c = this.contentEl; c.empty();
+    if (this.openBreak) c.createEl("p", { cls: "samaya-dash-note", text: `A break since ${this.openBreak.start} is still running - end it first with "Back to work".` });
+    const list = c.createDiv("samaya-brk-list");
+    if (!this.rows.length) list.createDiv({ cls: "samaya-dash-note", text: "No breaks logged." });
+    this.rows.forEach((b, i) => {
+      const row = list.createDiv("samaya-brk-row");
+      const t = (v: string, set: (v: string) => void) => { const el = row.createEl("input", { type: "time" }); el.value = v; el.onchange = () => { if (el.value) set(el.value); }; };
+      t(b.start, v => { b.start = v; }); row.createSpan({ text: "–" }); t(b.end, v => { b.end = v; });
+      const sel = row.createEl("select"); (["break", "lunch"] as BreakKind[]).forEach(k => sel.createEl("option", { text: k, value: k })); sel.value = b.kind; sel.onchange = () => { b.kind = sel.value as BreakKind; };
+      const del = row.createEl("button", { text: "✕", attr: { "aria-label": "Remove this break" } }); del.onclick = () => { this.rows.splice(i, 1); this.render(); };
+    });
+    const nav = c.createDiv("samaya-ritual-nav");
+    nav.createEl("button", { text: "Add break" }).onclick = () => { this.rows.push({ start: "12:00", end: "12:30", kind: "break" }); this.render(); };
+    nav.createEl("button", { text: "Save", cls: "mod-cta" }).onclick = () => void this.save();
+  }
+  private async save() {
+    const bad = this.rows.find(b => hmToMin(b.end) <= hmToMin(b.start));
+    if (bad) { new Notice(`Samaya: a break must end after it starts (${bad.start}-${bad.end}).`); return; }
+    this.close(); await this.plugin.workday.setBreaks(this.date, this.rows);
   }
 }

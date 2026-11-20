@@ -108,6 +108,18 @@ export class WorkdayManager {
     if (hmToMin(at) > hmToMin(l.open.start)) l.breaks.push({ start: l.open.start, end: at, kind: l.open.kind });
     l.open = null; await this.commit();
   }
+  /** Replace the breaks of a day (forgot to track, forgot to stop): today's live log, or a past day's daily note. */
+  async setBreaks(date: string, breaks: Break[]) {
+    breaks = breaks.slice().sort((a, b) => hmToMin(a.start) - hmToMin(b.start));
+    if (this.log?.date === date) { this.log.breaks = breaks; await this.commit(); return; }
+    const l = readLogs(this.plugin.app).find(x => x.date === date); if (!l) return;
+    if (!this.s.journalOn) { new Notice("Samaya: turn on the journal to edit the breaks of a past day."); return; }
+    l.breaks = breaks;
+    const patch: Record<string, string | number | boolean | string[] | null> = { breaks: breaks.map(fmtBreak), break_minutes: breakMinutes(l) || null };
+    if (l.end && journalWants(this.s, "journalTracked")) patch.work_minutes = workedOn(l, 1440, this.plugin.dayRules);
+    await setJournalProps(this.plugin.app, this.s, date, { date, ...patch });
+    this.plugin.bus.emit();
+  }
   async endDay(at = nowHm()) {
     const l = this.log; if (!l || !this.started) return;
     if (l.open) await this.endBreak(at);

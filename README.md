@@ -1,42 +1,95 @@
 # Samaya
 
-An Obsidian plugin for planning your day: tasks as notes, timeboxing, a week board, a focus timer, work-time tracking, meetings, a journal, and Jira / GitLab tickets as notes.
+**A daily planner for [Obsidian](https://obsidian.md): plan your day, timebox it, focus, and track your work time. Every task, meeting and ticket stays a plain Markdown note in your vault.**
 
-Install by copying `main.js`, `manifest.json` and `styles.css` from a [release](https://github.com/scimone/samaya/releases) into `<vault>/.obsidian/plugins/samaya/`, or via BRAT using `scimone/samaya`. Open it with the **Open Samaya** command or the ribbon icon.
+[![Release](https://img.shields.io/github/v/release/scimone/samaya?color=2fa862)](https://github.com/scimone/samaya/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/scimone/samaya/release.yml)](https://github.com/scimone/samaya/actions)
+![Obsidian](https://img.shields.io/badge/Obsidian-%E2%89%A5%201.10-7c5cd6)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178c6?logo=typescript&logoColor=white)
 
-## What it does
+![The Samaya day planner: a task list next to a timeline](docs/screenshots/day-planner.svg)
 
-- **Planner.** One page with a **Day** view (the task list next to a timeline you drag tasks onto) and a **Week** view (a board of days, plus an expanded week timeline). Tasks can be split into parts over several days; unplanned work waits in the backlog (next week, month, quarter, year, someday).
-- **Guided planning.** *Plan my day* walks through Review (overdue tasks), Pick, Timebox and Check; *Plan my week* adds Tickets, Backlog and Schedule steps; *End my day* ticks off forgotten tasks and shows a day review (plan vs. reality). Each guide keeps a buffer reminder so you do not plan 100% of your time.
-- **Focus timer.** Start a focus on a task; the tracked time is written to the task note (`duration_actual`, `focus_sessions`), shown on cards and in a banner.
-- **Work time.** Start and end the workday, take breaks, set per-day start/finish lines and lunch; a dashboard shows balance against your weekly hours.
-- **Meetings.** Calendar events are notes in a folder (the file name and frontmatter describe them); the planner shows them on the timeline and a banner counts down to the next one. A Meetings page groups recurring meetings into series.
-- **Tasks, tickets, projects.** A task board, a ticket Kanban board (grouped by Jira / GitLab project), and a projects Gantt chart. Tasks link to tickets and projects.
-- **Journal.** Daily, weekly, monthly, quarterly and yearly notes (your core Daily notes or Periodic Notes settings, or Samaya's own) get a navigation bar, and the guides can write sections into them (planned tasks, meetings, finished tasks, a productivity review, work times and breaks).
+> The images in this README are illustrations drawn from the plugin's layout, with made-up data. They are not screenshots of a real vault.
 
-Everything is plain Markdown: a task is a note with frontmatter (`status`, `planned_sessions`, `duration_estimate`, `duration_actual`, `assigned_ticket`, `assigned_project`, `day_completed`, ...), so it works with search, Bases and sync.
+## Why Samaya
+
+Most planners keep your tasks in their own database. Samaya keeps them in your vault: a task is a note with frontmatter (`status`, `planned_sessions`, `duration_estimate`, `duration_actual`, `assigned_ticket`, `assigned_project`, `day_completed`, ...). Search, Bases, links, backlinks and sync all keep working, and you can stop using the plugin without losing anything.
+
+## Features
+
+### Plan the day on a timeline
+
+The **Day** view puts the task list next to a timeline. Drag a task onto it to timebox it; meetings from your calendar are already there. Tasks can be split into parts over several days, and unplanned work waits in the backlog (next week, month, quarter, year, someday).
+
+### See the whole week
+
+The **Week** view is a board of days with a load bar per day, so you can see an overloaded Wednesday before it happens. An expanded week timeline is one toggle away.
+
+![The Samaya week board with a load bar per day and a backlog](docs/screenshots/week-board.svg)
+
+### Guided planning rituals
+
+- **Plan my day**: Review (overdue tasks), Pick, Timebox, Check.
+- **Plan my week**: adds Tickets, Backlog and Schedule steps.
+- **End my day**: ticks off forgotten tasks and shows a day review (plan vs. reality).
+
+Each guide keeps a buffer reminder so you do not plan 100% of your time.
+
+### Focus timer and work-time tracking
+
+Start a focus on a task: the tracked time is written to the task note (`duration_actual`, `focus_sessions`) and shown on cards and in a banner. Start and end the workday, take breaks, set per-day start/finish lines and lunch, and a dashboard shows your balance against your weekly hours. Extra time outside the workday (evenings, weekends) can be logged too.
+
+![The work time dashboard with a focus banner, balance and hours per day](docs/screenshots/work-time.svg)
+
+### Quick add
+
+Bind **Samaya: New task** to a hotkey and describe a task in one line:
+
+```
+Write report 1h30m @fri #website &PROJ-123 /standup
+```
+
+![Quick add with completions and a live card preview](docs/screenshots/quick-add.svg)
+
+| Sign | Meaning | Examples |
+| --- | --- | --- |
+| `@` | Day or backlog | `@today` `@tomorrow` `@mon`..`@sun` `@2026-11-20` `@+3` `@week` `@nextweek` `@month` `@quarter` `@year` `@someday` `@never` (default: today) |
+| `#` | Project | `#website` (loose name match, `-` = space) |
+| `&` | Ticket | `&PROJ-123` |
+| `/` | Meeting | `/standup` |
+| `1h30m` | Estimate | at the end of the line |
+
+Typing a sign shows completions (↑/↓; Enter completes, the next Enter creates) and a card preview shows what will be created. Directives can stand anywhere in the line; write `\#5` to keep one in the title. Each sign may appear once, and picking a completion replaces an existing word with the same sign. The "+ Add task" boxes in the planner, the week board and the Tasks page take the same line with their place already typed in, and so do "New task" on a ticket or project.
+
+### Jira and GitLab tickets as notes
+
+Every open ticket becomes a note, grouped by project on a Kanban board. Tasks link to tickets and projects, and a projects Gantt chart shows the bigger picture. See [Jira / GitLab tickets](#jira--gitlab-tickets) for the setup.
+
+![A ticket Kanban board grouped by project](docs/screenshots/ticket-board.svg)
+
+### Meetings and journal
+
+- **Meetings.** Calendar events are notes in a folder. The planner shows them on the timeline, a banner counts down to the next one, and a Meetings page groups recurring meetings into series.
+- **Journal.** Daily, weekly, monthly, quarterly and yearly notes (your core Daily notes or Periodic Notes settings, or Samaya's own) get a navigation bar, and the guides can write sections into them: planned tasks, meetings, finished tasks, a productivity review, work times and breaks.
+
+## Install
+
+**With BRAT:** add `scimone/samaya` as a beta plugin.
+
+**Manually:** download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/scimone/samaya/releases) and copy them into `<vault>/.obsidian/plugins/samaya/`, then enable **Samaya** under Settings → Community plugins.
+
+Open it with the **Open Samaya** command or the ribbon icon. Requires Obsidian 1.10 or newer; works on desktop and mobile.
 
 ## Commands
 
 Plan my day / week (guided), Start shutdown ritual, Review my week, Toggle week timeline, Start workday now, Start / End break, Open work time dashboard, New task, Focus on current note's task, Convert checkbox line to task note, Assign current task note to a ticket / project, New project, Open ticket board / journal / projects, Create Samaya files.
 
-**Quick add (keyboard only):** bind *Samaya: New task* in Settings → Hotkeys. One line sets everything: `Write report 1h30m @fri #website &PROJ-123 /standup`.
-`@today @tomorrow @mon..@sun @2026-11-20 @+3` plan it for a day, `@week` this week, `@nextweek @month @quarter @year @someday @never` park it in the backlog (default: today); `#project`, `&ticket`, `/meeting` link it (loose name match, `-` = space). Typing `@ # & /` shows completions (↑/↓; Enter completes, the next Enter creates); a preview shows what will be created. Directives can stand anywhere in the line (the estimate at its end); write `\#5` to keep one in the title. Each sign may appear once (`@today @tomorrow` is an error); picking a completion replaces an existing word with the same sign. The "+ Add task" boxes show the task as a card underneath while you type (with a placeholder title until you type one). The "+ Add task" boxes in the planner, the week board and the Tasks page take the same line, with the place they are in already typed in (e.g. `@week` in This week; edit it to put the task elsewhere), and so do "New task" on a ticket or project (`&KEY` / `#project` prefilled). On the Tasks page, This week is the first column of Ongoing.
-
-## Development
-
-```
-npm ci
-npm run dev     # watch build
-npm run build   # typecheck + production bundle (main.js)
-npm test        # typecheck + unit tests (test/run.mjs)
-```
-
-Releases are built by GitHub Actions when a tag equal to the `manifest.json` version is pushed.
-
 ## Jira / GitLab tickets
 
 Configure Jira and/or GitLab in the plugin settings, then run **Sync Jira and GitLab tickets**. Every open ticket becomes a note; tickets that disappear from the results (resolved, reassigned) are marked `closed`.
+
+<details>
+<summary><strong>Ticket variables, settings and properties</strong></summary>
 
 ### Ticket variables
 
@@ -83,3 +136,18 @@ Sync writes these properties to each ticket note (overwritten on every sync):
 | `aliases` | `[TICKET_ID]` |
 
 Notes created by version 0.1.3 or earlier (`key`, `summary`, `state`, `issue_type`, `type: ticket`) are migrated on the next sync.
+
+</details>
+
+## Development
+
+Written in TypeScript and bundled with esbuild.
+
+```
+npm ci
+npm run dev     # watch build
+npm run build   # typecheck + production bundle (main.js)
+npm test        # typecheck + unit tests (test/run.mjs)
+```
+
+Releases are built by GitHub Actions when a tag equal to the `manifest.json` version is pushed; the workflow attaches `main.js`, `manifest.json` and `styles.css` to a GitHub Release.

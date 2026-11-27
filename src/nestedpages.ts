@@ -3,6 +3,9 @@ import type SamayaPlugin from "./main";
 import { safe } from "./safe";
 import { TextPromptModal } from "./modals";
 import { nestPaths } from "./nestpaths";
+import { prefixOf, rootOf } from "./model";
+import { meetingsPrefix } from "./links";
+import { periodLocation } from "./journal";
 
 /** Notion-like pages: a page created from an unresolved link inside another page is nested under it. Under the hood the parent
  *  lives in a folder of its own name (with its children); the file explorer shows that folder as the parent page with a toggle. */
@@ -42,6 +45,18 @@ export class NestedPages {
 
   private refresh() { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.apply(), 150); }
 
+  /** Folders whose notes Samaya finds by path (tasks, tickets, meetings, journal): moving a note there would lose it. Projects are fine: they accept nesting. */
+  private async managed(path: string): Promise<boolean> {
+    const s = this.plugin.settings, app = this.plugin.app;
+    const prefixes = [prefixOf(s.tasksPath), prefixOf(s.ticketsPath), meetingsPrefix(s), "Journal/"];
+    for (const k of ["daily", "weekly", "monthly", "quarterly", "yearly"] as const) {
+      const loc = await periodLocation(app, s, k); if (!loc) continue;
+      const dir = loc.pattern ? rootOf(loc.folder) : normalizePath(loc.folder || "/");
+      if (dir !== "/") prefixes.push(dir + "/");
+    }
+    return prefixes.some(p => path.startsWith(p));
+  }
+
   /** The page of a folder: `Name/Name.md`. */
   private noteOf(folder: string): TFile | null {
     const f = this.plugin.app.vault.getAbstractFileByPath(normalizePath(`${folder}/${folder.split("/").pop()}.md`));
@@ -52,7 +67,7 @@ export class NestedPages {
   private async nest(sourcePath: string, child: TFile) {
     const { vault, fileManager } = this.plugin.app;
     const parent = vault.getAbstractFileByPath(sourcePath);
-    if (!(parent instanceof TFile) || parent.path === child.path) return;
+    if (!(parent instanceof TFile) || parent.path === child.path || await this.managed(parent.path)) return;
     const to = nestPaths(parent.path, child.path);
     const free = (path: string) => !vault.getAbstractFileByPath(path);
     this.busy = true;

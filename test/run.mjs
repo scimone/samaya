@@ -694,3 +694,11 @@ await bundle("src/tasksboard.ts", "test/.tasksboard.mjs");
   assert.deepEqual(nestPaths("Notes/Parent/Parent.md", "Child.md"), { folder: "Notes/Parent", parentTo: "Notes/Parent/Parent.md", childTo: "Notes/Parent/Child.md" }); // already a page with a folder
   assert.deepEqual(nestPaths("Notes/Parent/Sub.md", "X/Child.md"), { folder: "Notes/Parent/Sub", parentTo: "Notes/Parent/Sub/Sub.md", childTo: "Notes/Parent/Sub/Child.md" }); // a subpage becomes a parent
 }
+
+// ---- projects: a subpage of a project is not a project
+{ await bundle("src/projects.ts", "test/.projects.mjs"); const { isProjectPath } = await import("./.projects.mjs");
+  const s = { projectsPath: "Projects" };
+  assert.equal(isProjectPath(s, "Projects/Foo.md"), true); assert.equal(isProjectPath(s, "Projects/Foo/Foo.md"), true);
+  assert.equal(isProjectPath(s, "Projects/Foo/Child.md"), false); assert.equal(isProjectPath(s, "Projects/Foo/Child/Child.md"), false);
+  assert.equal(isProjectPath(s, "Other/Foo.md"), false);
+}

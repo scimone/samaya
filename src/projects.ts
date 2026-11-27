@@ -30,9 +30,14 @@ export function readProject(app: App, file: TFile): Project {
   const fm = (app.metadataCache.getFileCache(file)?.frontmatter ?? {}) as Record<string, unknown>;
   return { file, name: file.basename, span: parseSpan(fm.start, fm.end), done: fm.status === "done", color: noteColor(app, file), usecase: usecaseOf(app, file) };
 }
+/** A project note: directly in the projects folder, or the page of its own folder (`Projects/Foo/Foo.md`, see nested pages). Subpages of a project are not projects. */
+export function isProjectPath(s: SamayaSettings, path: string): boolean {
+  const prefix = projectsPrefix(s); if (!path.startsWith(prefix)) return false;
+  const parts = path.slice(prefix.length).split("/");
+  return parts.length === 1 || (parts.length === 2 && parts[1] === parts[0] + ".md");
+}
 export function allProjects(app: App, s: SamayaSettings): Project[] {
-  const prefix = projectsPrefix(s);
-  return app.vault.getMarkdownFiles().filter(f => f.path.startsWith(prefix)).map(f => readProject(app, f)).sort((a, b) => a.name.localeCompare(b.name));
+  return app.vault.getMarkdownFiles().filter(f => isProjectPath(s, f.path)).map(f => readProject(app, f)).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /** Path of the project note a task / ticket note points at ("" = none). */

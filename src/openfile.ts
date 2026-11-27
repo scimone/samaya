@@ -26,7 +26,7 @@ export async function openNote(app: App, file: TFile): Promise<void> {
   if (!leaf) {
     const active = ws.getActiveViewOfType(ItemView)?.leaf; const base = active && active.getRoot() === ws.rootSplit ? active : ws.getMostRecentLeaf(ws.rootSplit);
     leaf = base ? ws.createLeafBySplit(base, "vertical") : ws.getLeaf("tab"); side = leaf;
-    narrowSide(leaf); rememberSide(app, leaf);
+    resetTrail(); narrowSide(leaf); rememberSide(app, leaf);
   }
   expected = file.path;
   if (leafPath(leaf) !== file.path) {
@@ -46,7 +46,29 @@ export function sideLeaf(app: App): WorkspaceLeaf | null {
   return found;
 }
 /** Close the side pane. */
-export function closeSide(app: App): void { const l = sideLeaf(app); side = null; l?.detach(); app.saveLocalStorage(SIDE_KEY, null); }
+export function closeSide(app: App): void { const l = sideLeaf(app); side = null; resetTrail(); l?.detach(); app.saveLocalStorage(SIDE_KEY, null); }
+
+/** The notes the side pane showed before the current one (oldest first), for its back button. Files, not paths: a renamed or moved note stays the same file. */
+const trail: TFile[] = [];
+let shown: TFile | null = null;
+function resetTrail(): void { trail.length = 0; shown = null; }
+/** Called with the note the side pane shows now: when it changed, the one before goes on the trail. */
+export function sideTrack(file: TFile): void {
+  if (shown === file) return;
+  if (shown && trail[trail.length - 1] !== shown) trail.push(shown);
+  shown = file;
+}
+/** The note a back click returns to (skipping notes deleted meanwhile), or null. */
+export function sideBackTarget(app: App): TFile | null {
+  while (trail.length && app.vault.getAbstractFileByPath(trail[trail.length - 1].path) !== trail[trail.length - 1]) trail.pop();
+  return trail[trail.length - 1] ?? null;
+}
+/** Side pane: back to the note it showed before. */
+export async function sideBack(app: App): Promise<void> {
+  const l = sideLeaf(app), t = sideBackTarget(app); if (!l || !t) return;
+  trail.pop(); shown = t; expected = t.path; // before opening: the pane's own file-open must not look like a foreign note
+  await l.openFile(t); void hooks.dress();
+}
 
 const SIDE_KEY = "samaya-side-leaf";
 /** Leaf ids are saved in the workspace layout, so a side pane left open when Obsidian quit can be recognised on the next start. */
@@ -106,7 +128,7 @@ export function setupSideAutoClose(plugin: Plugin): void {
   }));
 }
 /** Forget the module state (plugin unload): the side pane itself stays, only our bookkeeping goes. */
-export function resetOpenFile(): void { side = null; waitPath = ""; expected = ""; internal = 0; document.querySelectorAll(".samaya-side-wait").forEach(el => el.classList.remove("samaya-side-wait")); }
+export function resetOpenFile(): void { side = null; resetTrail(); waitPath = ""; expected = ""; internal = 0; document.querySelectorAll(".samaya-side-wait").forEach(el => el.classList.remove("samaya-side-wait")); }
 /** Close the side pane and show its note in a full page. */
 export async function expandSide(app: App): Promise<void> {
   const l = sideLeaf(app); const file = l ? app.vault.getAbstractFileByPath(leafPath(l) ?? "") : null;

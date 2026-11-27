@@ -1,15 +1,16 @@
 import { Notice, TFile, normalizePath, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
-import { closeSide, expandSide, sideLeaf, sideWaitDone } from "../openfile";
+import { closeSide, expandSide, sideBack, sideBackTarget, sideLeaf, sideTrack, sideWaitDone } from "../openfile";
 import { patchNote, prefixOf, readTask, readTicket } from "../model";
 import { projectsPrefix } from "../projects";
 import { safeFileName } from "../util";
 import { taskLine } from "./taskCard";
 
-/** The two icon buttons, left of the title (no border, no fill until hovered). The tooltip is Obsidian's (aria-label): never add a `title` as well, that shows a second one. */
-function addButtons(parent: HTMLElement, plugin: SamayaPlugin, first = false) {
-  const g = createDiv("samaya-side-btns"); if (first) parent.prepend(g); else parent.append(g); // on the left, before the title
+/** The icon buttons (back to the note before, close, open in full page), left of the title (no border, no fill until hovered). The tooltip is Obsidian's (aria-label): never add a `title` as well, that shows a second one. */
+function addButtons(parent: HTMLElement, plugin: SamayaPlugin, back: TFile | null, first = false) {
+  const g = createDiv("samaya-side-btns"); g.dataset.back = back?.path ?? ""; if (first) parent.prepend(g); else parent.append(g); // on the left, before the title
   const b = (icon: string, label: string, cls: string, run: () => void) => { const x = g.createEl("button", { cls: `samaya-side-btn clickable-icon ${cls}`, attr: { "aria-label": label } }); setIcon(x, icon); x.onclick = run; };
+  if (back) b("arrow-left", `Back to ${back.basename}`, "is-back", () => { void sideBack(plugin.app); });
   b("chevrons-right", "Close side pane", "is-close", () => closeSide(plugin.app));
   b("maximize-2", "Open in full page", "is-expand", () => { void expandSide(plugin.app); });
 }
@@ -68,22 +69,25 @@ export function renderSideBars(plugin: SamayaPlugin) {
     const el = leaf.view?.containerEl; if (!el) return;
     const file = (leaf.view as { file?: TFile }).file;
     if (leaf !== side || leaf.view.getViewType() !== "markdown" || !file) { clear(el); return; }
+    sideTrack(file); const back = sideBackTarget(plugin.app);
     const jbar = el.querySelector<HTMLElement>(":scope > .samaya-journal-bar");
     if (jbar) {
       el.querySelectorAll(":scope > .samaya-side-bar").forEach(x => x.remove()); el.removeClass("samaya-side-note");
-      if (!jbar.querySelector(".samaya-side-btns")) addButtons(jbar, plugin, true);
+      const btns = jbar.querySelector<HTMLElement>(".samaya-side-btns");
+      if (btns && btns.dataset.back !== (back?.path ?? "")) btns.remove();
+      if (!jbar.querySelector(".samaya-side-btns")) addButtons(jbar, plugin, back, true);
       return;
     }
     const task = el.hasClass("samaya-task-note"); const title = titleOf(plugin, file);
     const line = task ? taskLine(plugin, file, title) : null; // checkbox, title, clock, Focus
-    const key = `${file.path}|${title}|${line?.dataset.key ?? ""}`;
+    const key = `${file.path}|${title}|${line?.dataset.key ?? ""}|${back?.path ?? ""}`;
     el.toggleClass("samaya-side-note", true);
     const have = el.querySelector<HTMLElement>(":scope > .samaya-side-bar");
     if (have?.dataset.key === key) return;
     have?.remove();
     const content = el.querySelector(":scope > .view-content"); if (!content) return;
     const bar = createDiv("samaya-side-bar"); bar.dataset.key = key;
-    addButtons(bar, plugin);
+    addButtons(bar, plugin, back);
     if (line) bar.append(line); else bar.createDiv({ cls: "samaya-side-title", text: title, attr: { "aria-label": file.path } });
     const rename = renamerOf(plugin, file); const tEl = bar.querySelector<HTMLElement>(".samaya-side-title");
     if (rename && tEl) makeEditable(tEl, title, rename);

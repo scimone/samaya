@@ -43,25 +43,27 @@ export class NestedPages {
   constructor(private plugin: SamayaPlugin) {}
 
   private get on() { return this.plugin.settings.nestedPagesOn; }
+  /** Pages of the projects folder always nest (even with the option off): their subpages must not end up loose in the vault, next to the navigation. */
+  private inProjects(path: string): boolean { return path.startsWith(projectsPrefix(this.plugin.settings)); }
+  private nests(path: string): boolean { return this.on || this.inProjects(path); }
 
   init() {
     const p = this.plugin, { vault, workspace } = p.app;
     // remember which note an unresolved link was clicked in; the page it creates follows right after
     p.registerDomEvent(document, "click", e => {
-      if (!this.on || !(e.target instanceof Element) || !e.target.closest(".is-unresolved")) return;
+      if (!(e.target instanceof Element) || !e.target.closest(".is-unresolved")) return;
       const f = workspace.getActiveFile();
-      this.pending = f && f.extension === "md" ? { source: f.path, at: Date.now() } : null;
+      this.pending = f && f.extension === "md" && this.nests(f.path) ? { source: f.path, at: Date.now() } : null;
     }, true);
     p.registerEvent(vault.on("create", f => {
-      if (!this.on) return;
       const pend = this.pending;
       if (f instanceof TFile && f.extension === "md" && pend && Date.now() - pend.at < 3000) {
         this.pending = null;
         window.setTimeout(() => { safe(this.nest(pend.source, f), "nesting the page"); }, 150);
       }
-      this.refresh();
+      if (this.on) this.refresh();
     }));
-    p.registerEvent(vault.on("rename", (f, old) => { if (this.on) { void this.followRename(f, old); this.refresh(); } }));
+    p.registerEvent(vault.on("rename", (f, old) => { if (this.on || this.inProjects(f.path)) { void this.followRename(f, old); this.refresh(); } }));
     p.registerEvent(vault.on("delete", () => this.refresh()));
     p.registerEvent(workspace.on("layout-change", () => this.refresh()));
     p.registerEvent(workspace.on("file-open", () => this.markActive()));

@@ -508,7 +508,7 @@ export class SamayaSettingTab extends PluginSettingTab {
         enabled: { get: () => s.navigationOn, set: v => { s.navigationOn = v; void this.plugin.nav.apply(); this.plugin.bus.emit(); } },
       });
       card("Nested pages", "Like in Notion, pages can live in other pages. Click a link to a page that does not exist yet and the new page is created under the page you clicked in: behind the scenes the parent moves into a folder of its own name together with its subpages, but the file explorer only shows the parent page with a toggle and its subpages underneath. Renaming a page renames its folder.", {
-        enabled: { get: () => s.nestedPagesOn, set: v => { s.nestedPagesOn = v; this.plugin.nested.apply(); } },
+        enabled: { get: () => s.nestedPagesOn, set: v => { s.nestedPagesOn = v; void this.plugin.nested.apply(); } },
       });
     }
 

@@ -194,7 +194,7 @@ export default class SamayaPlugin extends Plugin {
     setupSideCleanup(this.app); setupSideAutoClose(this);
     this.app.workspace.onLayoutReady(async () => {
       leftState();
-      void this.nav.apply(); this.nested.apply();
+      void this.nav.apply(); void this.nested.apply();
       this.app.workspace.detachLeavesOfType("samaya-journal-calendar"); // left over from older versions
       this.scanLunch();
       void this.markJournalNotes();

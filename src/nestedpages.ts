@@ -1,4 +1,4 @@
-import { Keymap, Menu, Notice, TFile, TFolder, normalizePath } from "obsidian";
+import { Keymap, Menu, Notice, TAbstractFile, TFile, TFolder, normalizePath } from "obsidian";
 import type SamayaPlugin from "./main";
 import { safe } from "./safe";
 import { TextPromptModal } from "./modals";
@@ -7,6 +7,25 @@ import { prefixOf, rootOf } from "./model";
 import { meetingsPrefix } from "./links";
 import { periodLocation } from "./journal";
 
+/** The folder of a page: the note sits in a folder of its own name (`Foo/Foo.md`). */
+export function pageFolder(file: TFile): TFolder | null {
+  const p = file.parent; return p && !p.isRoot() && p.name === file.basename ? p : null;
+}
+const pageOf = (folder: TFolder): TFile | null => { const f = folder.children.find(c => c instanceof TFile && c.extension === "md" && c.basename === folder.name); return f instanceof TFile ? f : null; };
+/** What the delete menu of a page offers: its subpages (a subpage with subpages of its own is deleted with its folder), and itself when it is a subpage. */
+export function pageTree(file: TFile): { subpages: { file: TFile; target: TAbstractFile; kids: boolean }[]; self: TAbstractFile | null } {
+  const own = pageFolder(file), subpages: { file: TFile; target: TAbstractFile; kids: boolean }[] = [];
+  for (const c of own?.children ?? []) {
+    if (c === file) continue;
+    if (c instanceof TFile && c.extension === "md") subpages.push({ file: c, target: c, kids: false });
+    else if (c instanceof TFolder) { const pg = pageOf(c); if (pg) subpages.push({ file: pg, target: c, kids: c.children.length > 1 }); }
+  }
+  subpages.sort((a, b) => a.file.basename.localeCompare(b.file.basename));
+  const container = own ? own.parent : file.parent; // the page this one lives under, if any
+  const parent = container && !container.isRoot() ? pageOf(container) : null;
+  return { subpages, self: parent && parent !== file ? (own ?? file) : null };
+}
+
 /** Notion-like pages: a page created from an unresolved link inside another page is nested under it. Under the hood the parent
  *  lives in a folder of its own name (with its children); the file explorer shows that folder as the parent page with a toggle. */
 export class NestedPages {
@@ -14,6 +33,11 @@ export class NestedPages {
   private cleanups: (() => void)[] = [];
   private pending: { source: string; at: number } | null = null;
   private busy = false;
+  private run = 0;
+  /** folders whose notes Samaya finds by path (see managed); kept for the checks that cannot wait */
+  private prefixes: string[] = [];
+  /** folders shown as a page in the explorer */
+  private pageSet = new Set<string>();
   private timer = 0;
   constructor(private plugin: SamayaPlugin) {}
 
@@ -43,10 +67,10 @@ export class NestedPages {
     p.register(() => this.teardown());
   }
 
-  private refresh() { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => this.apply(), 150); }
+  private refresh() { window.clearTimeout(this.timer); this.timer = window.setTimeout(() => { void this.apply(); }, 150); }
 
   /** Folders whose notes Samaya finds by path (tasks, tickets, meetings, journal): moving a note there would lose it. Projects are fine: they accept nesting. */
-  private async managed(path: string): Promise<boolean> {
+  private async managedPrefixes(): Promise<string[]> {
     const s = this.plugin.settings, app = this.plugin.app;
     const prefixes = [prefixOf(s.tasksPath), prefixOf(s.ticketsPath), meetingsPrefix(s), "Journal/"];
     for (const k of ["daily", "weekly", "monthly", "quarterly", "yearly"] as const) {
@@ -54,8 +78,13 @@ export class NestedPages {
       const dir = loc.pattern ? rootOf(loc.folder) : normalizePath(loc.folder || "/");
       if (dir !== "/") prefixes.push(dir + "/");
     }
-    return prefixes.some(p => path.startsWith(p));
+    return this.prefixes = prefixes;
   }
+  private async managed(path: string): Promise<boolean> { return (await this.managedPrefixes()).some(p => path.startsWith(p)); }
+  /** As `managed`, from the folders found at the last refresh. */
+  isManaged(path: string): boolean { return this.prefixes.some(p => path.startsWith(p)); }
+  /** Whether the side pane's delete menu applies to this note. */
+  usable(file: TFile): boolean { return this.on && !this.isManaged(file.path); }
 
   /** The page of a folder: `Name/Name.md`. */
   private noteOf(folder: string): TFile | null {
@@ -88,7 +117,7 @@ export class NestedPages {
 
   /** Renaming a page renames its folder with it. */
   private async followRename(f: unknown, oldPath: string) {
-    if (this.busy || !(f instanceof TFile) || f.extension !== "md") return;
+    if (this.busy || !(f instanceof TFile) || f.extension !== "md" || this.isManaged(f.path)) return;
     const { vault, fileManager } = this.plugin.app;
     const i = oldPath.lastIndexOf("/"), oldDir = i < 0 ? "" : oldPath.slice(0, i), oldBase = oldPath.slice(i + 1).replace(/\.md$/i, "");
     if (!oldDir || f.parent?.path !== oldDir || oldDir.split("/").pop() !== oldBase || f.basename === oldBase) return;
@@ -129,15 +158,18 @@ export class NestedPages {
   }
 
   /** (Re)build the explorer tweaks for the current vault; with the option off it only cleans up. */
-  apply() {
+  async apply() {
+    const me = ++this.run;
     this.teardown();
     if (!this.on) return;
+    await this.managedPrefixes(); if (me !== this.run) return;
     const { vault, workspace } = this.plugin.app;
     const esc = (v: string) => v.replace(/["\\]/g, "\\$&");
-    const css: string[] = [];
+    const css: string[] = []; this.pageSet.clear();
     for (const f of vault.getAllLoadedFiles()) {
       if (!(f instanceof TFolder) || f.isRoot()) continue;
-      const note = this.noteOf(f.path); if (!note) continue;
+      const note = this.noteOf(f.path); if (!note || this.isManaged(note.path)) continue;
+      this.pageSet.add(f.path);
       css.push(`.tree-item.nav-file:has(> .nav-file-title[data-path="${esc(note.path)}"]) { display: none; }`); // the page itself is the folder row
       if (f.children.length <= 1) css.push(`.nav-folder-title[data-path="${esc(f.path)}"] .collapse-icon { visibility: hidden; }`); // no subpages: nothing to fold
     }
@@ -147,7 +179,7 @@ export class NestedPages {
       const page = (e: Event) => {
         const title = e.target instanceof Element ? e.target.closest<HTMLElement>(".nav-folder-title") : null;
         const path = title?.getAttribute("data-path");
-        return path ? this.noteOf(path) : null;
+        return path && this.pageSet.has(path) ? this.noteOf(path) : null;
       };
       const click = (e: MouseEvent) => {
         const note = page(e); if (!note || (e.target as Element).closest(".collapse-icon")) return; // the arrow folds, the rest opens the page

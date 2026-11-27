@@ -1,10 +1,11 @@
-import { Notice, TFile, normalizePath, setIcon } from "obsidian";
+import { Menu, Notice, TAbstractFile, TFile, normalizePath, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { closeSide, expandSide, sideBack, sideBackTarget, sideLeaf, sideTrack, sideWaitDone } from "../openfile";
 import { patchNote, prefixOf, readTask, readTicket } from "../model";
 import { projectsPrefix } from "../projects";
 import { safeFileName } from "../util";
 import { taskLine } from "./taskCard";
+import { pageTree } from "../nestedpages";
 
 /** The icon buttons (back to the note before, close, open in full page), left of the title (no border, no fill until hovered). The tooltip is Obsidian's (aria-label): never add a `title` as well, that shows a second one. */
 function addButtons(parent: HTMLElement, plugin: SamayaPlugin, back: TFile | null, first = false) {
@@ -13,6 +14,17 @@ function addButtons(parent: HTMLElement, plugin: SamayaPlugin, back: TFile | nul
   if (back) b("arrow-left", `Back to ${back.basename}`, "is-back", () => { void sideBack(plugin.app); });
   b("chevrons-right", "Close side pane", "is-close", () => closeSide(plugin.app));
   b("maximize-2", "Open in full page", "is-expand", () => { void expandSide(plugin.app); });
+}
+/** The three-dot menu at the right of the bar: delete a subpage of this note, or this note when it is a subpage. */
+function addMore(bar: HTMLElement, plugin: SamayaPlugin, file: TFile) {
+  const x = bar.createEl("button", { cls: "samaya-side-btn samaya-side-more clickable-icon", attr: { "aria-label": "More" } }); setIcon(x, "more-horizontal");
+  x.onclick = e => {
+    const { subpages, self } = pageTree(file), m = new Menu(), ask = (t: TAbstractFile) => { void plugin.app.fileManager.promptForDeletion(t); };
+    for (const s of subpages) m.addItem(i => i.setTitle(`Delete subpage "${s.file.basename}"${s.kids ? " and its subpages" : ""}`).setIcon("trash").setWarning(true).onClick(() => ask(s.target)));
+    if (subpages.length && self) m.addSeparator();
+    if (self) m.addItem(i => i.setTitle("Delete this page").setIcon("trash").setWarning(true).onClick(() => ask(self)));
+    m.showAtMouseEvent(e);
+  };
 }
 const clear = (el: HTMLElement) => {
   el.querySelectorAll(":scope > .samaya-side-bar, :scope > .samaya-journal-bar .samaya-side-btns").forEach(x => x.remove());
@@ -80,7 +92,8 @@ export function renderSideBars(plugin: SamayaPlugin) {
     }
     const task = el.hasClass("samaya-task-note"); const title = titleOf(plugin, file);
     const line = task ? taskLine(plugin, file, title) : null; // checkbox, title, clock, Focus
-    const key = `${file.path}|${title}|${line?.dataset.key ?? ""}|${back?.path ?? ""}`;
+    const tree = plugin.nested.usable(file) ? pageTree(file) : null; const more = !!tree && (tree.subpages.length > 0 || !!tree.self);
+    const key = `${file.path}|${title}|${line?.dataset.key ?? ""}|${back?.path ?? ""}|${more ? tree!.subpages.map(s => s.file.path).join(",") + (tree!.self?.path ?? "") : ""}`;
     el.toggleClass("samaya-side-note", true);
     const have = el.querySelector<HTMLElement>(":scope > .samaya-side-bar");
     if (have?.dataset.key === key) return;
@@ -91,6 +104,7 @@ export function renderSideBars(plugin: SamayaPlugin) {
     if (line) bar.append(line); else bar.createDiv({ cls: "samaya-side-title", text: title, attr: { "aria-label": file.path } });
     const rename = renamerOf(plugin, file); const tEl = bar.querySelector<HTMLElement>(".samaya-side-title");
     if (rename && tEl) makeEditable(tEl, title, rename);
+    if (more) addMore(bar, plugin, file);
     el.insertBefore(bar, content);
   });
   sideWaitDone(side); // bars, hidden headings and the journal bar are all in place: show the note

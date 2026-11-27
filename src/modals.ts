@@ -7,7 +7,7 @@ import { Project, allProjects, createProject, projectLabel, projectPathOf, readP
 import { SOURCE_NAMES, Task, Ticket, allTasks, allTickets } from "./model";
 import { Break, BreakKind, Extra } from "./worktime";
 import { Notice } from "obsidian";
-import { HORIZONS, Horizon, fmtDur, hmToMin, parseDuration } from "./util";
+import { HORIZONS, Horizon, autoColon, fmtDur, hmToMin, parseDuration } from "./util";
 
 export class TextPromptModal extends Modal {
   constructor(plugin: SamayaPlugin, private label: string, private onSubmit: (v: string) => void, private initial = "", private allowEmpty = false) { super(plugin.app); }
@@ -158,7 +158,7 @@ export class TicketTaskModal extends Modal {
     dsel.createEl("option", { value: "", text: `Default (${fmtDur(this.plugin.settings.defaultEstimate)})` });
     DURATIONS.forEach(m => dsel.createEl("option", { value: String(m), text: fmtDur(m) }));
     dsel.createEl("option", { value: "custom", text: "Custom…" });
-    const custom = dur.createEl("input", { type: "text", cls: "samaya-modal-custom", attr: { placeholder: "e.g. 1:30, 1.5h, 90m" } }); custom.hide();
+    const custom = dur.createEl("input", { type: "text", cls: "samaya-modal-custom", attr: { placeholder: "e.g. 1:30, 1.5h, 90m" } }); custom.addEventListener("input", () => { const v = autoColon(custom.value); if (v !== custom.value) custom.value = v; }); custom.hide();
     dsel.addEventListener("change", () => { if (dsel.value === "custom") { custom.show(); custom.focus(); } else custom.hide(); });
 
     const whenSel = field("Schedule").createEl("select", { cls: "dropdown" });

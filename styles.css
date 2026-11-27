@@ -1813,3 +1813,4 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 
 /* a meeting that tasks may be placed on top of: dashed outline */
 .samaya-event.is-overlay { border-style: dashed; opacity: 0.85; }
+.samaya-card-meta .samaya-chip.is-link { cursor: pointer; }

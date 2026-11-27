@@ -3,7 +3,7 @@ import { Horizon, addDays, bucketOf, horizonOf } from "./util";
 
 /** The board: what is going on now. The backlog: everything else, by when it is due. */
 export type Col = "thisweek" | "overdue" | "today" | "progress" | "done";
-export const BOARD_COLS: Array<[Col, string]> = [["thisweek", "This week"], ["overdue", "Overdue"], ["today", "Today"], ["progress", "In Progress"], ["done", "Done"]];
+export const BOARD_COLS: Array<[Col, string]> = [["overdue", "Overdue"], ["thisweek", "This week"], ["today", "Today"], ["progress", "In Progress"], ["done", "Done"]];
 /** Backlog columns: the parking buckets. */
 export type BacklogCol = Horizon;
 export const BACKLOG_COLS: Array<[BacklogCol, string]> = [["week", "Next week"], ["month", "Next month"], ["quarter", "Next quarter"], ["year", "Next year"], ["someday", "Someday"], ["never", "Never"]];

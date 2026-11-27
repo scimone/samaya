@@ -3,7 +3,7 @@ import type SamayaPlugin from "../main";
 import { dayTask, patchTask, readTask, readTicket } from "../model";
 import { projectPathOf } from "../projects";
 import { allMeetings } from "../links";
-import { HORIZONS, addDays, bucketOf, fmtHm, parseDuration, minToHm, parseYmd, startOfWeek, today } from "../util";
+import { HORIZONS, addDays, bucketOf, fmtHm, autoColon, parseDuration, minToHm, parseYmd, startOfWeek, today } from "../util";
 import { focusButton, roundCheck, trackedBefore } from "./place";
 import { addMeetingItems, addPlanItems, addProjectItems, addTicketItems } from "./common";
 
@@ -107,6 +107,7 @@ export function decorateTaskNote(plugin: SamayaPlugin, el: HTMLElement, file: TF
       if (tv.querySelector("input")) return;
       tv.empty(); tv.createSpan({ cls: "samaya-tc-est", text: "Estimate" });
       const input = tv.createEl("input", { cls: "samaya-tc-input", type: "text", attr: { placeholder: "1:30, 90m, 1.5h" } });
+      input.addEventListener("input", () => { const v = autoColon(input.value); if (v !== input.value) input.value = v; });
       input.value = t.estimate ? fmtHm(t.estimate) : ""; input.focus(); input.select();
       let ended = false;
       const end = (save: boolean) => {

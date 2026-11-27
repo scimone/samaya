@@ -59,6 +59,11 @@ export function parseDuration(raw: string): number | null {
   if ((m = s.match(/^(\d+)\s*(?:m|min)?$/))) return +m[1];
   return null;
 }
+/** Quick entry of a duration: digits only get their colon ("0030" -> "00:30", "130" -> "1:30"); one or two digits stay minutes. */
+export function autoColon(raw: string): string {
+  const s = raw.trim();
+  return /^\d{3,}$/.test(s) ? `${s.slice(0, -2)}:${s.slice(-2)}` : raw;
+}
 export function slugify(s: string, fallback = "meeting"): string {
   return s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60).replace(/-+$/, "") || fallback;
 }

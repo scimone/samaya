@@ -2,7 +2,7 @@ import { App, Menu, TFile, setIcon } from "obsidian";
 import { srName } from "./srname";
 import type SamayaPlugin from "../main";
 import { safe } from "../safe";
-import { openFileSmart } from "../openfile";
+import { openFileSmart, openFull } from "../openfile";
 import { DndScope, DropInfo } from "../dnd";
 import { Source, Task, addSubtask, renameWithTitle, allTasks, assignMeeting, meetingPathOf, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
 import { ConfirmDeleteModal, MeetingSuggestModal, ProjectSuggestModal, TaskSuggestModal, TextPromptModal, TicketSuggestModal } from "../modals";
@@ -14,7 +14,7 @@ import { projectPathOf, usecaseOf } from "../projects";
 import { assignProjectLinked, assignTicketLinked, projectFits, ticketFits, allMeetings, changeMeetingLink, meetingLinks, MeetingProp, ticketColorOf, setTicketProjectColor } from "../links";
 import { noteColor, tint, ticketProjectColor } from "../itemcolor";
 import { openColorPicker } from "./colorPicker";
-import { HORIZONS, Horizon, bucketOf, fmtDur, fmtHm, minToHm, parseDuration, parseYmd, startOfWeek, today } from "../util";
+import { HORIZONS, Horizon, autoColon, addDays, bucketOf, fmtDur, fmtHm, minToHm, parseDuration, parseYmd, startOfWeek, today } from "../util";
 
 export interface CardOpts {
   scope: DndScope; showTime?: boolean; /** show the actions under the estimate on the right instead of below the title */ actionsSide?: boolean; /** hide subtasks (sidebar) */ compact?: boolean;
@@ -49,7 +49,13 @@ export function ticketChip(plugin: SamayaPlugin, host: HTMLElement, tf: TFile) {
     const parent = { hoverPopover: null };
     chip.addEventListener("mouseover", e => { app.workspace.trigger("hover-link", { event: e, source: "preview", hoverParent: parent, targetEl: chip, linktext: tf.path }); });
   } else chip.title = tk.summary ? `${tk.key}: ${tk.summary}` : tk.key;
-  chip.addEventListener("click", e => { e.stopPropagation(); void openFileSmart(app, tf, e.ctrlKey || e.metaKey ? "tab" : false); });
+  openOnClick(app, chip, tf);
+}
+/** A pill that opens its note (project, ticket, meeting) in a full page, not the side pane. */
+function openOnClick(app: App, chip: HTMLElement, f: unknown) {
+  if (!(f instanceof TFile)) return;
+  chip.addClass("is-link");
+  chip.addEventListener("click", e => { e.stopPropagation(); void openFull(app, f); });
   chip.addEventListener("pointerdown", e => e.stopPropagation());
 }
 
@@ -98,6 +104,7 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   est.addEventListener("click", e => {
     e.stopPropagation();
     const input = createEl("input", { type: "text", cls: "samaya-est-input" }); input.value = fmtHm(t.estimate || plugin.settings.defaultEstimate);
+    input.addEventListener("input", () => { const v = autoColon(input.value); if (v !== input.value) input.value = v; });
     est.replaceWith(input); input.focus(); input.select();
     let done = false;
     input.addEventListener("blur", () => { if (done) return; done = true; const v = parseDuration(input.value); void setPartEstimate(app, t, v && v > 0 ? v : null); });
@@ -113,10 +120,11 @@ export function renderTaskCard(plugin: SamayaPlugin, parent: HTMLElement, t: Tas
   }
   if (plugin.settings.projectsOn) {
     const pp = projectPathOf(app, t.file);
-    if (pp) projectChip(meta, pp.split("/").pop()!.replace(/\.md$/, ""), projectColorAt(app, pp), projectUsecaseAt(app, pp));
+    const pf = pp ? app.vault.getAbstractFileByPath(pp) : null;
+    if (pp) openOnClick(app, projectChip(meta, pp.split("/").pop()!.replace(/\.md$/, ""), projectColorAt(app, pp), projectUsecaseAt(app, pp)), pf);
   }
   const mp = meetingPathOf(app, t); const mf = mp ? app.vault.getAbstractFileByPath(mp) : null;
-  if (mf instanceof TFile) { const mc = meta.createSpan({ cls: "samaya-chip samaya-chip-meeting", attr: { "aria-label": "Meeting" } }); setIcon(mc.createSpan({ cls: "samaya-chip-icon" }), "calendar-clock"); mc.createSpan({ text: app.metadataCache.getFileCache(mf)?.frontmatter?.title ?? mf.basename }); }
+  if (mf instanceof TFile) { const mc = meta.createSpan({ cls: "samaya-chip samaya-chip-meeting", attr: { "aria-label": "Meeting" } }); openOnClick(app, mc, mf); setIcon(mc.createSpan({ cls: "samaya-chip-icon" }), "calendar-clock"); mc.createSpan({ text: app.metadataCache.getFileCache(mf)?.frontmatter?.title ?? mf.basename }); }
   if (t.channel) meta.createSpan({ cls: "samaya-chip samaya-chip-channel", text: t.channel });
   if (t.part) partChip(plugin, meta, t);
   if (!meta.childElementCount) meta.remove();
@@ -227,11 +235,11 @@ export function addPlanItems(m: Menu, plugin: SamayaPlugin, t: Task, seg: number
   const send = (dest: Parameters<typeof sendPiece>[4]) => { safe(sendPiece(app, st, t.file, from, dest), "moving the task"); };
   if (canSplit(t)) {
     if (canCut) m.addItem(i => i.setTitle("Split task…").setIcon("scissors").onClick(() => new PartsModal(plugin, t, "split", seg).open()));
-    m.addItem(i => i.setTitle(part ? "Move this part to another day…" : "Move to another day…").setIcon("calendar-days").onClick(() => new PartsModal(plugin, t, "move", seg).open()));
     if (part) m.addItem(i => i.setTitle("Join all parts here").setIcon("combine").onClick(() => { void joinParts(plugin, t.file, t.planned); }));
   }
   m.addItem(i => i.setTitle(part ? "Do this part today" : "Plan for today").setIcon("sun").onClick(() => send({ day: today() })));
-  m.addItem(i => i.setTitle("Plan for…").setIcon("calendar").onClick(() => {
+  m.addItem(i => i.setTitle(part ? "Do this part tomorrow" : "Plan for tomorrow").setIcon("sunrise").onClick(() => send({ day: addDays(today(), 1) })));
+  m.addItem(i => i.setTitle(part ? "Move this part to another day…" : "Plan for…").setIcon("calendar").onClick(() => {
     openDayPicker({ x: lastMenuAt.x, y: lastMenuAt.y, value: t.planned || today() }, day => send({ day }));
   }));
   m.addItem(i => i.setTitle(part ? "Move this part to this week" : "Plan for this week").setIcon("calendar-range").onClick(() => send({ week: startOfWeek(today()) })));

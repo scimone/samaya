@@ -111,7 +111,7 @@ export class NavShortcuts {
     if (me !== this.run) return;
     // hide the folders behind the shortcuts
     const esc = (v: string) => v.replace(/["\\]/g, "\\$&");
-    const css = items.flatMap(i => i.folders).map(f => `.tree-item.nav-folder:has(> .nav-folder-title[data-path="${esc(f)}"]) { display: none; }`).join("\n");
+    const css = items.flatMap(i => i.folders).map(f => `.tree-item.nav-folder:has(> .nav-folder-title[data-path="${esc(f)}"]), .tree-item:has(> .nav-folder-title[data-path^="${esc(f)}/"]), .tree-item:has(> .nav-file-title[data-path^="${esc(f)}/"]) { display: none; }`).join("\n"); // the folder, and anything inside it that shows up on its own (subpages)
     if (!this.style) this.style = document.head.createEl("style");
     this.style.textContent = css;
     // shortcuts at the top of every file explorer

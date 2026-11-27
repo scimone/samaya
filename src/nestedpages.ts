@@ -6,6 +6,7 @@ import { nestPaths } from "./nestpaths";
 import { prefixOf, rootOf } from "./model";
 import { meetingsPrefix } from "./links";
 import { periodLocation } from "./journal";
+import { projectsPrefix } from "./projects";
 
 /** The folder of a page: the note sits in a folder of its own name (`Foo/Foo.md`). */
 export function pageFolder(file: TFile): TFolder | null {
@@ -84,7 +85,10 @@ export class NestedPages {
   /** As `managed`, from the folders found at the last refresh. */
   isManaged(path: string): boolean { return this.prefixes.some(p => path.startsWith(p)); }
   /** Whether the side pane's delete menu applies to this note. */
-  usable(file: TFile): boolean { return this.on && !this.isManaged(file.path); }
+  usable(file: TFile): boolean {
+    if (file.path.startsWith(projectsPrefix(this.plugin.settings))) return true; // subpages of a project: always, nested pages on or off
+    return this.on && !this.isManaged(file.path);
+  }
 
   /** The page of a folder: `Name/Name.md`. */
   private noteOf(folder: string): TFile | null {

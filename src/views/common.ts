@@ -2,7 +2,7 @@ import { App, Menu, TFile, setIcon } from "obsidian";
 import { srName } from "./srname";
 import type SamayaPlugin from "../main";
 import { safe } from "../safe";
-import { openFileSmart, openFull } from "../openfile";
+import { openFileSmart } from "../openfile";
 import { DndScope, DropInfo } from "../dnd";
 import { Source, Task, addSubtask, renameWithTitle, allTasks, assignMeeting, meetingPathOf, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
 import { ConfirmDeleteModal, MeetingSuggestModal, ProjectSuggestModal, TaskSuggestModal, TextPromptModal, TicketSuggestModal } from "../modals";
@@ -51,11 +51,11 @@ export function ticketChip(plugin: SamayaPlugin, host: HTMLElement, tf: TFile) {
   } else chip.title = tk.summary ? `${tk.key}: ${tk.summary}` : tk.key;
   openOnClick(app, chip, tf);
 }
-/** A pill that opens its note (project, ticket, meeting) in a full page, not the side pane. */
+/** A pill that opens its note (project, ticket, meeting) in the side pane. */
 function openOnClick(app: App, chip: HTMLElement, f: unknown) {
   if (!(f instanceof TFile)) return;
   chip.addClass("is-link");
-  chip.addEventListener("click", e => { e.stopPropagation(); void openFull(app, f); });
+  chip.addEventListener("click", e => { e.stopPropagation(); void openFileSmart(app, f, e.ctrlKey || e.metaKey ? "tab" : false); });
   chip.addEventListener("pointerdown", e => e.stopPropagation());
 }
 

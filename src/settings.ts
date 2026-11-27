@@ -37,6 +37,8 @@ export interface SamayaSettings {
   projectsOn: boolean; projectsPath: string; projectsScale: "month" | "quarter" | "year"; projectsNameWidth: number; projectsTableHidden: boolean;
   /** shortcuts (Planner, Tasks, ...) at the top of the file explorer; their folders are hidden */
   navigationOn: boolean;
+  /** pages created from an unresolved link live under the page that links them (in a folder of its name, shown as a toggle) */
+  nestedPagesOn: boolean;
   /** order of the Projects chart and the Tickets board */
   projectsSort: "start" | "end" | "name" | "ticket" | "usecase"; projectsSortDesc: boolean; ticketsSort: "key" | "date" | "name"; ticketsSortDesc: boolean;
   /** order of the Tickets board columns (statuses) as the user dragged them; statuses not listed follow in the default order */ ticketColumnOrder: string[];
@@ -63,7 +65,7 @@ export const DEFAULT_SETTINGS: SamayaSettings = {
     yearly: { on: false, source: "auto", folder: "[Journal]/YYYY", format: PERIOD_DEFAULT_FORMAT.yearly },
   },
   projectsOn: false, projectsPath: "Projects", projectsScale: "quarter", projectsNameWidth: 200, projectsTableHidden: false,
-  navigationOn: false,
+  navigationOn: false, nestedPagesOn: false,
   ticketProjectColors: {},
   projectsSort: "start", projectsSortDesc: false, ticketsSort: "key", ticketsSortDesc: false, ticketColumnOrder: [],
 };
@@ -504,6 +506,9 @@ export class SamayaSettingTab extends PluginSettingTab {
     {
       card("Navigation", "Shows Samaya, Tasks, Journal, Meetings, Projects and Tickets as shortcuts at the top of the file explorer (only the modules you switched on) and hides their folders. Samaya opens the planner, the others open their base.", {
         enabled: { get: () => s.navigationOn, set: v => { s.navigationOn = v; void this.plugin.nav.apply(); this.plugin.bus.emit(); } },
+      });
+      card("Nested pages", "Like in Notion, pages can live in other pages. Click a link to a page that does not exist yet and the new page is created under the page you clicked in: behind the scenes the parent moves into a folder of its own name together with its subpages, but the file explorer only shows the parent page with a toggle and its subpages underneath. Renaming a page renames its folder.", {
+        enabled: { get: () => s.nestedPagesOn, set: v => { s.nestedPagesOn = v; this.plugin.nested.apply(); } },
       });
     }
 

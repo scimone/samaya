@@ -29,6 +29,7 @@ import { inEventFolder, invalidateCalendar } from "./calendar";
 import { Emitter, hmToMin, minToHm, parseTitleEstimate as parseTitleEstimateSafe, today } from "./util";
 import { WorkdayManager } from "./workday";
 import { NavShortcuts } from "./navigation";
+import { NestedPages } from "./nestedpages";
 import { applyColors, clearColors } from "./colors";
 import { type DayLog, type RulesFor } from "./worktime";
 
@@ -43,6 +44,7 @@ export default class SamayaPlugin extends Plugin {
   meetingBanner = new MeetingBanner(this);
   workday = new WorkdayManager(this);
   nav = new NavShortcuts(this);
+  nested = new NestedPages(this);
   /** fires when workday / guide state changes so views can refresh */
   bus = new Emitter();
   /** fires when the sidebar should re-evaluate which mode to show (planner open or not) */
@@ -188,11 +190,11 @@ export default class SamayaPlugin extends Plugin {
     const leftState = () => document.body.toggleClass("samaya-left-collapsed", !!this.app.workspace.leftSplit?.collapsed);
     this.register(() => document.body.removeClass("samaya-left-collapsed"));
     for (const ev of ["layout-change", "resize", "active-leaf-change"] as const) this.registerEvent(this.app.workspace.on(ev as "resize", leftState));
-    this.nav.init();
+    this.nav.init(); this.nested.init();
     setupSideCleanup(this.app); setupSideAutoClose(this);
     this.app.workspace.onLayoutReady(async () => {
       leftState();
-      void this.nav.apply();
+      void this.nav.apply(); this.nested.apply();
       this.app.workspace.detachLeavesOfType("samaya-journal-calendar"); // left over from older versions
       this.scanLunch();
       void this.markJournalNotes();

@@ -686,3 +686,11 @@ await bundle("src/tasksboard.ts", "test/.tasksboard.mjs");
   assert.equal(sortTickets(ts, "key", false, () => 0)[0].key, "T-2"); assert.equal(sortTickets(ts, "name", true, () => 0)[0].summary, "b");
   assert.equal(sortTickets(ts, "date", true, t => (t.key === "T-2" ? 5 : 1))[0].key, "T-2");
 }
+
+// ---- nested pages: the parent moves into a folder of its own name, the child joins it
+{ await bundle("src/nestpaths.ts", "test/.nestpaths.mjs"); const { nestPaths } = await import("./.nestpaths.mjs");
+  assert.deepEqual(nestPaths("Notes/Parent.md", "Child.md"), { folder: "Notes/Parent", parentTo: "Notes/Parent/Parent.md", childTo: "Notes/Parent/Child.md" });
+  assert.deepEqual(nestPaths("Parent.md", "Notes/Child.md"), { folder: "Parent", parentTo: "Parent/Parent.md", childTo: "Parent/Child.md" });
+  assert.deepEqual(nestPaths("Notes/Parent/Parent.md", "Child.md"), { folder: "Notes/Parent", parentTo: "Notes/Parent/Parent.md", childTo: "Notes/Parent/Child.md" }); // already a page with a folder
+  assert.deepEqual(nestPaths("Notes/Parent/Sub.md", "X/Child.md"), { folder: "Notes/Parent/Sub", parentTo: "Notes/Parent/Sub/Sub.md", childTo: "Notes/Parent/Sub/Child.md" }); // a subpage becomes a parent
+}

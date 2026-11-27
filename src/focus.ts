@@ -90,7 +90,7 @@ export class FocusManager {
     if (!here) {
       // somewhere else: say what is running, and a way back
       roundCheck(bar, false, "Complete the task and log the time", () => { void this.stop(true); }); // replaces a Done button
-      const link = bar.createEl("a", { cls: "samaya-focus-link", text: file?.basename ?? "", attr: { title: "Back to the task" } });
+      const link = bar.createEl("a", { cls: "samaya-focus-link", text: file ? readTask(this.plugin.app, file).title : "", attr: { title: "Back to the task" } });
       link.addEventListener("click", e => { e.preventDefault(); this.openNote(); });
       bar.createSpan({ cls: "samaya-focus-prog" });
     }
@@ -171,7 +171,7 @@ export class FocusManager {
     this.refreshViews();
     if (file) {
       if (markDone) await patchTask(this.plugin.app, file, { status: "done", completed: today() });
-      new Notice(`Logged ${fmtDur(minutes)} on "${file.basename}"${markDone || readTask(this.plugin.app, file).status === "done" ? " - done" : ""}`);
+      new Notice(`Logged ${fmtDur(minutes)} on "${readTask(this.plugin.app, file).title}"${markDone || readTask(this.plugin.app, file).status === "done" ? " - done" : ""}`);
     }
   }
 }

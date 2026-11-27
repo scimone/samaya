@@ -4,9 +4,8 @@ import type SamayaPlugin from "../main";
 import { safe } from "../safe";
 import { openFileSmart } from "../openfile";
 import { DndScope, DropInfo } from "../dnd";
-import { Source, Task, addSubtask, allTasks, assignMeeting, meetingPathOf, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
+import { Source, Task, addSubtask, renameWithTitle, allTasks, assignMeeting, meetingPathOf, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
 import { ConfirmDeleteModal, MeetingSuggestModal, ProjectSuggestModal, TaskSuggestModal, TextPromptModal, TicketSuggestModal } from "../modals";
-import { Notice } from "obsidian";
 import { focusButton, isCurrentTask, trackedBefore, joinParts, splitTitle } from "./place";
 import { openDayPicker } from "./dayPicker";
 import { PartsModal } from "./partsModal";
@@ -14,7 +13,7 @@ import { projectPathOf, usecaseOf } from "../projects";
 import { assignProjectLinked, assignTicketLinked, projectFits, ticketFits, allMeetings, changeMeetingLink, meetingLinks, MeetingProp, ticketColorOf, setTicketProjectColor } from "../links";
 import { noteColor, tint, ticketProjectColor } from "../itemcolor";
 import { openColorPicker } from "./colorPicker";
-import { safeFileName, HORIZONS, Horizon, bucketOf, fmtDur, fmtHm, minToHm, parseDuration, parseYmd, startOfWeek, today } from "../util";
+import { HORIZONS, Horizon, bucketOf, fmtDur, fmtHm, minToHm, parseDuration, parseYmd, startOfWeek, today } from "../util";
 
 export interface CardOpts {
   scope: DndScope; showTime?: boolean; /** show the actions under the estimate on the right instead of below the title */ actionsSide?: boolean; /** hide subtasks (sidebar) */ compact?: boolean;
@@ -243,10 +242,7 @@ export function addPlanItems(m: Menu, plugin: SamayaPlugin, t: Task, seg: number
 /** Asks for a new name and renames the note (tasks and projects are named by their file). */
 export function promptRename(plugin: SamayaPlugin, file: TFile, current: string) {
   new TextPromptModal(plugin, "Rename", name => {
-    const base = safeFileName(name); if (!base || base === file.basename) return;
-    const dir = file.parent && !file.parent.isRoot() ? file.parent.path + "/" : ""; const path = `${dir}${base}.${file.extension}`;
-    if (plugin.app.vault.getAbstractFileByPath(path)) { new Notice(`"${base}" already exists`); return; }
-    safe(plugin.app.fileManager.renameFile(file, path).then(() => { window.setTimeout(() => plugin.bus.emit(), 150); }), "renaming");
+    safe(renameWithTitle(plugin.app, file, name).then(() => { window.setTimeout(() => plugin.bus.emit(), 150); }), "renaming");
   }, current).open();
 }
 
@@ -260,7 +256,7 @@ export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent, seg: 
   addPlanItems(m, plugin, t, seg, canCut);
   m.addSeparator();
   m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { void openFileSmart(app, t.file, "tab"); }));
-  m.addItem(i => i.setTitle("Rename").setIcon("pencil").onClick(() => promptRename(plugin, t.file, t.file.basename)));
+  m.addItem(i => i.setTitle("Rename").setIcon("pencil").onClick(() => promptRename(plugin, t.file, t.title)));
   m.addItem(i => i.setTitle("Delete task").setIcon("trash").setWarning(true).onClick(() => { // asks first; then follows the vault's "deleted files" setting (system trash, .trash or permanent)
     new ConfirmDeleteModal(plugin, t.title, () => { void app.fileManager.trashFile(t.file).then(() => { window.setTimeout(() => plugin.bus.emit(), 150); }); }).open();
   }));

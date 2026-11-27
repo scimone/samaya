@@ -11,7 +11,7 @@ export const TASKS_HEADING = "Tasks";
 /** The section body for a note's tasks: planned ones by day and time first, then the others. Pure apart from reading the task. */
 export function taskListBody(tasks: Task[]): string {
   const sorted = [...tasks].sort((a, b) => (a.planned || "9999").localeCompare(b.planned || "9999") || (a.start || "99:99").localeCompare(b.start || "99:99") || a.title.localeCompare(b.title));
-  const items: JournalTask[] = sorted.map(t => ({ title: t.title, minutes: t.estimate, subtasks: [], day: t.planned || undefined, time: plannedTime(t) }));
+  const items: JournalTask[] = sorted.map(t => ({ title: t.title, link: t.file.basename, minutes: t.estimate, subtasks: [], day: t.planned || undefined, time: plannedTime(t) }));
   return taskLines(items);
 }
 

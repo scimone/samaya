@@ -1,6 +1,6 @@
 import { App, Notice, TFile, normalizePath } from "obsidian";
 import type { SamayaSettings } from "./settings";
-import { Horizon, horizonTarget, isHorizon, minToHm, safeFileName, startOfWeek, today } from "./util";
+import { Horizon, fileSlug, horizonTarget, isHorizon, minToHm, startOfWeek, today } from "./util";
 import { DEFAULT_TASK_TEMPLATE, ensureSubtasksHeading, insertSubtask, renderPath, pathRoot, renderTemplate, TicketVars, DEFAULT_TICKET_TEMPLATE, renderTicketNote, renderTicketFileName, renderTicketPath } from "./taskbody";
 import type { RawTicket } from "./tickets";
 import { Seg } from "./segments";
@@ -53,7 +53,7 @@ function parseTask(file: TFile, fm: Record<string, unknown>): Task {
   const rest = sessions.length && parked ? Math.max(0, estimate - sessionsTotal(sessions)) : 0;
   const due = !!later && later <= today() && (!planned || rest > 0);
   return {
-    file, title: file.basename, later, horizon: isHorizon(str(fm.horizon)) ? (str(fm.horizon) as Horizon) : "",
+    file, title: str(fm.title).trim() || file.basename, later, horizon: isHorizon(str(fm.horizon)) ? (str(fm.horizon) as Horizon) : "",
     status: fm.status === "done" ? "done" : "todo",
     completed: fm.status === "done" ? ymdOf(fm.day_completed) : "",
     planned, start,
@@ -146,6 +146,18 @@ export async function patchTask(app: App, file: TFile, patch: Record<string, str
     applyTaskPatch(fm, patch);
   });
 }
+/**
+ * Rename a task / project note: `name` becomes its `title` property (shown everywhere, any characters), and the file is renamed to the slug of it.
+ * A slug already taken by another note gets "-2", "-3" ... Links to the note are updated by Obsidian.
+ */
+export async function renameWithTitle(app: App, file: TFile, name: string): Promise<void> {
+  const title = name.trim(); if (!title) return;
+  await patchNote(app, file, { title });
+  const base = fileSlug(title); const dir = file.parent && !file.parent.isRoot() ? file.parent.path + "/" : "";
+  let want = base; let i = 2;
+  while (want !== file.basename && app.vault.getAbstractFileByPath(`${dir}${want}.${file.extension}`)) want = `${base}-${i++}`;
+  if (want !== file.basename) await app.fileManager.renameFile(file, `${dir}${want}.${file.extension}`);
+}
 /** Park a task in the backlog under Next week / month / quarter / year / Someday / Never. It moves to this week by itself when the date arrives. */
 export async function parkTask(app: App, file: TFile, h: Horizon): Promise<void> {
   await patchTask(app, file, { planned: null, start: null, week: null, later: horizonTarget(h, today()) || null, horizon: h });
@@ -190,9 +202,9 @@ export const prefixOf = (pattern: string): string => { const r = rootOf(pattern)
 export async function createTask(app: App, s: SamayaSettings, title: string, fm: Record<string, string | number>, body?: string): Promise<TFile> {
   const now = new Date(); const folder = folderFor(s.tasksPath, now);
   await ensureFolder(app, folder);
-  const base = safeFileName(title);
+  const base = fileSlug(title);
   const tpl = body ?? renderTemplate(await loadTemplate(app, s.taskTemplate, DEFAULT_TASK_TEMPLATE), { title, date: now }, momentFmt);
-  const props: Record<string, string | number> = { status: "todo", ...fm };
+  const props: Record<string, string | number> = { title: title.trim(), status: "todo", ...fm }; // the title is what is shown; the file name is only its slug
   const body2 = ensureSubtasksHeading(tpl);
   // Write the properties together with the note. Creating it bare and patching afterwards lets the "file by planned date"
   // handler move it to Unscheduled in between, and the properties (day, estimate) could get lost.
@@ -209,7 +221,7 @@ export async function createTask(app: App, s: SamayaSettings, title: string, fm:
   /** Creates the note under the first free name; a name taken in the meantime (another create, a sync) just moves on to the next one. */
   async function createFree(content: string): Promise<TFile> {
     for (let i = 1; ; i++) {
-      const path = `${folder}/${base}${i > 1 ? ` ${i}` : ""}.md`;
+      const path = `${folder}/${base}${i > 1 ? `-${i}` : ""}.md`;
       if (app.vault.getAbstractFileByPath(path)) continue;
       try { return await app.vault.create(path, content); } catch (e) { if (!app.vault.getAbstractFileByPath(path) || i > 50) throw e; }
     }

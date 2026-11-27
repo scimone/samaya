@@ -46,6 +46,10 @@ export function parseTitleEstimate(raw: string): { title: string; estimate?: num
   return { title: m[1].trim(), estimate: est };
 }
 export function safeFileName(s: string): string { return s.replace(/[\\/:*?"<>|#^\[\]]/g, " ").replace(/\s+/g, " ").trim() || "Untitled"; }
+/** File name for a note titled `s`: lower case, letters / digits joined by hyphens (any other character is only in the display title). Non-Latin letters are kept. */
+export function fileSlug(s: string, fallback = "untitled"): string {
+  return s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-+|-+$/g, "").slice(0, 80).replace(/-+$/, "") || fallback;
+}
 export function fmtHm(min: number): string { const m = Math.max(0, Math.round(min)); return `${pad(Math.floor(m / 60))}:${pad(m % 60)}`; }
 /** "1:30", "1.5h", "90m", "90" -> minutes; null if unparsable. */
 export function parseDuration(raw: string): number | null {

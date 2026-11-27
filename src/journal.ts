@@ -32,13 +32,13 @@ export function fmtEstimate(min: number): string {
   const h = min / 60; return `${Number.isInteger(h) ? h : +h.toFixed(2)} hr`;
 }
 
-export interface JournalTask { title: string; minutes: number; subtasks: string[]; /** planned time of day, e.g. "10:00-10:30" */ time?: string; /** weekly note: the weekday ("no day" when unscheduled) */ day?: string; }
+export interface JournalTask { title: string; minutes: number; subtasks: string[]; /** basename of the task note, when it differs from the title */ link?: string; /** planned time of day, e.g. "10:00-10:30" */ time?: string; /** weekly note: the weekday ("no day" when unscheduled) */ day?: string; }
 
 export function taskLines(items: JournalTask[]): string {
   if (!items.length) return "- None";
   return items.map(t => {
     const est = fmtEstimate(t.minutes);
-    return [`- [[${t.title}]]${t.day ? ` • ${t.day}` : ""}${t.time ? ` • *${t.time}*` : ""}${est ? ` • *${est}*` : ""}`, ...t.subtasks.map(s => `    - ${s}`)].join("\n");
+    return [`- ${t.link && t.link !== t.title ? `[[${t.link}|${t.title}]]` : `[[${t.title}]]`}${t.day ? ` • ${t.day}` : ""}${t.time ? ` • *${t.time}*` : ""}${est ? ` • *${est}*` : ""}`, ...t.subtasks.map(s => `    - ${s}`)].join("\n");
   }).join("\n");
 }
 /** One bullet per meeting: "HH:MM-HH:MM Title" (linked to the meeting note when there is one; all-day events: "All day Title"). Pure. */
@@ -294,7 +294,7 @@ export function sortByStart<T extends { start: string }>(tasks: T[]): T[] {
 
 export async function toJournalTasks(app: App, tasks: Task[], useActual = false, withTime = false): Promise<JournalTask[]> {
   return Promise.all(tasks.map(async t => ({
-    title: t.title, minutes: (useActual && t.actual) || t.estimate, time: withTime ? plannedTime(t) : undefined,
+    title: t.title, link: t.file.basename, minutes: (useActual && t.actual) || t.estimate, time: withTime ? plannedTime(t) : undefined,
     subtasks: (await readSubtasks(app, t.file)).map(s => s.text),
   })));
 }

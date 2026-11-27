@@ -219,7 +219,7 @@ export class GanttView extends Panel {
         m.addItem(i => i.setTitle("Color…").setIcon("palette").onClick(() => openColorPicker(e.clientX, e.clientY, p.color, hex => { safe(setProjectColor(this.app, s, p.file, hex).then(() => this.plugin.bus.emit()), "saving the colour"); })));
         m.addSeparator();
         m.addItem(i => i.setTitle("Open note").setIcon("file").onClick(() => { openFileBeside(this.app, p.file); }));
-        m.addItem(i => i.setTitle("Rename").setIcon("pencil").onClick(() => promptRename(this.plugin, p.file, p.file.basename)));
+        m.addItem(i => i.setTitle("Rename").setIcon("pencil").onClick(() => promptRename(this.plugin, p.file, p.name)));
         m.addItem(i => i.setTitle("Delete project").setIcon("trash").setWarning(true).onClick(() => {
           new ConfirmDeleteModal(this.plugin, p.name, () => { void this.app.fileManager.trashFile(p.file).then(() => { window.setTimeout(() => this.plugin.bus.emit(), 150); }); }, "project").open();
         }));

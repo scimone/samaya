@@ -1,9 +1,8 @@
-import { Menu, Notice, TAbstractFile, TFile, normalizePath, setIcon } from "obsidian";
+import { Menu, TAbstractFile, TFile, normalizePath, setIcon } from "obsidian";
 import type SamayaPlugin from "../main";
 import { closeSide, expandSide, sideBack, sideBackTarget, sideLeaf, sideTrack, sideWaitDone } from "../openfile";
-import { patchNote, prefixOf, readTask, readTicket } from "../model";
-import { projectsPrefix } from "../projects";
-import { safeFileName } from "../util";
+import { patchNote, prefixOf, readTask, readTicket, renameWithTitle } from "../model";
+import { projectsPrefix, readProject } from "../projects";
 import { taskLine } from "./taskCard";
 import { pageTree } from "../nestedpages";
 
@@ -39,6 +38,7 @@ function titleOf(plugin: SamayaPlugin, file: TFile): string {
     const fm = plugin.app.metadataCache.getFileCache(file)?.frontmatter; const t = fm?.title == null ? "" : String(fm.title).trim(); return t || file.basename;
   }
   if (file.path.startsWith(prefixOf(s.tasksPath))) return readTask(plugin.app, file).title;
+  if (file.path.startsWith(projectsPrefix(s))) return readProject(plugin.app, file).name;
   return file.basename;
 }
 
@@ -46,12 +46,7 @@ function titleOf(plugin: SamayaPlugin, file: TFile): string {
 function renamerOf(plugin: SamayaPlugin, file: TFile): ((name: string) => Promise<void>) | null {
   const s = plugin.settings;
   if (file.path.startsWith(normalizePath(s.eventNotesFolder.trim() || "Meetings") + "/")) return name => patchNote(plugin.app, file, { title: name });
-  if (file.path.startsWith(prefixOf(s.tasksPath)) || file.path.startsWith(projectsPrefix(s))) return async name => {
-    const base = safeFileName(name); if (!base || base === file.basename) return;
-    const dir = file.parent && !file.parent.isRoot() ? file.parent.path + "/" : ""; const path = `${dir}${base}.${file.extension}`;
-    if (plugin.app.vault.getAbstractFileByPath(path)) { new Notice(`"${base}" already exists`); return; }
-    await plugin.app.fileManager.renameFile(file, path);
-  };
+  if (file.path.startsWith(prefixOf(s.tasksPath)) || file.path.startsWith(projectsPrefix(s))) return name => renameWithTitle(plugin.app, file, name);
   return null;
 }
 /** Click the title to edit it in place: Enter or leaving the field saves, Escape cancels. */

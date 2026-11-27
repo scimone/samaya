@@ -3,7 +3,7 @@ import { App, TFile, normalizePath } from "obsidian";
 import type { SamayaSettings } from "./settings";
 import { ensureFolder, patchNote } from "./model";
 import { Span, parseSpan } from "./gantt";
-import { safeFileName } from "./util";
+import { fileSlug } from "./util";
 import { COLOR_PROP, noteColor, randomColor } from "./itemcolor";
 
 export const PROJECT_PROP = "assigned_project";
@@ -28,7 +28,7 @@ export const projectsPrefix = (s: SamayaSettings): string => folderOf(s) + "/";
 
 export function readProject(app: App, file: TFile): Project {
   const fm = (app.metadataCache.getFileCache(file)?.frontmatter ?? {}) as Record<string, unknown>;
-  return { file, name: file.basename, span: parseSpan(fm.start, fm.end), done: fm.status === "done", color: noteColor(app, file), usecase: usecaseOf(app, file) };
+  return { file, name: String(fm.title ?? "").trim() || file.basename, span: parseSpan(fm.start, fm.end), done: fm.status === "done", color: noteColor(app, file), usecase: usecaseOf(app, file) };
 }
 /** A project note: directly in the projects folder, or the page of its own folder (`Projects/Foo/Foo.md`, see nested pages). Subpages of a project are not projects. */
 export function isProjectPath(s: SamayaSettings, path: string): boolean {
@@ -68,10 +68,10 @@ export function projectStats(app: App, tasksPrefix: string, ticketsPrefix: strin
 /** New project note, active and without dates (the Projects chart places it on click). */
 export async function createProject(app: App, s: SamayaSettings, name: string): Promise<TFile> {
   const folder = folderOf(s); await ensureFolder(app, folder);
-  const base = safeFileName(name); let path = `${folder}/${base}.md`; let i = 2;
-  while (app.vault.getAbstractFileByPath(path)) path = `${folder}/${base} ${i++}.md`;
+  const base = fileSlug(name); let path = `${folder}/${base}.md`; let i = 2;
+  while (app.vault.getAbstractFileByPath(path)) path = `${folder}/${base}-${i++}.md`;
   const f = await app.vault.create(path, "");
-  await patchNote(app, f, { status: "active", [COLOR_PROP]: randomColor(allProjects(app, s).map(p => p.color).filter(Boolean)) }); // no dates yet: the chart places it when the user clicks its row
+  await patchNote(app, f, { title: name.trim(), status: "active", [COLOR_PROP]: randomColor(allProjects(app, s).map(p => p.color).filter(Boolean)) }); // no dates yet: the chart places it when the user clicks its row
   return f;
 }
 

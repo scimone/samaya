@@ -6,7 +6,7 @@ await bundle("src/colors.ts", "test/.colors.mjs"); await bundle("src/worktime.ts
 await bundle("src/quickparse.ts", "test/.quickparse.mjs"); await bundle("src/taskbody.ts", "test/.taskbody.mjs"); await bundle("src/timeline.ts", "test/.timeline.mjs");
 await bundle("src/settings.ts", "test/.settings.mjs"); await bundle("src/weekplan.ts", "test/.weekplan.mjs");
 await bundle("src/monthgrid.ts", "test/.monthgrid.mjs"); await bundle("src/kanban.ts", "test/.kanban.mjs"); await bundle("src/gantt.ts", "test/.gantt.mjs"); await bundle("src/journal.ts", "test/.journal.mjs"); await bundle("src/tickets.ts", "test/.tickets.mjs");
-const { horizonTarget, horizonOf, bucketOf, parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify } = await import("./.util.mjs");
+const { horizonTarget, horizonOf, bucketOf, parseTitleEstimate, startOfWeek, addDays, fmtDur, fmtHm, parseDuration, slugify, fileSlug } = await import("./.util.mjs");
 const { latestOnOrBefore, neighbours } = await import("./.journal.mjs");
 const { fmtEstimate, meetingLines, sortByStart, taskLines, bulletLines, upsertSection, readSection, pickJournalSource: pick } = await import("./.journal.mjs");
 const { fetchJira, fetchGitlab, adfToText } = await import("./.tickets.mjs");
@@ -702,3 +702,5 @@ await bundle("src/tasksboard.ts", "test/.tasksboard.mjs");
   assert.equal(isProjectPath(s, "Projects/Foo/Child.md"), false); assert.equal(isProjectPath(s, "Projects/Foo/Child/Child.md"), false);
   assert.equal(isProjectPath(s, "Other/Foo.md"), false);
 }
+
+assert.equal(fileSlug("Fix (urgent): API / Ärger!"), "fix-urgent-api-arger"); assert.equal(fileSlug("!!!"), "untitled"); assert.equal(fileSlug("日本語 notes"), "日本語-notes");

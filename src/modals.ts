@@ -55,10 +55,11 @@ export class ConfirmOverwriteModal extends Modal {
 
 /** "Delete this task?" - the delete button is the warning one; Cancel has the focus. */
 export class ConfirmDeleteModal extends Modal {
-  constructor(plugin: SamayaPlugin, private title: string, private onDelete: () => void, private noun = "task") { super(plugin.app); }
+  constructor(plugin: SamayaPlugin, private title: string, private onDelete: () => void, private noun = "task", private extra = "") { super(plugin.app); }
   onOpen() {
     this.titleEl.setText(`Delete ${this.noun}?`);
     this.contentEl.createEl("p", { text: `“${this.title}” will be deleted (it goes where your vault's “Deleted files” setting sends it).` });
+    if (this.extra) this.contentEl.createEl("p", { text: this.extra, cls: "mod-warning" });
     const nav = this.contentEl.createDiv("samaya-ritual-nav");
     const cancel = nav.createEl("button", { text: "Cancel" }); cancel.onclick = () => this.close();
     nav.createEl("button", { text: "Delete", cls: "mod-warning" }).onclick = () => { this.close(); this.onDelete(); };

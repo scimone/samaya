@@ -10,10 +10,16 @@ import { runMinutesFrom } from "../dayreview";
 import { nowMin } from "../workday";
 import { Notice, TFile, setIcon } from "obsidian";
 
+/** Meetings that tasks may be placed on top of (right-click a meeting). Kept for the session; the others keep splitting tasks around them. */
+const overlayMeetings = new Set<string>();
+export const meetingKey = (e: CalendarEvent) => `${e.start.getTime()}|${e.title}`;
+export const allowsOverlay = (e: CalendarEvent) => overlayMeetings.has(meetingKey(e));
+export function setOverlay(e: CalendarEvent, on: boolean) { if (on) overlayMeetings.add(meetingKey(e)); else overlayMeetings.delete(meetingKey(e)); }
+
 /** Meetings and lunch of a day as [start, end] minutes (with `borders`: also the time outside the day start/finish lines). */
 export function busyIntervals(plugin: SamayaPlugin, date: string, events: CalendarEvent[], borders = false): Array<[number, number]> {
   const dayMs = parseYmd(date).getTime();
-  const iv = events.filter(e => !e.allDay).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]);
+  const iv = events.filter(e => !e.allDay && !allowsOverlay(e)).map((e): [number, number] => [(e.start.getTime() - dayMs) / 60000, (e.end.getTime() - dayMs) / 60000]);
   iv.push(plugin.lunchFor(date));
   if (borders) { const [from, to] = plugin.workWindowFor(date); iv.push([0, from], [to, 1440]); }
   return iv;

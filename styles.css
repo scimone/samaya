@@ -1810,3 +1810,6 @@ body.samaya-focusing .samaya-tasks-count.samaya-md-count { opacity: 1; }
 .samaya-side-bar > button.samaya-side-more { all: unset; box-sizing: border-box; flex: none; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--samaya-r-m); cursor: pointer; color: var(--text-muted); }
 .samaya-side-bar > button.samaya-side-more:hover, .samaya-side-bar > button.samaya-side-more:focus-visible { background: var(--background-modifier-hover); color: var(--text-normal); }
 .samaya-side-bar > button.samaya-side-more svg { width: 17px; height: 17px; }
+
+/* a meeting that tasks may be placed on top of: dashed outline */
+.samaya-event.is-overlay { border-style: dashed; opacity: 0.85; }

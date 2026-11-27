@@ -6,7 +6,8 @@ import { openFileSmart } from "../openfile";
 import { DndScope, DropInfo } from "../dnd";
 import { Source, Task, addSubtask, renameWithTitle, allTasks, assignMeeting, meetingPathOf, readSubtasks, readTicket, sendPiece, setDone, setPartEstimate, ticketPathOf, toggleSubtask, unscheduleDay } from "../model";
 import { ConfirmDeleteModal, MeetingSuggestModal, ProjectSuggestModal, TaskSuggestModal, TextPromptModal, TicketSuggestModal } from "../modals";
-import { focusButton, isCurrentTask, trackedBefore, joinParts, splitTitle } from "./place";
+import { allowsOverlay, setOverlay, focusButton, isCurrentTask, trackedBefore, joinParts, splitTitle } from "./place";
+import type { CalendarEvent } from "../eventnotes";
 import { openDayPicker } from "./dayPicker";
 import { PartsModal } from "./partsModal";
 import { projectPathOf, usecaseOf } from "../projects";
@@ -250,7 +251,7 @@ export function promptRename(plugin: SamayaPlugin, file: TFile, current: string)
 export function showTaskMenu(plugin: SamayaPlugin, t: Task, e: MouseEvent, seg: number | null = null, canCut = false) {
   const app: App = plugin.app;
   e.preventDefault(); const m = new Menu();
-  if (plugin.workday.started && (t.planned === today() || t.sessions.some(g => g.date === today()))) m.addItem(i => i.setTitle("Start focus").setIcon("timer").onClick(() => { void plugin.focus.start(t.file); }));
+  if (!plugin.guide && plugin.workday.started && (t.planned === today() || t.sessions.some(g => g.date === today()))) m.addItem(i => i.setTitle("Start focus").setIcon("timer").onClick(() => { void plugin.focus.start(t.file); }));
   addTicketItems(m, plugin, t); addProjectItems(m, plugin, t); addMeetingItems(m, plugin, t);
   m.addSeparator();
   addPlanItems(m, plugin, t, seg, canCut);
@@ -319,8 +320,11 @@ export function bindCardDrop(scope: DndScope, card: HTMLElement, onDrop: (path: 
 }
 
 /** Right-click menu of a meeting block on a timeline (the same entries as in the Meetings view). */
-export function showMeetingMenu(plugin: SamayaPlugin, note: TFile, e: MouseEvent) {
-  e.preventDefault(); e.stopPropagation(); const m = new Menu(); addMeetingLinkItems(m, plugin, [note]); m.showAtMouseEvent(e);
+export function showMeetingMenu(plugin: SamayaPlugin, note: TFile | null, e: MouseEvent, ev?: CalendarEvent) {
+  e.preventDefault(); e.stopPropagation(); const m = new Menu();
+  if (ev) { const on = allowsOverlay(ev); m.addItem(i => i.setTitle(on ? "Split tasks around this meeting" : "Allow tasks on top of this meeting").setIcon(on ? "split" : "layers").onClick(() => { setOverlay(ev, !on); plugin.bus.emit(); })); }
+  if (note) addMeetingLinkItems(m, plugin, [note]);
+  m.showAtMouseEvent(e);
 }
 /** Project / ticket entries of the menu of a meeting: add as many as you like, remove each one. A recurring meeting passes all its notes: every change goes to each of them. */
 export function addMeetingLinkItems(m: Menu, plugin: SamayaPlugin, files: TFile[]) {
